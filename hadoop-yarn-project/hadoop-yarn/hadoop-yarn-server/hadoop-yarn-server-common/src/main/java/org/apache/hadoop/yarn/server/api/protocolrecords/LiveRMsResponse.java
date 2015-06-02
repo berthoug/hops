@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 hops.io.
+ * Copyright 2014 Apache Software Foundation.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.hadoop.yarn.server.api.protocolrecords;
 
-package io.hops.metadata.api;
+import io.hops.leader_election.node.ActiveNode;
+import io.hops.leader_election.node.SortedActiveNodeList;
 
-public abstract class HopNodeIdAbstract {
-  public abstract int getId();
-
-  public abstract void setId(int id);
+/**
+ *
+ * @author gautier
+ */
+public interface LiveRMsResponse {
+    public SortedActiveNodeList getLiveRMsList();
+    public ActiveNode getLeader();
+    
+    public void setLiveRMsList(SortedActiveNodeList list);
+    
 }

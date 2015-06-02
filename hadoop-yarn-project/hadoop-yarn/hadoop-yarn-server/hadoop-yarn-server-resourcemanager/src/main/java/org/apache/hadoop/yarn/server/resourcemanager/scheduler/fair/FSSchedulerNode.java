@@ -1,23 +1,28 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements. See the NOTICE file distributed with this
+ * work for additional information regarding copyright ownership. The ASF
+ * licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
-
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
+import io.hops.ha.common.TransactionState;
+import io.hops.ha.common.TransactionStateImpl;
+import io.hops.metadata.util.HopYarnAPIUtilities;
+import io.hops.metadata.yarn.entity.LaunchedContainers;
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -31,11 +36,12 @@ import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
+import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerNode;
 import org.apache.hadoop.yarn.util.resource.Resources;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -47,8 +53,8 @@ public class FSSchedulerNode extends SchedulerNode {
 
   private static final Log LOG = LogFactory.getLog(FSSchedulerNode.class);
 
-  private static final RecordFactory recordFactory =
-      RecordFactoryProvider.getRecordFactory(null);
+  private static final RecordFactory recordFactory = RecordFactoryProvider
+          .getRecordFactory(null);
 
   private Resource availableResource;
   private Resource usedResource =
@@ -59,24 +65,47 @@ public class FSSchedulerNode extends SchedulerNode {
 
   private RMContainer reservedContainer;
   private AppSchedulable reservedAppSchedulable;
-  
+
   /* set of containers that are allocated containers */
-  private final Map<ContainerId, RMContainer> launchedContainers =
-      new HashMap<ContainerId, RMContainer>();
-  
+  private final Map<ContainerId, RMContainer> launchedContainers
+          = new HashMap<ContainerId, RMContainer>();
+
   private final RMNode rmNode;
   private final String nodeName;
 
   public FSSchedulerNode(RMNode node, boolean usePortForNodeName) {
     this.rmNode = node;
     this.availableResource = Resources.clone(node.getTotalCapability());
-    totalResourceCapability = Resource
-        .newInstance(node.getTotalCapability().getMemory(),
-            node.getTotalCapability().getVirtualCores());
+    totalResourceCapability
+            = Resource.newInstance(node.getTotalCapability().getMemory(), node
+                    .getTotalCapability().getVirtualCores());
     if (usePortForNodeName) {
       nodeName = rmNode.getHostName() + ":" + node.getNodeID().getPort();
     } else {
       nodeName = rmNode.getHostName();
+    }
+  }
+
+  //TOVERIFY should be in a recover function
+  //HOP - constructor for recovery purposes
+  public FSSchedulerNode(RMNode node, boolean usePortForNodeName, RMContext context, io.hops.metadata.yarn.entity.fair.FSSchedulerNode fssnode, RMStateStore.RMState state) {
+    //TOVERIFY the persisting of fair and rmnode is not coherant and can result in null pointer here
+    this.rmNode = node;
+    numContainers = fssnode.getNumcontainers();
+
+    if (usePortForNodeName) {
+      nodeName = rmNode.getHostName() + ":" + node.getNodeID().getPort();
+    } else {
+      nodeName = rmNode.getHostName();
+    }
+
+    recoverResources();
+    try {
+      recoverLaunchedContainers(fssnode, context, state);
+      recoverReservedContainer(fssnode, context, state);
+      recoverAppSchedulable(fssnode, context);
+    } catch (IOException ex) {
+      Logger.getLogger(FSSchedulerNode.class.getName()).log(Level.SEVERE, null, ex);
     }
   }
 
@@ -103,28 +132,30 @@ public class FSSchedulerNode extends SchedulerNode {
   }
 
   /**
-   * The Scheduler has allocated containers on this node to the
-   * given application.
+   * The Scheduler has allocated containers on this node to the given
+   * application.
    *
-   * @param applicationId
-   *     application
-   * @param rmContainer
-   *     allocated container
+   * @param applicationId application
+   * @param rmContainer allocated container
    */
   public synchronized void allocateContainer(ApplicationId applicationId,
-      RMContainer rmContainer) {
+          RMContainer rmContainer, TransactionState ts) {
     Container container = rmContainer.getContainer();
-    deductAvailableResource(container.getResource());
+    deductAvailableResource(container.getResource(), ts);
     ++numContainers;
-    
-    launchedContainers.put(container.getId(), rmContainer);
+    //HOP :: UpdatePersistedFSSNode
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().toUpdateFSSchedulerNode(this);
 
-    LOG.info("Assigned container " + container.getId() +
-        " of capacity " + container.getResource() + " on host " +
-        rmNode.getNodeAddress() +
-        ", which currently has " + numContainers + " containers, " +
-        getUsedResource() + " used and " +
-        getAvailableResource() + " available");
+    launchedContainers.put(container.getId(), rmContainer);
+    //HOP :: Update launchedContainers
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().toUpdateFSSchedulerNodeId(rmNode.getNodeID().toString());
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().addLaunchedContainer(container.getId().toString(), rmContainer.getContainerId().toString());
+
+    LOG.info("Assigned container " + container.getId()
+            + " of capacity " + container.getResource() + " on host " + rmNode.getNodeAddress()
+            + ", which currently has " + numContainers + " containers, "
+            + getUsedResource() + " used and "
+            + getAvailableResource() + " available");
   }
 
   @Override
@@ -144,18 +175,19 @@ public class FSSchedulerNode extends SchedulerNode {
     return false;
   }
 
-  private synchronized void updateResource(Container container) {
-    addAvailableResource(container.getResource());
+  private synchronized void updateResource(Container container, TransactionState ts) {
+    addAvailableResource(container.getResource(), ts);
     --numContainers;
+    //HOP :: Update numContainers
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().toUpdateFSSchedulerNode(this);
   }
-  
+
   /**
    * Release an allocated container on this node.
    *
-   * @param container
-   *     container to be released
+   * @param container container to be released
    */
-  public synchronized void releaseContainer(Container container) {
+  public synchronized void releaseContainer(Container container, TransactionState ts) {
     if (!isValidContainer(container)) {
       LOG.error("Invalid container released " + container);
       return;
@@ -163,25 +195,29 @@ public class FSSchedulerNode extends SchedulerNode {
 
     /* remove the containers from the nodemanger */
     launchedContainers.remove(container.getId());
-    updateResource(container);
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().toUpdateFSSchedulerNodeId(rmNode.getNodeID().toString());
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().removeLaunchedContainer(container.getId().toString());
+    updateResource(container, ts);
 
-    LOG.info("Released container " + container.getId() +
-        " of capacity " + container.getResource() + " on host " +
-        rmNode.getNodeAddress() +
-        ", which currently has " + numContainers + " containers, " +
-        getUsedResource() + " used and " + getAvailableResource() +
-        " available" + ", release resources=" + true);
+    LOG.info("Released container " + container.getId()
+            + " of capacity " + container.getResource() + " on host " + rmNode.getNodeAddress()
+            + ", which currently has " + numContainers + " containers, "
+            + getUsedResource() + " used and " + getAvailableResource()
+            + " available" + ", release resources=" + true);
   }
 
-
-  private synchronized void addAvailableResource(Resource resource) {
+  private synchronized void addAvailableResource(Resource resource, TransactionState ts) {
     if (resource == null) {
-      LOG.error("Invalid resource addition of null resource for " +
-          rmNode.getNodeAddress());
+      LOG.error("Invalid resource addition of null resource for "
+              + rmNode.getNodeAddress());
       return;
     }
     Resources.addTo(availableResource, resource);
     Resources.subtractFrom(usedResource, resource);
+    //HOP :: Update Resources
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().toUpdateFSSchedulerNodeId(rmNode.getNodeID().toString());
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().updateResources(io.hops.metadata.yarn.entity.Resource.AVAILABLE, availableResource);
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().updateResources(io.hops.metadata.yarn.entity.Resource.USED, usedResource);
   }
 
   @Override
@@ -189,22 +225,25 @@ public class FSSchedulerNode extends SchedulerNode {
     return this.totalResourceCapability;
   }
 
-  private synchronized void deductAvailableResource(Resource resource) {
+  private synchronized void deductAvailableResource(Resource resource, TransactionState ts) {
     if (resource == null) {
-      LOG.error(
-          "Invalid deduction of null resource for " + rmNode.getNodeAddress());
+      LOG.error("Invalid deduction of null resource for "
+              + rmNode.getNodeAddress());
       return;
     }
     Resources.subtractFrom(availableResource, resource);
     Resources.addTo(usedResource, resource);
+    //HOP :: Update Resources
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().toUpdateFSSchedulerNodeId(rmNode.getNodeID().toString());
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().updateResources(io.hops.metadata.yarn.entity.Resource.AVAILABLE, availableResource);
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().updateResources(io.hops.metadata.yarn.entity.Resource.USED, usedResource);
   }
 
   @Override
   public String toString() {
-    return "host: " + rmNode.getNodeAddress() + " #containers=" +
-        getNumContainers() +
-        " available=" + getAvailableResource() +
-        " used=" + getUsedResource();
+    return "host: " + rmNode.getNodeAddress() + " #containers=" + getNumContainers()
+            + " available=" + getAvailableResource()
+            + " used=" + getUsedResource();
   }
 
   @Override
@@ -216,58 +255,65 @@ public class FSSchedulerNode extends SchedulerNode {
     return new ArrayList<RMContainer>(launchedContainers.values());
   }
 
-  public synchronized void reserveResource(FSSchedulerApp application,
-      Priority priority, RMContainer reservedContainer) {
+  public synchronized void reserveResource(
+          FSSchedulerApp application, Priority priority,
+          RMContainer reservedContainer, TransactionState ts) {
     // Check if it's already reserved
     if (this.reservedContainer != null) {
       // Sanity check
       if (!reservedContainer.getContainer().getNodeId().equals(getNodeID())) {
-        throw new IllegalStateException("Trying to reserve" +
-            " container " + reservedContainer +
-            " on node " + reservedContainer.getReservedNode() +
-            " when currently" + " reserved resource " + this.reservedContainer +
-            " on node " + this.reservedContainer.getReservedNode());
-      }
-      
-      // Cannot reserve more than one application on a given node!
-      if (!this.reservedContainer.getContainer().getId()
-          .getApplicationAttemptId().equals(
-              reservedContainer.getContainer().getId()
-                  .getApplicationAttemptId())) {
-        throw new IllegalStateException("Trying to reserve" +
-            " container " + reservedContainer +
-            " for application " + application.getApplicationId() +
-            " when currently" +
-            " reserved container " + this.reservedContainer +
-            " on node " + this);
+        throw new IllegalStateException("Trying to reserve"
+                + " container " + reservedContainer
+                + " on node " + reservedContainer.getReservedNode()
+                + " when currently" + " reserved resource " + this.reservedContainer
+                + " on node " + this.reservedContainer.getReservedNode());
       }
 
-      LOG.info("Updated reserved container " +
-          reservedContainer.getContainer().getId() + " on node " +
-          this + " for application " + application);
+      // Cannot reserve more than one application on a given node!
+      if (!this.reservedContainer.getContainer().getId().getApplicationAttemptId().equals(
+              reservedContainer.getContainer().getId().getApplicationAttemptId())) {
+        throw new IllegalStateException("Trying to reserve"
+                + " container " + reservedContainer
+                + " for application " + application.getApplicationId()
+                + " when currently"
+                + " reserved container " + this.reservedContainer
+                + " on node " + this);
+      }
+
+      LOG.info("Updated reserved container "
+              + reservedContainer.getContainer().getId() + " on node "
+              + this + " for application " + application);
     } else {
-      LOG.info(
-          "Reserved container " + reservedContainer.getContainer().getId() +
-              " on node " + this + " for application " + application);
+      LOG.info("Reserved container " + reservedContainer.getContainer().getId()
+              + " on node " + this + " for application " + application);
     }
     this.reservedContainer = reservedContainer;
     this.reservedAppSchedulable = application.getAppSchedulable();
+    //HOP :: Update reservedContainer, reservedSchedulable
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().toUpdateFSSchedulerNode(this);
   }
 
-  public synchronized void unreserveResource(FSSchedulerApp application) {
+  public synchronized void unreserveResource(
+          FSSchedulerApp application, TransactionState ts) {
     // Cannot unreserve for wrong application...
-    ApplicationAttemptId reservedApplication =
-        reservedContainer.getContainer().getId().getApplicationAttemptId();
-    if (!reservedApplication.equals(application.getApplicationAttemptId())) {
-      throw new IllegalStateException("Trying to unreserve " +
-          " for application " + application.getApplicationId() +
-          " when currently reserved " +
-          " for application " + reservedApplication.getApplicationId() +
-          " on node " + this);
+    ApplicationAttemptId reservedApplication
+            = reservedContainer.getContainer().getId().getApplicationAttemptId();
+    if (!reservedApplication.equals(
+            application.getApplicationAttemptId())) {
+      throw new IllegalStateException("Trying to unreserve "
+              + " for application " + application.getApplicationId()
+              + " when currently reserved "
+              + " for application " + reservedApplication.getApplicationId()
+              + " on node " + this);
     }
-    
+
+    //reservedContainer.getApplicationAttemptId()
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().removeRMContainer(reservedContainer);
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().removeAppSchedulable(reservedAppSchedulable);
     this.reservedContainer = null;
     this.reservedAppSchedulable = null;
+    //HOP :: Update reservedContainer, reservedSchedulable
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().toUpdateFSSchedulerNode(this);
   }
 
   public synchronized RMContainer getReservedContainer() {
@@ -277,12 +323,50 @@ public class FSSchedulerNode extends SchedulerNode {
   public synchronized AppSchedulable getReservedAppSchedulable() {
     return reservedAppSchedulable;
   }
-  
+
   @Override
-  public synchronized void applyDeltaOnAvailableResource(
-      Resource deltaResource) {
+  public synchronized void applyDeltaOnAvailableResource(Resource deltaResource, TransactionState ts) {
     // we can only adjust available resource if total resource is changed.
     Resources.addTo(this.availableResource, deltaResource);
+    //HOP :: Update Resources
+    //TOVERIFY is it necessary ?
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().toUpdateFSSchedulerNodeId(rmNode.getNodeID().toString());
+    ((TransactionStateImpl) ts).getFairschedulerNodeInfo().updateResources(io.hops.metadata.yarn.entity.Resource.AVAILABLE, availableResource);
   }
-  
+
+  private void recoverResources() {
+    //retrieve Hopresources
+    io.hops.metadata.yarn.entity.Resource hoptotalCapability = HopYarnAPIUtilities.getResourceLightweight(rmNode.getNodeID().toString(), io.hops.metadata.yarn.entity.Resource.TOTAL_CAPABILITY, io.hops.metadata.yarn.entity.Resource.FSSCHEDULERNODE);
+    io.hops.metadata.yarn.entity.Resource hopavailable = HopYarnAPIUtilities.getResourceLightweight(rmNode.getNodeID().toString(), io.hops.metadata.yarn.entity.Resource.AVAILABLE, io.hops.metadata.yarn.entity.Resource.FSSCHEDULERNODE);
+    io.hops.metadata.yarn.entity.Resource hopused = HopYarnAPIUtilities.getResourceLightweight(rmNode.getNodeID().toString(), io.hops.metadata.yarn.entity.Resource.USED, io.hops.metadata.yarn.entity.Resource.FSSCHEDULERNODE);
+
+    Resource totalCapability = Resource.newInstance(hoptotalCapability.getMemory(), hoptotalCapability.getVirtualCores());
+    Resource available = Resource.newInstance(hopavailable.getMemory(), hopavailable.getVirtualCores());
+    Resource used = Resource.newInstance(hopused.getMemory(), hopused.getVirtualCores());
+    this.totalResourceCapability = totalCapability;
+    this.availableResource = available;
+    this.usedResource = used;
+  }
+
+  private void recoverLaunchedContainers(io.hops.metadata.yarn.entity.fair.FSSchedulerNode hopNode, RMContext rmContext, RMStateStore.RMState state) throws IOException {
+    //Map<ContainerId, RMContainer> launchedContainers
+    List<LaunchedContainers> hopLaunchedContainersList = state.getLaunchedContainers(hopNode.getRmnodeid());
+    for (LaunchedContainers lc : hopLaunchedContainersList) {
+
+      RMContainer rMContainer = state.getRMContainer(lc.getRmContainerID(), rmContext);
+      launchedContainers.put(rMContainer.getContainerId(), rMContainer);
+    }
+  }
+
+  private void recoverReservedContainer(io.hops.metadata.yarn.entity.fair.FSSchedulerNode hopNode, RMContext rmContext, RMStateStore.RMState state) throws IOException {
+
+    if (hopNode.getReservedcontainerId() != null) {
+      RMContainer reservedCont = state.getRMContainer(hopNode.getReservedcontainerId(), rmContext);
+      this.reservedContainer = reservedCont;
+    }
+  }
+
+  private void recoverAppSchedulable(io.hops.metadata.yarn.entity.fair.FSSchedulerNode hopNode, RMContext rMContext) throws IOException {
+    //TOVERIFY WHY IS IT EMPTY!!!!
+  }
 }

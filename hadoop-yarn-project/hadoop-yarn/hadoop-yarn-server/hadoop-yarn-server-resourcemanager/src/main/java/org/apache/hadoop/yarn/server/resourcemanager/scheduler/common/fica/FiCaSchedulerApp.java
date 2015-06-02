@@ -219,7 +219,7 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt {
           this.reservedContainers.remove(priority);
         }
         // Reset the re-reservation count
-        resetReReservations(priority);
+        resetReReservations(priority, transactionState);
 
         org.apache.hadoop.yarn.api.records.Resource resource =
             reservedContainer.getContainer().getResource();

@@ -139,10 +139,17 @@ public class FiCaSchedulerNodeInfoToUpdate {
           reservedRMContainerToRemove.getApplicationAttemptId().toString(),
           reservedRMContainerToRemove.getNodeId().toString(),
           reservedRMContainerToRemove.getUser(),
+          //TOVERIFY
+          reservedRMContainerToRemove.getReservedNode().toString(),
+          Integer.MIN_VALUE,
+          reservedRMContainerToRemove.getReservedResource().getMemory(),
+          reservedRMContainerToRemove.getReservedResource().getVirtualCores(),
           reservedRMContainerToRemove.getStartTime(),
           reservedRMContainerToRemove.getFinishTime(),
           reservedRMContainerToRemove.getState().toString(),
-          ((RMContainerImpl) reservedRMContainerToRemove).getContainerState()
+          reservedRMContainerToRemove.getReservedNode().getHost(),
+          reservedRMContainerToRemove.getReservedNode().getPort(),
+	  ((RMContainerImpl) reservedRMContainerToRemove).getContainerState()
               .toString(), ((RMContainerImpl) reservedRMContainerToRemove)
           .getContainerExitStatus()));
       rmcontainerDA.removeAll(rmcontainerToRemove);
@@ -182,33 +189,48 @@ public class FiCaSchedulerNodeInfoToUpdate {
     }
   }
 
-
   public void persistToUpdateFicaSchedulerNode(
-      FiCaSchedulerNodeDataAccess ficaNodeDA,
-      RMContainerDataAccess rmcontainerDA) throws StorageException {
+          FiCaSchedulerNodeDataAccess ficaNodeDA,
+          RMContainerDataAccess rmcontainerDA) throws StorageException {
     if (infoToUpdate != null) {
+      if (infoToUpdate.getReservedContainer() != null) {
+        ficaNodeDA.add(
+                new FiCaSchedulerNode(infoToUpdate.getNodeID().toString(),
+                        infoToUpdate.getNodeName(), infoToUpdate.
+                        getNumContainers(), infoToUpdate.getReservedContainer().
+                        toString()));
+      } else {
+        ficaNodeDA.add(
+                new FiCaSchedulerNode(infoToUpdate.getNodeID().toString(),
+                        infoToUpdate.getNodeName(), infoToUpdate.
+                        getNumContainers(), null));
+      }
+      //TOVERIFY why is it a &&
+      if (addRMContainer && infoToUpdate.getReservedContainer() != null) {
 
-      ficaNodeDA.add(new FiCaSchedulerNode(infoToUpdate.getNodeID().
-          toString(), infoToUpdate.getNodeName(), infoToUpdate.
-          getNumContainers()));
-
-      if (addRMContainer) {
         rmcontainerDA.add(new RMContainer(
             infoToUpdate.getReservedContainer().getContainerId().toString(),
             infoToUpdate.getReservedContainer().getApplicationAttemptId()
                 .toString(),
-            infoToUpdate.getReservedContainer().getNodeId().toString(),
-            infoToUpdate.getReservedContainer().getUser(),
-            infoToUpdate.getReservedContainer().getStartTime(),
-            infoToUpdate.getReservedContainer().getFinishTime(),
-            infoToUpdate.getReservedContainer().toString(),
-            ((RMContainerImpl) infoToUpdate.getReservedContainer())
-                .getContainerState().toString(),
-            ((RMContainerImpl) infoToUpdate.getReservedContainer())
-                .getContainerExitStatus()));
+                infoToUpdate.getReservedContainer().getNodeId().toString(),
+                infoToUpdate.getReservedContainer().getUser(),
+                infoToUpdate.getReservedContainer().getReservedNode().toString(),
+                Integer.MIN_VALUE,
+                infoToUpdate.getReservedContainer().getReservedResource().
+                getMemory(),
+                infoToUpdate.getReservedContainer().getReservedResource().
+                getVirtualCores(),
+                infoToUpdate.getReservedContainer().getStartTime(),
+                infoToUpdate.getReservedContainer().getFinishTime(),
+                infoToUpdate.getReservedContainer().getState().toString(),
+                infoToUpdate.getReservedContainer().getReservedNode().getHost(),
+                infoToUpdate.getReservedContainer().getReservedNode().getPort(),
+                ((RMContainerImpl) infoToUpdate.getReservedContainer()).
+                getContainerState().toString(),
+                ((RMContainerImpl) infoToUpdate.getReservedContainer()).
+                getContainerExitStatus()));
       }
       persistRmContainerToRemove(rmcontainerDA);
     }
   }
-
 }

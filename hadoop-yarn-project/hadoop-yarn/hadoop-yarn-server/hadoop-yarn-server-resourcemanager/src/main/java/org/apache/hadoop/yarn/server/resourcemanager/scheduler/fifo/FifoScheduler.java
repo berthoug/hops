@@ -730,7 +730,7 @@ public class FifoScheduler extends AbstractYarnScheduler
         node = getNode(rmNode.getNodeID());
 
     // Update resource if any change
-    SchedulerUtils.updateResourceIfChanged(node, rmNode, clusterResource, LOG);
+    SchedulerUtils.updateResourceIfChanged(node, rmNode, clusterResource, LOG, transactionState);
     if (transactionState != null) {
       ((TransactionStateImpl) transactionState)
           .updateClusterResource(clusterResource);

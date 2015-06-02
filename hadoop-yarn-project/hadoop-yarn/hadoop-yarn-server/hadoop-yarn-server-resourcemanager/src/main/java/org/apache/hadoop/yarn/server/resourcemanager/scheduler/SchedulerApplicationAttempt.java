@@ -18,12 +18,17 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
+import io.hops.ha.common.FiCaSchedulerAppInfo;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
 import io.hops.metadata.yarn.entity.AppSchedulingInfo;
 import io.hops.metadata.yarn.entity.FiCaSchedulerAppLiveContainers;
 import io.hops.metadata.yarn.entity.FiCaSchedulerAppNewlyAllocatedContainers;
 import io.hops.metadata.yarn.entity.Resource;
+import io.hops.metadata.yarn.entity.FiCaSchedulerAppLastScheduledContainer;
+import io.hops.metadata.yarn.entity.SchedulerAppReservations;
+import io.hops.metadata.yarn.entity.FiCaSchedulerAppSchedulingOpportunities;
+import io.hops.metadata.yarn.entity.capacity.FiCaSchedulerAppReservedContainers;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -39,7 +44,6 @@ import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
-import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptState;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEvent;
@@ -58,6 +62,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSSchedulerApp;
 
 /**
  * Represents an application attempt from the viewpoint of the scheduler. Each
@@ -94,12 +101,10 @@ public class SchedulerApplicationAttempt {
    * application for a task at this priority, it is incremented, and each time
    * the application successfully schedules a task, it is reset to 0.
    */
-  Multiset<Priority> schedulingOpportunities = HashMultiset.create();
-      //TORECOVER not recovered yet (capacity)
+  Multiset<Priority> schedulingOpportunities = HashMultiset.create();// recovered in fs
   // Time of the last container scheduled at the current allowed level
-  protected Map<Priority, Long> lastScheduledContainer =
-      new HashMap<Priority, Long>();
-      //TORECOVER not recovered yet (capacity, fair)
+  protected Map<Priority, Long> lastScheduledContainer
+          = new HashMap<Priority, Long>();// recovered in fs 
   protected Queue queue;//recovered
   protected boolean isStopped = false;//recovered
   protected final RMContext rmContext;//recovered
@@ -155,9 +160,12 @@ public class SchedulerApplicationAttempt {
 
   public int getNewContainerId(TransactionState ts) {
     if (ts != null) {
-      ((TransactionStateImpl) ts).getSchedulerApplicationInfo().
-          getFiCaSchedulerAppInfo(this.getApplicationAttemptId()).
-          updateAppInfo(this);
+      if(this instanceof FSSchedulerApp) {
+        ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFairSchedulerAppInfo(this.getApplicationAttemptId()).updateAppInfo(this);
+      }
+      else {
+        ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFiCaSchedulerAppInfo(this.getApplicationAttemptId()).updateAppInfo(this);
+      }  
     }
     return appSchedulingInfo.getNewContainerId();
   }
@@ -192,12 +200,14 @@ public class SchedulerApplicationAttempt {
     return liveContainers.get(id);
   }
 
-  protected synchronized void resetReReservations(Priority priority) {
+  protected synchronized void resetReReservations(Priority priority, TransactionState ts) {
     reReservations.setCount(priority, 0);
+   ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFiCaSchedulerAppInfo(getApplicationAttemptId()).resetReReservations(priority);
   }
 
-  protected synchronized void addReReservation(Priority priority) {
+  protected synchronized void addReReservation(Priority priority, TransactionState ts) {
     reReservations.add(priority);
+    ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFiCaSchedulerAppInfo(getApplicationAttemptId()).addReReservation(priority);
   }
 
   public synchronized int getReReservations(Priority priority) {
@@ -231,9 +241,12 @@ public class SchedulerApplicationAttempt {
     // Cleanup all scheduling information
     isStopped = true;
     if (ts != null) {
-      ((TransactionStateImpl) ts).getSchedulerApplicationInfo().
-          getFiCaSchedulerAppInfo(this.getApplicationAttemptId())
-          .updateAppInfo(this);
+      if(this instanceof FSSchedulerApp) {
+        ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFairSchedulerAppInfo(this.getApplicationAttemptId()).updateAppInfo(this);
+      }
+      else {
+        ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFiCaSchedulerAppInfo(this.getApplicationAttemptId()).updateAppInfo(this);
+      }  
     }
     appSchedulingInfo.stop(rmAppAttemptFinalState, ts);
   }
@@ -280,10 +293,11 @@ public class SchedulerApplicationAttempt {
             .toUpdateResource(Resource.CURRENTRESERVATION, currentReservation);
       }
       // Reset the re-reservation count
-      resetReReservations(priority);
+      resetReReservations(priority, transactionState);
     } else {
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().setFiCaSchedulerAppInfo(this);
       // Note down the re-reservation
-      addReReservation(priority);
+      addReReservation(priority, transactionState);
     }
     rmContainer.handle(
         new RMContainerReservedEvent(container.getId(), container.getResource(),
@@ -296,6 +310,9 @@ public class SchedulerApplicationAttempt {
       this.reservedContainers.put(priority, reservedContainers);
     }
     reservedContainers.put(node.getNodeID(), rmContainer);
+    //HOP : Update ReservedContainers
+    LOG.debug("SchedulerApplicationAttempt: Persist reservedContainer " + getApplicationAttemptId().toString() + " containerid " + rmContainer.getContainerId().toString());
+    ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().getFiCaSchedulerAppInfo(getApplicationAttemptId()).addReservedContainer(rmContainer);
 
     LOG.info("Application " + getApplicationId() + " reserved container " +
         rmContainer + " on node " + node + ", currently has " +
@@ -429,6 +446,12 @@ public class SchedulerApplicationAttempt {
       }
       recoverNewlyAllocatedContainers(applicationAttemptId, state);
       recoverLiveContainers(applicationAttemptId, state);
+
+      recoverReservations(applicationAttemptId, state);
+      recoverReservedContainers(applicationAttemptId, state);
+      recoverSchedulingOpportunities(applicationAttemptId, state);
+      recoverLastScheduledContainer(applicationAttemptId, state);
+
     } catch (IOException ex) {
       Logger.getLogger(SchedulerApplicationAttempt.class.getName())
           .log(Level.SEVERE, null, ex);
@@ -469,6 +492,74 @@ public class SchedulerApplicationAttempt {
     } catch (IOException ex) {
       Logger.getLogger(SchedulerApplicationAttempt.class.getName())
           .log(Level.SEVERE, null, ex);
+    }
+  }
+
+  private void recoverReservations(ApplicationAttemptId applicationAttemptId, RMStateStore.RMState state) {
+    try {
+      List<SchedulerAppReservations> list = state.getRereservations(applicationAttemptId.toString());
+      if (list != null && !list.isEmpty()) {
+        for (SchedulerAppReservations hop : list) {
+          //construct Priority
+          Priority priority = Priority.newInstance(hop.getPriority_id());
+          this.reReservations.setCount(priority, hop.getCounter());
+        }
+      }
+    } catch (IOException ex) {
+      Logger.getLogger(SchedulerApplicationAttempt.class.getName()).log(Level.SEVERE, null, ex);
+    }
+  }
+
+  private void recoverReservedContainers(ApplicationAttemptId applicationAttemptId, RMStateStore.RMState state) {
+    try {
+      List<FiCaSchedulerAppReservedContainers> list = state.getReservedContainers(applicationAttemptId.toString());
+      if (list != null && list.isEmpty()) {
+        for (FiCaSchedulerAppReservedContainers hop : list) {
+          //construct RMContainer
+          RMContainer rmContainer = state.getRMContainer(hop.getRmcontainer_id(), rmContext);
+          //construct Priority
+          Priority priority = Priority.newInstance(hop.getPriority_id());
+          //construct NodeId
+          NodeId nodeId = ConverterUtils.toNodeId(hop.getNodeid());
+
+          Map<NodeId, RMContainer> reservedContainers = this.reservedContainers.get(priority);
+          if (reservedContainers == null) {
+            reservedContainers = new HashMap<NodeId, RMContainer>();
+            this.reservedContainers.put(priority, reservedContainers);
+          }
+          reservedContainers.put(nodeId, rmContainer);
+        }
+      }
+    } catch (IOException ex) {
+      Logger.getLogger(SchedulerApplicationAttempt.class.getName()).log(Level.SEVERE, null, ex);
+    }
+  }
+
+  private void recoverSchedulingOpportunities(ApplicationAttemptId applicationAttemptId, RMStateStore.RMState state) {
+    try {
+      List<FiCaSchedulerAppSchedulingOpportunities> list = state.getSchedulingOpportunities(applicationAttemptId.toString());
+      if (list!= null && !list.isEmpty()) {
+        for (FiCaSchedulerAppSchedulingOpportunities hop : list) {
+          Priority priority = Priority.newInstance(hop.getPriority_id());
+          schedulingOpportunities.setCount(priority, hop.getCounter());
+        }
+      }
+    } catch (IOException ex) {
+      Logger.getLogger(SchedulerApplicationAttempt.class.getName()).log(Level.SEVERE, null, ex);
+    }
+  }
+
+  private void recoverLastScheduledContainer(ApplicationAttemptId applicationAttemptId, RMStateStore.RMState state) {
+    try {
+      List<FiCaSchedulerAppLastScheduledContainer> list = state.getLastScheduledContainers(applicationAttemptId.toString());
+      if (list != null && !list.isEmpty()) {
+        for (FiCaSchedulerAppLastScheduledContainer hop : list) {
+          Priority priority = Priority.newInstance(hop.getPriority_id());
+          lastScheduledContainer.put(priority, hop.getTime());
+        }
+      }
+    } catch (IOException ex) {
+      Logger.getLogger(SchedulerApplicationAttempt.class.getName()).log(Level.SEVERE, null, ex);
     }
   }
 
@@ -545,14 +636,22 @@ public class SchedulerApplicationAttempt {
     return this.appSchedulingInfo.isBlacklisted(resourceName);
   }
 
-  public synchronized void addSchedulingOpportunity(Priority priority) {
-    schedulingOpportunities
-        .setCount(priority, schedulingOpportunities.count(priority) + 1);
+  public synchronized void addSchedulingOpportunity(Priority priority, TransactionState ts) {
+    schedulingOpportunities.setCount(priority,
+            schedulingOpportunities.count(priority) + 1);
+
+    //HOP : Update SchedulingOpportunities
+    ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFiCaSchedulerAppInfo(getApplicationAttemptId()).addSchedulingOppurtunity(priority, schedulingOpportunities.count(priority)-1);
+
   }
 
-  public synchronized void subtractSchedulingOpportunity(Priority priority) {
+  public synchronized void subtractSchedulingOpportunity(Priority priority, TransactionState ts) {
     int count = schedulingOpportunities.count(priority) - 1;
     this.schedulingOpportunities.setCount(priority, Math.max(count, 0));
+
+    //HOP : Update SchedulingOpportunities
+    ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFiCaSchedulerAppInfo(getApplicationAttemptId()).addSchedulingOppurtunity(priority, Math.max(count, 0));
+
   }
 
   /**
@@ -573,15 +672,20 @@ public class SchedulerApplicationAttempt {
    * @param priority
    *     The priority of the container scheduled.
    */
-  public synchronized void resetSchedulingOpportunities(Priority priority) {
-    resetSchedulingOpportunities(priority, System.currentTimeMillis());
+  public synchronized void resetSchedulingOpportunities(Priority priority, TransactionState ts) {
+    resetSchedulingOpportunities(priority, System.currentTimeMillis(), ts);
   }
   // used for continuous scheduling
 
   public synchronized void resetSchedulingOpportunities(Priority priority,
-      long currentTimeMs) {
+          long currentTimeMs, TransactionState ts) {
     lastScheduledContainer.put(priority, currentTimeMs);
     schedulingOpportunities.setCount(priority, 0);
+
+    //HOP : Update lastScheduledContainers, schedulingOpportunities
+    FiCaSchedulerAppInfo fica = ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFiCaSchedulerAppInfo(getApplicationAttemptId());
+    fica.addLastScheduledContainer(priority, currentTimeMs);
+    fica.addSchedulingOppurtunity(priority, 0);
   }
 
   public synchronized ApplicationResourceUsageReport getResourceUsageReport() {

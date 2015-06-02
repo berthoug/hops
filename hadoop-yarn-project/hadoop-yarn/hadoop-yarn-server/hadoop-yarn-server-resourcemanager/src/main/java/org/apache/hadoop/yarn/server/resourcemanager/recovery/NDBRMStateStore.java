@@ -320,7 +320,11 @@ public class NDBRMStateStore extends RMStateStore {
   private void loadLaunchedContainers(RMState rmState) throws IOException {
     rmState.launchedContainers = RMUtilities.getAllLaunchedContainers();
   }
-  
+
+  private void loadFairSchedulerNodes(RMState rmState) throws IOException{
+    rmState.fairSchedulerNodes = RMUtilities.getFairSchedulerNodes();
+  }
+    
   private void loadNewlyAllocatedContainers(RMState rmState)
       throws IOException {
     rmState.newlyAllocatedContainers =
@@ -329,6 +333,26 @@ public class NDBRMStateStore extends RMStateStore {
   
   private void loadLiveContainers(RMState rmState) throws IOException {
     rmState.liveContainers = RMUtilities.getAllLiveContainers();
+  }
+
+  private void loadPreemptionMap(RMState rmState) throws IOException{
+    rmState.preemtionMap = RMUtilities.getAllPreemptionMap();
+  }
+  
+  private void loadSchedulingOpportunities(RMState rmState) throws IOException {
+    rmState.schedulingOpportunities = RMUtilities.getAllSchedulingOpportunities();
+  }
+
+  private void loadLastScheduleddContainers(RMState rmState) throws IOException {
+    rmState.lastScheduledContainers = RMUtilities.getAllLastScheduledContainers();
+  }
+
+  private void loadRereservations(RMState rmState) throws IOException {
+    rmState.reReservations = RMUtilities.getAllRereservations();
+  }
+
+  private void loadReservedContainers(RMState rmState) throws IOException {
+    rmState.reservedContainers = RMUtilities.getAllReservedContainers();
   }
   
   private void loadResourceRequests(RMState rmState) throws IOException {

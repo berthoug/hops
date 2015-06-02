@@ -180,6 +180,14 @@ public class RMContainerImpl implements
     if (getState().equals(RMContainerState.ACQUIRED)) {
       this.containerAllocationExpirer.register(containerId);
     }
+        //TOVERIFY why is it commented out?
+    //    if (hopRMContainer.getReservedNodeIdID() != null) {
+//      this.reservedNode = NodeId.newInstance(hopRMContainer.getReservedNodeId(),
+//              hopRMContainer.getReservedNodePort());
+//      this.reservedResource = Resource.newInstance(hopRMContainer.getReservedResource(), vCores)
+//              hopRMContainer.getReservedResource();
+//      this.reservedPriority = hopRMContainer.getReservedPriority();
+//    }
     if (hopRMContainer.getFinishedStatusState() != null) {
       this.finishedStatus = ContainerStatus.newInstance(containerId,
           ContainerState.valueOf(hopRMContainer.getFinishedStatusState()), user,

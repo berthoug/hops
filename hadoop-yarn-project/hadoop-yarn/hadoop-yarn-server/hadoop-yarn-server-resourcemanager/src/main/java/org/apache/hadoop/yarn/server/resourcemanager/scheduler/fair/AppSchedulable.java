@@ -78,6 +78,10 @@ public class AppSchedulable extends Schedulable {
     return app;
   }
 
+  public String getQueuename() {
+      return queue.getName();
+  }
+    
   @Override
   public void updateDemand() {
     demand = Resources.createResource(0);
@@ -180,11 +184,11 @@ public class AppSchedulable extends Schedulable {
       getMetrics().reserveResource(app.getUser(), container.getResource());
       RMContainer rmContainer =
           app.reserve(node, priority, null, container, transactionState);
-      node.reserveResource(app, priority, rmContainer);
+      node.reserveResource(app, priority, rmContainer, transactionState);
     } else {
       RMContainer rmContainer = node.getReservedContainer();
       app.reserve(node, priority, rmContainer, container, transactionState);
-      node.reserveResource(app, priority, rmContainer);
+      node.reserveResource(app, priority, rmContainer, transactionState);
     }
   }
 
@@ -193,10 +197,10 @@ public class AppSchedulable extends Schedulable {
    * {@link Priority}. This dispatches to the SchedulerApp and SchedulerNode
    * handlers for an unreservation.
    */
-  public void unreserve(Priority priority, FSSchedulerNode node) {
+    public void unreserve(Priority priority, FSSchedulerNode node, TransactionState transactionState) {
     RMContainer rmContainer = node.getReservedContainer();
-    app.unreserve(node, priority);
-    node.unreserveResource(app);
+    app.unreserve(node, priority, transactionState);
+    node.unreserveResource(app, transactionState);
     getMetrics().unreserveResource(app.getUser(),
         rmContainer.getContainer().getResource());
   }
@@ -234,18 +238,18 @@ public class AppSchedulable extends Schedulable {
       if (allocatedContainer == null) {
         // Did the application need this resource?
         if (reserved) {
-          unreserve(priority, node);
+	    unreserve(priority, node, transactionState);
         }
         return Resources.none();
       }
 
       // If we had previously made a reservation, delete it
       if (reserved) {
-        unreserve(priority, node);
+	  unreserve(priority, node, transactionState);
       }
 
       // Inform the node
-      node.allocateContainer(app.getApplicationId(), allocatedContainer);
+      node.allocateContainer(app.getApplicationId(), allocatedContainer, transactionState);
 
       return container.getResource();
     } else {
@@ -268,7 +272,7 @@ public class AppSchedulable extends Schedulable {
 
       // Make sure the application still needs requests at this priority
       if (app.getTotalRequiredResources(priority) == 0) {
-        unreserve(priority, node);
+	  unreserve(priority, node, transactionState);
         return Resources.none();
       }
     }
@@ -287,7 +291,7 @@ public class AppSchedulable extends Schedulable {
           continue;
         }
         
-        app.addSchedulingOpportunity(priority);
+        app.addSchedulingOpportunity(priority, transactionState);
 
         ResourceRequest rackLocalRequest =
             app.getResourceRequest(priority, node.getRackName());
@@ -304,12 +308,12 @@ public class AppSchedulable extends Schedulable {
           allowedLocality = app.getAllowedLocalityLevelByTime(priority,
               scheduler.getNodeLocalityDelayMs(),
               scheduler.getRackLocalityDelayMs(),
-              scheduler.getClock().getTime());
+	      scheduler.getClock().getTime(), transactionState);
         } else {
           allowedLocality = app.getAllowedLocalityLevel(priority,
               scheduler.getNumClusterNodes(),
               scheduler.getNodeLocalityThreshold(),
-              scheduler.getRackLocalityThreshold());
+	      scheduler.getRackLocalityThreshold(), transactionState);
         }
 
         if (rackLocalRequest != null &&

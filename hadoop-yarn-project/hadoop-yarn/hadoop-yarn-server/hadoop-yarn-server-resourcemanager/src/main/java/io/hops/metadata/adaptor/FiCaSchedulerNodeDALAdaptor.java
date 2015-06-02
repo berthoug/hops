@@ -40,9 +40,14 @@ public class FiCaSchedulerNodeDALAdaptor extends
   public FiCaSchedulerNode convertHDFStoDAL(
       org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode fiCaSchedulerNode)
       throws StorageException {
+          String reservedContainer = null;
+    if (fiCaSchedulerNode.getReservedContainer() != null) {
+      reservedContainer = fiCaSchedulerNode.getReservedContainer().toString();
+    }
     return new FiCaSchedulerNode(
         fiCaSchedulerNode.getRMNode().getNodeID().toString(),
-        fiCaSchedulerNode.getNodeName(), fiCaSchedulerNode.getNumContainers());
+	fiCaSchedulerNode.getNodeName(), fiCaSchedulerNode.
+            getNumContainers(), reservedContainer);
   }
 
   @Override

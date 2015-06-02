@@ -156,6 +156,11 @@ public class QueueManager {
         parent.addChildQueue(leafQueue);
         queues.put(leafQueue.getName(), leafQueue);
         leafQueues.add(leafQueue);
+	  //TOVERIFY why is it commented out
+//        if(ts != null) {
+//            ((TransactionStateImpl) ts).getQueueManagerInfo().addToLeafQueue(leafQueue);
+//            ((TransactionStateImpl) ts).getQueueManagerInfo().addToQueues(leafQueue.getName(), leafQueue);
+//        }
       } else {
         FSParentQueue newParent =
             new FSParentQueue(queueName, scheduler, parent);
@@ -168,6 +173,10 @@ public class QueueManager {
         }
         parent.addChildQueue(newParent);
         queues.put(newParent.getName(), newParent);
+	       //TOVERIFY why is it commented out
+//        if(ts != null) {
+//            ((TransactionStateImpl) ts).getQueueManagerInfo().addToQueues(newParent.getName(), newParent);
+//        }
         parent = newParent;
       }
     }

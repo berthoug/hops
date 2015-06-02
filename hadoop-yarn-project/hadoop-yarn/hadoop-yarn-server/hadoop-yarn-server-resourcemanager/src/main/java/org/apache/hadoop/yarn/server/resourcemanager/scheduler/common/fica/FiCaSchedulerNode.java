@@ -366,9 +366,10 @@ public class FiCaSchedulerNode extends SchedulerNode {
 
   @Override
   public synchronized void applyDeltaOnAvailableResource(
-      org.apache.hadoop.yarn.api.records.Resource deltaResource) {
+      org.apache.hadoop.yarn.api.records.Resource deltaResource, TransactionState ts) {
     // we can only adjust available resource if total resource is changed.
     Resources.addTo(this.availableResource, deltaResource);
+    ((TransactionStateImpl) ts).getFicaSchedulerNodeInfoToUpdate(nodeName).toUpdateResource(io.hops.metadata.yarn.entity.Resource.AVAILABLE, availableResource);
   }
 
   private void recoverLaunchedContainers(NodeId nodeId,
@@ -387,6 +388,7 @@ public class FiCaSchedulerNode extends SchedulerNode {
   }
 
   private void recoverResources() {
+    //TOVERIFY should be done through the RMState object
     //retrieve Hopresources
     Resource hoptotalCapability = HopYarnAPIUtilities
         .getResourceLightweight(rmNode.getNodeID().toString(),

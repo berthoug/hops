@@ -38,12 +38,13 @@ public class TestSLSRunner {
     YarnAPIStorageFactory.setConfiguration(conf);
 
     File tempDir = new File("target", UUID.randomUUID().toString());
-
+// --input-sls=output1/sls-jobs.json --output-dir=output --nodes=output1/sls-nodes.json
     // start the simulator
     File slsOutputDir = new File(tempDir.getAbsolutePath() + "/slsoutput/");
     String args[] = new String[]{
-            "-inputrumen", "src/main/data/2jobs2min-rumen-jh.json",
-            "-output", slsOutputDir.getAbsolutePath()};
+            "-inputsls", "src/main/data/sls-jobs.json",
+            "-output", slsOutputDir.getAbsolutePath(),
+            "-nodes", "src/main/data/sls-nodes.json"};
     SLSRunner.main(args);
 
     // wait for 45 seconds before stop

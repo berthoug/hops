@@ -1,24 +1,21 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements. See the NOTICE file distributed with this
+ * work for additional information regarding copyright ownership. The ASF
+ * licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
-
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
 import org.apache.commons.logging.Log;
@@ -87,7 +84,6 @@ import org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.DominantResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -100,6 +96,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import com.google.common.annotations.VisibleForTesting;
+import io.hops.ha.common.SchedulerApplicationInfo;
+import io.hops.metadata.yarn.entity.AppSchedulingInfo;
+import org.apache.hadoop.yarn.util.ConverterUtils;
+import io.hops.ha.common.FairSchedulerAppInfo;
+
 
 /**
  * A scheduler that schedules resources between a set of queues. The scheduler
@@ -108,8 +110,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * an ideal fair distribution.
  * <p/>
  * The fair scheduler supports hierarchical queues. All queues descend from a
- * queue named "root". Available resources are distributed among the children
- * of the root queue in the typical fair scheduling fashion. Then, the children
+ * queue named "root". Available resources are distributed among the children of
+ * the root queue in the typical fair scheduling fashion. Then, the children
  * distribute the resources assigned to them to their children in the same
  * fashion.  Applications may only be scheduled on leaf queues. Queues can be
  * specified as children of other queues by placing them as sub-elements of
@@ -125,6 +127,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Unstable
 @SuppressWarnings("unchecked")
 public class FairScheduler extends AbstractYarnScheduler {
+
   private boolean initialized;
   private FairSchedulerConfiguration conf;
   private Resource minimumAllocation;
@@ -135,10 +138,10 @@ public class FairScheduler extends AbstractYarnScheduler {
   private boolean usePortForNodeName;
 
   private static final Log LOG = LogFactory.getLog(FairScheduler.class);
-  
-  private static final ResourceCalculator RESOURCE_CALCULATOR =
-      new DefaultResourceCalculator();
-  
+
+  private static final ResourceCalculator RESOURCE_CALCULATOR
+          = new DefaultResourceCalculator();
+
   // Value that container assignment methods return when a container is
   // reserved
   public static final Resource CONTAINER_RESERVED =
@@ -156,34 +159,30 @@ public class FairScheduler extends AbstractYarnScheduler {
   private long lastPreemptCheckTime;
 
   // Nodes in the cluster, indexed by NodeId
-  private Map<NodeId, FSSchedulerNode> nodes =
-      new ConcurrentHashMap<NodeId, FSSchedulerNode>();
+  private Map<NodeId, FSSchedulerNode> nodes
+          = new ConcurrentHashMap<NodeId, FSSchedulerNode>();
 
   // Aggregate capacity of the cluster
-  private Resource clusterCapacity =
-      RecordFactoryProvider.getRecordFactory(null)
-          .newRecordInstance(Resource.class);
+  private Resource clusterCapacity
+          = RecordFactoryProvider.getRecordFactory(null).newRecordInstance(Resource.class);
 
   // How often tasks are preempted 
   protected long preemptionInterval;
-  
+
   // ms to wait before force killing stuff (must be longer than a couple
   // of heartbeats to give task-kill commands a chance to act).
   protected long waitTimeBeforeKill;
-  
+
   // Containers whose AMs have been warned that they will be preempted soon.
   private List<RMContainer> warnedContainers = new ArrayList<RMContainer>();
-  
+
   protected boolean preemptionEnabled;
   protected boolean sizeBasedWeight; // Give larger weights to larger jobs
   protected WeightAdjuster weightAdjuster; // Can be null for no weight adjuster
-  protected boolean continuousSchedulingEnabled;
-      // Continuous Scheduling enabled or not
-  protected int continuousSchedulingSleepMs;
-      // Sleep time for each pass in continuous scheduling
-  private Comparator nodeAvailableResourceComparator =
-      new NodeAvailableResourceComparator();
-      // Node available resource comparator
+  protected boolean continuousSchedulingEnabled; // Continuous Scheduling enabled or not
+  protected int continuousSchedulingSleepMs; // Sleep time for each pass in continuous scheduling
+  private Comparator nodeAvailableResourceComparator
+          = new NodeAvailableResourceComparator(); // Node available resource comparator
   protected double nodeLocalityThreshold; // Cluster threshold for node locality
   protected double rackLocalityThreshold; // Cluster threshold for rack locality
   protected long nodeLocalityDelayMs; // Delay for node locality
@@ -199,7 +198,7 @@ public class FairScheduler extends AbstractYarnScheduler {
   private AllocationFileLoaderService allocsLoader;
   @VisibleForTesting
   AllocationConfiguration allocConf;
-  
+
   public FairScheduler() {
     clock = new SystemClock();
     allocsLoader = new AllocationFileLoaderService();
@@ -209,39 +208,39 @@ public class FairScheduler extends AbstractYarnScheduler {
 
   private void validateConf(Configuration conf) {
     // validate scheduler memory allocation setting
-    int minMem =
-        conf.getInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
+    int minMem = conf.getInt(
+            YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
             YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB);
-    int maxMem =
-        conf.getInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB,
+    int maxMem = conf.getInt(
+            YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB,
             YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB);
 
     if (minMem < 0 || minMem > maxMem) {
-      throw new YarnRuntimeException(
-          "Invalid resource scheduler memory" + " allocation configuration" +
-              ", " + YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB +
-              "=" + minMem + ", " +
-              YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB + "=" +
-              maxMem + ", min should equal greater than 0" +
-              ", max should be no smaller than min.");
+      throw new YarnRuntimeException("Invalid resource scheduler memory"
+              + " allocation configuration"
+              + ", " + YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB
+              + "=" + minMem
+              + ", " + YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB
+              + "=" + maxMem + ", min should equal greater than 0"
+              + ", max should be no smaller than min.");
     }
 
     // validate scheduler vcores allocation setting
-    int minVcores =
-        conf.getInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES,
+    int minVcores = conf.getInt(
+            YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES,
             YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES);
-    int maxVcores =
-        conf.getInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
+    int maxVcores = conf.getInt(
+            YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
             YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES);
 
     if (minVcores < 0 || minVcores > maxVcores) {
-      throw new YarnRuntimeException(
-          "Invalid resource scheduler vcores" + " allocation configuration" +
-              ", " + YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES +
-              "=" + minVcores + ", " +
-              YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES + "=" +
-              maxVcores + ", min should equal greater than 0" +
-              ", max should be no smaller than min.");
+      throw new YarnRuntimeException("Invalid resource scheduler vcores"
+              + " allocation configuration"
+              + ", " + YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES
+              + "=" + minVcores
+              + ", " + YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES
+              + "=" + maxVcores + ", min should equal greater than 0"
+              + ", max should be no smaller than min.");
     }
   }
 
@@ -274,6 +273,7 @@ public class FairScheduler extends AbstractYarnScheduler {
    * <code>UPDATE_INTERVAL</code> milliseconds.
    */
   private class UpdateThread implements Runnable {
+
     public void run() {
       while (true) {
         try {
@@ -285,6 +285,11 @@ public class FairScheduler extends AbstractYarnScheduler {
         }
       }
     }
+  }
+
+  //HOP : Created for testing purposes
+  public synchronized void updateScheduler() {
+    update();
   }
 
   /**
@@ -333,7 +338,7 @@ public class FairScheduler extends AbstractYarnScheduler {
         .min(RESOURCE_CALCULATOR, clusterCapacity, sched.getMinShare(),
             sched.getDemand());
     return Resources.lessThan(RESOURCE_CALCULATOR, clusterCapacity,
-        sched.getResourceUsage(), desiredShare);
+            sched.getResourceUsage(), desiredShare);
   }
 
   /**
@@ -345,7 +350,7 @@ public class FairScheduler extends AbstractYarnScheduler {
         .min(RESOURCE_CALCULATOR, clusterCapacity,
             Resources.multiply(sched.getFairShare(), .5), sched.getDemand());
     return Resources.lessThan(RESOURCE_CALCULATOR, clusterCapacity,
-        sched.getResourceUsage(), desiredFairShare);
+            sched.getResourceUsage(), desiredFairShare);
   }
 
   /**
@@ -390,7 +395,7 @@ public class FairScheduler extends AbstractYarnScheduler {
    * priority to preempt.
    */
   protected void preemptResources(Collection<FSLeafQueue> scheds,
-      Resource toPreempt, TransactionState transactionState) {
+          Resource toPreempt, TransactionState transactionState) {
     if (scheds.isEmpty() || Resources.equals(toPreempt, Resources.none())) {
       return;
     }
@@ -404,7 +409,7 @@ public class FairScheduler extends AbstractYarnScheduler {
     List<RMContainer> runningContainers = new ArrayList<RMContainer>();
     for (FSLeafQueue sched : scheds) {
       if (Resources.greaterThan(RESOURCE_CALCULATOR, clusterCapacity,
-          sched.getResourceUsage(), sched.getFairShare())) {
+              sched.getResourceUsage(), sched.getFairShare())) {
         for (AppSchedulable as : sched.getRunnableAppSchedulables()) {
           for (RMContainer c : as.getApp().getLiveContainers()) {
             runningContainers.add(c);
@@ -426,7 +431,7 @@ public class FairScheduler extends AbstractYarnScheduler {
         return ret;
       }
     });
-    
+
     // Scan down the list of containers we've already warned and kill them
     // if we need to.  Remove any containers from the list that we don't need
     // or that are no longer running.
@@ -467,7 +472,7 @@ public class FairScheduler extends AbstractYarnScheduler {
       }
     }
   }
-  
+
   private void warnOrKillContainer(RMContainer container, FSSchedulerApp app,
       FSLeafQueue queue, TransactionState transactionState) {
     LOG.info(
@@ -495,7 +500,7 @@ public class FairScheduler extends AbstractYarnScheduler {
       }
     } else {
       // track the request in the FSSchedulerApp itself
-      app.addPreemption(container, clock.getTime());
+      app.addPreemption(container, clock.getTime(), transactionState);
     }
   }
 
@@ -517,30 +522,24 @@ public class FairScheduler extends AbstractYarnScheduler {
     Resource resDueToMinShare = Resources.none();
     Resource resDueToFairShare = Resources.none();
     if (curTime - sched.getLastTimeAtMinShare() > minShareTimeout) {
-      Resource target = Resources
-          .min(RESOURCE_CALCULATOR, clusterCapacity, sched.getMinShare(),
-              sched.getDemand());
-      resDueToMinShare = Resources
-          .max(RESOURCE_CALCULATOR, clusterCapacity, Resources.none(),
-              Resources.subtract(target, sched.getResourceUsage()));
+      Resource target = Resources.min(RESOURCE_CALCULATOR, clusterCapacity,
+              sched.getMinShare(), sched.getDemand());
+      resDueToMinShare = Resources.max(RESOURCE_CALCULATOR, clusterCapacity,
+              Resources.none(), Resources.subtract(target, sched.getResourceUsage()));
     }
     if (curTime - sched.getLastTimeAtHalfFairShare() > fairShareTimeout) {
-      Resource target = Resources
-          .min(RESOURCE_CALCULATOR, clusterCapacity, sched.getFairShare(),
-              sched.getDemand());
-      resDueToFairShare = Resources
-          .max(RESOURCE_CALCULATOR, clusterCapacity, Resources.none(),
-              Resources.subtract(target, sched.getResourceUsage()));
+      Resource target = Resources.min(RESOURCE_CALCULATOR, clusterCapacity,
+              sched.getFairShare(), sched.getDemand());
+      resDueToFairShare = Resources.max(RESOURCE_CALCULATOR, clusterCapacity,
+              Resources.none(), Resources.subtract(target, sched.getResourceUsage()));
     }
-    Resource resToPreempt = Resources
-        .max(RESOURCE_CALCULATOR, clusterCapacity, resDueToMinShare,
-            resDueToFairShare);
-    if (Resources
-        .greaterThan(RESOURCE_CALCULATOR, clusterCapacity, resToPreempt,
-            Resources.none())) {
-      String message = "Should preempt " + resToPreempt + " res for queue " +
-          sched.getName() + ": resDueToMinShare = " + resDueToMinShare +
-          ", resDueToFairShare = " + resDueToFairShare;
+    Resource resToPreempt = Resources.max(RESOURCE_CALCULATOR, clusterCapacity,
+            resDueToMinShare, resDueToFairShare);
+    if (Resources.greaterThan(RESOURCE_CALCULATOR, clusterCapacity,
+            resToPreempt, Resources.none())) {
+      String message = "Should preempt " + resToPreempt + " res for queue "
+              + sched.getName() + ": resDueToMinShare = " + resDueToMinShare
+              + ", resDueToFairShare = " + resDueToFairShare;
       LOG.info(message);
     }
     return resToPreempt;
@@ -587,6 +586,12 @@ public class FairScheduler extends AbstractYarnScheduler {
     return rackLocalityThreshold;
   }
 
+  //HOP
+  public Map<NodeId, FSSchedulerNode> getNodes() {
+    return nodes;
+  }
+  //END
+
   public long getNodeLocalityDelayMs() {
     return nodeLocalityDelayMs;
   }
@@ -619,19 +624,24 @@ public class FairScheduler extends AbstractYarnScheduler {
     return eventLog;
   }
 
+  //HOP : Created for testing purposes
+  public synchronized void addApp(ApplicationId applicationId, String queueName, String user, TransactionState transactionState) {
+    addApplication(applicationId, queueName, user, transactionState);
+  }
+
   /**
    * Add a new application to the scheduler, with a given id, queue name, and
    * user. This will accept a new app even if the user or queue is above
    * configured limits, but the app will not be marked as runnable.
    */
   protected synchronized void addApplication(ApplicationId applicationId,
-      String queueName, String user, TransactionState transactionState) {
+          String queueName, String user, TransactionState transactionState) {
     if (queueName == null || queueName.isEmpty()) {
-      String message = "Reject application " + applicationId +
-          " submitted by user " + user + " with an empty queue name.";
+      String message = "Reject application " + applicationId
+              + " submitted by user " + user + " with an empty queue name.";
       LOG.info(message);
-      rmContext.getDispatcher().getEventHandler().handle(
-          new RMAppRejectedEvent(applicationId, message, transactionState));
+      rmContext.getDispatcher().getEventHandler()
+              .handle(new RMAppRejectedEvent(applicationId, message, transactionState));
       return;
     }
 
@@ -644,64 +654,84 @@ public class FairScheduler extends AbstractYarnScheduler {
     // Enforce ACLs
     UserGroupInformation userUgi = UserGroupInformation.createRemoteUser(user);
 
-    if (!queue.hasAccess(QueueACL.SUBMIT_APPLICATIONS, userUgi) &&
-        !queue.hasAccess(QueueACL.ADMINISTER_QUEUE, userUgi)) {
-      String msg = "User " + userUgi.getUserName() +
-          " cannot submit applications to queue " + queue.getName();
+    if (!queue.hasAccess(QueueACL.SUBMIT_APPLICATIONS, userUgi)
+            && !queue.hasAccess(QueueACL.ADMINISTER_QUEUE, userUgi)) {
+      String msg = "User " + userUgi.getUserName()
+              + " cannot submit applications to queue " + queue.getName();
       LOG.info(msg);
       rmContext.getDispatcher().getEventHandler()
-          .handle(new RMAppRejectedEvent(applicationId, msg, transactionState));
+              .handle(new RMAppRejectedEvent(applicationId, msg, transactionState));
       return;
     }
 
-    SchedulerApplication application = new SchedulerApplication(queue, user);
+    SchedulerApplication application
+            = new SchedulerApplication(queue, user);
     applications.put(applicationId, application);
     queue.getMetrics().submitApp(user);
 
-    LOG.info("Accepted application " + applicationId + " from user: " + user +
-        ", in queue: " + queueName + ", currently num of applications: " +
-        applications.size());
-    rmContext.getDispatcher().getEventHandler().handle(
-        new RMAppEvent(applicationId, RMAppEventType.APP_ACCEPTED,
-            transactionState));
+    if (transactionState != null) {
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().setSchedulerApplicationtoAdd(application,applicationId);
+    }
+
+    LOG.info("Accepted application " + applicationId + " from user: " + user
+            + ", in queue: " + queueName + ", currently num of applications: "
+            + applications.size());
+    rmContext.getDispatcher().getEventHandler()
+            .handle(new RMAppEvent(applicationId, RMAppEventType.APP_ACCEPTED, transactionState));
+  }
+
+  //HOP : Created for testing purposes
+  public synchronized void addAppAttempt(ApplicationAttemptId applicationAttemptId,
+          boolean transferStateFromPreviousAttempt, TransactionState transactionState) {
+    addApplicationAttempt(applicationAttemptId, transferStateFromPreviousAttempt, transactionState);
   }
 
   /**
    * Add a new application attempt to the scheduler.
    */
   protected synchronized void addApplicationAttempt(
-      ApplicationAttemptId applicationAttemptId,
-      boolean transferStateFromPreviousAttempt,
-      TransactionState transactionState) {
-    SchedulerApplication application =
-        applications.get(applicationAttemptId.getApplicationId());
+          ApplicationAttemptId applicationAttemptId,
+          boolean transferStateFromPreviousAttempt, TransactionState transactionState) {
+    SchedulerApplication application
+            = applications.get(applicationAttemptId.getApplicationId());
     String user = application.getUser();
     FSLeafQueue queue = (FSLeafQueue) application.getQueue();
 
-    FSSchedulerApp attempt =
-        new FSSchedulerApp(applicationAttemptId, user, queue,
-            new ActiveUsersManager(getRootQueueMetrics()), rmContext);
+    FSSchedulerApp attempt
+            = new FSSchedulerApp(applicationAttemptId, user,
+                    queue, new ActiveUsersManager(getRootQueueMetrics()),
+                    rmContext);
     if (transferStateFromPreviousAttempt) {
-      attempt
-          .transferStateFromPreviousAttempt(application.getCurrentAppAttempt());
+      attempt.transferStateFromPreviousAttempt(application
+              .getCurrentAppAttempt());
     }
     application.setCurrentAppAttempt(attempt, transactionState);
 
+    if (transactionState != null) {
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().setFairSchedulerAppInfo(attempt);
+    }
+
     boolean runnable = maxRunningEnforcer.canAppBeRunnable(queue, user);
     queue.addApp(attempt, runnable);
+
+    if (transactionState != null) {
+      FairSchedulerAppInfo fair = ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().getFairSchedulerAppInfo(applicationAttemptId);
+      fair.setIsRunnable(runnable);
+    }
+
     if (runnable) {
       maxRunningEnforcer.trackRunnableApp(attempt);
     } else {
       maxRunningEnforcer.trackNonRunnableApp(attempt);
     }
-    
+
     queue.getMetrics().submitAppAttempt(user);
 
-    LOG.info("Added Application Attempt " + applicationAttemptId +
-        " to scheduler from user: " + user);
+    LOG.info("Added Application Attempt " + applicationAttemptId
+            + " to scheduler from user: " + user);
     rmContext.getDispatcher().getEventHandler().handle(
-        new RMAppAttemptEvent(applicationAttemptId,
-            RMAppAttemptEventType.ATTEMPT_ADDED, transactionState));
+            new RMAppAttemptEvent(applicationAttemptId,
+                    RMAppAttemptEventType.ATTEMPT_ADDED, transactionState));
   }
 
   /**
@@ -732,8 +762,7 @@ public class FairScheduler extends AbstractYarnScheduler {
     if (appRejectMsg != null && rmApp != null) {
       LOG.error(appRejectMsg);
       rmContext.getDispatcher().getEventHandler().handle(
-          new RMAppRejectedEvent(rmApp.getApplicationId(), appRejectMsg,
-              transactionState));
+              new RMAppRejectedEvent(rmApp.getApplicationId(), appRejectMsg, transactionState));
       return null;
     }
 
@@ -746,7 +775,7 @@ public class FairScheduler extends AbstractYarnScheduler {
   }
 
   private synchronized void removeApplication(ApplicationId applicationId,
-      RMAppState finalState) {
+          RMAppState finalState, TransactionState ts) {
     SchedulerApplication application = applications.get(applicationId);
     if (application == null) {
       LOG.warn("Couldn't find application " + applicationId);
@@ -754,16 +783,19 @@ public class FairScheduler extends AbstractYarnScheduler {
     }
     application.stop(finalState);
     applications.remove(applicationId);
+
+    if (ts != null) {
+      ((TransactionStateImpl) ts).getSchedulerApplicationInfo().setApplicationIdtoRemove(applicationId);
+    }
   }
 
   private synchronized void removeApplicationAttempt(
-      ApplicationAttemptId applicationAttemptId,
-      RMAppAttemptState rmAppAttemptFinalState, boolean keepContainers,
-      TransactionState transactionState) {
-    LOG.info("Application " + applicationAttemptId + " is done." +
-        " finalState=" + rmAppAttemptFinalState);
-    SchedulerApplication application =
-        applications.get(applicationAttemptId.getApplicationId());
+          ApplicationAttemptId applicationAttemptId,
+          RMAppAttemptState rmAppAttemptFinalState, boolean keepContainers, TransactionState transactionState) {
+    LOG.info("Application " + applicationAttemptId + " is done."
+            + " finalState=" + rmAppAttemptFinalState);
+    SchedulerApplication application
+            = applications.get(applicationAttemptId.getApplicationId());
     FSSchedulerApp attempt = getSchedulerApp(applicationAttemptId);
 
     if (attempt == null || application == null) {
@@ -774,38 +806,45 @@ public class FairScheduler extends AbstractYarnScheduler {
 
     // Release all the running containers
     for (RMContainer rmContainer : attempt.getLiveContainers()) {
-      if (keepContainers &&
-          rmContainer.getState().equals(RMContainerState.RUNNING)) {
+      if (keepContainers
+              && rmContainer.getState().equals(RMContainerState.RUNNING)) {
         // do not kill the running container in the case of work-preserving AM
         // restart.
         LOG.info("Skip killing " + rmContainer.getContainerId());
         continue;
       }
-      completedContainer(rmContainer, SchedulerUtils
-              .createAbnormalContainerStatus(rmContainer.getContainerId(),
-                  SchedulerUtils.COMPLETED_APPLICATION),
-          RMContainerEventType.KILL, transactionState);
+      completedContainer(rmContainer,
+              SchedulerUtils.createAbnormalContainerStatus(
+                      rmContainer.getContainerId(),
+                      SchedulerUtils.COMPLETED_APPLICATION),
+              RMContainerEventType.KILL, transactionState);
     }
 
     // Release all reserved containers
     for (RMContainer rmContainer : attempt.getReservedContainers()) {
-      completedContainer(rmContainer, SchedulerUtils
-              .createAbnormalContainerStatus(rmContainer.getContainerId(),
-                  "Application Complete"), RMContainerEventType.KILL,
-          transactionState);
+      completedContainer(rmContainer,
+              SchedulerUtils.createAbnormalContainerStatus(
+                      rmContainer.getContainerId(),
+                      "Application Complete"),
+              RMContainerEventType.KILL, transactionState);
     }
     // Clean up pending requests, metrics etc.
     attempt.stop(rmAppAttemptFinalState, transactionState);
 
     // Inform the queue
-    FSLeafQueue queue =
-        queueMgr.getLeafQueue(attempt.getQueue().getQueueName(), false);
+    FSLeafQueue queue = queueMgr.getLeafQueue(attempt.getQueue()
+            .getQueueName(), false);
     boolean wasRunnable = queue.removeApp(attempt);
+
+    if (transactionState != null) {
+      FairSchedulerAppInfo fair = ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().getFairSchedulerAppInfo(applicationAttemptId);
+      fair.removeRunnableApp(queue.getName(), attempt.getApplicationAttemptId().toString());
+    }
 
     if (wasRunnable) {
       maxRunningEnforcer.untrackRunnableApp(attempt);
-      maxRunningEnforcer
-          .updateRunnabilityOnAppRemoval(attempt, attempt.getQueue());
+      maxRunningEnforcer.updateRunnabilityOnAppRemoval(attempt,
+              attempt.getQueue());
     } else {
       maxRunningEnforcer.untrackNonRunnableApp(attempt);
     }
@@ -815,8 +854,7 @@ public class FairScheduler extends AbstractYarnScheduler {
    * Clean up a completed container.
    */
   private synchronized void completedContainer(RMContainer rmContainer,
-      ContainerStatus containerStatus, RMContainerEventType event,
-      TransactionState transactionState) {
+          ContainerStatus containerStatus, RMContainerEventType event, TransactionState transactionState) {
     if (rmContainer == null) {
       LOG.info("Null container completed...");
       return;
@@ -825,14 +863,14 @@ public class FairScheduler extends AbstractYarnScheduler {
     Container container = rmContainer.getContainer();
 
     // Get the application for the finished container
-    FSSchedulerApp application =
-        getCurrentAttemptForContainer(container.getId());
-    ApplicationId appId =
-        container.getId().getApplicationAttemptId().getApplicationId();
+    FSSchedulerApp application
+            = getCurrentAttemptForContainer(container.getId());
+    ApplicationId appId
+            = container.getId().getApplicationAttemptId().getApplicationId();
     if (application == null) {
-      LOG.info("Container " + container + " of" +
-          " unknown application attempt " + appId +
-          " completed with event " + event);
+      LOG.info("Container " + container + " of"
+              + " unknown application attempt " + appId
+              + " completed with event " + event);
       return;
     }
 
@@ -840,27 +878,27 @@ public class FairScheduler extends AbstractYarnScheduler {
     FSSchedulerNode node = nodes.get(container.getNodeId());
 
     if (rmContainer.getState() == RMContainerState.RESERVED) {
-      application.unreserve(node, rmContainer.getReservedPriority());
-      node.unreserveResource(application);
+      application.unreserve(node, rmContainer.getReservedPriority(), transactionState);
+      node.unreserveResource(application, transactionState);
     } else {
-      application.containerCompleted(rmContainer, containerStatus, event,
-          transactionState);
-      node.releaseContainer(container);
-      updateRootQueueMetrics();
+      application.containerCompleted(rmContainer, containerStatus, event, transactionState);
+      node.releaseContainer(container, transactionState);
+      updateRootQueueMetrics(transactionState);
     }
 
-    LOG.info("Application attempt " + application.getApplicationAttemptId() +
-        " released container " + container.getId() + " on node: " + node +
-        " with event: " + event);
+    LOG.info("Application attempt " + application.getApplicationAttemptId()
+            + " released container " + container.getId() + " on node: " + node
+            + " with event: " + event);
   }
 
-  private synchronized void addNode(RMNode node) {
+  private synchronized void addNode(RMNode node, TransactionState ts) {
     nodes.put(node.getNodeID(), new FSSchedulerNode(node, usePortForNodeName));
+    //TODO - Nikos : update Resources and RootQueueMetrics
     Resources.addTo(clusterCapacity, node.getTotalCapability());
-    updateRootQueueMetrics();
+    updateRootQueueMetrics(ts);
 
-    LOG.info("Added node " + node.getNodeAddress() +
-        " cluster capacity: " + clusterCapacity);
+    LOG.info("Added node " + node.getNodeAddress()
+            + " cluster capacity: " + clusterCapacity);
   }
 
   private synchronized void removeNode(RMNode rmNode,
@@ -870,76 +908,78 @@ public class FairScheduler extends AbstractYarnScheduler {
     if (node == null) {
       return;
     }
+    //TODO - Nikos : Update Resources and RootQueueMetrics
     Resources.subtractFrom(clusterCapacity, rmNode.getTotalCapability());
-    updateRootQueueMetrics();
+    updateRootQueueMetrics(transactionState);
 
     // Remove running containers
     List<RMContainer> runningContainers = node.getRunningContainers();
     for (RMContainer container : runningContainers) {
-      completedContainer(container, SchedulerUtils
-              .createAbnormalContainerStatus(container.getContainerId(),
-                  SchedulerUtils.LOST_CONTAINER), RMContainerEventType.KILL,
-          transactionState);
+      completedContainer(container,
+              SchedulerUtils.createAbnormalContainerStatus(
+                      container.getContainerId(),
+                      SchedulerUtils.LOST_CONTAINER),
+              RMContainerEventType.KILL, transactionState);
     }
 
     // Remove reservations, if any
     RMContainer reservedContainer = node.getReservedContainer();
     if (reservedContainer != null) {
-      completedContainer(reservedContainer, SchedulerUtils
-              .createAbnormalContainerStatus(reservedContainer.getContainerId(),
-                  SchedulerUtils.LOST_CONTAINER), RMContainerEventType.KILL,
-          transactionState);
+      completedContainer(reservedContainer,
+              SchedulerUtils.createAbnormalContainerStatus(
+                      reservedContainer.getContainerId(),
+                      SchedulerUtils.LOST_CONTAINER),
+              RMContainerEventType.KILL, transactionState);
     }
 
     nodes.remove(rmNode.getNodeID());
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getFairschedulerNodeInfo()
-          .removeFSSchedulerNode(rmNode.getNodeID(), node);
+      ((TransactionStateImpl) transactionState).getFairschedulerNodeInfo().removeFSSchedulerNode(rmNode.getNodeID(), node);
     }
-    LOG.info("Removed node " + rmNode.getNodeAddress() +
-        " cluster capacity: " + clusterCapacity);
+    LOG.info("Removed node " + rmNode.getNodeAddress()
+            + " cluster capacity: " + clusterCapacity);
   }
 
   @Override
   public Allocation allocate(ApplicationAttemptId appAttemptId,
-      List<ResourceRequest> ask, List<ContainerId> release,
-      List<String> blacklistAdditions, List<String> blacklistRemovals,
-      TransactionState transactionState) {
+          List<ResourceRequest> ask, List<ContainerId> release, List<String> blacklistAdditions, List<String> blacklistRemovals,
+          TransactionState transactionState) {
 
     // Make sure this application exists
     FSSchedulerApp application = getSchedulerApp(appAttemptId);
     if (application == null) {
-      LOG.info("Calling allocate on removed " +
-          "or non existant application " + appAttemptId);
+      LOG.info("Calling allocate on removed "
+              + "or non existant application " + appAttemptId);
       return EMPTY_ALLOCATION;
     }
 
     // Sanity check
     SchedulerUtils.normalizeRequests(ask, new DominantResourceCalculator(),
-        clusterCapacity, minimumAllocation, maximumAllocation, incrAllocation);
+            clusterCapacity, minimumAllocation, maximumAllocation, incrAllocation);
 
     // Release containers
     for (ContainerId releasedContainerId : release) {
       RMContainer rmContainer = getRMContainer(releasedContainerId);
       if (rmContainer == null) {
-        RMAuditLogger
-            .logFailure(application.getUser(), AuditConstants.RELEASE_CONTAINER,
+        RMAuditLogger.logFailure(application.getUser(),
+                AuditConstants.RELEASE_CONTAINER,
                 "Unauthorized access or invalid container", "FairScheduler",
                 "Trying to release container not owned by app or with invalid id",
                 application.getApplicationId(), releasedContainerId);
       }
-      completedContainer(rmContainer, SchedulerUtils
-              .createAbnormalContainerStatus(releasedContainerId,
-                  SchedulerUtils.RELEASED_CONTAINER),
-          RMContainerEventType.RELEASED, transactionState);
+      completedContainer(rmContainer,
+              SchedulerUtils.createAbnormalContainerStatus(
+                      releasedContainerId,
+                      SchedulerUtils.RELEASED_CONTAINER),
+              RMContainerEventType.RELEASED, transactionState);
     }
 
     synchronized (application) {
       if (!ask.isEmpty()) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug("allocate: pre-update" +
-              " applicationAttemptId=" + appAttemptId +
-              " application=" + application.getApplicationId());
+          LOG.debug("allocate: pre-update"
+                  + " applicationAttemptId=" + appAttemptId
+                  + " application=" + application.getApplicationId());
         }
         application.showRequests();
 
@@ -951,26 +991,25 @@ public class FairScheduler extends AbstractYarnScheduler {
       }
 
       if (LOG.isDebugEnabled()) {
-        LOG.debug("allocate:" +
-            " applicationAttemptId=" + appAttemptId +
-            " #ask=" + ask.size());
+        LOG.debug("allocate:"
+                + " applicationAttemptId=" + appAttemptId
+                + " #ask=" + ask.size());
 
-        LOG.debug("Preempting " + application.getPreemptionContainers().size() +
-            " container(s)");
+        LOG.debug("Preempting " + application.getPreemptionContainers().size()
+                + " container(s)");
       }
-      
+
       Set<ContainerId> preemptionContainerIds = new HashSet<ContainerId>();
       for (RMContainer container : application.getPreemptionContainers()) {
         preemptionContainerIds.add(container.getContainerId());
       }
 
-      application.updateBlacklist(blacklistAdditions, blacklistRemovals,
-          transactionState);
-      ContainersAndNMTokensAllocation allocation =
-          application.pullNewlyAllocatedContainersAndNMTokens(transactionState);
+      application.updateBlacklist(blacklistAdditions, blacklistRemovals, transactionState);
+      ContainersAndNMTokensAllocation allocation
+              = application.pullNewlyAllocatedContainersAndNMTokens(transactionState);
       return new Allocation(allocation.getContainerList(),
-          application.getHeadroom(), preemptionContainerIds, null, null,
-          allocation.getNMTokenList());
+              application.getHeadroom(), preemptionContainerIds, null, null,
+              allocation.getNMTokenList());
     }
   }
 
@@ -982,9 +1021,9 @@ public class FairScheduler extends AbstractYarnScheduler {
     // Get the application for the finished container
     FSSchedulerApp application = getCurrentAttemptForContainer(containerId);
     if (application == null) {
-      LOG.info("Unknown application " +
-          containerId.getApplicationAttemptId().getApplicationId() +
-          " launched container " + containerId + " on node: " + node);
+      LOG.info("Unknown application "
+              + containerId.getApplicationAttemptId().getApplicationId()
+              + " launched container " + containerId + " on node: " + node);
       return;
     }
 
@@ -1004,17 +1043,16 @@ public class FairScheduler extends AbstractYarnScheduler {
     FSSchedulerNode node = nodes.get(nm.getNodeID());
 
     // Update resource if any change
-    SchedulerUtils.updateResourceIfChanged(node, nm, clusterCapacity, LOG);
-    
-    List<UpdatedContainerInfo> containerInfoList =
-        nm.pullContainerUpdates(transactionState);
-    List<ContainerStatus> newlyLaunchedContainers =
-        new ArrayList<ContainerStatus>();
-    List<ContainerStatus> completedContainers =
-        new ArrayList<ContainerStatus>();
+    SchedulerUtils.updateResourceIfChanged(node, nm, clusterCapacity, LOG, transactionState);
+    if (transactionState != null) {
+      ((TransactionStateImpl) transactionState).getFairschedulerNodeInfo().toUpdateFSSchedulerNodeId(nm.getNodeID().toString());
+    ((TransactionStateImpl) transactionState).getFairschedulerNodeInfo().updateResources(io.hops.metadata.yarn.entity.Resource.AVAILABLE, node.getAvailableResource());
+    }
+    List<UpdatedContainerInfo> containerInfoList = nm.pullContainerUpdates(transactionState);
+    List<ContainerStatus> newlyLaunchedContainers = new ArrayList<ContainerStatus>();
+    List<ContainerStatus> completedContainers = new ArrayList<ContainerStatus>();
     for (UpdatedContainerInfo containerInfo : containerInfoList) {
-      newlyLaunchedContainers
-          .addAll(containerInfo.getNewlyLaunchedContainers());
+      newlyLaunchedContainers.addAll(containerInfo.getNewlyLaunchedContainers());
       completedContainers.addAll(containerInfo.getCompletedContainers());
     }
     // Processing the newly launched containers
@@ -1027,8 +1065,8 @@ public class FairScheduler extends AbstractYarnScheduler {
     for (ContainerStatus completedContainer : completedContainers) {
       ContainerId containerId = completedContainer.getContainerId();
       LOG.debug("Container FINISHED: " + containerId);
-      completedContainer(getRMContainer(containerId), completedContainer,
-          RMContainerEventType.FINISHED, transactionState);
+      completedContainer(getRMContainer(containerId),
+              completedContainer, RMContainerEventType.FINISHED, transactionState);
     }
 
     if (continuousSchedulingEnabled) {
@@ -1061,17 +1099,16 @@ public class FairScheduler extends AbstractYarnScheduler {
               attemptScheduling(node, transactionState);
             }
           } catch (Throwable ex) {
-            LOG.warn("Error while attempting scheduling for node " + node +
-                ": " + ex.toString(), ex);
+            LOG.warn("Error while attempting scheduling for node " + node
+                    + ": " + ex.toString(), ex);
           }
         }
       }
       try {
         Thread.sleep(getContinuousSchedulingSleepMs());
       } catch (InterruptedException e) {
-        LOG.warn(
-            "Error while doing sleep in continuous scheduling: " + e.toString(),
-            e);
+        LOG.warn("Error while doing sleep in continuous scheduling: "
+                + e.toString(), e);
       }
     }
   }
@@ -1088,9 +1125,8 @@ public class FairScheduler extends AbstractYarnScheduler {
               nodes.get(n1).getAvailableResource());
     }
   }
-  
-  private synchronized void attemptScheduling(FSSchedulerNode node,
-      TransactionState transactionState) {
+
+  private synchronized void attemptScheduling(FSSchedulerNode node, TransactionState transactionState) {
     // Assign new containers...
     // 1. Check for reserved applications
     // 2. Schedule if there are no reservations
@@ -1101,17 +1137,16 @@ public class FairScheduler extends AbstractYarnScheduler {
           node.getReservedContainer().getReservedPriority();
       if (!reservedAppSchedulable.hasContainerForNode(reservedPriority, node)) {
         // Don't hold the reservation if app can no longer use it
-        LOG.info(
-            "Releasing reservation that cannot be satisfied for application " +
-                reservedAppSchedulable.getApp().getApplicationAttemptId() +
-                " on node " + node);
-        reservedAppSchedulable.unreserve(reservedPriority, node);
+        LOG.info("Releasing reservation that cannot be satisfied for application "
+                + reservedAppSchedulable.getApp().getApplicationAttemptId()
+                + " on node " + node);
+        reservedAppSchedulable.unreserve(reservedPriority, node, transactionState);
         reservedAppSchedulable = null;
       } else {
         // Reservation exists; try to fulfill the reservation
-        LOG.info("Trying to fulfill reservation for application " +
-            reservedAppSchedulable.getApp().getApplicationAttemptId() +
-            " on node: " + node);
+        LOG.info("Trying to fulfill reservation for application "
+                + reservedAppSchedulable.getApp().getApplicationAttemptId()
+                + " on node: " + node);
 
         node.getReservedAppSchedulable()
             .assignReservedContainer(node, transactionState);
@@ -1123,8 +1158,8 @@ public class FairScheduler extends AbstractYarnScheduler {
       while (node.getReservedContainer() == null) {
         boolean assignedContainer = false;
         if (Resources.greaterThan(RESOURCE_CALCULATOR, clusterCapacity,
-            queueMgr.getRootQueue().assignContainer(node, transactionState),
-            Resources.none())) {
+                queueMgr.getRootQueue().assignContainer(node, transactionState),
+                Resources.none())) {
           assignedContainers++;
           assignedContainer = true;
         }
@@ -1139,7 +1174,7 @@ public class FairScheduler extends AbstractYarnScheduler {
         }
       }
     }
-    updateRootQueueMetrics();
+    updateRootQueueMetrics(transactionState);
   }
 
   @Override
@@ -1147,19 +1182,19 @@ public class FairScheduler extends AbstractYarnScheduler {
     FSSchedulerNode node = nodes.get(nodeId);
     return node == null ? null : new SchedulerNodeReport(node);
   }
-  
+
   public FSSchedulerApp getSchedulerApp(ApplicationAttemptId appAttemptId) {
-    SchedulerApplication app =
-        applications.get(appAttemptId.getApplicationId());
+    SchedulerApplication app
+            = applications.get(appAttemptId.getApplicationId());
     if (app != null) {
       return (FSSchedulerApp) app.getCurrentAppAttempt();
     }
     return null;
   }
-  
+
   @Override
   public SchedulerAppReport getSchedulerAppInfo(
-      ApplicationAttemptId appAttemptId) {
+          ApplicationAttemptId appAttemptId) {
     FSSchedulerApp attempt = getSchedulerApp(appAttemptId);
     if (attempt == null) {
       if (LOG.isDebugEnabled()) {
@@ -1169,10 +1204,10 @@ public class FairScheduler extends AbstractYarnScheduler {
     }
     return new SchedulerAppReport(attempt);
   }
-  
+
   @Override
   public ApplicationResourceUsageReport getAppResourceUsageReport(
-      ApplicationAttemptId appAttemptId) {
+          ApplicationAttemptId appAttemptId) {
     FSSchedulerApp attempt = getSchedulerApp(appAttemptId);
     if (attempt == null) {
       if (LOG.isDebugEnabled()) {
@@ -1182,16 +1217,17 @@ public class FairScheduler extends AbstractYarnScheduler {
     }
     return attempt.getResourceUsageReport();
   }
-  
+
   /**
    * Subqueue metrics might be a little out of date because fair shares are
-   * recalculated at the update interval, but the root queue metrics needs to
-   * be updated synchronously with allocations and completions so that cluster
+   * recalculated at the update interval, but the root queue metrics needs to be
+   * updated synchronously with allocations and completions so that cluster
    * metrics will be consistent.
    */
-  private void updateRootQueueMetrics() {
-    rootMetrics.setAvailableResourcesToQueue(Resources
-            .subtract(clusterCapacity, rootMetrics.getAllocatedResources()));
+  private void updateRootQueueMetrics(TransactionState ts) {
+    rootMetrics.setAvailableResourcesToQueue(
+            Resources.subtract(
+                    clusterCapacity, rootMetrics.getAllocatedResources()));
   }
 
   @Override
@@ -1206,34 +1242,25 @@ public class FairScheduler extends AbstractYarnScheduler {
         if (!(event instanceof NodeAddedSchedulerEvent)) {
           throw new RuntimeException("Unexpected event type: " + event);
         }
-        NodeAddedSchedulerEvent nodeAddedEvent =
-            (NodeAddedSchedulerEvent) event;
-        FSSchedulerNode fssNode =
-            new FSSchedulerNode(nodeAddedEvent.getAddedRMNode(),
-                usePortForNodeName);
+        NodeAddedSchedulerEvent nodeAddedEvent = (NodeAddedSchedulerEvent) event;
+        FSSchedulerNode fssNode = new FSSchedulerNode(nodeAddedEvent.getAddedRMNode(), usePortForNodeName);
         if (event.getTransactionState() != null) {
-          ((TransactionStateImpl) event.getTransactionState())
-              .getFairschedulerNodeInfo()
-              .addFSSchedulerNode(nodeAddedEvent.getAddedRMNode().getNodeID(),
-                  fssNode);
+          ((TransactionStateImpl) event.getTransactionState()).getFairschedulerNodeInfo().addFSSchedulerNode(nodeAddedEvent.getAddedRMNode().getNodeID(), fssNode);
         }
-        addNode(nodeAddedEvent.getAddedRMNode());
+        addNode(nodeAddedEvent.getAddedRMNode(), event.getTransactionState());
         break;
       case NODE_REMOVED:
         if (!(event instanceof NodeRemovedSchedulerEvent)) {
           throw new RuntimeException("Unexpected event type: " + event);
         }
-        NodeRemovedSchedulerEvent nodeRemovedEvent =
-            (NodeRemovedSchedulerEvent) event;
-        removeNode(nodeRemovedEvent.getRemovedRMNode(),
-            event.getTransactionState());
+        NodeRemovedSchedulerEvent nodeRemovedEvent = (NodeRemovedSchedulerEvent) event;
+        removeNode(nodeRemovedEvent.getRemovedRMNode(), event.getTransactionState());
         break;
       case NODE_UPDATE:
         if (!(event instanceof NodeUpdateSchedulerEvent)) {
           throw new RuntimeException("Unexpected event type: " + event);
         }
-        NodeUpdateSchedulerEvent nodeUpdatedEvent =
-            (NodeUpdateSchedulerEvent) event;
+        NodeUpdateSchedulerEvent nodeUpdatedEvent = (NodeUpdateSchedulerEvent) event;
         nodeUpdate(nodeUpdatedEvent.getRMNode(), event.getTransactionState());
         break;
       case APP_ADDED:
@@ -1242,66 +1269,115 @@ public class FairScheduler extends AbstractYarnScheduler {
         }
         AppAddedSchedulerEvent appAddedEvent = (AppAddedSchedulerEvent) event;
         addApplication(appAddedEvent.getApplicationId(),
-            appAddedEvent.getQueue(), appAddedEvent.getUser(),
-            event.getTransactionState());
+                appAddedEvent.getQueue(), appAddedEvent.getUser(), event.getTransactionState());
         break;
       case APP_REMOVED:
         if (!(event instanceof AppRemovedSchedulerEvent)) {
           throw new RuntimeException("Unexpected event type: " + event);
         }
-        AppRemovedSchedulerEvent appRemovedEvent =
-            (AppRemovedSchedulerEvent) event;
+        AppRemovedSchedulerEvent appRemovedEvent = (AppRemovedSchedulerEvent) event;
         removeApplication(appRemovedEvent.getApplicationID(),
-            appRemovedEvent.getFinalState());
+                appRemovedEvent.getFinalState(), event.getTransactionState());
         break;
       case APP_ATTEMPT_ADDED:
         if (!(event instanceof AppAttemptAddedSchedulerEvent)) {
           throw new RuntimeException("Unexpected event type: " + event);
         }
-        AppAttemptAddedSchedulerEvent appAttemptAddedEvent =
-            (AppAttemptAddedSchedulerEvent) event;
+        AppAttemptAddedSchedulerEvent appAttemptAddedEvent
+                = (AppAttemptAddedSchedulerEvent) event;
         addApplicationAttempt(appAttemptAddedEvent.getApplicationAttemptId(),
-            appAttemptAddedEvent.getTransferStateFromPreviousAttempt(),
-            event.getTransactionState());
+                appAttemptAddedEvent.getTransferStateFromPreviousAttempt(), event.getTransactionState());
         break;
       case APP_ATTEMPT_REMOVED:
         if (!(event instanceof AppAttemptRemovedSchedulerEvent)) {
           throw new RuntimeException("Unexpected event type: " + event);
         }
-        AppAttemptRemovedSchedulerEvent appAttemptRemovedEvent =
-            (AppAttemptRemovedSchedulerEvent) event;
+        AppAttemptRemovedSchedulerEvent appAttemptRemovedEvent
+                = (AppAttemptRemovedSchedulerEvent) event;
         removeApplicationAttempt(
-            appAttemptRemovedEvent.getApplicationAttemptID(),
-            appAttemptRemovedEvent.getFinalAttemptState(),
-            appAttemptRemovedEvent.getKeepContainersAcrossAppAttempts(),
-            event.getTransactionState());
+                appAttemptRemovedEvent.getApplicationAttemptID(),
+                appAttemptRemovedEvent.getFinalAttemptState(),
+                appAttemptRemovedEvent.getKeepContainersAcrossAppAttempts(), event.getTransactionState());
         break;
       case CONTAINER_EXPIRED:
         if (!(event instanceof ContainerExpiredSchedulerEvent)) {
           throw new RuntimeException("Unexpected event type: " + event);
         }
-        ContainerExpiredSchedulerEvent containerExpiredEvent =
-            (ContainerExpiredSchedulerEvent) event;
+        ContainerExpiredSchedulerEvent containerExpiredEvent
+                = (ContainerExpiredSchedulerEvent) event;
         ContainerId containerId = containerExpiredEvent.getContainerId();
-        completedContainer(getRMContainer(containerId), SchedulerUtils
-                .createAbnormalContainerStatus(containerId,
-                    SchedulerUtils.EXPIRED_CONTAINER),
-            RMContainerEventType.EXPIRE, event.getTransactionState());
+        completedContainer(getRMContainer(containerId),
+                SchedulerUtils.createAbnormalContainerStatus(
+                        containerId,
+                        SchedulerUtils.EXPIRED_CONTAINER),
+                RMContainerEventType.EXPIRE, event.getTransactionState());
         break;
       default:
-        LOG.error(
-            "Unknown event arrived at FairScheduler: " + event.toString());
+        LOG.error("Unknown event arrived at FairScheduler: " + event.toString());
     }
   }
 
   @Override
   public void recover(RMState state) throws Exception {
-    // NOT IMPLEMENTED
+    //recover nodes map
+    List<io.hops.metadata.yarn.entity.fair.FSSchedulerNode> nodesList = state.getAllFairSchedulerNodes();
+    for (io.hops.metadata.yarn.entity.fair.FSSchedulerNode fssnode : nodesList) {
+
+      //retrieve nodeId - key of nodes Map
+      NodeId nodeId = ConverterUtils.toNodeId(fssnode.getRmnodeid());
+
+      FSSchedulerNode fSSchedulerNode = new FSSchedulerNode(rmContext.getActiveRMNodes().get(nodeId), usePortForNodeName, rmContext, fssnode, state);
+
+      nodes.put(nodeId, fSSchedulerNode);
+      //Update clusterCapability Resource
+      Resources.addTo(clusterCapacity, this.rmContext.getActiveRMNodes().get(nodeId).getTotalCapability());
+    }
+
+    //recover applications map
+    Map<String, io.hops.metadata.yarn.entity.SchedulerApplication> appsMap = state.getSchedulerApplications();
+    for (io.hops.metadata.yarn.entity.SchedulerApplication hop : appsMap.values()) {
+      //construct ApplicationId - key of applications map
+      ApplicationId applicationId = ConverterUtils.toApplicationId(hop.getAppid());
+
+      RMApp rmApp = rmContext.getRMApps().get(applicationId);
+
+      FSLeafQueue queue = assignToQueue(rmApp, hop.getQueuename(), hop.getUser(), new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+      if (queue == null) {
+        return;
+      }
+
+      SchedulerApplication application = new SchedulerApplication(queue, hop.getUser());
+
+      //retrieve HopApplicationAttemptId for this specific appId
+      AppSchedulingInfo hopInfo = state.getAppSchedulingInfo(hop.getAppid());
+      if (hopInfo != null) {
+        //construct ApplicationAttemptId
+        ApplicationAttemptId appAttemptId = ConverterUtils.toApplicationAttemptId(hopInfo.getSchedulerAppId());
+        //construct FSSchedulerApp
+        FSSchedulerApp attempt = new FSSchedulerApp(appAttemptId, hop.getUser(), queue,
+                new ActiveUsersManager(getRootQueueMetrics()), this.rmContext);
+        attempt.recover(hopInfo, state);
+        application.setCurrentAppAttempt(attempt, null);
+
+        boolean runnable = maxRunningEnforcer.canAppBeRunnable(queue, hop.getUser());
+        queue.addApp(attempt, runnable);
+
+        if (runnable) {
+          maxRunningEnforcer.trackRunnableApp(attempt);
+        } else {
+          maxRunningEnforcer.trackNonRunnableApp(attempt);
+        }
+
+        queue.getMetrics().submitApp(hop.getUser());
+      }
+      applications.put(applicationId, application);
+    }
+
   }
 
   @Override
   public synchronized void reinitialize(Configuration conf, RMContext rmContext)
-      throws IOException {
+          throws IOException {
     if (!initialized) {
       this.conf = new FairSchedulerConfiguration(conf);
       validateConf(this.conf);
@@ -1309,7 +1385,8 @@ public class FairScheduler extends AbstractYarnScheduler {
       maximumAllocation = this.conf.getMaximumAllocation();
       incrAllocation = this.conf.getIncrementAllocation();
       continuousSchedulingEnabled = this.conf.isContinuousSchedulingEnabled();
-      continuousSchedulingSleepMs = this.conf.getContinuousSchedulingSleepMs();
+      continuousSchedulingSleepMs
+              = this.conf.getContinuousSchedulingSleepMs();
       nodeLocalityThreshold = this.conf.getLocalityThresholdNode();
       rackLocalityThreshold = this.conf.getLocalityThresholdRack();
       nodeLocalityDelayMs = this.conf.getLocalityDelayNodeMs();
@@ -1321,12 +1398,12 @@ public class FairScheduler extends AbstractYarnScheduler {
       preemptionInterval = this.conf.getPreemptionInterval();
       waitTimeBeforeKill = this.conf.getWaitTimeBeforeKill();
       usePortForNodeName = this.conf.getUsePortForNodeName();
-      
+
       rootMetrics = FSQueueMetrics.forQueue("root", null, true, conf);
       this.rmContext = rmContext;
       // This stores per-application scheduling information
-      this.applications =
-          new ConcurrentHashMap<ApplicationId, SchedulerApplication>();
+      this.applications
+              = new ConcurrentHashMap<ApplicationId, SchedulerApplication>();
       this.eventLog = new FairSchedulerEventLog();
       eventLog.init(this.conf);
 
@@ -1346,17 +1423,19 @@ public class FairScheduler extends AbstractYarnScheduler {
 
       if (continuousSchedulingEnabled) {
         // start continuous scheduling thread
-        Thread schedulingThread = new Thread(new Runnable() {
-          @Override
-          public void run() {
-            continuousScheduling(null);
-          }
-        });
+        Thread schedulingThread = new Thread(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    continuousScheduling(new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+                  }
+                }
+        );
         schedulingThread.setName("ContinuousScheduling");
         schedulingThread.setDaemon(true);
         schedulingThread.start();
       }
-      
+
       allocsLoader.init(conf);
       allocsLoader.setReloadListener(new AllocationReloadListener());
       // If we fail to load allocations file on initialize, we want to fail
@@ -1379,12 +1458,12 @@ public class FairScheduler extends AbstractYarnScheduler {
 
   @Override
   public QueueInfo getQueueInfo(String queueName, boolean includeChildQueues,
-      boolean recursive) throws IOException {
+          boolean recursive) throws IOException {
     if (!queueMgr.exists(queueName)) {
       throw new IOException("queue " + queueName + " does not exist");
     }
-    return queueMgr.getQueue(queueName)
-        .getQueueInfo(includeChildQueues, recursive);
+    return queueMgr.getQueue(queueName).getQueueInfo(includeChildQueues,
+            recursive);
   }
 
   @Override
@@ -1406,24 +1485,24 @@ public class FairScheduler extends AbstractYarnScheduler {
 
   @Override
   public synchronized boolean checkAccess(UserGroupInformation callerUGI,
-      QueueACL acl, String queueName) {
+          QueueACL acl, String queueName) {
     FSQueue queue = getQueueManager().getQueue(queueName);
     if (queue == null) {
       if (LOG.isDebugEnabled()) {
-        LOG.debug("ACL not found for queue access-type " + acl + " for queue " +
-            queueName);
+        LOG.debug("ACL not found for queue access-type " + acl
+                + " for queue " + queueName);
       }
       return false;
     }
     return queue.hasAccess(acl, callerUGI);
   }
-  
+
   public AllocationConfiguration getAllocationConfiguration() {
     return allocConf;
   }
-  
-  private class AllocationReloadListener
-      implements AllocationFileLoaderService.Listener {
+
+  private class AllocationReloadListener implements
+          AllocationFileLoaderService.Listener {
 
     @Override
     public void onReload(AllocationConfiguration queueInfo) {
@@ -1450,7 +1529,7 @@ public class FairScheduler extends AbstractYarnScheduler {
 
   @Override
   public synchronized String moveApplication(ApplicationId appId,
-      String queueName) throws YarnException {
+          String queueName) throws YarnException {
     SchedulerApplication app = applications.get(appId);
     if (app == null) {
       throw new YarnException("App to be moved " + appId + " not found.");
@@ -1461,85 +1540,82 @@ public class FairScheduler extends AbstractYarnScheduler {
       FSLeafQueue oldQueue = (FSLeafQueue) app.getQueue();
       FSLeafQueue targetQueue = queueMgr.getLeafQueue(queueName, false);
       if (targetQueue == null) {
-        throw new YarnException(
-            "Target queue " + queueName + " not found or is not a leaf queue.");
+        throw new YarnException("Target queue " + queueName
+                + " not found or is not a leaf queue.");
       }
       if (targetQueue == oldQueue) {
         return oldQueue.getQueueName();
       }
-      
-      if (oldQueue.getRunnableAppSchedulables()
-          .contains(attempt.getAppSchedulable())) {
+
+      if (oldQueue.getRunnableAppSchedulables().contains(
+              attempt.getAppSchedulable())) {
         verifyMoveDoesNotViolateConstraints(attempt, oldQueue, targetQueue);
       }
-      
+
       executeMove(app, attempt, oldQueue, targetQueue);
       return targetQueue.getQueueName();
     }
   }
-  
+
   private void verifyMoveDoesNotViolateConstraints(FSSchedulerApp app,
-      FSLeafQueue oldQueue, FSLeafQueue targetQueue) throws YarnException {
+          FSLeafQueue oldQueue, FSLeafQueue targetQueue) throws YarnException {
     String queueName = targetQueue.getQueueName();
     ApplicationAttemptId appAttId = app.getApplicationAttemptId();
     // When checking maxResources and maxRunningApps, only need to consider
     // queues before the lowest common ancestor of the two queues because the
     // total running apps in queues above will not be changed.
-    FSQueue lowestCommonAncestor =
-        findLowestCommonAncestorQueue(oldQueue, targetQueue);
+    FSQueue lowestCommonAncestor = findLowestCommonAncestorQueue(oldQueue,
+            targetQueue);
     Resource consumption = app.getCurrentConsumption();
-    
+
     // Check whether the move would go over maxRunningApps or maxShare
     FSQueue cur = targetQueue;
     while (cur != lowestCommonAncestor) {
       // maxRunningApps
-      if (cur.getNumRunnableApps() ==
-          allocConf.getQueueMaxApps(cur.getQueueName())) {
-        throw new YarnException(
-            "Moving app attempt " + appAttId + " to queue " + queueName +
-                " would violate queue maxRunningApps constraints on" +
-                " queue " + cur.getQueueName());
+      if (cur.getNumRunnableApps() == allocConf.getQueueMaxApps(cur.getQueueName())) {
+        throw new YarnException("Moving app attempt " + appAttId + " to queue "
+                + queueName + " would violate queue maxRunningApps constraints on"
+                + " queue " + cur.getQueueName());
       }
-      
+
       // maxShare
       if (!Resources.fitsIn(Resources.add(cur.getResourceUsage(), consumption),
-          cur.getMaxShare())) {
-        throw new YarnException(
-            "Moving app attempt " + appAttId + " to queue " + queueName +
-                " would violate queue maxShare constraints on" + " queue " +
-                cur.getQueueName());
+              cur.getMaxShare())) {
+        throw new YarnException("Moving app attempt " + appAttId + " to queue "
+                + queueName + " would violate queue maxShare constraints on"
+                + " queue " + cur.getQueueName());
       }
-      
+
       cur = cur.getParent();
     }
   }
-  
+
   /**
    * Helper for moveApplication, which has appropriate synchronization, so all
    * operations will be atomic.
    */
   private void executeMove(SchedulerApplication app, FSSchedulerApp attempt,
-      FSLeafQueue oldQueue, FSLeafQueue newQueue) {
+          FSLeafQueue oldQueue, FSLeafQueue newQueue) {
     boolean wasRunnable = oldQueue.removeApp(attempt);
     // if app was not runnable before, it may be runnable now
-    boolean nowRunnable =
-        maxRunningEnforcer.canAppBeRunnable(newQueue, attempt.getUser());
+    boolean nowRunnable = maxRunningEnforcer.canAppBeRunnable(newQueue,
+            attempt.getUser());
     if (wasRunnable && !nowRunnable) {
-      throw new IllegalStateException("Should have already verified that app " +
-          attempt.getApplicationId() + " would be runnable in new queue");
+      throw new IllegalStateException("Should have already verified that app "
+              + attempt.getApplicationId() + " would be runnable in new queue");
     }
-    
+
     if (wasRunnable) {
       maxRunningEnforcer.untrackRunnableApp(attempt);
     } else if (nowRunnable) {
       // App has changed from non-runnable to runnable
       maxRunningEnforcer.untrackNonRunnableApp(attempt);
     }
-    
+
     attempt.move(newQueue); // This updates all the metrics
     app.setQueue(newQueue);
     newQueue.addApp(attempt, nowRunnable);
-    
+
     if (nowRunnable) {
       maxRunningEnforcer.trackRunnableApp(attempt);
     }
@@ -1547,9 +1623,8 @@ public class FairScheduler extends AbstractYarnScheduler {
       maxRunningEnforcer.updateRunnabilityOnAppRemoval(attempt, oldQueue);
     }
   }
-  
-  private FSQueue findLowestCommonAncestorQueue(FSQueue queue1,
-      FSQueue queue2) {
+
+  private FSQueue findLowestCommonAncestorQueue(FSQueue queue1, FSQueue queue2) {
     // Because queue names include ancestors, separated by periods, we can find
     // the lowest common ancestors by going from the start of the names until
     // there's a character that doesn't match.
@@ -1559,8 +1634,8 @@ public class FairScheduler extends AbstractYarnScheduler {
     // when the queues are root.applepie and root.appletart
     int lastPeriodIndex = -1;
     for (int i = 0; i < Math.max(name1.length(), name2.length()); i++) {
-      if (name1.length() <= i || name2.length() <= i ||
-          name1.charAt(i) != name2.charAt(i)) {
+      if (name1.length() <= i || name2.length() <= i
+              || name1.charAt(i) != name2.charAt(i)) {
         return queueMgr.getQueue(name1.substring(lastPeriodIndex));
       } else if (name1.charAt(i) == '.') {
         lastPeriodIndex = i;

@@ -58,20 +58,9 @@ public class Resources {
       }
       return diff;
     }
-
-    @Override
-    public int getId() {
-      throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public void setId(int id) {
-      throw new UnsupportedOperationException("Not supported yet.");
-    }
-    
   };
   
-  private static final Resource UNBOUNDED = new Resource() {
+    private static final Resource UNBOUNDED = new Resource() {
 
     @Override
     public int getMemory() {
@@ -102,16 +91,6 @@ public class Resources {
       return diff;
     }
 
-    @Override
-    public int getId() {
-      throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public void setId(int id) {
-      throw new UnsupportedOperationException("Not supported yet.");
-    }
-    
   };
 
   public static Resource createResource(int memory) {
