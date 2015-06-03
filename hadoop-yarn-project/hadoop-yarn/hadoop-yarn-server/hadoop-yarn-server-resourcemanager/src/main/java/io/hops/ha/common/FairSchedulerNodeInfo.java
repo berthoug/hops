@@ -188,7 +188,7 @@ public class FairSchedulerNodeInfo {
   private void persistFFSchdulerNodesToUpate(FSSchedulerNodeDataAccess fSSNodeDA, RMContainerDataAccess rmcontainerDA, AppSchedulableDataAccess appSDA) throws StorageException {
     if (fairSchedulerNode != null) {
       List<io.hops.metadata.yarn.entity.fair.FSSchedulerNode> updateFSSNode = new ArrayList<io.hops.metadata.yarn.entity.fair.FSSchedulerNode>();
-      List<io.hops.metadata.yarn.entity.RMContainer> rmContainerToAdd = null;
+      List<io.hops.metadata.yarn.entity.RMContainer> rmContainerToAdd = new ArrayList<io.hops.metadata.yarn.entity.RMContainer>();
       List<io.hops.metadata.yarn.entity.fair.AppSchedulable> appschedulableToAdd = null;
 
       String reservedContainerId, reservedSchedulableId;
@@ -204,9 +204,6 @@ public class FairSchedulerNodeInfo {
               + " " + fairSchedulerNode.getNumContainers() + " " + reservedContainerId + " " + reservedSchedulableId);
 
       if (reservedContainerId != null) {
-        if (rmContainerToAdd == null) {
-          rmContainerToAdd = new ArrayList<io.hops.metadata.yarn.entity.RMContainer>();
-        }
 
         boolean isReserved = (fairSchedulerNode.getReservedContainer().getReservedNode() != null)
                 && (fairSchedulerNode.getReservedContainer().getReservedPriority() != null);
