@@ -130,6 +130,11 @@ public class NDBRMStateStore extends RMStateStore {
     loadLaunchedContainers(rmState);
     loadNewlyAllocatedContainers(rmState);
     loadLiveContainers(rmState);
+    loadPreemptionMap(rmState);
+    loadSchedulingOpportunities(rmState);
+    loadLastScheduleddContainers(rmState);
+    loadRereservations(rmState);
+    loadReservedContainers(rmState);
     loadResourceRequests(rmState);
     loadBlackLists(rmState);
     loadAllQueueMetrics(rmState);
