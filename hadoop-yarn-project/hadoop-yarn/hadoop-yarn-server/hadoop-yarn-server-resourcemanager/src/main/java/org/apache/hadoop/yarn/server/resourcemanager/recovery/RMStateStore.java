@@ -42,6 +42,8 @@ import io.hops.metadata.yarn.entity.SchedulerAppReservations;
 import io.hops.metadata.yarn.entity.SchedulerApplication;
 import io.hops.metadata.yarn.entity.UpdatedContainerInfo;
 import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
+import io.hops.metadata.yarn.entity.capacity.CSLeafQueueUserInfo;
+import io.hops.metadata.yarn.entity.capacity.CSQueue;
 import io.hops.metadata.yarn.entity.capacity.FiCaSchedulerAppReservedContainers;
 import io.hops.metadata.yarn.entity.fair.FSSchedulerNode;
 import io.hops.metadata.yarn.entity.fair.PreemptionMap;
@@ -381,7 +383,7 @@ import java.util.TreeSet;
     List<RPC> appMasterRPCs;
     Map<String, AppSchedulingInfo> appSchedulingInfos;
     Map<String, SchedulerApplication> schedulerApplications;
-    List<FiCaSchedulerNode> fiCaSchedulerNodes;
+    Map<String, FiCaSchedulerNode> fiCaSchedulerNodes;
     Map<String, List<LaunchedContainers>> launchedContainers;
     Map<String, List<FiCaSchedulerAppNewlyAllocatedContainers>>
         newlyAllocatedContainers;
@@ -410,7 +412,9 @@ import java.util.TreeSet;
     Map<String, ContainerStatus> allContainerStatus;
     Map<String, List<JustLaunchedContainers>> allJustLaunchedContainers;
     Map<String, Boolean> allRMNodeNextHeartbeats;
-
+    List<CSQueue> allCSQueues;
+    List<CSLeafQueueUserInfo> allCSLeafQueueUserInfo;
+    
     public Map<ApplicationId, ApplicationState> getApplicationState() {
       return appState;
     }
@@ -457,7 +461,7 @@ import java.util.TreeSet;
       return schedulerApplications;
     }
 
-    public List<FiCaSchedulerNode> getAllFiCaSchedulerNodes()
+    public Map<String, FiCaSchedulerNode> getAllFiCaSchedulerNodes()
         throws IOException {
       return fiCaSchedulerNodes;
     }
@@ -522,6 +526,14 @@ import java.util.TreeSet;
       return blackLists.get(id);
     }
 
+    public List<CSQueue> getAllCSQueues(){
+      return allCSQueues;
+    }
+    
+    public List<CSLeafQueueUserInfo> getAllCSLeafQueueUserInfo(){
+      return allCSLeafQueueUserInfo;
+    }
+    
     private final Map<NodeId, org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode>
         alreadyRecoveredRMContextActiveNodes =
         new HashMap<NodeId, org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode>();

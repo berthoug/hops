@@ -64,6 +64,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.Recoverable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSSchedulerApp;
 
 /**
@@ -72,7 +73,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSSchedulerA
  */
 @Private
 @Unstable
-public class SchedulerApplicationAttempt {
+public class SchedulerApplicationAttempt implements Recoverable{
 
   private static final Log LOG =
       LogFactory.getLog(SchedulerApplicationAttempt.class);
@@ -83,9 +84,9 @@ public class SchedulerApplicationAttempt {
       new HashMap<ContainerId, RMContainer>();//recovered
   protected final Map<Priority, Map<NodeId, RMContainer>> reservedContainers =
       new HashMap<Priority, Map<NodeId, RMContainer>>();
-      //TORECOVER not recovered yet (capacity)
+      //recovered
   private final Multiset<Priority> reReservations = HashMultiset.create();
-      //TORECOVER not recovered yet (capacity)
+      //recovered
   protected final org.apache.hadoop.yarn.api.records.Resource
       currentReservation =
       org.apache.hadoop.yarn.api.records.Resource.newInstance(0, 0);//recovered
@@ -104,7 +105,7 @@ public class SchedulerApplicationAttempt {
   Multiset<Priority> schedulingOpportunities = HashMultiset.create();// recovered in fs
   // Time of the last container scheduled at the current allowed level
   protected Map<Priority, Long> lastScheduledContainer
-          = new HashMap<Priority, Long>();// recovered in fs 
+          = new HashMap<Priority, Long>();//recovered
   protected Queue queue;//recovered
   protected boolean isStopped = false;//recovered
   protected final RMContext rmContext;//recovered
@@ -412,7 +413,10 @@ public class SchedulerApplicationAttempt {
     return currentConsumption;
   }
 
-  public void recover(AppSchedulingInfo hopInfo, RMStateStore.RMState state) {
+  public void recover(RMStateStore.RMState state) throws IOException{
+    io.hops.metadata.yarn.entity.AppSchedulingInfo hopInfo =
+            state.getAppSchedulingInfo(
+                    appSchedulingInfo.applicationId.toString());
     this.appSchedulingInfo.recover(hopInfo, state);
     ApplicationAttemptId applicationAttemptId =
         this.appSchedulingInfo.getApplicationAttemptId();
@@ -495,9 +499,10 @@ public class SchedulerApplicationAttempt {
     }
   }
 
-  private void recoverReservations(ApplicationAttemptId applicationAttemptId, RMStateStore.RMState state) {
-    try {
-      List<SchedulerAppReservations> list = state.getRereservations(applicationAttemptId.toString());
+  private void recoverReservations(ApplicationAttemptId applicationAttemptId,
+          RMStateStore.RMState state) throws IOException {
+      List<SchedulerAppReservations> list = 
+              state.getRereservations(applicationAttemptId.toString());
       if (list != null && !list.isEmpty()) {
         for (SchedulerAppReservations hop : list) {
           //construct Priority
@@ -505,9 +510,6 @@ public class SchedulerApplicationAttempt {
           this.reReservations.setCount(priority, hop.getCounter());
         }
       }
-    } catch (IOException ex) {
-      Logger.getLogger(SchedulerApplicationAttempt.class.getName()).log(Level.SEVERE, null, ex);
-    }
   }
 
   private void recoverReservedContainers(ApplicationAttemptId applicationAttemptId, RMStateStore.RMState state) {
@@ -725,7 +727,7 @@ public class SchedulerApplicationAttempt {
         appAttempt.appSchedulingInfo);
   }
 
-  //TORECOVER
+  //TORECOVER FAIR
   public synchronized void move(Queue newQueue) {
     QueueMetrics oldMetrics = queue.getMetrics();
     QueueMetrics newMetrics = newQueue.getMetrics();

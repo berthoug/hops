@@ -96,7 +96,7 @@ public class LeafQueue implements CSQueue {
 
     private Resource usedResources = Resources.createResource(0, 0);  // recoverd
     private float usedCapacity = 0.0f;   //recovered
-    private volatile int numContainers;   //TORECOVER
+    private volatile int numContainers;   //recovered
 
     Set<FiCaSchedulerApp> activeApplications; //recovered
     Map<ApplicationAttemptId, FiCaSchedulerApp> applicationAttemptMap  

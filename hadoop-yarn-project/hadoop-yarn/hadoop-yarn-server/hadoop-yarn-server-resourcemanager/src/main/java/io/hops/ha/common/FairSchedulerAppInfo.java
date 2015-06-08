@@ -193,8 +193,6 @@ public class FairSchedulerAppInfo extends FiCaSchedulerAppInfo {
         int reservedPriority = isReserved ? rmContainer.getReservedPriority().getPriority() : Integer.MIN_VALUE;
         int reservedMemory = isReserved ? rmContainer.getReservedResource().getMemory() : 0;
         int reservedVCores = isReserved ? rmContainer.getReservedResource().getVirtualCores() : 0;
-        String reservedHost = isReserved ? rmContainer.getReservedNode().getHost() : null;
-        int reservedPort = isReserved ? rmContainer.getReservedNode().getPort() : 0;
 
         //Persist RMContainer
         toAddRMContainers.add(new io.hops.metadata.yarn.entity.RMContainer(rmContainer.getContainerId().toString(),
@@ -208,8 +206,6 @@ public class FairSchedulerAppInfo extends FiCaSchedulerAppInfo {
                 rmContainer.getStartTime(),
                 rmContainer.getFinishTime(),
                 rmContainer.getState().toString(),
-                reservedHost,
-                reservedPort,
                 ((RMContainerImpl) rmContainer).getContainerState().toString(),
                 ((RMContainerImpl) rmContainer).getContainerExitStatus()
         ));
@@ -238,8 +234,6 @@ public class FairSchedulerAppInfo extends FiCaSchedulerAppInfo {
         int reservedPriority = isReserved ? rmContainer.getReservedPriority().getPriority() : Integer.MIN_VALUE;
         int reservedMemory = isReserved ? rmContainer.getReservedResource().getMemory() : 0;
         int reservedVCores = isReserved ? rmContainer.getReservedResource().getVirtualCores() : 0;
-        String reservedHost = isReserved ? rmContainer.getReservedNode().getHost() : null;
-        int reservedPort = isReserved ? rmContainer.getReservedNode().getPort() : 0;
 
         //Remove RMContainer
         toRemoveRMContainers.add(new io.hops.metadata.yarn.entity.RMContainer(rmContainer.getContainerId().toString(),
@@ -253,8 +247,6 @@ public class FairSchedulerAppInfo extends FiCaSchedulerAppInfo {
                 rmContainer.getStartTime(),
                 rmContainer.getFinishTime(),
                 rmContainer.getState().toString(),
-                reservedHost,
-                reservedPort,
                 ((RMContainerImpl) rmContainer).getContainerState().toString(),
                 ((RMContainerImpl) rmContainer).getContainerExitStatus()
         ));

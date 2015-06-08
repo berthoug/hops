@@ -135,8 +135,6 @@ public class FairSchedulerNodeInfo {
           int reservedPriority = isReserved ? container.getReservedPriority().getPriority() : Integer.MIN_VALUE;
           int reservedMemory = isReserved ? container.getReservedResource().getMemory() : 0;
           int reservedVCores = isReserved ? container.getReservedResource().getVirtualCores() : 0;
-          String reservedHost = isReserved ? container.getReservedNode().getHost() : null;
-          int reservedPort = isReserved ? container.getReservedNode().getPort() : 0;
 
           toRemoveContainer.add(new io.hops.metadata.yarn.entity.RMContainer(container.getContainerId().toString(),
                   container.getApplicationAttemptId().toString(),
@@ -149,8 +147,6 @@ public class FairSchedulerNodeInfo {
                   container.getStartTime(),
                   container.getFinishTime(),
                   container.getState().toString(),
-                  reservedHost,
-                  reservedPort,
                   ((RMContainerImpl) container).getContainerState().toString(),
                   ((RMContainerImpl) container).getContainerExitStatus()));
         }
@@ -212,8 +208,6 @@ public class FairSchedulerNodeInfo {
         int reservedPriority = isReserved ? fairSchedulerNode.getReservedContainer().getReservedPriority().getPriority() : Integer.MIN_VALUE;
         int reservedMemory = isReserved ? fairSchedulerNode.getReservedContainer().getReservedResource().getMemory() : 0;
         int reservedVCores = isReserved ? fairSchedulerNode.getReservedContainer().getReservedResource().getVirtualCores() : 0;
-        String reservedHost = isReserved ? fairSchedulerNode.getReservedContainer().getReservedNode().getHost() : null;
-        int reservedPort = isReserved ? fairSchedulerNode.getReservedContainer().getReservedNode().getPort() : 0;
 
         rmContainerToAdd.add(new io.hops.metadata.yarn.entity.RMContainer(fairSchedulerNode.getReservedContainer().getContainerId().toString(),
                 fairSchedulerNode.getReservedContainer().getApplicationAttemptId().toString(),
@@ -226,8 +220,6 @@ public class FairSchedulerNodeInfo {
                 fairSchedulerNode.getReservedContainer().getStartTime(),
                 fairSchedulerNode.getReservedContainer().getFinishTime(),
                 fairSchedulerNode.getReservedContainer().getState().toString(),
-                reservedHost,
-                reservedPort,
                 ((RMContainerImpl) fairSchedulerNode.getReservedContainer()).getContainerState().toString(),
                 ((RMContainerImpl) fairSchedulerNode.getReservedContainer()).getContainerExitStatus()));
       }

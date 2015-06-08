@@ -74,8 +74,8 @@ public class FSSchedulerApp extends SchedulerApplicationAttempt {
     super(applicationAttemptId, user, queue, activeUsersManager, rmContext);
   }
 
-  public void recover(AppSchedulingInfo hopInfo, RMStateStore.RMState state) {
-    super.recover(hopInfo, state);
+  public void recover(AppSchedulingInfo hopInfo, RMStateStore.RMState state) throws IOException {
+    super.recover(state);
     recoverPreemptionMap(getApplicationAttemptId(), state);
   }
 
@@ -138,6 +138,7 @@ public class FSSchedulerApp extends SchedulerApplicationAttempt {
     fica.removeReservedContainer(reservedContainer);
 
     if (reservedContainers.isEmpty()) {
+      //TOVERIFY FAIR no Transaction state remove?
       this.reservedContainers.remove(priority);
     }
 

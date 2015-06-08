@@ -483,7 +483,7 @@ public class RMUtilities {
         .handle();
   }
 
-  public static List<FiCaSchedulerNode> getAllFiCaSchedulerNodes()
+  public static Map<String, FiCaSchedulerNode> getAllFiCaSchedulerNodes()
       throws IOException {
     LightWeightRequestHandler getFiCaSchedulerNodesHandler =
         new LightWeightRequestHandler(YARNOperationType.TEST) {
@@ -494,12 +494,12 @@ public class RMUtilities {
             FiCaSchedulerNodeDataAccess DA =
                 (FiCaSchedulerNodeDataAccess) RMStorageFactory
                     .getDataAccess(FiCaSchedulerNodeDataAccess.class);
-            List<FiCaSchedulerNode> fiCaSchedulerNodes = DA.getAll();
+            Map<String, FiCaSchedulerNode> fiCaSchedulerNodes = DA.getAll();
             connector.commit();
             return fiCaSchedulerNodes;
           }
         };
-    return (List<FiCaSchedulerNode>) getFiCaSchedulerNodesHandler.handle();
+    return (Map<String, FiCaSchedulerNode>) getFiCaSchedulerNodesHandler.handle();
   }
 
   

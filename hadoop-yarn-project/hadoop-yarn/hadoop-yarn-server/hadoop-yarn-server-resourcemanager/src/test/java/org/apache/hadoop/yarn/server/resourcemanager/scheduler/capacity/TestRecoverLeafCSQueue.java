@@ -228,7 +228,8 @@ public class TestRecoverLeafCSQueue {
         RMNode mockRMNode
                 = MockNodes.newNodeInfo(0, MockNodes.newResourceWithVcores(8 * GB, 1), 1, "127.0.0.2", 1222);
 
-        FiCaSchedulerNode node_0 = spy(new FiCaSchedulerNode(mockRMNode, false));
+        FiCaSchedulerNode node_0 = spy(new FiCaSchedulerNode(mockRMNode, false, 
+                rmContext));
 
         final int numNodes = 1;
         Resource clusterResource

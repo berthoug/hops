@@ -305,7 +305,8 @@ public class FiCaSchedulerAppInfo {
               .putAll(fiCaSchedulerAppToAdd.getLiveContainersMap());
         }
         if (!fiCaSchedulerAppToAdd.getLastScheduledContainer().isEmpty()) {
-          //TORECOVER (capacity, fair)
+          lastScheduledContainerToAdd.putAll(
+                  fiCaSchedulerAppToAdd.getLastScheduledContainer());
         }
         if (!fiCaSchedulerAppToAdd.getAppSchedulingInfo().getBlackList()
             .isEmpty()) {
@@ -551,8 +552,6 @@ public class FiCaSchedulerAppInfo {
 
   protected void persistReservedContainersToAdd() throws StorageException {
     if (reservedContainersToAdd != null) {
-      System.out.println("Its in here! " + reservedContainersToAdd.get(0).
-              toString());
       FiCaSchedulerAppReservedContainersDataAccess reservedContDA
               = (FiCaSchedulerAppReservedContainersDataAccess) RMStorageFactory.
               getDataAccess(FiCaSchedulerAppReservedContainersDataAccess.class);
@@ -568,7 +567,8 @@ public class FiCaSchedulerAppInfo {
               getDataAccess(ContainerDataAccess.class);
       List<Container> toAddContainers = new ArrayList<Container>();
 
-      for (org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer rmContainer
+      for (org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer 
+              rmContainer
               : reservedContainersToAdd) {
         //Persist reservedContainers
         toAddReservedContainers.add(new FiCaSchedulerAppReservedContainers(
@@ -588,10 +588,6 @@ public class FiCaSchedulerAppInfo {
                 getMemory() : 0;
         int reservedVCores = isReserved ? rmContainer.getReservedResource().
                 getVirtualCores() : 0;
-        String reservedHost = isReserved ? rmContainer.getReservedNode().
-                getHost() : null;
-        int reservedPort = isReserved ? rmContainer.getReservedNode().getPort()
-                : 0;
 
         //Persist rmContainer
         toAddRMContainers.add(new io.hops.metadata.yarn.entity.RMContainer(
@@ -606,8 +602,6 @@ public class FiCaSchedulerAppInfo {
                 rmContainer.getStartTime(),
                 rmContainer.getFinishTime(),
                 rmContainer.getState().toString(),
-                reservedHost,
-                reservedPort,
                 ((RMContainerImpl) rmContainer).getContainerState().toString(),
                 ((RMContainerImpl) rmContainer).getContainerExitStatus()
         ));
@@ -675,10 +669,6 @@ public class FiCaSchedulerAppInfo {
                 getMemory() : 0;
         int reservedVCores = isReserved ? rmContainer.getReservedResource().
                 getVirtualCores() : 0;
-        String reservedHost = isReserved ? rmContainer.getReservedNode().
-                getHost() : null;
-        int reservedPort = isReserved ? rmContainer.getReservedNode().getPort()
-                : 0;
 
         //Remove rmContainer
         toRemoveRMContainers.add(new io.hops.metadata.yarn.entity.RMContainer(
@@ -693,8 +683,6 @@ public class FiCaSchedulerAppInfo {
                 rmContainer.getStartTime(),
                 rmContainer.getFinishTime(),
                 rmContainer.getState().toString(),
-                reservedHost,
-                reservedPort,
                 ((RMContainerImpl) rmContainer).getContainerState().toString(),
                 ((RMContainerImpl) rmContainer).getContainerExitStatus()
         ));
@@ -783,7 +771,6 @@ public class FiCaSchedulerAppInfo {
                 toString(), p.
                 getPriority(), reReservations.count(p)));
       }
-      //TOVERIFY no remove?
       reservationsDA.addAll(toAddReservations);
     }
   }
@@ -800,24 +787,17 @@ public class FiCaSchedulerAppInfo {
             getMemory() : 0;
     int reservedVCores = isReserved ? rmContainer.getReservedResource().
             getVirtualCores() : 0;
-    String reservedHost = isReserved ? rmContainer.getReservedNode().
-            getHost() : null;
-    int reservedPort = isReserved ? rmContainer.getReservedNode().
-            getPort() : 0;
 
     RMContainer hopRMContainer = new RMContainer(rmContainer.getContainerId().
             toString(),
             rmContainer.getApplicationAttemptId().toString(),
             rmContainer.getNodeId().toString(), rmContainer.getUser(),
             reservedNode,
-            //TOVERIFY what is this value for?
             reservedPriority,
             reservedMemory,
             reservedVCores,
             rmContainer.getStartTime(), rmContainer.getFinishTime(),
             rmContainer.getState().toString(),
-            reservedHost,
-            reservedPort,
             ((RMContainerImpl) rmContainer).getContainerState()
             .toString(),
             ((RMContainerImpl) rmContainer).getContainerExitStatus());

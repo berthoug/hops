@@ -18,10 +18,8 @@
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.hops.ha.common.SchedulerApplicationInfo;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
-import io.hops.metadata.util.RMUtilities;
 import io.hops.metadata.yarn.entity.AppSchedulingInfo;
 import io.hops.metadata.yarn.entity.QueueMetrics;
 import io.hops.metadata.yarn.entity.SchedulerApplication;
@@ -949,7 +947,8 @@ public class CapacityScheduler extends AbstractYarnScheduler
     }
 
     private synchronized void addNode(RMNode nodeManager, TransactionState transactionState) {
-         FiCaSchedulerNode ficaNode = new FiCaSchedulerNode(nodeManager, usePortForNodeName);
+         FiCaSchedulerNode ficaNode = new FiCaSchedulerNode(nodeManager, 
+                 usePortForNodeName, rmContext);
         this.nodes.put(nodeManager.getNodeID(), ficaNode);
         Resources.addTo(clusterResource, nodeManager.getTotalCapability());
         if(transactionState != null) {
@@ -1114,7 +1113,7 @@ public class CapacityScheduler extends AbstractYarnScheduler
             Map<String, ActiveUsersManager> queueNameAndActiveUserManager = new HashMap<String ,ActiveUsersManager>();
             
             
-            List<QueueMetrics> recoverQueueMetrics = RMUtilities.getAllQueueMetrics();
+            List<QueueMetrics> recoverQueueMetrics = state.getAllQueueMetrics();
             // we will first put recoverQueueMetrics in to map for easy usage later.
             for(QueueMetrics qMetrics : recoverQueueMetrics){
                 org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics metrics = null;
@@ -1124,7 +1123,7 @@ public class CapacityScheduler extends AbstractYarnScheduler
                 queueNameAndActiveUserManager.put(qMetrics.getQueuename(), activeUsersManager);
             }
 
-            Map<String, SchedulerApplication> appsMap = RMUtilities.getSchedulerApplications();
+            Map<String, SchedulerApplication> appsMap = state.getSchedulerApplications();
             for (SchedulerApplication fsapp : appsMap.values()) {
 
                 //construct appliactionId - key of applications map
@@ -1141,7 +1140,7 @@ public class CapacityScheduler extends AbstractYarnScheduler
 
                     FiCaSchedulerApp appAttempt = new FiCaSchedulerApp(appAttemptId, hopFiCaSchedulerApp.getUser(), getQueue(hopFiCaSchedulerApp.getQueuename()),
                             queueNameAndActiveUserManager.get(hopFiCaSchedulerApp.getQueuename()), this.rmContext);
-                    appAttempt.recover(hopFiCaSchedulerApp, state);
+                    appAttempt.recover(state);
                     app.setCurrentAppAttempt(appAttempt, null);
                     LeafQueue queue = (LeafQueue) getQueue(hopFiCaSchedulerApp.getQueuename());
                     queueNameAndUser.put(hopFiCaSchedulerApp.getQueuename(), hopFiCaSchedulerApp.getUser());
@@ -1162,16 +1161,20 @@ public class CapacityScheduler extends AbstractYarnScheduler
             }
             
             //recover nodes map
-            List<io.hops.metadata.yarn.entity.FiCaSchedulerNode> nodesList = RMUtilities.getAllFiCaSchedulerNodes();
+            Map<String, io.hops.metadata.yarn.entity.FiCaSchedulerNode> 
+                    nodesList = state.getAllFiCaSchedulerNodes();
             this.numNodeManagers = nodesList.size();   // we should verify this
-            for (io.hops.metadata.yarn.entity.FiCaSchedulerNode fsnode : nodesList) {
+            for (io.hops.metadata.yarn.entity.FiCaSchedulerNode fsnode : nodesList.values()) {
 
                 //retrieve nodeId - key of nodes map
                 //NodeId nodeId = HopYarnAPIUtilities.getNodeIdLightweight(fsnode.getNodeidID());
                 NodeId nodeId = ConverterUtils.toNodeId(fsnode.getRmnodeId());
                 //retrieve HopFiCaSchedulerNode
 
-                FiCaSchedulerNode ficaNode = new FiCaSchedulerNode(this.rmContext.getActiveRMNodes().get(nodeId), nodeId, this.rmContext, fsnode, state);
+                FiCaSchedulerNode ficaNode = new FiCaSchedulerNode(
+                        this.rmContext.getActiveRMNodes().get(nodeId), 
+                        usePortForNodeName, rmContext);
+                ficaNode.recover(state);
 
                 nodes.put(nodeId, ficaNode);
             }
@@ -1182,15 +1185,10 @@ public class CapacityScheduler extends AbstractYarnScheduler
               clusterResource.setMemory(recovered.getMemory());
               clusterResource.setVirtualCores(recovered.getVirtualCores());
             }
-//            clusterResource = RMUtilities.getResource("cluster", HopResource.CLUSTER, HopResource.AVAILABLE);
-//            if(clusterResource == null)
-//            {
-//                clusterResource = RecordFactoryProvider.getRecordFactory(null).newRecordInstance(Resource.class); 
-//            }
             
             // Recover the CSQueue structures
-            List<io.hops.metadata.yarn.entity.capacity.CSQueue> recoverCSQueues = RMUtilities.getAllCSQueues();
-            List<CSLeafQueueUserInfo> recoverCSLeafQueueUser = RMUtilities.getAllCSLeafQueueUserInfo();
+            List<io.hops.metadata.yarn.entity.capacity.CSQueue> recoverCSQueues = state.getAllCSQueues();
+            List<CSLeafQueueUserInfo> recoverCSLeafQueueUser = state.getAllCSLeafQueueUserInfo();
 
             // populate the username and corresponding userinfo in to map for later usage
             for (CSLeafQueueUserInfo hopCSLeafQueue : recoverCSLeafQueueUser) {

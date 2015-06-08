@@ -86,10 +86,10 @@ public class FSSchedulerNode extends SchedulerNode {
     }
   }
 
-  //TOVERIFY should be in a recover function
+  //TOVERIFY FAIR should be in a recover function
   //HOP - constructor for recovery purposes
   public FSSchedulerNode(RMNode node, boolean usePortForNodeName, RMContext context, io.hops.metadata.yarn.entity.fair.FSSchedulerNode fssnode, RMStateStore.RMState state) {
-    //TOVERIFY the persisting of fair and rmnode is not coherant and can result in null pointer here
+    //TOVERIFY FAIR the persisting of fair and rmnode is not coherant and can result in null pointer here
     this.rmNode = node;
     numContainers = fssnode.getNumcontainers();
 
@@ -329,11 +329,12 @@ public class FSSchedulerNode extends SchedulerNode {
     // we can only adjust available resource if total resource is changed.
     Resources.addTo(this.availableResource, deltaResource);
     //HOP :: Update Resources
-    //TOVERIFY is it necessary ?
+    //TOVERIFY FAIR is it necessary ?
     ((TransactionStateImpl) ts).getFairschedulerNodeInfo().toUpdateFSSchedulerNodeId(rmNode.getNodeID().toString());
     ((TransactionStateImpl) ts).getFairschedulerNodeInfo().updateResources(io.hops.metadata.yarn.entity.Resource.AVAILABLE, availableResource);
   }
 
+  //TOVERIFY FAIR should be in a recover function and should not access to the database dierectly
   private void recoverResources() {
     //retrieve Hopresources
     io.hops.metadata.yarn.entity.Resource hoptotalCapability = HopYarnAPIUtilities.getResourceLightweight(rmNode.getNodeID().toString(), io.hops.metadata.yarn.entity.Resource.TOTAL_CAPABILITY, io.hops.metadata.yarn.entity.Resource.FSSCHEDULERNODE);
@@ -367,6 +368,6 @@ public class FSSchedulerNode extends SchedulerNode {
   }
 
   private void recoverAppSchedulable(io.hops.metadata.yarn.entity.fair.FSSchedulerNode hopNode, RMContext rMContext) throws IOException {
-    //TOVERIFY WHY IS IT EMPTY!!!!
+    //TOVERIFY FAIR WHY IS IT EMPTY!!!!
   }
 }

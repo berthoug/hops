@@ -152,6 +152,8 @@ public class NDBRMStateStore extends RMStateStore {
     loadAllUpdatedContainerInfos(rmState);
     loadAllContainerStatus(rmState);
     loadAllJustLaunchedContainers(rmState);
+    loadAllCSQueues(rmState);
+    loadAllCSLeafQueueUserInfo(rmState);
     return rmState;
   }
 
@@ -463,7 +465,14 @@ public class NDBRMStateStore extends RMStateStore {
     rmState.allJustLaunchedContainers = RMUtilities.
         getAllJustLaunchedContainers();
   }
-
+  
+  private void loadAllCSQueues(RMState rmState) throws IOException{
+    rmState.allCSQueues = RMUtilities.getAllCSQueues();
+  }
+  
+  private void loadAllCSLeafQueueUserInfo(RMState rmState) throws IOException{
+    rmState.allCSLeafQueueUserInfo = RMUtilities.getAllCSLeafQueueUserInfo();
+  }
   private void loadRMDelegationKeyState(RMState rmState) throws Exception {
     //Retrieve all DelegationKeys from NDB
     List<DelegationKey> delKeys = RMUtilities.getDelegationKeys();
