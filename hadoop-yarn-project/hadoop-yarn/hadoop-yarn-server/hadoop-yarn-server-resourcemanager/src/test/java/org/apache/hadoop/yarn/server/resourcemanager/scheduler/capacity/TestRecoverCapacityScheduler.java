@@ -62,11 +62,8 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
+import java.util.ArrayList;
 
-/**
- *
- * @author sri <skug@kth.se>
- */
 public class TestRecoverCapacityScheduler {
 
     private static final Log LOG = LogFactory.getLog(TestCapacityScheduler.class);
@@ -357,7 +354,9 @@ public class TestRecoverCapacityScheduler {
         assertEquals(4, recoveredClusterResource.getVirtualCores());
         
         // Test CapacityScheduler node map
-        Map<String, io.hops.metadata.yarn.entity.FiCaSchedulerNode> nodeList = RMUtilities.getAllFiCaSchedulerNodes();
+        List<io.hops.metadata.yarn.entity.FiCaSchedulerNode> nodeList = 
+                new ArrayList<io.hops.metadata.yarn.entity.FiCaSchedulerNode>(
+                        RMUtilities.getAllFiCaSchedulerNodes().values());
         io.hops.metadata.yarn.entity.FiCaSchedulerNode node = nodeList.get(0);
         
         assertEquals(1, nodeList.size());

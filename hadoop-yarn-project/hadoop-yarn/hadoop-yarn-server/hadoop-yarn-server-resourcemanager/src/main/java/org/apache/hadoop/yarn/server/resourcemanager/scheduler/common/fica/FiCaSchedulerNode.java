@@ -95,8 +95,10 @@ public class FiCaSchedulerNode extends SchedulerNode implements Recoverable{
     numContainers = hopNode.getNumOfContainers();
     recoverResources(state);
     recoverLaunchedContainers(hopNode, state);
-    reservedContainer = state.getRMContainer(hopNode.getReservedContainerId(), 
+    if(hopNode.getReservedContainerId()!=null){
+      reservedContainer = state.getRMContainer(hopNode.getReservedContainerId(), 
             rmContext);
+    }
   }
 
 
