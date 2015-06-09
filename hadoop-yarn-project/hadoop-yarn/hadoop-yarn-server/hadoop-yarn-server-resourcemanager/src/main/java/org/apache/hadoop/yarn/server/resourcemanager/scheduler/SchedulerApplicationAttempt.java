@@ -163,8 +163,7 @@ public class SchedulerApplicationAttempt implements Recoverable{
     if (ts != null) {
       if(this instanceof FSSchedulerApp) {
         ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFairSchedulerAppInfo(this.getApplicationAttemptId()).updateAppInfo(this);
-      }
-      else {
+      } else {
         ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFiCaSchedulerAppInfo(this.getApplicationAttemptId()).updateAppInfo(this);
       }  
     }
@@ -244,8 +243,7 @@ public class SchedulerApplicationAttempt implements Recoverable{
     if (ts != null) {
       if(this instanceof FSSchedulerApp) {
         ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFairSchedulerAppInfo(this.getApplicationAttemptId()).updateAppInfo(this);
-      }
-      else {
+      } else {
         ((TransactionStateImpl) ts).getSchedulerApplicationInfo().getFiCaSchedulerAppInfo(this.getApplicationAttemptId()).updateAppInfo(this);
       }  
     }

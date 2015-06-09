@@ -15,15 +15,21 @@
  */
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity;
 
+import io.hops.exception.StorageException;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
 import io.hops.metadata.util.HopYarnAPIUtilities;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.util.RMUtilities;
 import io.hops.metadata.util.YarnAPIStorageFactory;
+import io.hops.metadata.yarn.dal.SchedulerApplicationDataAccess;
+import io.hops.metadata.yarn.dal.util.YARNOperationType;
+import io.hops.metadata.yarn.entity.SchedulerApplication;
 import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
 import io.hops.metadata.yarn.entity.capacity.CSLeafQueueUserInfo;
+import io.hops.transaction.handler.LightWeightRequestHandler;
 import java.io.IOException;
+import java.util.ArrayList;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -216,6 +222,7 @@ public class TestRecoverLeafCSQueue {
                 = new TransactionStateImpl(rpcID, TransactionState.TransactionType.RM);
         // Submit applications
         ApplicationId appId1 = getApplicationId(100);
+        persistAppInfo(new SchedulerApplication(appId1.toString(), user_0, a.getQueueName()));
         ApplicationAttemptId appAttemptId
                 = ApplicationAttemptId.newInstance(appId1, 4);
      
@@ -279,5 +286,26 @@ public class TestRecoverLeafCSQueue {
         
 
     }
+    
+    private void persistAppInfo(final SchedulerApplication application)
+          throws IOException {
+    LightWeightRequestHandler setVersionHandler
+            = new LightWeightRequestHandler(YARNOperationType.TEST) {
+              @Override
+              public Object performTask() throws StorageException {
+                connector.beginTransaction();
+                connector.writeLock();
+                SchedulerApplicationDataAccess sappDA
+                = (SchedulerApplicationDataAccess) RMStorageFactory
+                .getDataAccess(SchedulerApplicationDataAccess.class);
+                List<SchedulerApplication> toAdd = new ArrayList<SchedulerApplication>();
+                toAdd.add(application);
+                sappDA.addAll(toAdd);
+                connector.commit();
+                return null;
+              }
+            };
+    setVersionHandler.handle();
+  }
 
 }
