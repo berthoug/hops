@@ -505,7 +505,7 @@ public class TestRMNodeTransitions {
     RMNodeImpl node = getRunningNode();
     NodeId nodeId = node.getNodeID();
 
-    int rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+    int rpcID = HopYarnAPIUtilities.getRPCID();
     byte[] allNMRequestData = new byte[1];
     allNMRequestData[0] = 0xA;
     try {
@@ -526,7 +526,7 @@ public class TestRMNodeTransitions {
     ts.decCounter("test");
     Assert.assertEquals(1, node.getContainersToCleanUp().size());
 
-    rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+    rpcID = HopYarnAPIUtilities.getRPCID();
     allNMRequestData = new byte[1];
     allNMRequestData[0] = 0xA;
     try {
@@ -544,7 +544,7 @@ public class TestRMNodeTransitions {
     node.handle(new RMNodeCleanAppEvent(nodeId, finishedAppId, ts2));
     ts2.decCounter("test");
     Assert.assertEquals(1, node.getAppsToCleanup().size());
-    rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+    rpcID = HopYarnAPIUtilities.getRPCID();
     allNMRequestData = new byte[1];
     allNMRequestData[0] = 0xA;
     try {
@@ -585,7 +585,7 @@ public class TestRMNodeTransitions {
     NodeId nodeId = BuilderUtils.newNodeId("localhost", 0);
     Resource capability = Resource.newInstance(4096, 4);
 
-    int rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+    int rpcID = HopYarnAPIUtilities.getRPCID();
     byte[] allNMRequestData = new byte[10];
     try {
       RMUtilities

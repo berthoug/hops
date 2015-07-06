@@ -520,7 +520,7 @@ public class ClientRMService extends AbstractService
     
 
     if (rpcID == null) {
-      rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+      rpcID = HopYarnAPIUtilities.getRPCID();
       byte[] submitAppData =
           ((SubmitApplicationRequestPBImpl) request).getProto().toByteArray();
 
@@ -529,8 +529,7 @@ public class ClientRMService extends AbstractService
               user);
     }
     TransactionState transactionState =
-        new TransactionStateImpl(rpcID, TransactionState.TransactionType.APP);
-
+        new TransactionStateImpl(rpcID, TransactionState.TransactionType.APP, applicationId);
 
     // Check whether app has already been put into rmContext,
     // If it is, simply return the response
@@ -613,7 +612,7 @@ public class ClientRMService extends AbstractService
     
 
     if (rpcID == null) {
-      rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+      rpcID = HopYarnAPIUtilities.getRPCID();
       byte[] forceKillAppData = ((KillApplicationRequestPBImpl) request).
           getProto().toByteArray();
 
@@ -621,8 +620,7 @@ public class ClientRMService extends AbstractService
           forceKillAppData, callerUGI.getUserName());
     }
     TransactionState transactionState =
-        new TransactionStateImpl(rpcID, TransactionState.TransactionType.APP);
-
+        new TransactionStateImpl(rpcID, TransactionState.TransactionType.APP, applicationId);
 
     RMApp application = this.rmContext.getRMApps().get(applicationId);
     if (application == null) {

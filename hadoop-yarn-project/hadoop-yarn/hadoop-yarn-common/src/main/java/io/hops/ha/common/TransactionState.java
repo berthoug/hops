@@ -19,7 +19,12 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 public abstract class TransactionState {
 
@@ -38,11 +43,21 @@ public abstract class TransactionState {
   private static final Log LOG = LogFactory.getLog(TransactionState.class);
   private int counter = 1;
   protected int rpcID;
-
-  public TransactionState(int rpcID) {
+  protected final Set<ApplicationId> appIds = new ConcurrentSkipListSet<ApplicationId>();
+  
+  public TransactionState(int rpcID, ApplicationId appId) {
     this.rpcID = rpcID;
+    if(appId!=null){
+      addAppId(appId);
+    }
   }
 
+    public Set<ApplicationId> getAppIds(){
+    return appIds;
+  }
+    
+  abstract void addAppId(ApplicationId appId);
+    
   public synchronized void incCounter(Enum type) {
     counter++;
     LOG.debug(
@@ -56,7 +71,7 @@ public abstract class TransactionState {
         "counter dec for rpc: " + this.rpcID + " count " + counter + " type: " +
             type + " classe:" + type.getClass());
     if (counter == 0) {
-      commit();
+      commit(true);
     }
   }
 
@@ -66,7 +81,7 @@ public abstract class TransactionState {
         "counter dec for rpc: " + this.rpcID + " count " + counter + " type: " +
             type);
     if (counter == 0) {
-      commit();
+      commit(true);
     }
   }
 
@@ -75,5 +90,5 @@ public abstract class TransactionState {
     return rpcID;
   }
 
-  abstract void commit() throws IOException;
+  public abstract void commit(boolean first) throws IOException;
 }

@@ -92,7 +92,7 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
       return false;
     }
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo()
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
           .getFiCaSchedulerAppInfo(
               this.appSchedulingInfo.getApplicationAttemptId())
           .setLiveContainersToRemove(rmContainer);
@@ -121,7 +121,7 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
     Resources.subtractFrom(currentConsumption, containerResource);
     //HOP : Update Resources
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo()
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
           .getFiCaSchedulerAppInfo(
               this.appSchedulingInfo.getApplicationAttemptId())
           .toUpdateResource(Resource.CURRENTCONSUMPTION, currentConsumption);
@@ -159,11 +159,11 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
     liveContainers.put(container.getId(), rmContainer);
     
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo()
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
           .getFiCaSchedulerAppInfo(
               this.appSchedulingInfo.getApplicationAttemptId())
           .setNewlyAllocatedContainersToAdd(rmContainer);
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo()
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
           .getFiCaSchedulerAppInfo(
               this.appSchedulingInfo.getApplicationAttemptId())
           .setLiveContainersToAdd(container.getId(), rmContainer);
@@ -176,11 +176,11 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
     Resources.addTo(currentConsumption, container.getResource());
     //HOP : Update Resources
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId()).
           getFiCaSchedulerAppInfo(
               this.appSchedulingInfo.getApplicationAttemptId()).
           toUpdateResource(Resource.CURRENTCONSUMPTION, currentConsumption);
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId()).
           getFiCaSchedulerAppInfo(
               this.appSchedulingInfo.getApplicationAttemptId()).
           updateAppInfo(this);
@@ -212,7 +212,7 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
     if (reservedContainers != null) {
       RMContainer reservedContainer =
           reservedContainers.remove(node.getNodeID());
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId()).
               getFiCaSchedulerAppInfo(getApplicationAttemptId()).
               removeReservedContainer(reservedContainer);
       // unreserve is now triggered in new scenarios (preemption)
@@ -232,7 +232,7 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
         Resources.subtractFrom(currentReservation, resource);
 
         //HOP : Update Resources
-        ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo()
+        ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
             .getFiCaSchedulerAppInfo(
                 this.appSchedulingInfo.getApplicationAttemptId())
             .toUpdateResource(Resource.CURRENTRESERVATION, currentReservation);

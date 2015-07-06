@@ -15,6 +15,7 @@
  */
 package io.hops.ha.common;
 
+import io.hops.StorageConnector;
 import io.hops.exception.StorageException;
 import io.hops.metadata.util.HopYarnAPIUtilities;
 import io.hops.metadata.util.RMStorageFactory;
@@ -49,11 +50,20 @@ public class SchedulerApplicationInfo {
   private Map<String, Map<String, FiCaSchedulerAppInfo>> fiCaSchedulerAppInfo =
       new HashMap<String, Map<String, FiCaSchedulerAppInfo>>();
   
-  public void persist(QueueMetricsDataAccess QMDA) throws StorageException {
+  public void persist(QueueMetricsDataAccess QMDA, StorageConnector connector) throws StorageException {
     //TODO: The same QueueMetrics (DEFAULT_QUEUE) is persisted with every app. Its extra overhead. We can persist it just once
+//    connector.flush();
+    long start = System.currentTimeMillis();
     persistApplicationIdToAdd(QMDA);
+//    connector.flush();
+    long time1 = System.currentTimeMillis()-start;
     persistApplicationIdToRemove();
-    persistFiCaSchedulerAppInfo();
+//    connector.flush();
+    long time2 = System.currentTimeMillis()-start;
+    persistFiCaSchedulerAppInfo(connector);
+//    connector.flush();
+    long time3 = System.currentTimeMillis()-start;
+//    LOG.info("finishRPC: persist schedulerApplicationInfo: " + time1 + " - " + time2 + " - " + time3);
   }
 
   private void persistApplicationIdToAdd(QueueMetricsDataAccess QMDA)
@@ -146,10 +156,10 @@ public class SchedulerApplicationInfo {
     return fiCaSchedulerAppInfo.get(appId.toString()).get(appAttemptId.toString());
   }
 
-  private void persistFiCaSchedulerAppInfo() throws StorageException {
+  private void persistFiCaSchedulerAppInfo(StorageConnector connector) throws StorageException {
     for (Map<String,FiCaSchedulerAppInfo> map : fiCaSchedulerAppInfo.values()) {
       for(FiCaSchedulerAppInfo appInfo: map.values()){
-        appInfo.persist();
+        appInfo.persist(connector);
       }
     }
   }

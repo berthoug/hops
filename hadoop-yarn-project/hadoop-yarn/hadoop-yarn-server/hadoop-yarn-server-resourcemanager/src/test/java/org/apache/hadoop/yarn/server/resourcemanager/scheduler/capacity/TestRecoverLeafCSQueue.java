@@ -206,7 +206,7 @@ public class TestRecoverLeafCSQueue {
 
         // Start testing...
     // Only 1 container
-    int rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+    int rpcID = HopYarnAPIUtilities.getRPCID();
 
         //Note :  we should call persistappmasterRPC , because otherwise it will throw following exception
     //code 626, mysqlCode 120, status 2, classification 2, message Tuple did not exist

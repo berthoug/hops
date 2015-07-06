@@ -1,0 +1,36 @@
+#!/usr/bin/python
+
+import sys
+nbApp = sys.argv(0)
+avgNBContainers = sys.argv(1)
+xpDurationg = sys.argv(2)
+
+
+f=open("sls-jobs.json")
+
+f.write("{\n")
+f.write("\"am.type\" : \"mapreduce\",\n")
+jobStartTime = 
+f.write("\"job.start.ms\" : " + jobStartTime + ",\n")
+f.write("\"job.end.ms\" : " + jobEndTime + ",\n")
+f.write("\"job.queue.name\" : \"sls_queue_1\",\n")
+f.write("\"job.id" : "job_1433155943_" + jobID + ",\n")
+f.write("\"job.user\" : \"sri\",\n")
+f.write("\"job.tasks\" : [ {\n")
+
+f.write("\"container.host\" : \"/default-rack/" + machineID +"\",\n")
+f.write("\"container.start.ms\" : " + containerStartTime + ",\n")
+f.write("\"container.end.ms\" : " + containrEndTime + ",\n")
+f.write("\"container.priority"" : 20,\n")
+f.write("\"container.type\" : \"map\"\n")
+
+for container in range(1,nbContainers):
+    f.write("}, {")
+    f.write("\"container.host\" : \"/default-rack/" + machineID +"\",\n")
+    f.write("\"container.start.ms\" : " + containerStartTime + ",\n")
+    f.write("\"container.end.ms\" : " + containrEndTime + ",\n")
+    f.write("\"container.priority"" : 20,\n")
+    f.write("\"container.type\" : \"map\"\n")
+
+f.write("} ]\n")
+f.write("}")

@@ -289,7 +289,7 @@ public class ResourceTrackerService extends AbstractService
           return null;
         }
       } else {
-        rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+        rpcID = HopYarnAPIUtilities.getRPCID();
         byte[] allNMRequestData = ((RegisterNodeManagerRequestPBImpl) request).
             getProto().toByteArray();
         RMUtilities
@@ -381,9 +381,12 @@ public class ResourceTrackerService extends AbstractService
         LOG.info("Reconnect from the node at: " + host);
         this.nmLivelinessMonitor.unregister(nodeId);
         load--;
+        if(conf.getBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
+            YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED)){
         ((TransactionStateImpl) transactionState).getRMContextInfo().
             updateLoad(rmContext.getRMGroupMembershipService().
                 getHostname(), load);
+        }
         this.rmContext.getDispatcher().getEventHandler()
             .handle(new RMNodeReconnectEvent(nodeId, rmNode, transactionState));
       }
@@ -404,9 +407,12 @@ public class ResourceTrackerService extends AbstractService
         LOG.info("Reconnect from the node at: " + host);
         this.nmLivelinessMonitor.unregister(nodeId);
         load--;
+        if(conf.getBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
+            YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED)){
         ((TransactionStateImpl) transactionState).getRMContextInfo().
             updateLoad(rmContext.getRMGroupMembershipService().
                 getHostname(), load);
+      }
         this.rmContext.getDispatcher().getEventHandler()
             .handle(new RMNodeReconnectEvent(nodeId, rmNode, transactionState));
       }
@@ -417,9 +423,12 @@ public class ResourceTrackerService extends AbstractService
     this.nmTokenSecretManager.removeNodeKey(nodeId);
     this.nmLivelinessMonitor.register(nodeId);
     load++;
+    if(conf.getBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
+            YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED)){
     ((TransactionStateImpl) transactionState).getRMContextInfo()
         .updateLoad(rmContext.getRMGroupMembershipService().getHostname(),
             load);
+    }
     String message =
         "NodeManager from node " + host + "(cmPort: " + cmPort + " httpPort: " +
             httpPort + ") " + "registered with capability: " + capability +
@@ -462,7 +471,7 @@ public class ResourceTrackerService extends AbstractService
     TransactionState transactionState =
         new TransactionStateImpl(rpcID, TransactionType.RM, "heartbeat",
             nodeId);
-
+    LOG.info("attribute rpc: " + rpcID + " to hb form " + nodeId);
     
     /**
      * Here is the node heartbeat sequence... 1. Check if it's a registered

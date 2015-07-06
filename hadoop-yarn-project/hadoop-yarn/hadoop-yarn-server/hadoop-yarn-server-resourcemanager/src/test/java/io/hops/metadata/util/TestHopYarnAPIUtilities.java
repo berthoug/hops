@@ -98,17 +98,17 @@ public class TestHopYarnAPIUtilities {
 
   @Test(timeout = 30000)
   public void testRPCPersistence() throws IOException {
-    int rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+    int rpcID = HopYarnAPIUtilities.getRPCID();
     RPC.Type type = RPC.Type.RegisterApplicationMaster;
     byte[] array = type.toString().getBytes();
     RMUtilities.persistAppMasterRPC(rpcID, type, array);
 
-    rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+    rpcID = HopYarnAPIUtilities.getRPCID();
     type = RPC.Type.FinishApplicationMaster;
     array = type.toString().getBytes();
     RMUtilities.persistAppMasterRPC(rpcID, type, array);
 
-    rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+    rpcID = HopYarnAPIUtilities.getRPCID();
     type = RPC.Type.Allocate;
     array = type.toString().getBytes();
     RMUtilities.persistAppMasterRPC(rpcID, type, array);

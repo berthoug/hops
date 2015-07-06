@@ -14,3 +14,4 @@ hadoop-hdfs-project/hadoop-hdfs-httpfs/downloads
 *~
 /nbactions.xml
 sonar-project.properties
+scripts

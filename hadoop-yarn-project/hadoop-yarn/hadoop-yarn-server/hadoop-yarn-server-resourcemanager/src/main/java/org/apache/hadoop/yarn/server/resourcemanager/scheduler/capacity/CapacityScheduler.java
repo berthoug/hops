@@ -567,7 +567,7 @@ public class CapacityScheduler extends AbstractYarnScheduler
     applications.put(applicationId, application);
 
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(applicationId).
               setSchedulerApplicationtoAdd(application, applicationId);
     }
     LOG.info("Accepted application " + applicationId + " from user: " + user
@@ -595,7 +595,8 @@ public class CapacityScheduler extends AbstractYarnScheduler
     application.setCurrentAppAttempt(attempt, transactionState);
 
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(
+              applicationAttemptId.getApplicationId()).
               setFiCaSchedulerAppInfo(attempt);
     }
 
@@ -630,7 +631,7 @@ public class CapacityScheduler extends AbstractYarnScheduler
     applications.remove(applicationId);
 
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo().
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(applicationId).
               setApplicationIdtoRemove(applicationId);
     }
   }

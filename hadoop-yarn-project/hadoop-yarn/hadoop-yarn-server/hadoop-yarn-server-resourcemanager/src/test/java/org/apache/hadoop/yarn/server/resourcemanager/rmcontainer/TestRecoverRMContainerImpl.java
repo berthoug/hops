@@ -148,7 +148,7 @@ public class TestRecoverRMContainerImpl {
     verify(writer).containerStarted(any(RMContainer.class), any(
             TransactionState.class));
 
-    int rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+    int rpcID = HopYarnAPIUtilities.getRPCID();
     byte[] submitAppData = new byte[1];
 
     RMUtilities.persistAppMasterRPC(rpcID, RPC.Type.SubmitApplication,

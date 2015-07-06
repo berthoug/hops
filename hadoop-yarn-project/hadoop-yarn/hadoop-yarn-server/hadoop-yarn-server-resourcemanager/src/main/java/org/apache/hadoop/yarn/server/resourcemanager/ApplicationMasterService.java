@@ -241,7 +241,7 @@ public class ApplicationMasterService extends AbstractService
 
 
     if (rpcID == null) {
-      rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+      rpcID = HopYarnAPIUtilities.getRPCID();
       byte[] regAMRequestData =
           ((RegisterApplicationMasterRequestPBImpl) request).getProto().
               toByteArray();
@@ -251,8 +251,7 @@ public class ApplicationMasterService extends AbstractService
       
     }
     TransactionState transactionState =
-        new TransactionStateImpl(rpcID, TransactionType.APP);
-
+        new TransactionStateImpl(rpcID, TransactionType.APP, applicationAttemptId.getApplicationId());
 
     ApplicationId appID = applicationAttemptId.getApplicationId();
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
@@ -362,7 +361,7 @@ public class ApplicationMasterService extends AbstractService
 
 
     if (rpcID == null) {
-      rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+      rpcID = HopYarnAPIUtilities.getRPCID();
       byte[] finAMRequestData =
           ((FinishApplicationMasterRequestPBImpl) request).getProto().
               toByteArray();
@@ -372,8 +371,7 @@ public class ApplicationMasterService extends AbstractService
       
     }
     TransactionState transactionState =
-        new TransactionStateImpl(rpcID, TransactionType.APP);
-
+        new TransactionStateImpl(rpcID, TransactionType.APP, applicationAttemptId.getApplicationId());
 
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
     if (lock == null) {
@@ -459,7 +457,7 @@ public class ApplicationMasterService extends AbstractService
 
 
     if (rpcID == null) {
-      rpcID = HopYarnAPIUtilities.setYarnVariables(HopYarnAPIUtilities.RPC);
+      rpcID = HopYarnAPIUtilities.getRPCID();
       byte[] allAMRequestData = ((AllocateRequestPBImpl) request).getProto().
           toByteArray();
       RMUtilities
@@ -468,8 +466,7 @@ public class ApplicationMasterService extends AbstractService
       
     }
     TransactionState transactionState =
-        new TransactionStateImpl(rpcID, TransactionType.APP);
-
+        new TransactionStateImpl(rpcID, TransactionType.APP, appAttemptId.getApplicationId());
 
     this.amLivelinessMonitor.receivedPing(appAttemptId);
 

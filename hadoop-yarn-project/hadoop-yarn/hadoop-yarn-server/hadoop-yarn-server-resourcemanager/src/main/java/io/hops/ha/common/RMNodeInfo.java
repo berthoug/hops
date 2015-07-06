@@ -60,7 +60,7 @@ public class RMNodeInfo {
   private ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>
       nodeUpdateQueueToAdd;
   private ConcurrentSkipListSet<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>
-      nodeUpdateQueueToRemove;
+      nodeUpdateQueueToRemove = new ConcurrentSkipListSet<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>();
   private List<ApplicationId> finishedApplicationsToAdd;
   private List<String> finishedApplicationsToRemove;
   private NodeHeartbeatResponse latestNodeHeartBeatResponse;
@@ -74,16 +74,16 @@ public class RMNodeInfo {
       ContainerIdToCleanDataAccess cidToCleanDA,
       JustLaunchedContainersDataAccess justLaunchedContainersDA,
       UpdatedContainerInfoDataAccess updatedContainerInfoDA,
-      FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA)
+      FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA, int tsid)
       throws StorageException {
-    persistJustLaunchedContainersToAdd(justLaunchedContainersDA, csDA);
-    persistJustLaunchedContainersToRemove(justLaunchedContainersDA);
-    persistContainerToCleanToAdd(cidToCleanDA);
-    persistContainerToCleanToRemove(cidToCleanDA);
-    persistFinishedApplicationToAdd(faDA);
-    persistFinishedApplicationToRemove(faDA);
-    persistNodeUpdateQueueToAdd(updatedContainerInfoDA, csDA);
-    persistNodeUpdateQueueToRemove(updatedContainerInfoDA, csDA);
+    persistJustLaunchedContainersToAdd(justLaunchedContainersDA, csDA, tsid);
+    persistJustLaunchedContainersToRemove(justLaunchedContainersDA,tsid);
+    persistContainerToCleanToAdd(cidToCleanDA, tsid);
+    persistContainerToCleanToRemove(cidToCleanDA, tsid);
+    persistFinishedApplicationToAdd(faDA, tsid);
+    persistFinishedApplicationToRemove(faDA, tsid);
+    persistNodeUpdateQueueToAdd(updatedContainerInfoDA, csDA, tsid);
+    persistNodeUpdateQueueToRemove(updatedContainerInfoDA, csDA, tsid);
     persistLatestHeartBeatResponseToAdd(hbDA);
     persistNextHeartbeat();
   }
@@ -129,28 +129,56 @@ public class RMNodeInfo {
   }
 
   public void toAddNodeUpdateQueue(
-      org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo uci) {
+      org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo uci, int tsid) {
     if (this.nodeUpdateQueueToAdd == null) {
       this.nodeUpdateQueueToAdd =
           new ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>();
+    }
+    for (org.apache.hadoop.yarn.api.records.ContainerStatus containerStatus : uci
+              .getNewlyLaunchedContainers()) {
+      LOG.info(tsid + " adding uci to be added " + containerStatus.getContainerId().
+                    toString() + " " + uci.getUpdatedContainerInfoId());
+    }
+    for (org.apache.hadoop.yarn.api.records.ContainerStatus containerStatus : uci
+              .getCompletedContainers()) {
+      LOG.info(tsid + " adding uci to be added " + containerStatus.getContainerId().
+                    toString() + " " + uci.getUpdatedContainerInfoId());
     }
     this.nodeUpdateQueueToAdd.add(uci);
   }
 
   public void toRemoveNodeUpdateQueue(
-      org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo uci) {
-    if (this.nodeUpdateQueueToRemove == null) {
-      this.nodeUpdateQueueToRemove =
-          new ConcurrentSkipListSet<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>();
+      org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo uci, int tsid) {
+    for (org.apache.hadoop.yarn.api.records.ContainerStatus containerStatus : uci
+              .getNewlyLaunchedContainers()) {
+    LOG.info(tsid + " adding uci to be removed " + containerStatus.getContainerId().
+                    toString()+ " " + uci.getUpdatedContainerInfoId()
+            );
+    }
+    for (org.apache.hadoop.yarn.api.records.ContainerStatus containerStatus : uci
+              .getCompletedContainers()) {
+    LOG.info(tsid + " adding uci to be removed " + containerStatus.getContainerId().
+                    toString()+ " " + uci.getUpdatedContainerInfoId()
+            );
     }
     this.nodeUpdateQueueToRemove.add(uci);
   }
 
   public void toRemoveNodeUpdateQueue(
-      ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo> uci) {
-    if (this.nodeUpdateQueueToRemove == null) {
-      this.nodeUpdateQueueToRemove =
-          new ConcurrentSkipListSet<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>();
+      ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo> uci, int tsid) {
+    for(org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo c: uci){
+      for (org.apache.hadoop.yarn.api.records.ContainerStatus containerStatus : c
+              .getNewlyLaunchedContainers()) {
+              LOG.info(tsid + " adding uci to be removed " + containerStatus.getContainerId().
+                    toString()+ " " + c.getUpdatedContainerInfoId()
+            );
+    }
+         for (org.apache.hadoop.yarn.api.records.ContainerStatus containerStatus : c
+              .getCompletedContainers()) {
+              LOG.info(tsid + " adding uci to be removed " + containerStatus.getContainerId().
+                    toString()+ " " + c.getUpdatedContainerInfoId()
+            );
+    }
     }
     this.nodeUpdateQueueToRemove.addAll(uci);
   }
@@ -171,26 +199,27 @@ public class RMNodeInfo {
   }
 
   public void persistContainerToCleanToAdd(
-      ContainerIdToCleanDataAccess cidToCleanDA) throws StorageException {
+      ContainerIdToCleanDataAccess cidToCleanDA, int tsid) throws StorageException {
     if (containerToCleanToAdd != null) {
       ArrayList<ContainerId> toAddHopContainerIdToClean =
           new ArrayList<ContainerId>(containerToCleanToAdd.size());
       for (org.apache.hadoop.yarn.api.records.ContainerId cid : containerToCleanToAdd) {
-        LOG.debug("adding container to clean for node " + rmnodeId);
+        if(!containerToCleanToRemove.remove(cid)){
+        LOG.info(tsid +" adding container to clean for node " + rmnodeId);
         toAddHopContainerIdToClean
-            .add(new ContainerId(rmnodeId, cid.toString()));
+            .add(new ContainerId(rmnodeId, cid.toString()));}
       }
       cidToCleanDA.addAll(toAddHopContainerIdToClean);
     }
   }
 
   public void persistContainerToCleanToRemove(
-      ContainerIdToCleanDataAccess cidToCleanDA) throws StorageException {
+      ContainerIdToCleanDataAccess cidToCleanDA, int tsid) throws StorageException {
     if (containerToCleanToRemove != null) {
       ArrayList<ContainerId> toRemoveHopContainerIdToClean =
           new ArrayList<ContainerId>(containerToCleanToRemove.size());
       for (String cid : containerToCleanToRemove) {
-        LOG.debug("remove container to clean node " + rmnodeId + " " + cid);
+        LOG.info(tsid + " remove container to clean node " + rmnodeId + " " + cid);
         toRemoveHopContainerIdToClean.add(new ContainerId(rmnodeId, cid));
       }
       cidToCleanDA.removeAll(toRemoveHopContainerIdToClean);
@@ -199,7 +228,7 @@ public class RMNodeInfo {
 
   public void persistJustLaunchedContainersToAdd(
       JustLaunchedContainersDataAccess justLaunchedContainersDA,
-      ContainerStatusDataAccess csDA) throws StorageException {
+      ContainerStatusDataAccess csDA, int tsid) throws StorageException {
     if (justLaunchedContainersToAdd != null &&
         !justLaunchedContainersToAdd.isEmpty()) {
       List<JustLaunchedContainers> toAddHopJustLaunchedContainers =
@@ -211,7 +240,7 @@ public class RMNodeInfo {
         if (justLaunchedContainersToRemove == null ||
             justLaunchedContainersToRemove.remove(value.
                 getContainerId().toString()) == null) {
-          LOG.debug("adding just launched container " + rmnodeId + " " + value.
+          LOG.info(tsid + " adding just launched container " + rmnodeId + " " + value.
               getContainerId().toString());
           toAddHopJustLaunchedContainers.add(
               new JustLaunchedContainers(rmnodeId,
@@ -231,14 +260,14 @@ public class RMNodeInfo {
 
 
   public void persistJustLaunchedContainersToRemove(
-      JustLaunchedContainersDataAccess justLaunchedContainersDA)
+      JustLaunchedContainersDataAccess justLaunchedContainersDA, int tsid)
       throws StorageException {
     if (justLaunchedContainersToRemove != null &&
         !justLaunchedContainersToRemove.isEmpty()) {
       List<JustLaunchedContainers> toRemoveHopJustLaunchedContainers =
           new ArrayList<JustLaunchedContainers>();
       for (String key : justLaunchedContainersToRemove.keySet()) {
-        LOG.debug("remove just launched container " + rmnodeId + " " + key);
+        LOG.info(tsid + " remove just launched container " + rmnodeId + " " + key);
         toRemoveHopJustLaunchedContainers
             .add(new JustLaunchedContainers(rmnodeId, key));
       }
@@ -249,17 +278,14 @@ public class RMNodeInfo {
 
   public void persistNodeUpdateQueueToAdd(
       UpdatedContainerInfoDataAccess updatedContainerInfoDA,
-      ContainerStatusDataAccess csDA) throws StorageException {
+      ContainerStatusDataAccess csDA, int tsid) throws StorageException {
     if (nodeUpdateQueueToAdd != null && !nodeUpdateQueueToAdd.isEmpty()) {
       //Add row at ha_updatedcontainerinfo
-      ArrayList<UpdatedContainerInfo> uciToAdd = null;
+      ArrayList<UpdatedContainerInfo> uciToAdd = new ArrayList<UpdatedContainerInfo>();
       ArrayList<ContainerStatus> containerStatusToAdd =
           new ArrayList<ContainerStatus>();
       for (org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo uci : nodeUpdateQueueToAdd) {
-
-        if (uciToAdd == null) {
-          uciToAdd = new ArrayList<UpdatedContainerInfo>();
-        }
+        if(!nodeUpdateQueueToRemove.remove(uci)){
 
         //Add rows at NEW & COMPLETE updatedcontainerinfo_containers
         if (uci.getNewlyLaunchedContainers() != null &&
@@ -270,7 +296,7 @@ public class RMNodeInfo {
                 containerStatus.getContainerId().
                     toString(), uci.
                 getUpdatedContainerInfoId());
-            LOG.debug("adding uci " + hopUCI.getRmnodeid() + " " +
+            LOG.info(tsid +" adding uci " + hopUCI.getRmnodeid() + " " +
                 hopUCI.getContainerId());
             uciToAdd.add(hopUCI);
 
@@ -293,7 +319,7 @@ public class RMNodeInfo {
                 containerStatus.getContainerId().
                     toString(), uci.
                 getUpdatedContainerInfoId());
-            LOG.debug("adding uci " + hopUCI.getRmnodeid() + " " +
+            LOG.info(tsid + " adding uci " + hopUCI.getRmnodeid() + " " +
                 hopUCI.getContainerId());
             uciToAdd.add(hopUCI);
 
@@ -307,7 +333,7 @@ public class RMNodeInfo {
             containerStatusToAdd.add(hopConStatus);
           }
         }
-
+        }
       }
       csDA.addAll(containerStatusToAdd);
       updatedContainerInfoDA.addAll(uciToAdd);
@@ -317,7 +343,7 @@ public class RMNodeInfo {
 
   public void persistNodeUpdateQueueToRemove(
       UpdatedContainerInfoDataAccess updatedContainerInfoDA,
-      ContainerStatusDataAccess csDA) throws StorageException {
+      ContainerStatusDataAccess csDA, int tsid) throws StorageException {
     if (nodeUpdateQueueToRemove != null && !nodeUpdateQueueToRemove.isEmpty()) {
       Set<UpdatedContainerInfo> uciToRemove = null;
       for (org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo uci : nodeUpdateQueueToRemove) {
@@ -336,7 +362,7 @@ public class RMNodeInfo {
                 containerStatus.getContainerId().
                     toString(), uci.
                 getUpdatedContainerInfoId());
-            LOG.debug("remove uci " + hopUCI.getRmnodeid() + " " +
+            LOG.info(tsid + " remove uci " + hopUCI.getRmnodeid() + " " +
                 hopUCI.getContainerId());
             uciToRemove.add(hopUCI);
           }
@@ -350,7 +376,7 @@ public class RMNodeInfo {
                 containerStatus.getContainerId().
                     toString(), uci.
                 getUpdatedContainerInfoId());
-            LOG.debug("remove uci " + hopUCI.getRmnodeid() + " " +
+            LOG.info(tsid + " remove uci " + hopUCI.getRmnodeid() + " " +
                 hopUCI.getContainerId());
             uciToRemove.add(hopUCI);
           }
@@ -365,7 +391,7 @@ public class RMNodeInfo {
   }
 
   public void persistFinishedApplicationToAdd(
-      FinishedApplicationsDataAccess faDA) throws StorageException {
+      FinishedApplicationsDataAccess faDA, int tsid) throws StorageException {
     if (finishedApplicationsToAdd != null && !finishedApplicationsToAdd.
         isEmpty()) {
       ArrayList<FinishedApplications> toAddHopFinishedApplications =
@@ -373,11 +399,11 @@ public class RMNodeInfo {
       for (ApplicationId appId : finishedApplicationsToAdd) {
         if (finishedApplicationsToRemove == null ||
             !finishedApplicationsToRemove.remove(appId.toString())) {
-          LOG.debug(
-              "add finished app " + appId.toString() + " on node " + rmnodeId);
+          LOG.info(tsid +
+              " add finished app " + appId.toString() + " on node " + rmnodeId);
           FinishedApplications hopFinishedApplications =
               new FinishedApplications(rmnodeId, appId.toString());
-          LOG.debug("adding ha_rmnode_finishedapplications " +
+          LOG.info(tsid + " adding ha_rmnode_finishedapplications " +
               hopFinishedApplications.getRMNodeID());
           toAddHopFinishedApplications.add(hopFinishedApplications);
         }
@@ -391,7 +417,7 @@ public class RMNodeInfo {
   }
 
   public void persistFinishedApplicationToRemove(
-      FinishedApplicationsDataAccess faDA) throws StorageException {
+      FinishedApplicationsDataAccess faDA, int tsid) throws StorageException {
     if (finishedApplicationsToRemove != null &&
         !finishedApplicationsToRemove.isEmpty()) {
       ArrayList<FinishedApplications> toRemoveHopFinishedApplications =
@@ -399,7 +425,7 @@ public class RMNodeInfo {
       for (String appId : finishedApplicationsToRemove) {
         FinishedApplications hopFinishedApplications =
             new FinishedApplications(rmnodeId, appId);
-        LOG.debug("remove finished app " +
+        LOG.info(tsid + " remove finished app " +
             hopFinishedApplications.getApplicationId() + " on node " +
             hopFinishedApplications.getRMNodeID());
         toRemoveHopFinishedApplications.add(hopFinishedApplications);
@@ -417,7 +443,6 @@ public class RMNodeInfo {
     if (latestNodeHeartBeatResponse != null) {
       NodeHBResponse toAdd;
       //Check if it is not a mock, otherwise a ClassCastException would be thrown
-      LOG.debug("adding ha_latestnodehbresponse " + rmnodeId);
       if (latestNodeHeartBeatResponse instanceof NodeHeartbeatResponsePBImpl) {
         toAdd = new NodeHBResponse(rmnodeId,
             ((NodeHeartbeatResponsePBImpl) latestNodeHeartBeatResponse)

@@ -507,10 +507,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       NodeState oldState = getState();
       try {
         stateMachine.doTransition(event.getType(), event);
-        if (event.getTransactionState() != null) {
-          ((TransactionStateImpl) event.getTransactionState())
-              .toUpdateRMNode(this);
-        }
       } catch (InvalidStateTransitonException e) {
         LOG.error("Can't handle this event at current state", e);
         LOG.error(
@@ -520,6 +516,10 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       if (oldState != getState()) {
         LOG.info(nodeId + " Node Transitioned from " + oldState + " to " +
             getState());
+        if (event.getTransactionState() != null) {
+          ((TransactionStateImpl) event.getTransactionState())
+              .toUpdateRMNode(this);
+        }
       }
     } finally {
       writeLock.unlock();
@@ -643,7 +643,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
           rmNode.nodeUpdateQueue.size());
       ((TransactionStateImpl) event.getTransactionState())
           .getRMNodeInfo(rmNode.nodeId.toString())
-          .toRemoveNodeUpdateQueue(rmNode.nodeUpdateQueue);
+          .toRemoveNodeUpdateQueue(rmNode.nodeUpdateQueue, event.getTransactionState().getId());
       rmNode.nodeUpdateQueue.clear();
       if (isDistributedRTEnabled &&
           !rmNode.context.getRMGroupMembershipService().isLeader()) {
@@ -762,7 +762,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
           rmNode.nodeUpdateQueue.size());
       ((TransactionStateImpl) event.getTransactionState())
           .getRMNodeInfo(rmNode.nodeId.toString())
-          .toRemoveNodeUpdateQueue(rmNode.nodeUpdateQueue);
+          .toRemoveNodeUpdateQueue(rmNode.nodeUpdateQueue, event.getTransactionState().getId());
       rmNode.nodeUpdateQueue.clear();
       // If the current state is NodeState.UNHEALTHY
       // Then node is already been removed from the
@@ -838,7 +838,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
             rmNode.nodeUpdateQueue.size());
         ((TransactionStateImpl) event.getTransactionState())
             .getRMNodeInfo(rmNode.nodeId.toString())
-            .toRemoveNodeUpdateQueue(rmNode.nodeUpdateQueue);
+            .toRemoveNodeUpdateQueue(rmNode.nodeUpdateQueue, event.getTransactionState().getId());
         rmNode.nodeUpdateQueue.clear();
         // Inform the scheduler
         if (isDistributedRTEnabled &&
@@ -938,9 +938,11 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
                 completedContainers, rmNode.updatedContainerInfoId++);
         LOG.debug("HOP :: nodeUpdateQueue.add-" + uci);
         rmNode.nodeUpdateQueue.add(uci);
-        //
+        
+        ((TransactionStateImpl) event.getTransactionState()).toUpdateRMNode(
+                rmNode);
         ((TransactionStateImpl) event.getTransactionState())
-            .getRMNodeInfo(rmNode.nodeId.toString()).toAddNodeUpdateQueue(uci);
+            .getRMNodeInfo(rmNode.nodeId.toString()).toAddNodeUpdateQueue(uci, event.getTransactionState().getId());
 
       }
       
@@ -1075,9 +1077,10 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       //HOP :: Update TransactionState
       if (ts != null) {
         ((TransactionStateImpl) ts).getRMNodeInfo(this.nodeId.toString()).
-            toRemoveNodeUpdateQueue(nodeUpdateQueue.peek());
-        latestContainerInfoList.add(nodeUpdateQueue.poll());
+            toRemoveNodeUpdateQueue(nodeUpdateQueue.peek(), ts.getId());
       }
+      latestContainerInfoList.add(nodeUpdateQueue.poll());
+      
     }
     LOG.debug("HOP :: rmNode.heartbeat-set to true:" + this.nodeId.toString());
     this.nextHeartBeat = true;

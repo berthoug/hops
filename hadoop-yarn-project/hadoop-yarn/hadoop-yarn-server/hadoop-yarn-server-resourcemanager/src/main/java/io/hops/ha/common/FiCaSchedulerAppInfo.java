@@ -17,6 +17,7 @@ package io.hops.ha.common;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
+import io.hops.StorageConnector;
 import io.hops.exception.StorageException;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.yarn.dal.AppSchedulingInfoBlacklistDataAccess;
@@ -99,24 +100,45 @@ public class FiCaSchedulerAppInfo {
   Multiset<Priority> reReservations;
 
   // Not used by fifo scheduler
-  public void persist() throws StorageException {
+  public void persist(StorageConnector connector) throws StorageException {
+    long start = System.currentTimeMillis();
     persistApplicationToAdd();
+    //connector.flush();
+//    long time1 = System.currentTimeMillis() -start;
     persistReservedContainersToAdd();
+    
+    //connector.flush(); long time2 = System.currentTimeMillis() -start;
     persistReservedContainersToRemove();
+    //connector.flush(); long time3 = System.currentTimeMillis() -start;
     persistLastScheduledContainersToAdd();
+    //connector.flush(); long time4 = System.currentTimeMillis() -start;
     persistSchedulingOpportunitiesToAdd();
+    //connector.flush(); long time5 = System.currentTimeMillis() -start;
     persistReReservations();
+    //connector.flush(); long time6 = System.currentTimeMillis() -start;
     persistNewlyAllocatedContainersToAdd();
+    //connector.flush(); long time7 = System.currentTimeMillis() -start;
     persistNewlyAllocatedContainersToRemove();
+    //connector.flush(); long time8 = System.currentTimeMillis() -start;
     persistLiveContainersToAdd();
+    //connector.flush(); long time9 = System.currentTimeMillis() -start;
     persistLiveContainersToRemove();
+    //connector.flush(); long time10 = System.currentTimeMillis() -start;
     persistRequestsToAdd();
+    //connector.flush(); long time11 = System.currentTimeMillis() -start;
     persistRequestsToRemove();
+    //connector.flush(); long time12 = System.currentTimeMillis() -start;
     persistBlackListsToAdd();
+//    connector.flush(); long time13 = System.currentTimeMillis() -start;
     persistBlackListsToRemove();
-
-    persistToUpdateResources();
+//    connector.flush(); long time14 = System.currentTimeMillis() -start;
+    persistToUpdateResources(connector);
+//    long time15a = System.currentTimeMillis() - start;
+//    connector.flush(); long time15 = System.currentTimeMillis() -start;
     persistRemoval();
+//    connector.flush(); long time16 = System.currentTimeMillis() -start;
+//    LOG.info("finishRPC: persist schedulerApplicationInfo: " + time1 + " - " + time2 + " - " + time3+ " - " + time4+ " - " + time5+ " - " + time6+ " - " + time7+ " - " + time8
+//    + " - " + time9+ " - " + time10+ " - " + time11+ " - " + time12+ " - " + time13+ " - " + time14+ " - " + time15a + " - " + time15+ " - " + time16);
   }
 
   public FiCaSchedulerAppInfo(ApplicationAttemptId applicationAttemptId) {
@@ -335,6 +357,7 @@ public class FiCaSchedulerAppInfo {
       for (ContainerId key : liveContainersToAdd.keySet()) {
         if (liveContainersToRemove == null ||
             liveContainersToRemove.remove(key) == null) {
+//          long start = System.currentTimeMillis();
           LOG.debug("adding LiveContainers " + key + " for " +
               applicationAttemptId.toString());
           toAddLiveContainers.add(new FiCaSchedulerAppLiveContainers(
@@ -350,11 +373,19 @@ public class FiCaSchedulerAppInfo {
                       .toByteArray());
           LOG.debug("adding ha_container " + hopContainer.getContainerId());
           toAddContainers.add(hopContainer);
+//          long time = System.currentTimeMillis()-start;
+//          LOG.info("finishRPC: persist liveContainertoAdd " + time);
         }
       }
+//      long start = System.currentTimeMillis();
       rmcDA.addAll(toAddRMContainers);
+//      long time1= System.currentTimeMillis()-start;
       cDA.addAll(toAddContainers);
+//      long time2= System.currentTimeMillis()-start;
       fsalcDA.addAll(toAddLiveContainers);
+//      long time3= System.currentTimeMillis()-start;
+//      LOG.info("finishRPC: persist liveContainertoAdd " + time1 +" ("+ toAddRMContainers.size() + ")" + " - " + time2 +" ("+ toAddContainers.size() + ")" + " - " + time3 +" ("+ toAddLiveContainers.size() + ")" );
+      
     }
   }
 
@@ -491,8 +522,9 @@ public class FiCaSchedulerAppInfo {
     }
   }
 
-  private void persistToUpdateResources() throws StorageException {
+  private void persistToUpdateResources(StorageConnector connector) throws StorageException {
     if (toUpdateResources != null) {
+//      long start = System.currentTimeMillis();
       ResourceDataAccess resourceDA = (ResourceDataAccess) RMStorageFactory
           .getDataAccess(ResourceDataAccess.class);
       ArrayList<Resource> toAddResources = new ArrayList<Resource>();
@@ -502,7 +534,11 @@ public class FiCaSchedulerAppInfo {
             toUpdateResources.get(type).getMemory(),
             toUpdateResources.get(type).getVirtualCores()));
       }
+//      long time1 = System.currentTimeMillis()-start;
       resourceDA.addAll(toAddResources);
+//      connector.flush();
+//      long time2= System.currentTimeMillis()-start;
+//      LOG.info("finishRPC: persist to update resources: " + time1 + " - " + time2 + " (" + toAddResources.size() + ")");
     }
   }
 

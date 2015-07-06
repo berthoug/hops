@@ -371,7 +371,7 @@ public class FifoScheduler extends AbstractYarnScheduler
             DEFAULT_QUEUE, user);
     applications.put(applicationId, application);
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo()
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(applicationId)
           .setSchedulerApplicationtoAdd(application, applicationId);
     }
     metrics.submitApp(user);
@@ -424,7 +424,7 @@ public class FifoScheduler extends AbstractYarnScheduler
     applications.remove(applicationId);
 
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfo()
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(applicationId)
           .setApplicationIdtoRemove(applicationId);
     }
   }

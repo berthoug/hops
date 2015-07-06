@@ -56,12 +56,12 @@ public class RMContextInfo {
 
   public void persist(RMNodeDataAccess rmnodeDA, ResourceDataAccess resourceDA,
       NodeDataAccess nodeDA,
-      RMContextInactiveNodesDataAccess rmctxinactvenodesDA)
+      RMContextInactiveNodesDataAccess rmctxinactvenodesDA, int tsid)
       throws StorageException {
-    persistActiveNodesToAdd(rmnodeDA, resourceDA, nodeDA);
-    persistActiveNodeToRemove();
-    persistInactiveNodesToAdd(rmctxinactvenodesDA);
-    persistInactiveNodesToRemove();
+    persistActiveNodesToAdd(rmnodeDA, resourceDA, nodeDA, tsid);
+    persistActiveNodeToRemove(tsid);
+    persistInactiveNodesToAdd(rmctxinactvenodesDA, tsid);
+    persistInactiveNodesToRemove(tsid);
     persistLoad();
   }
 
@@ -95,11 +95,12 @@ public class RMContextInfo {
     return this.activeNodesToRemove;
   }
 
-  public void persistActiveNodeToRemove() throws StorageException {
+  public void persistActiveNodeToRemove(int tsid) throws StorageException {
     if (!activeNodesToRemove.isEmpty()) {
       ArrayList<RMContextActiveNodes> rmctxnodesToRemove =
           new ArrayList<RMContextActiveNodes>();
       for (NodeId activeNodeToRemove : activeNodesToRemove) {
+        LOG.info(tsid + " persist remove active node: "+activeNodeToRemove.toString());
         rmctxnodesToRemove.add(new RMContextActiveNodes(activeNodeToRemove.
             toString()));
       }
@@ -114,7 +115,7 @@ public class RMContextInfo {
     return this.inactiveNodesToRemove;
   }
 
-  public void persistInactiveNodesToRemove() throws StorageException {
+  public void persistInactiveNodesToRemove(int tsid) throws StorageException {
     if (!inactiveNodesToRemove.isEmpty()) {
       ArrayList<RMContextInactiveNodes> inactiveToRemove =
           new ArrayList<RMContextInactiveNodes>();
@@ -122,7 +123,7 @@ public class RMContextInfo {
       ArrayList<Resource> resourceToRemove = new ArrayList<Resource>();
 
       for (NodeId inactiveNodeToRemove : inactiveNodesToRemove) {
-        LOG.debug("HOP :: remove inactive node " + inactiveNodeToRemove);
+        LOG.info(tsid + " remove inactive node " + inactiveNodeToRemove);
         inactiveToRemove.add(new RMContextInactiveNodes(inactiveNodeToRemove.
             toString()));
         nodesToRemove.add(new RMNode(inactiveNodeToRemove.toString()));
@@ -150,7 +151,7 @@ public class RMContextInfo {
   }
 
   public void persistActiveNodesToAdd(RMNodeDataAccess rmnodeDA,
-      ResourceDataAccess resourceDA, NodeDataAccess nodeDA)
+      ResourceDataAccess resourceDA, NodeDataAccess nodeDA, int tsid)
       throws StorageException {
     if (activeNodesToAdd != null) {
       ArrayList<Resource> toAddResources = new ArrayList<Resource>();
@@ -167,16 +168,19 @@ public class RMContextInfo {
               Resource.TOTAL_CAPABILITY, Resource.RMNODE, val.
               getTotalCapability().getMemory(), val.getTotalCapability().
               getVirtualCores());
+          LOG.info(tsid + " persist add resource: " + hopResource.getId());
           toAddResources.add(hopResource);
           //Persist Node
           if (val.getNode() != null) {
             nodesToAdd = new ArrayList<Node>();
             if (val.getNode().getParent() != null) {
+              LOG.info(tsid + " persiste node:" + val.getNodeID());
               nodesToAdd.add(new Node(val.getNodeID().toString(), val.
                   getNode().getName(), val.getNode().getNetworkLocation(),
                   val.getNode().getLevel(), val.getNode().getParent().
                   toString()));
             } else {
+              LOG.info(tsid + " persiste node:" + val.getNodeID());
               nodesToAdd.add(new Node(val.getNodeID().toString(), val.
                   getNode().getName(), val.getNode().getNetworkLocation(),
                   val.getNode().getLevel(), null));
@@ -195,9 +199,11 @@ public class RMContextInfo {
             toAddRMNodes = new ArrayList<RMNode>();
           }
           toAddRMNodes.add(hopRMNode);
+          LOG.info(tsid + " persist to add rmnode: " +hopRMNode.getNodeId());
           //Persist RMCoxtentNodesMap
           RMContextActiveNodes hopCtxNode = new RMContextActiveNodes(val.
               getNodeID().toString());
+          LOG.info(tsid + " persist ctx node: " + val.getNodeID().toString());
           rmctxnodesToAdd.add(hopCtxNode);
         }
       }
@@ -217,13 +223,14 @@ public class RMContextInfo {
   }
 
   public void persistInactiveNodesToAdd(
-      RMContextInactiveNodesDataAccess rmctxInactiveNodesDA)
+      RMContextInactiveNodesDataAccess rmctxInactiveNodesDA, int tsid)
       throws StorageException {
     if (inactiveNodeToAdd != null) {
       ArrayList<RMContextInactiveNodes> inactiveToAdd =
           new ArrayList<RMContextInactiveNodes>();
       for (NodeId key : inactiveNodeToAdd.keySet()) {
         if (!inactiveNodesToRemove.remove(key)) {
+          LOG.info(tsid + " persit add inactivenode: " + key.toString());
           inactiveToAdd.add(new RMContextInactiveNodes(key.toString()));
         }
       }
