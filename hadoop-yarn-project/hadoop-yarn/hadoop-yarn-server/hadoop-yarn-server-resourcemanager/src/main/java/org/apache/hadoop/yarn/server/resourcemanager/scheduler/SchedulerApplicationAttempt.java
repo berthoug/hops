@@ -21,9 +21,7 @@ import com.google.common.collect.Multiset;
 import io.hops.ha.common.FiCaSchedulerAppInfo;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
-import io.hops.metadata.yarn.entity.AppSchedulingInfo;
-import io.hops.metadata.yarn.entity.FiCaSchedulerAppLiveContainers;
-import io.hops.metadata.yarn.entity.FiCaSchedulerAppNewlyAllocatedContainers;
+import io.hops.metadata.yarn.entity.FiCaSchedulerAppContainer;
 import io.hops.metadata.yarn.entity.Resource;
 import io.hops.metadata.yarn.entity.FiCaSchedulerAppLastScheduledContainer;
 import io.hops.metadata.yarn.entity.SchedulerAppReservations;
@@ -461,10 +459,10 @@ public class SchedulerApplicationAttempt implements Recoverable{
   private void recoverNewlyAllocatedContainers(
       ApplicationAttemptId applicationAttemptId, RMStateStore.RMState state) {
     try {
-      List<FiCaSchedulerAppNewlyAllocatedContainers> list =
+      List<FiCaSchedulerAppContainer> list =
           state.getNewlyAllocatedContainers(applicationAttemptId.toString());
       if (list != null && !list.isEmpty()) {
-        for (FiCaSchedulerAppNewlyAllocatedContainers hop : list) {
+        for (FiCaSchedulerAppContainer hop : list) {
 
           newlyAllocatedContainers
               .add(state.getRMContainer(hop.getRmcontainer_id(), rmContext));
@@ -480,10 +478,10 @@ public class SchedulerApplicationAttempt implements Recoverable{
   private void recoverLiveContainers(ApplicationAttemptId applicationAttemptId,
       RMStateStore.RMState state) {
     try {
-      List<FiCaSchedulerAppLiveContainers> list =
+      List<FiCaSchedulerAppContainer> list =
           state.getLiveContainers(applicationAttemptId.toString());
       if (list != null) {
-        for (FiCaSchedulerAppLiveContainers hop : list) {
+        for (FiCaSchedulerAppContainer hop : list) {
           RMContainer rMContainer =
               state.getRMContainer(hop.getRmcontainer_id(), rmContext);
           liveContainers.put(rMContainer.getContainerId(), rMContainer);

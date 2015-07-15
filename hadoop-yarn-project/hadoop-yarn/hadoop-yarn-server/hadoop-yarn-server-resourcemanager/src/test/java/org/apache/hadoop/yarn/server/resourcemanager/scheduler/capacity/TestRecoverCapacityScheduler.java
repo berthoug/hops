@@ -503,7 +503,7 @@ public class TestRecoverCapacityScheduler {
   }
 
   private TransactionState getTransactionState(int id) {
-    TransactionState ts = new TransactionStateImpl(id,
+    TransactionState ts = new TransactionStateImpl(
             TransactionState.TransactionType.RM);
     byte[] allNMRequestData = new byte[10];
     try {

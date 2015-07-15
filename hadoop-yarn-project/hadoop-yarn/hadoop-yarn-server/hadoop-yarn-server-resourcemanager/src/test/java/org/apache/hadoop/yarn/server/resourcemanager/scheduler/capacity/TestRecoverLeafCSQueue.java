@@ -216,7 +216,7 @@ public class TestRecoverLeafCSQueue {
             submitAppData);
 
     TransactionStateImpl leafQueueTranscation
-            = new TransactionStateImpl(rpcID,
+            = new TransactionStateImpl(
                     TransactionState.TransactionType.RM);
     // Submit applications
     ApplicationId appId1 = getApplicationId(100);
@@ -248,7 +248,7 @@ public class TestRecoverLeafCSQueue {
     app_0.updateResourceRequests(Collections.singletonList(
             TestUtils.
             createResourceRequest(ResourceRequest.ANY, 1 * GB, 3, true,
-                    priority, recordFactory)), new TransactionStateImpl(-1,
+                    priority, recordFactory)), new TransactionStateImpl(
                     TransactionState.TransactionType.RM));
 
     a.assignContainers(clusterResource, node_0, leafQueueTranscation);

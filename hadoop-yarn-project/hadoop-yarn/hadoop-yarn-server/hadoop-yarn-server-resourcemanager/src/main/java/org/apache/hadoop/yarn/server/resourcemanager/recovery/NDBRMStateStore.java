@@ -16,12 +16,15 @@
 package org.apache.hadoop.yarn.server.resourcemanager.recovery;
 
 import io.hops.metadata.util.RMUtilities;
+import io.hops.metadata.yarn.dal.rmstatestore.UpdatedNodeDataAccess;
 import io.hops.metadata.yarn.entity.AppSchedulingInfo;
 import io.hops.metadata.yarn.entity.ContainerId;
 import io.hops.metadata.yarn.entity.FinishedApplications;
 import io.hops.metadata.yarn.entity.NodeHBResponse;
+import io.hops.metadata.yarn.entity.rmstatestore.UpdatedNode;
 import io.hops.metadata.yarn.entity.rmstatestore.DelegationKey;
 import io.hops.metadata.yarn.entity.rmstatestore.DelegationToken;
+import io.hops.metadata.yarn.entity.rmstatestore.RanNode;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -53,6 +56,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 
 /**
  * MySQL Cluster implementation of the RMStateStore abstract class.
@@ -267,10 +272,22 @@ public class NDBRMStateStore extends RMStateStore {
     //Retrieve all applicationIds from NDB
     List<io.hops.metadata.yarn.entity.rmstatestore.ApplicationState> appStates =
         RMUtilities.getApplicationStates();
+    Map<String,List<UpdatedNode>> updatedNodeLists = RMUtilities.
+            getAllUpdatedNodes();
     if (appStates != null) {
       for (io.hops.metadata.yarn.entity.rmstatestore.ApplicationState hopAppState : appStates) {
-        ApplicationId appId = ConverterUtils.toApplicationId(hopAppState.
+       ApplicationId appId = ConverterUtils.toApplicationId(hopAppState.
             getApplicationid());
+                
+        List<NodeId> updatedNodes = new ArrayList<NodeId>();
+        List<UpdatedNode> unl = updatedNodeLists.get(hopAppState.
+                getApplicationid());
+        if (unl != null) {
+          for (UpdatedNode updatedNode : unl) {
+            updatedNodes.add(ConverterUtils.toNodeId(updatedNode.getNodeId()));
+          }
+        }
+
         ApplicationStateDataPBImpl appStateData =
             new ApplicationStateDataPBImpl(ApplicationStateDataProto.
                 parseFrom(hopAppState.getAppstate()));
@@ -280,7 +297,7 @@ public class NDBRMStateStore extends RMStateStore {
             appStateData.getUser(), appStateData.getState(),
             appStateData.getDiagnostics(), appStateData.getFinishTime(),
             appStateData.getStateBeforeKilling(),
-            appStateData.getUpdatedNodesId());
+            updatedNodes);
         LOG.debug("loadRMAppState for app " + appState.getAppId() + " state " +
             appState.getState());
         if (!appId.equals(appState.context.getApplicationId())) {
@@ -531,7 +548,7 @@ public class NDBRMStateStore extends RMStateStore {
 
   private Map<String, List<io.hops.metadata.yarn.entity.rmstatestore.ApplicationAttemptState>>
       allHopApplicationAttemptStates;
-
+  private Map<String, List<RanNode>> ranNodes;
   /**
    * Load ApplicationAttemptId for particular ApplicationState
    *
@@ -545,6 +562,10 @@ public class NDBRMStateStore extends RMStateStore {
       allHopApplicationAttemptStates = RMUtilities.
           getAllApplicationAttemptStates();
     }
+    if(ranNodes == null){
+      ranNodes = RMUtilities.getAllRanNodes();
+    }
+    
     LOG.debug("loadApplicationAttemptState for app " + appState.getAppId() +
         " state " + appState.getState());
     List<io.hops.metadata.yarn.entity.rmstatestore.ApplicationAttemptState>
@@ -569,7 +590,12 @@ public class NDBRMStateStore extends RMStateStore {
             dibb.reset(attemptStateData.getAppAttemptTokens());
             credentials.readTokenStorageStream(dibb);
           }
-
+          
+          Set<NodeId> attemptRanNodes = new HashSet<NodeId>();
+          for(RanNode node: ranNodes.get(attemptId)){
+            attemptRanNodes.add(ConverterUtils.toNodeId(node.getNodeId()));
+          }
+          
           ApplicationAttemptState attemptState =
               new ApplicationAttemptState(attemptId,
                   attemptStateData.getMasterContainer(), credentials,
@@ -578,7 +604,8 @@ public class NDBRMStateStore extends RMStateStore {
                   attemptStateData.getDiagnostics(),
                   attemptStateData.getFinalApplicationStatus(),
                   attemptStateData.getProgress(), attemptStateData.getHost(),
-                  attemptStateData.getRpcPort(), attemptStateData.getRanNodes(),
+                  attemptStateData.getRpcPort(), 
+                  attemptRanNodes,
                   attemptStateData.getJustFinishedContainers());
 
           appState.attempts.put(attemptState.getAttemptId(), attemptState);

@@ -18,6 +18,7 @@ package org.apache.hadoop.yarn.server.resourcemanager;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.hops.common.GlobalThreadPool;
+import io.hops.ha.common.TransactionStateManager;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.util.YarnAPIStorageFactory;
 import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
@@ -547,7 +548,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
           throw e;
         }
       }
-
+      rmContext.getTransactionStateManager().start();
       super.serviceStart();
     }
 
@@ -1162,7 +1163,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
     for (final RPC rpc : rpcList) {
       com.google.protobuf.GeneratedMessage proto;
       LOG.debug(
-          "recovering rpc: " + rpc.getId() + " of type: " + rpc.getType());
+          "recovering rpc: " + rpc.getRPCId() + " of type: " + rpc.getType());
       UserGroupInformation ugi;
       try {
         switch (rpc.getType()) {
@@ -1180,7 +1181,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
                     return masterService.registerApplicationMaster(
                         new RegisterApplicationMasterRequestPBImpl(
                             (YarnServiceProtos.RegisterApplicationMasterRequestProto) proto),
-                        rpc.getId());
+                        rpc.getRPCId());
                   }
                 });
             break;
@@ -1198,7 +1199,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
                     return masterService.finishApplicationMaster(
                         new FinishApplicationMasterRequestPBImpl(
                             (YarnServiceProtos.FinishApplicationMasterRequestProto) proto),
-                        rpc.getId());
+                        rpc.getRPCId());
                   }
                 });
             break;
@@ -1213,8 +1214,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
                             getRpc());
                     return masterService.allocate(new AllocateRequestPBImpl(
                             (YarnServiceProtos.AllocateRequestProto) proto),
-                        rpc.
-                            getId());
+                        rpc.getRPCId());
                   }
                 });
             break;
@@ -1232,8 +1232,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
                     return clientRM.submitApplication(
                         new SubmitApplicationRequestPBImpl(
                             (YarnServiceProtos.SubmitApplicationRequestProto) proto),
-                        rpc.
-                            getId());
+                        rpc.getRPCId());
                   }
                 });
             break;
@@ -1250,8 +1249,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
                     return clientRM.forceKillApplication(
                         new KillApplicationRequestPBImpl(
                             (YarnServiceProtos.KillApplicationRequestProto) proto),
-                        rpc.
-                            getId());
+                        rpc.getRPCId());
                   }
                 });
             break;
@@ -1262,7 +1260,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
             resourceTracker.registerNodeManager(
                 new RegisterNodeManagerRequestPBImpl(
                     (YarnServerCommonServiceProtos.RegisterNodeManagerRequestProto) proto),
-                rpc.getId(),
+                rpc.getRPCId(),
                 conf.getBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
                     YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED));
             break;
@@ -1271,14 +1269,14 @@ public class ResourceManager extends CompositeService implements Recoverable {
                 parseFrom(rpc.getRpc());
             resourceTracker.nodeHeartbeat(new NodeHeartbeatRequestPBImpl(
                     (YarnServerCommonServiceProtos.NodeHeartbeatRequestProto) proto),
-                rpc.getId());
+                rpc.getRPCId());
             break;
           default:
             LOG.error("RPC type does not exist");
             throw new IOException("RPC type does not exist");
         }
       } catch (Exception ex) {
-        LOG.error("rpc: " + rpc.getId() +
+        LOG.error("rpc: " + rpc.getRPCId() +
             " was not recovered due to the following exception ", ex);
         lastException = ex;
       }
@@ -1346,5 +1344,4 @@ public class ResourceManager extends CompositeService implements Recoverable {
         YarnConfiguration.DEFAULT_RM_ADDRESS,
         YarnConfiguration.DEFAULT_RM_PORT);
   }
-
 }

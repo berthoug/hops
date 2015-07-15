@@ -21,8 +21,10 @@ import io.hops.metadata.yarn.dal.capacity.CSLeafQueueUserInfoDataAccess;
 import io.hops.metadata.yarn.dal.capacity.CSQueueDataAccess;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CSQueue;
@@ -77,9 +79,11 @@ public class CSQueueInfo {
 
   private static final Log LOG = LogFactory.getLog(
           SchedulerApplicationInfo.class);
-  private Map<String, CSQueue> csQueueToAdd;
-  private Map<String, CSLeafQueueUserInfo> csLeafQueueUserInfoToAdd;
-  private Map<String, CSLeafQueueUserInfo> usersToRemove;
+  private Map<String, io.hops.metadata.yarn.entity.capacity.CSQueue> csQueueToAdd =
+          new HashMap<String, io.hops.metadata.yarn.entity.capacity.CSQueue>();
+  private Map<String, CSLeafQueueUserInfo> csLeafQueueUserInfoToAdd =
+          new HashMap<String, CSLeafQueueUserInfo>();
+  private Set<String> usersToRemove = new HashSet<String>();
 
   public void persist(CSQueueDataAccess csQDA,
           CSLeafQueueUserInfoDataAccess csLeafQUI) throws StorageException {
@@ -91,38 +95,7 @@ public class CSQueueInfo {
   private void persistCSQueueInfoToAdd(CSQueueDataAccess QMDA) throws
           StorageException {
     if (csQueueToAdd != null) {
-      List<io.hops.metadata.yarn.entity.capacity.CSQueue> toAddQueues
-              = new ArrayList<io.hops.metadata.yarn.entity.capacity.CSQueue>();
-      for (String csQueueName : csQueueToAdd.keySet()) {
-
-        CSQueue csQueueAdd = csQueueToAdd.get(csQueueName);
-        boolean isParent;
-        isParent = csQueueAdd.getChildQueues() != null;
-
-        int numContainers = -1;
-        if (!isParent) {
-          numContainers = ((LeafQueue) csQueueAdd).getNumContainers();
-        }
-
-        io.hops.metadata.yarn.entity.capacity.CSQueue hopCSQueue
-                = new io.hops.metadata.yarn.entity.capacity.CSQueue(
-                        csQueueAdd.getQueueName(),
-                        csQueueAdd.getQueuePath(),
-                        csQueueAdd.getUsedCapacity(),
-                        csQueueAdd.getUsedResources().getMemory(),
-                        csQueueAdd.getUsedResources().getVirtualCores(),
-                        csQueueAdd.getAbsoluteUsedCapacity(),
-                        isParent,
-                        numContainers
-                );
-
-        LOG.info("persistCSQueueInfoToAdd :  QueueName" + csQueueAdd.
-                getQueueName()
-                + " Queue path " + csQueueAdd.getQueuePath());
-        toAddQueues.add(hopCSQueue);
-      }
-      QMDA.addAll(toAddQueues);
-
+      QMDA.addAll(csQueueToAdd.values());
     }
   }
 
@@ -144,13 +117,11 @@ public class CSQueueInfo {
                         csLeafQueueUser.getActiveApplications()
                 );
 
-        LOG.info("persistCSLeafQueueInfoToAdd :  username " + username
-                + " consumed memory  " + csLeafQueueUser.getConsumedMemory());
         toAddQueues.add(hopCSLeafQueueUserInfo);
-      }
+    }
       QMDA.addAll(toAddQueues);
 
-    }
+  }
   }
 
   public void persistCSLeafQueueUsersToRemove() throws StorageException {
@@ -160,55 +131,59 @@ public class CSQueueInfo {
                       CSLeafQueueUserInfoDataAccess.class);
       List<io.hops.metadata.yarn.entity.capacity.CSLeafQueueUserInfo> usersToRemoveList
               = new ArrayList<io.hops.metadata.yarn.entity.capacity.CSLeafQueueUserInfo>();
-      for (String userName : usersToRemove.keySet()) {
+      for (String userName : usersToRemove) {
         usersToRemoveList.add(
                 new io.hops.metadata.yarn.entity.capacity.CSLeafQueueUserInfo(
                         userName, 0, 0, 0, 0));
-        LOG.info("persistCSLeafQueueUsersToRemove :  username " + userName);
       }
-
-      usersToRemove.clear();
 
       csLQueueDA.removeAll(usersToRemoveList);
     }
   }
 
   public void addCSQueue(String csQueuePath, CSQueue csQueueAdd) {
-    if (csQueueToAdd == null) {
-      csQueueToAdd = new HashMap<String, CSQueue>();
-    }
-    csQueueToAdd.put(csQueuePath, csQueueAdd);
+    boolean isParent;
+        isParent = csQueueAdd.getChildQueues() != null;
+
+        int numContainers = -1;
+        if (!isParent) {
+          numContainers = ((LeafQueue) csQueueAdd).getNumContainers();
+        }
+
+        io.hops.metadata.yarn.entity.capacity.CSQueue hopCSQueue
+                = new io.hops.metadata.yarn.entity.capacity.CSQueue(
+                        csQueueAdd.getQueueName(),
+                        csQueueAdd.getQueuePath(),
+                        csQueueAdd.getUsedCapacity(),
+                        csQueueAdd.getUsedResources().getMemory(),
+                        csQueueAdd.getUsedResources().getVirtualCores(),
+                        csQueueAdd.getAbsoluteUsedCapacity(),
+                        isParent,
+                        numContainers
+                );
+    csQueueToAdd.put(csQueuePath, hopCSQueue);
 
   }
 
   public void addCSLeafUsers(String userName) {
-    // first time only we will create this map, other fields just reuse this
-    if (csLeafQueueUserInfoToAdd == null) {
-      csLeafQueueUserInfoToAdd = new HashMap<String, CSLeafQueueUserInfo>();
-    } else {
-      csLeafQueueUserInfoToAdd.put(userName, new CSLeafQueueUserInfo());
-    }
+    csLeafQueueUserInfoToAdd.put(userName, new CSLeafQueueUserInfo());
+    usersToRemove.remove(userName);
   }
 
   public void addCSLeafQueueUsersToRemove(String userName) {
-    if (usersToRemove == null) {
-      usersToRemove = new HashMap<String, CSLeafQueueUserInfo>();
+    if(csLeafQueueUserInfoToAdd.remove(userName)==null){
+      usersToRemove.add(userName);
     }
-    usersToRemove.put(userName, new CSLeafQueueUserInfo());
-
   }
 
   public CSLeafQueueUserInfo getCSLeafUserInfo(String userName) {
-    if (csLeafQueueUserInfoToAdd == null) {
-      csLeafQueueUserInfoToAdd = new HashMap<String, CSLeafQueueUserInfo>();
-    }
-
     if (csLeafQueueUserInfoToAdd.containsKey(userName)) {
       return csLeafQueueUserInfoToAdd.get(userName);
     }
 
     CSLeafQueueUserInfo userInfo = new CSLeafQueueUserInfo();
     csLeafQueueUserInfoToAdd.put(userName, userInfo);
+    usersToRemove.remove(userName);
     return userInfo;
   }
 

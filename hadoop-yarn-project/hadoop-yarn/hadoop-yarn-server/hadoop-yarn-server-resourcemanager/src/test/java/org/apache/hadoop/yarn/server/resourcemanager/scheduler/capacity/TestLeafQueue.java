@@ -301,13 +301,13 @@ public class TestLeafQueue {
     app_0.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 3, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // Start testing...
     
     // Only 1 container
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(
         (int) (node_0.getTotalResource().getMemory() * a.getCapacity()) -
             (1 * GB), a.getMetrics().getAvailableMB());
@@ -435,18 +435,18 @@ public class TestLeafQueue {
     app_0.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 3, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     app_1.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 2, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // Start testing...
     
     // Only 1 container
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(1 * GB, a.getUsedResources().getMemory());
     assertEquals(1 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -457,7 +457,7 @@ public class TestLeafQueue {
     // Also 2nd -> minCapacity = 1024 since (.1 * 8G) < minAlloc, also
     // you can get one container more than user-limit
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(2 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -466,7 +466,7 @@ public class TestLeafQueue {
     
     // Can't allocate 3rd due to user-limit
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(2 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -476,7 +476,7 @@ public class TestLeafQueue {
     // Bump up user-limit-factor, now allocate should work
     a.setUserLimitFactor(10);
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(3 * GB, a.getUsedResources().getMemory());
     assertEquals(3 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -485,7 +485,7 @@ public class TestLeafQueue {
 
     // One more should work, for app_1, due to user-limit-factor
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(4 * GB, a.getUsedResources().getMemory());
     assertEquals(3 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(1 * GB, app_1.getCurrentConsumption().getMemory());
@@ -496,7 +496,7 @@ public class TestLeafQueue {
     // Now - no more allocs since we are at max-cap
     a.setMaxCapacity(0.5f);
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(4 * GB, a.getUsedResources().getMemory());
     assertEquals(3 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(1 * GB, app_1.getCurrentConsumption().getMemory());
@@ -507,7 +507,7 @@ public class TestLeafQueue {
     for (RMContainer rmContainer : app_0.getLiveContainers()) {
       a.completedContainer(clusterResource, app_0, node_0, rmContainer, null,
           RMContainerEventType.KILL, null,
-          new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+          new TransactionStateImpl( TransactionState.TransactionType.RM));
     }
     assertEquals(1 * GB, a.getUsedResources().getMemory());
     assertEquals(0 * GB, app_0.getCurrentConsumption().getMemory());
@@ -519,7 +519,7 @@ public class TestLeafQueue {
     for (RMContainer rmContainer : app_1.getLiveContainers()) {
       a.completedContainer(clusterResource, app_1, node_0, rmContainer, null,
           RMContainerEventType.KILL, null,
-          new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+          new TransactionStateImpl( TransactionState.TransactionType.RM));
     }
 
     assertEquals(0 * GB, a.getUsedResources().getMemory());
@@ -580,12 +580,12 @@ public class TestLeafQueue {
     app_0.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 2 * GB, 1, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     app_1.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 2, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     /**
      * Start testing...
@@ -610,21 +610,21 @@ public class TestLeafQueue {
 
     // 1 container to user_0
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(2 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
 
     // Again one to user_0 since he hasn't exceeded user limit yet
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(3 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(1 * GB, app_1.getCurrentConsumption().getMemory());
 
     // One more to user_0 since he is the only active user
     a.assignContainers(clusterResource, node_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(4 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(2 * GB, app_1.getCurrentConsumption().getMemory());
@@ -677,12 +677,12 @@ public class TestLeafQueue {
     app_0.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 2 * GB, 1, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     app_1.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 2, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     /**
      * Start testing...
@@ -699,7 +699,7 @@ public class TestLeafQueue {
 
     // 1 container to user_0
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(2 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -708,7 +708,7 @@ public class TestLeafQueue {
 
     // Again one to user_0 since he hasn't exceeded user limit yet
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(3 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(1 * GB, app_1.getCurrentConsumption().getMemory());
@@ -720,13 +720,13 @@ public class TestLeafQueue {
     app_2.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 1, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(2, a.getActiveUsersManager().getNumActiveUsers());
 
     // No more to user_0 since he is already over user-limit
     // and no more containers to queue since it's already at max-cap
     a.assignContainers(clusterResource, node_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(3 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(1 * GB, app_1.getCurrentConsumption().getMemory());
@@ -739,10 +739,10 @@ public class TestLeafQueue {
     app_1.updateResourceRequests(Collections.singletonList(     // unset
         TestUtils.createResourceRequest(ResourceRequest.ANY, 1 * GB, 0, true,
             priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(1, a.getActiveUsersManager().getNumActiveUsers());
     a.assignContainers(clusterResource, node_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(1 * GB,
         app_2.getHeadroom().getMemory());   // hit queue max-cap
   }
@@ -800,12 +800,12 @@ public class TestLeafQueue {
     app_0.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 10, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     app_1.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 10, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     /**
      * Start testing... 
@@ -813,7 +813,7 @@ public class TestLeafQueue {
     
     // Only 1 container
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(1 * GB, a.getUsedResources().getMemory());
     assertEquals(1 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -821,7 +821,7 @@ public class TestLeafQueue {
     // Also 2nd -> minCapacity = 1024 since (.1 * 8G) < minAlloc, also
     // you can get one container more than user-limit
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(2 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -829,7 +829,7 @@ public class TestLeafQueue {
     // Can't allocate 3rd due to user-limit
     a.setUserLimit(25);
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(2 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -839,18 +839,18 @@ public class TestLeafQueue {
     app_2.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 3 * GB, 1, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     app_3.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 2, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // Now allocations should goto app_2 since 
     // user_0 is at limit inspite of high user-limit-factor
     a.setUserLimitFactor(10);
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(5 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -860,7 +860,7 @@ public class TestLeafQueue {
     // Now allocations should goto app_0 since 
     // user_0 is at user-limit not above it
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(6 * GB, a.getUsedResources().getMemory());
     assertEquals(3 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -871,7 +871,7 @@ public class TestLeafQueue {
     // Now - no more allocs since we are at max-cap
     a.setMaxCapacity(0.5f);
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(6 * GB, a.getUsedResources().getMemory());
     assertEquals(3 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -883,7 +883,7 @@ public class TestLeafQueue {
     a.setMaxCapacity(1.0f);
     a.setUserLimitFactor(1);
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(7 * GB, a.getUsedResources().getMemory());
     assertEquals(3 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -892,7 +892,7 @@ public class TestLeafQueue {
 
     // Now we should assign to app_3 again since user_2 is under user-limit
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(8 * GB, a.getUsedResources().getMemory());
     assertEquals(3 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -903,7 +903,7 @@ public class TestLeafQueue {
     for (RMContainer rmContainer : app_0.getLiveContainers()) {
       a.completedContainer(clusterResource, app_0, node_0, rmContainer, null,
           RMContainerEventType.KILL, null,
-          new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+          new TransactionStateImpl( TransactionState.TransactionType.RM));
     }
     assertEquals(5 * GB, a.getUsedResources().getMemory());
     assertEquals(0 * GB, app_0.getCurrentConsumption().getMemory());
@@ -915,7 +915,7 @@ public class TestLeafQueue {
     for (RMContainer rmContainer : app_2.getLiveContainers()) {
       a.completedContainer(clusterResource, app_2, node_0, rmContainer, null,
           RMContainerEventType.KILL, null,
-          new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+          new TransactionStateImpl( TransactionState.TransactionType.RM));
     }
     assertEquals(2 * GB, a.getUsedResources().getMemory());
     assertEquals(0 * GB, app_0.getCurrentConsumption().getMemory());
@@ -927,7 +927,7 @@ public class TestLeafQueue {
     for (RMContainer rmContainer : app_3.getLiveContainers()) {
       a.completedContainer(clusterResource, app_3, node_0, rmContainer, null,
           RMContainerEventType.KILL, null,
-          new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+          new TransactionStateImpl( TransactionState.TransactionType.RM));
     }
     assertEquals(0 * GB, a.getUsedResources().getMemory());
     assertEquals(0 * GB, app_0.getCurrentConsumption().getMemory());
@@ -976,18 +976,18 @@ public class TestLeafQueue {
     app_0.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 2, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     app_1.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 4 * GB, 1, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // Start testing...
     
     // Only 1 container
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(1 * GB, a.getUsedResources().getMemory());
     assertEquals(1 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -998,7 +998,7 @@ public class TestLeafQueue {
     // Also 2nd -> minCapacity = 1024 since (.1 * 8G) < minAlloc, also
     // you can get one container more than user-limit
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(2 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1007,7 +1007,7 @@ public class TestLeafQueue {
     
     // Now, reservation should kick in for app_1
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(6 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1020,9 +1020,9 @@ public class TestLeafQueue {
     a.completedContainer(clusterResource, app_0, node_0,
         app_0.getLiveContainers().iterator().next(), null,
         RMContainerEventType.KILL, null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(5 * GB, a.getUsedResources().getMemory());
     assertEquals(1 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1035,9 +1035,9 @@ public class TestLeafQueue {
     a.completedContainer(clusterResource, app_0, node_0,
         app_0.getLiveContainers().iterator().next(), null,
         RMContainerEventType.KILL, null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(4 * GB, a.getUsedResources().getMemory());
     assertEquals(0 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(4 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1089,7 +1089,7 @@ public class TestLeafQueue {
     app_0.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 2 * GB, 1, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // Setup app_1 to request a 4GB container on host_0 and
     // another 4GB container anywhere.
@@ -1105,12 +1105,12 @@ public class TestLeafQueue {
         .createResourceRequest(ResourceRequest.ANY, 4 * GB, 2, true, priority,
             recordFactory));
     app_1.updateResourceRequests(appRequests_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // Start testing...
 
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(2 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1120,7 +1120,7 @@ public class TestLeafQueue {
 
     // Now, reservation should kick in for app_1
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(6 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1134,7 +1134,7 @@ public class TestLeafQueue {
     doReturn(-1).when(a).getNodeLocalityDelay();
     
     a.assignContainers(clusterResource, node_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(10 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(4 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1147,9 +1147,9 @@ public class TestLeafQueue {
     a.completedContainer(clusterResource, app_0, node_0,
         app_0.getLiveContainers().iterator().next(), null,
         RMContainerEventType.KILL, null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(8 * GB, a.getUsedResources().getMemory());
     assertEquals(0 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(8 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1209,18 +1209,18 @@ public class TestLeafQueue {
     app_0.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 2, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     app_1.updateResourceRequests(Collections.singletonList(TestUtils
             .createResourceRequest(ResourceRequest.ANY, 4 * GB, 1, true,
                 priority, recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // Start testing...
     
     // Only 1 container
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(1 * GB, a.getUsedResources().getMemory());
     assertEquals(1 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1228,14 +1228,14 @@ public class TestLeafQueue {
     // Also 2nd -> minCapacity = 1024 since (.1 * 8G) < minAlloc, also
     // you can get one container more than user-limit
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(2 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
     
     // Now, reservation should kick in for app_1
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(6 * GB, a.getUsedResources().getMemory());
     assertEquals(2 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1246,9 +1246,9 @@ public class TestLeafQueue {
     a.completedContainer(clusterResource, app_0, node_0,
         app_0.getLiveContainers().iterator().next(), null,
         RMContainerEventType.KILL, null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(5 * GB, a.getUsedResources().getMemory());
     assertEquals(1 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1258,7 +1258,7 @@ public class TestLeafQueue {
 
     // Re-reserve
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(5 * GB, a.getUsedResources().getMemory());
     assertEquals(1 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(0 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1268,7 +1268,7 @@ public class TestLeafQueue {
     
     // Try to schedule on node_1 now, should *move* the reservation
     a.assignContainers(clusterResource, node_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(9 * GB, a.getUsedResources().getMemory());
     assertEquals(1 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(4 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1282,9 +1282,9 @@ public class TestLeafQueue {
     a.completedContainer(clusterResource, app_0, node_0,
         app_0.getLiveContainers().iterator().next(), null,
         RMContainerEventType.KILL, null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     CSAssignment assignment = a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(8 * GB, a.getUsedResources().getMemory());
     assertEquals(0 * GB, app_0.getCurrentConsumption().getMemory());
     assertEquals(4 * GB, app_1.getCurrentConsumption().getMemory());
@@ -1349,14 +1349,14 @@ public class TestLeafQueue {
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 3, // one extra
                 true, priority, recordFactory));
     app_0.updateResourceRequests(app_0_requests_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // Start testing...
     CSAssignment assignment = null;
     
     // Start with off switch, shouldn't allocate due to delay scheduling
     assignment = a.assignContainers(clusterResource, node_2,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_2), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1367,7 +1367,7 @@ public class TestLeafQueue {
 
     // Another off switch, shouldn't allocate due to delay scheduling
     assignment = a.assignContainers(clusterResource, node_2,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_2), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1378,7 +1378,7 @@ public class TestLeafQueue {
     
     // Another off switch, shouldn't allocate due to delay scheduling
     assignment = a.assignContainers(clusterResource, node_2,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_2), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1390,7 +1390,7 @@ public class TestLeafQueue {
     // Another off switch, now we should allocate 
     // since missedOpportunities=3 and reqdContainers=3
     assignment = a.assignContainers(clusterResource, node_2,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0)
         .allocate(eq(NodeType.OFF_SWITCH), eq(node_2), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1402,7 +1402,7 @@ public class TestLeafQueue {
     
     // NODE_LOCAL - node_0
     assignment = a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0)
         .allocate(eq(NodeType.NODE_LOCAL), eq(node_0), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1413,7 +1413,7 @@ public class TestLeafQueue {
     
     // NODE_LOCAL - node_1
     assignment = a.assignContainers(clusterResource, node_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0)
         .allocate(eq(NodeType.NODE_LOCAL), eq(node_1), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1434,7 +1434,7 @@ public class TestLeafQueue {
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 2, // one extra
                 true, priority, recordFactory));
     app_0.updateResourceRequests(app_0_requests_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(2, app_0.getTotalRequiredResources(priority));
     
     String host_3 = "127.0.0.4"; // on rack_1
@@ -1445,14 +1445,14 @@ public class TestLeafQueue {
     
     // Shouldn't assign RACK_LOCAL yet
     assignment = a.assignContainers(clusterResource, node_3,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(1, app_0.getSchedulingOpportunities(priority));
     assertEquals(2, app_0.getTotalRequiredResources(priority));
     assertEquals(NodeType.NODE_LOCAL, assignment.getType()); // None->NODE_LOCAL
 
     // Should assign RACK_LOCAL now
     assignment = a.assignContainers(clusterResource, node_3,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0)
         .allocate(eq(NodeType.RACK_LOCAL), eq(node_3), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1528,14 +1528,14 @@ public class TestLeafQueue {
                 priority_2, recordFactory));
     
     app_0.updateResourceRequests(app_0_requests_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // Start testing...
     
     // Start with off switch, shouldn't allocate P1 due to delay scheduling
     // thus, no P2 either!
     a.assignContainers(clusterResource, node_2,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_2), eq(priority_1),
             any(ResourceRequest.class), any(Container.class),
@@ -1552,7 +1552,7 @@ public class TestLeafQueue {
     // Another off-switch, shouldn't allocate P1 due to delay scheduling
     // thus, no P2 either!
     a.assignContainers(clusterResource, node_2,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_2), eq(priority_1),
             any(ResourceRequest.class), any(Container.class),
@@ -1568,7 +1568,7 @@ public class TestLeafQueue {
 
     // Another off-switch, shouldn't allocate OFF_SWITCH P1
     a.assignContainers(clusterResource, node_2,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0).allocate(eq(NodeType.OFF_SWITCH), eq(node_2), eq(priority_1),
         any(ResourceRequest.class), any(Container.class),
         any(TransactionState.class));
@@ -1583,7 +1583,7 @@ public class TestLeafQueue {
 
     // Now, DATA_LOCAL for P1
     a.assignContainers(clusterResource, node_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0).allocate(eq(NodeType.NODE_LOCAL), eq(node_0), eq(priority_1),
         any(ResourceRequest.class), any(Container.class),
         any(TransactionState.class));
@@ -1598,7 +1598,7 @@ public class TestLeafQueue {
 
     // Now, OFF_SWITCH for P2
     a.assignContainers(clusterResource, node_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_1), eq(priority_1),
             any(ResourceRequest.class), any(Container.class),
@@ -1668,7 +1668,7 @@ public class TestLeafQueue {
             .createResourceRequest(rack_1, 1 * GB, 1, true, priority,
                 recordFactory));
     app_0.updateResourceRequests(app_0_requests_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // Start testing...
     
@@ -1678,11 +1678,11 @@ public class TestLeafQueue {
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 1, // only one
                 true, priority, recordFactory));
     app_0.updateResourceRequests(app_0_requests_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     
     // NODE_LOCAL - node_0_1
     a.assignContainers(clusterResource, node_0_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0)
         .allocate(eq(NodeType.NODE_LOCAL), eq(node_0_0), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1693,7 +1693,7 @@ public class TestLeafQueue {
     // No allocation on node_1_0 even though it's node/rack local since
     // required(ANY) == 0
     a.assignContainers(clusterResource, node_1_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_1_0), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1708,12 +1708,12 @@ public class TestLeafQueue {
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 1, // only one
                 true, priority, recordFactory));
     app_0.updateResourceRequests(app_0_requests_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // No allocation on node_0_1 even though it's node/rack local since
     // required(rack_1) == 0
     a.assignContainers(clusterResource, node_0_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_1_0), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1723,7 +1723,7 @@ public class TestLeafQueue {
     
     // NODE_LOCAL - node_1
     a.assignContainers(clusterResource, node_1_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0)
         .allocate(eq(NodeType.NODE_LOCAL), eq(node_1_0), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1836,7 +1836,7 @@ public class TestLeafQueue {
     assertEquals(1, e.pendingApplications.size());
 
     e.updateClusterResource(Resources.createResource(200 * 16 * GB, 100 * 32), 
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // after updating cluster resource
     assertEquals(3, e.activeApplications.size());
@@ -1951,9 +1951,9 @@ public class TestLeafQueue {
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 1, // only one
                 false, priority, recordFactory));
     app_0.updateResourceRequests(app_0_requests_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     app_0.updateBlacklist(Collections.singletonList(host_0_0), null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     app_0_requests_0.clear();
 
     //
@@ -1963,7 +1963,7 @@ public class TestLeafQueue {
     // node_0_1  
     // Shouldn't allocate since RR(rack_0) = null && RR(ANY) = relax: false
     a.assignContainers(clusterResource, node_0_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_0_1), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -1988,7 +1988,7 @@ public class TestLeafQueue {
     // node_1_1  
     // Shouldn't allocate since RR(rack_1) = relax: false
     a.assignContainers(clusterResource, node_1_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_0_1), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -2000,9 +2000,9 @@ public class TestLeafQueue {
             .createResourceRequest(rack_1, 1 * GB, 1, true, priority,
                 recordFactory));
     app_0.updateResourceRequests(app_0_requests_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     app_0.updateBlacklist(Collections.singletonList(host_1_1), null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     app_0_requests_0.clear();
 
     // resourceName: <priority, memory, #containers, relaxLocality>
@@ -2023,7 +2023,7 @@ public class TestLeafQueue {
     // node_1_1  
     // Shouldn't allocate since node_1_1 is blacklisted
     a.assignContainers(clusterResource, node_1_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_1_1), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -2032,10 +2032,10 @@ public class TestLeafQueue {
 
     // Now, remove node_1_1 from blacklist, but add rack_1 to blacklist
     app_0.updateResourceRequests(app_0_requests_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     app_0.updateBlacklist(Collections.singletonList(rack_1),
         Collections.singletonList(host_1_1),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     app_0_requests_0.clear();
 
     // resourceName: <priority, memory, #containers, relaxLocality>
@@ -2056,7 +2056,7 @@ public class TestLeafQueue {
     // node_1_1  
     // Shouldn't allocate since rack_1 is blacklisted
     a.assignContainers(clusterResource, node_1_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(any(NodeType.class), eq(node_1_1), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -2065,9 +2065,9 @@ public class TestLeafQueue {
     
     // Now remove rack_1 from blacklist
     app_0.updateResourceRequests(app_0_requests_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     app_0.updateBlacklist(null, Collections.singletonList(rack_1),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     app_0_requests_0.clear();
     
     // resourceName: <priority, memory, #containers, relaxLocality>
@@ -2087,7 +2087,7 @@ public class TestLeafQueue {
 
     // Now, should allocate since RR(rack_1) = relax: true
     a.assignContainers(clusterResource, node_1_1,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0, never())
         .allocate(eq(NodeType.RACK_LOCAL), eq(node_1_1), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -2103,7 +2103,7 @@ public class TestLeafQueue {
             .createResourceRequest(ResourceRequest.ANY, 1 * GB, 1, // only one
                 false, priority, recordFactory));
     app_0.updateResourceRequests(app_0_requests_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     app_0_requests_0.clear();
     
     // resourceName: <priority, memory, #containers, relaxLocality>
@@ -2121,7 +2121,7 @@ public class TestLeafQueue {
     // host_1_1: 7G
 
     a.assignContainers(clusterResource, node_1_0,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     verify(app_0)
         .allocate(eq(NodeType.NODE_LOCAL), eq(node_1_0), any(Priority.class),
             any(ResourceRequest.class), any(Container.class),
@@ -2159,7 +2159,7 @@ public class TestLeafQueue {
     Resource newClusterResource =
         Resources.createResource(100 * 20 * GB, 100 * 32);
     a.updateClusterResource(newClusterResource, 
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl( TransactionState.TransactionType.RM));
     //  100 * 20 * 0.2 = 400
     assertEquals(400, a.getMaximumActiveApplications());
   }
@@ -2203,11 +2203,11 @@ public class TestLeafQueue {
             recordFactory), TestUtils
         .createResourceRequest(DEFAULT_RACK, 1 * GB, 3, true, priority,
             recordFactory)),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     try {
       a.assignContainers(clusterResource, node_0,
-          new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+          new TransactionStateImpl( TransactionState.TransactionType.RM));
     } catch (NullPointerException e) {
       Assert.fail("NPE when allocating container on node but " +
           "forget to set off-switch request should be handled");

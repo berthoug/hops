@@ -191,7 +191,7 @@ public class TestResourceManager {
     // Send a heartbeat to kick the tires on the Scheduler
     NodeUpdateSchedulerEvent nodeUpdate =
  new NodeUpdateSchedulerEvent(node,
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl( TransactionState.TransactionType.RM));
     resourceManager.getResourceScheduler().handle(nodeUpdate);
   }
 

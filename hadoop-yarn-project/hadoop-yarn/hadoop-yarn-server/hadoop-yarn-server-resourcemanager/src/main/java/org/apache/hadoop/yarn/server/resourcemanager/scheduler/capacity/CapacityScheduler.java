@@ -552,7 +552,7 @@ public class CapacityScheduler extends AbstractYarnScheduler
     }
     // Submit to the queue
     try {
-      queue.submitApplication(applicationId, user, queueName);
+      queue.submitApplication(applicationId, user, queueName, transactionState);
     } catch (AccessControlException ace) {
       LOG.info("Failed to submit application " + applicationId + " to queue "
               + queueName + " from user " + user, ace);

@@ -31,11 +31,13 @@ import org.apache.hadoop.yarn.util.SystemClock;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class ContainerAllocationExpirer
     extends AbstractLivelinessMonitor<ContainerId> {
-
+ private static final Log LOG = LogFactory.getLog(ContainerAllocationExpirer.class);
   private final EventHandler dispatcher;
 
   public ContainerAllocationExpirer(Dispatcher d) {
@@ -56,10 +58,11 @@ public class ContainerAllocationExpirer
   @Override
   protected void expire(ContainerId containerId) {
     try {
+      LOG.info("create transactionState container expirer");
       TransactionState ts =
-          new TransactionStateImpl(-1, TransactionState.TransactionType.RM);
+          new TransactionStateImpl(TransactionState.TransactionType.RM);
       dispatcher.handle(new ContainerExpiredSchedulerEvent(containerId, ts));
-      ts.decCounter("ContainerAllocationExpirer");
+      ts.decCounter(TransactionState.TransactionType.INIT);
     } catch (IOException ex) {
       Logger.getLogger(ContainerAllocationExpirer.class.getName())
           .log(Level.SEVERE, null, ex);

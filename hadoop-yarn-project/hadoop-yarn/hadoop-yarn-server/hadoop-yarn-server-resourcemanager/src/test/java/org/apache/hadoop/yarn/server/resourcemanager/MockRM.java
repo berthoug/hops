@@ -347,9 +347,9 @@ public class MockRM extends ResourceManager {
     RMNodeImpl node =
         (RMNodeImpl) getRMContext().getActiveRMNodes().get(nm.getNodeId());
     TransactionState ts =
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM);
+        new TransactionStateImpl(TransactionState.TransactionType.RM);
     node.handle(new RMNodeEvent(nm.getNodeId(), RMNodeEventType.EXPIRE, ts));
-    ts.decCounter("");
+    ts.decCounter(TransactionState.TransactionType.INIT);
   }
 
   public void NMwaitForState(NodeId nodeid, NodeState finalState)

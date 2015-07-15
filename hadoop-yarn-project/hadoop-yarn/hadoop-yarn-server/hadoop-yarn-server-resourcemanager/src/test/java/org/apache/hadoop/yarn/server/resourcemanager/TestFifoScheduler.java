@@ -287,22 +287,22 @@ public class TestFifoScheduler {
     RMNode n2 =
         MockNodes.newNodeInfo(0, MockNodes.newResource(2 * GB), 2, "127.0.0.3");
 
-    fs.handle(new NodeAddedSchedulerEvent(n1, new TransactionStateImpl(-1,
+    fs.handle(new NodeAddedSchedulerEvent(n1, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
-    fs.handle(new NodeAddedSchedulerEvent(n2, new TransactionStateImpl(-1,
+    fs.handle(new NodeAddedSchedulerEvent(n2, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
-    fs.handle(new NodeUpdateSchedulerEvent(n1, new TransactionStateImpl(-1,
+    fs.handle(new NodeUpdateSchedulerEvent(n1, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
     Assert.assertEquals(6 * GB, fs.getRootQueueMetrics().getAvailableMB());
 
     // reconnect n1 with downgraded memory
     n1 =
         MockNodes.newNodeInfo(0, MockNodes.newResource(2 * GB), 1, "127.0.0.2");
-    fs.handle(new NodeRemovedSchedulerEvent(n1, new TransactionStateImpl(-1,
+    fs.handle(new NodeRemovedSchedulerEvent(n1, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
-    fs.handle(new NodeAddedSchedulerEvent(n1, new TransactionStateImpl(-1,
+    fs.handle(new NodeAddedSchedulerEvent(n1, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
-    fs.handle(new NodeUpdateSchedulerEvent(n1, new TransactionStateImpl(-1,
+    fs.handle(new NodeUpdateSchedulerEvent(n1, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
 
     Assert.assertEquals(4 * GB, fs.getRootQueueMetrics().getAvailableMB());
@@ -372,16 +372,16 @@ public class TestFifoScheduler {
             BuilderUtils.newResource(GB, 1), 1));
     fs.allocate(appAttemptId1, ask1, emptyId,
         Collections.singletonList(host_1_0), null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl(TransactionState.TransactionType.RM));
 
     // Trigger container assignment
-    fs.handle(new NodeUpdateSchedulerEvent(n3, new TransactionStateImpl(-1,
+    fs.handle(new NodeUpdateSchedulerEvent(n3, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
 
     // Get the allocation for the application and verify no allocation on blacklist node
     Allocation allocation1 =
         fs.allocate(appAttemptId1, emptyAsk, emptyId, null, null,
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl(TransactionState.TransactionType.RM));
 
     Assert.assertEquals("allocation1", 0, allocation1.getContainers().size());
 
@@ -389,7 +389,7 @@ public class TestFifoScheduler {
     fs.handle(new NodeUpdateSchedulerEvent(n4, null));
     Allocation allocation2 =
         fs.allocate(appAttemptId1, emptyAsk, emptyId, null, null,
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl(TransactionState.TransactionType.RM));
     Assert.assertEquals("allocation2", 1, allocation2.getContainers().size());
     List<Container> containerList = allocation2.getContainers();
     for (Container container : containerList) {
@@ -406,33 +406,33 @@ public class TestFifoScheduler {
             BuilderUtils.newResource(GB, 1), 1));
     fs.allocate(appAttemptId1, ask2, emptyId,
         Collections.singletonList("rack0"), null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl(TransactionState.TransactionType.RM));
 
     // verify n1 is not qualified to be allocated
     fs.handle(new NodeUpdateSchedulerEvent(n1, null));
     Allocation allocation3 =
         fs.allocate(appAttemptId1, emptyAsk, emptyId, null, null,
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl(TransactionState.TransactionType.RM));
     Assert.assertEquals("allocation3", 0, allocation3.getContainers().size());
 
     // verify n2 is not qualified to be allocated
     fs.handle(new NodeUpdateSchedulerEvent(n2, null));
     Allocation allocation4 =
         fs.allocate(appAttemptId1, emptyAsk, emptyId, null, null,
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl(TransactionState.TransactionType.RM));
     Assert.assertEquals("allocation4", 0, allocation4.getContainers().size());
 
     // verify n3 is not qualified to be allocated
     fs.handle(new NodeUpdateSchedulerEvent(n3, null));
     Allocation allocation5 =
         fs.allocate(appAttemptId1, emptyAsk, emptyId, null, null,
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl(TransactionState.TransactionType.RM));
     Assert.assertEquals("allocation5", 0, allocation5.getContainers().size());
 
     fs.handle(new NodeUpdateSchedulerEvent(n4, null));
     Allocation allocation6 =
         fs.allocate(appAttemptId1, emptyAsk, emptyId, null, null,
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl(TransactionState.TransactionType.RM));
     Assert.assertEquals("allocation6", 1, allocation6.getContainers().size());
 
     containerList = allocation6.getContainers();
@@ -490,7 +490,7 @@ public class TestFifoScheduler {
         .newResourceRequest(BuilderUtils.newPriority(0), ResourceRequest.ANY,
             BuilderUtils.newResource(GB, 1), 1));
     fs.allocate(appAttemptId1, ask1, emptyId, null, null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl(TransactionState.TransactionType.RM));
 
     // Ask for a 2 GB container for app 2
     List<ResourceRequest> ask2 = new ArrayList<ResourceRequest>();
@@ -498,22 +498,22 @@ public class TestFifoScheduler {
         .newResourceRequest(BuilderUtils.newPriority(0), ResourceRequest.ANY,
             BuilderUtils.newResource(2 * GB, 1), 1));
     fs.allocate(appAttemptId2, ask2, emptyId, null, null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl(TransactionState.TransactionType.RM));
 
     // Trigger container assignment
-    fs.handle(new NodeUpdateSchedulerEvent(n1, new TransactionStateImpl(-1,
+    fs.handle(new NodeUpdateSchedulerEvent(n1, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
 
     // Get the allocation for the applications and verify headroom
     Allocation allocation1 =
         fs.allocate(appAttemptId1, emptyAsk, emptyId, null, null,
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl(TransactionState.TransactionType.RM));
     Assert.assertEquals("Allocation headroom", 1 * GB,
         allocation1.getResourceLimit().getMemory());
 
     Allocation allocation2 =
         fs.allocate(appAttemptId2, emptyAsk, emptyId, null, null,
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl(TransactionState.TransactionType.RM));
     Assert.assertEquals("Allocation headroom", 1 * GB,
         allocation2.getResourceLimit().getMemory());
 

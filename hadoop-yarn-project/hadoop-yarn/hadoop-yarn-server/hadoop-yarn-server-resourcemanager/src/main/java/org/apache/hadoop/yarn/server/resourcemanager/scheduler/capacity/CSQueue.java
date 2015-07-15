@@ -187,7 +187,7 @@ public interface CSQueue
    *     queue to which the application is submitted
    */
   public void submitApplication(ApplicationId applicationId, String user,
-      String queue) throws AccessControlException;
+      String queue, TransactionState transactionState) throws AccessControlException;
 
   /**
    * Submit an application attempt to the queue.

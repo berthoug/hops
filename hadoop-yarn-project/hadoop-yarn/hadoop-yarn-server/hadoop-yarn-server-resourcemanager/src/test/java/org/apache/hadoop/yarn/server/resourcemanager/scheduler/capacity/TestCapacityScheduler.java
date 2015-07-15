@@ -165,7 +165,7 @@ public class TestCapacityScheduler {
             resourceManager);
     NodeAddedSchedulerEvent nodeAddEvent1 = new NodeAddedSchedulerEvent(
         resourceManager.getRMContext().getActiveRMNodes().get(nm.getNodeId()),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
     resourceManager.getResourceScheduler().handle(nodeAddEvent1);
     return nm;
   }
@@ -301,7 +301,7 @@ public class TestCapacityScheduler {
     // Send a heartbeat to kick the tires on the Scheduler
     NodeUpdateSchedulerEvent nodeUpdate =
  new NodeUpdateSchedulerEvent(node,
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl( TransactionState.TransactionType.RM));
     resourceManager.getResourceScheduler().handle(nodeUpdate);
   }
 
@@ -470,18 +470,18 @@ public class TestCapacityScheduler {
     RMNode n1 = MockNodes.newNodeInfo(0, MockNodes.newResource(4 * GB), 1);
     RMNode n2 = MockNodes.newNodeInfo(0, MockNodes.newResource(2 * GB), 2);
 
-    cs.handle(new NodeAddedSchedulerEvent(n1, new TransactionStateImpl(-1,
+    cs.handle(new NodeAddedSchedulerEvent(n1, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
-    cs.handle(new NodeAddedSchedulerEvent(n2, new TransactionStateImpl(-1,
+    cs.handle(new NodeAddedSchedulerEvent(n2, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
 
     Assert.assertEquals(6 * GB, cs.getClusterResources().getMemory());
 
     // reconnect n1 with downgraded memory
     n1 = MockNodes.newNodeInfo(0, MockNodes.newResource(2 * GB), 1);
-    cs.handle(new NodeRemovedSchedulerEvent(n1, new TransactionStateImpl(-1,
+    cs.handle(new NodeRemovedSchedulerEvent(n1, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
-    cs.handle(new NodeAddedSchedulerEvent(n1, new TransactionStateImpl(-1,
+    cs.handle(new NodeAddedSchedulerEvent(n1, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
 
     Assert.assertEquals(4 * GB, cs.getClusterResources().getMemory());
@@ -565,7 +565,7 @@ public class TestCapacityScheduler {
     String host = "127.0.0.1";
     RMNode node =
         MockNodes.newNodeInfo(0, MockNodes.newResource(4 * GB), 1, host);
-    cs.handle(new NodeAddedSchedulerEvent(node, new TransactionStateImpl(-1,
+    cs.handle(new NodeAddedSchedulerEvent(node, new TransactionStateImpl(
             TransactionState.TransactionType.RM)));
 
     ApplicationId appId = BuilderUtils.newApplicationId(100, 1);
@@ -573,24 +573,24 @@ public class TestCapacityScheduler {
         BuilderUtils.newApplicationAttemptId(appId, 1);
     SchedulerEvent addAppEvent =
  new AppAddedSchedulerEvent(appId, "default",
-            "user", new TransactionStateImpl(-1,
+            "user", new TransactionStateImpl(
                     TransactionState.TransactionType.RM));
     cs.handle(addAppEvent);
     SchedulerEvent addAttemptEvent =
  new AppAttemptAddedSchedulerEvent(
-            appAttemptId, false, new TransactionStateImpl(-1,
+            appAttemptId, false, new TransactionStateImpl(
                     TransactionState.TransactionType.RM));
     cs.handle(addAttemptEvent);
 
     // Verify the blacklist can be updated independent of requesting containers
     cs.allocate(appAttemptId, Collections.<ResourceRequest>emptyList(),
         Collections.<ContainerId>emptyList(), Collections.singletonList(host),
-        null, new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        null, new TransactionStateImpl( TransactionState.TransactionType.RM));
     Assert
         .assertTrue(cs.getApplicationAttempt(appAttemptId).isBlacklisted(host));
     cs.allocate(appAttemptId, Collections.<ResourceRequest>emptyList(),
         Collections.<ContainerId>emptyList(), null,
-            Collections.singletonList(host), new TransactionStateImpl(-1,
+            Collections.singletonList(host), new TransactionStateImpl(
                     TransactionState.TransactionType.RM));
     Assert.assertFalse(
         cs.getApplicationAttempt(appAttemptId).isBlacklisted(host));
@@ -683,13 +683,13 @@ public class TestCapacityScheduler {
       String host = "192.168.1." + i;
       RMNode node =
           MockNodes.newNodeInfo(0, MockNodes.newResource(4 * GB), 1, host);
-      cs.handle(new NodeAddedSchedulerEvent(node, new TransactionStateImpl(-1,
+      cs.handle(new NodeAddedSchedulerEvent(node, new TransactionStateImpl(
               TransactionState.TransactionType.RM)));
     }
 
     // Now directly exercise the scheduling loop
     for (int i = 0; i < NODES; ++i) {
-      CapacityScheduler.schedule(cs, new TransactionStateImpl(-1,
+      CapacityScheduler.schedule(cs, new TransactionStateImpl(
               TransactionState.TransactionType.RM));
     }
   }

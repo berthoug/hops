@@ -20,6 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionState.TransactionType;
 import io.hops.ha.common.TransactionStateImpl;
+import io.hops.ha.common.transactionStateWrapper;
 import io.hops.metadata.util.HopYarnAPIUtilities;
 import io.hops.metadata.util.RMUtilities;
 import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
@@ -268,7 +269,6 @@ public class ResourceTrackerService extends AbstractService
     int httpPort = request.getHttpPort();
     Resource capability = request.getResource();
     String nodeManagerVersion = request.getNMVersion();
-    TransactionState transactionState;
     
     boolean oldNodeExists = false;
     if (rpcID == null) {
@@ -296,7 +296,7 @@ public class ResourceTrackerService extends AbstractService
             .persistAppMasterRPC(rpcID, RPC.Type.RegisterNM, allNMRequestData);
       }
     }
-    transactionState = new TransactionStateImpl(rpcID, TransactionType.RM);
+    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "registerNodeManager");
 
     if (!request.getContainerStatuses().isEmpty()) {
       LOG.info("received container statuses on node manager register :" +
@@ -322,7 +322,7 @@ public class ResourceTrackerService extends AbstractService
         response.setDiagnosticsMessage(message);
         response.setNodeAction(NodeAction.SHUTDOWN);
         
-        transactionState.decCounter("RT");
+        transactionState.decCounter(TransactionState.TransactionType.INIT);
         return response;
       }
     }
@@ -335,7 +335,7 @@ public class ResourceTrackerService extends AbstractService
       response.setDiagnosticsMessage(message);
       response.setNodeAction(NodeAction.SHUTDOWN);
       
-      transactionState.decCounter("RT");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       return response;
     }
 
@@ -350,7 +350,7 @@ public class ResourceTrackerService extends AbstractService
       response.setDiagnosticsMessage(message);
       response.setNodeAction(NodeAction.SHUTDOWN);
       
-      transactionState.decCounter("RT");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       return response;
     }
 
@@ -372,7 +372,7 @@ public class ResourceTrackerService extends AbstractService
         ((TransactionStateImpl) transactionState).getRMContextInfo().
             toAddActiveRMNode(nodeId, rmNode);
         ((TransactionStateImpl) transactionState)
-            .getRMNodeInfo(nodeId.toString())
+            .getRMNodeInfo(nodeId)
             .toAddNextHeartbeat(nodeId.toString(),
                 ((RMNodeImpl) rmNode).getNextHeartbeat());
         this.rmContext.getDispatcher().getEventHandler().handle(
@@ -398,7 +398,7 @@ public class ResourceTrackerService extends AbstractService
         ((TransactionStateImpl) transactionState).getRMContextInfo().
             toAddActiveRMNode(nodeId, rmNode);
         ((TransactionStateImpl) transactionState)
-            .getRMNodeInfo(nodeId.toString())
+            .getRMNodeInfo(nodeId)
             .toAddNextHeartbeat(nodeId.toString(),
                 ((RMNodeImpl) rmNode).getNextHeartbeat());
         this.rmContext.getDispatcher().getEventHandler().handle(
@@ -439,7 +439,7 @@ public class ResourceTrackerService extends AbstractService
     response.setRMVersion(YarnVersionInfo.getVersion());
 
     
-    transactionState.decCounter("RT");
+    transactionState.decCounter(TransactionState.TransactionType.INIT);
 
     //Gautier: we may send a response without commiting first. Is it a problem ?
     return response;
@@ -460,7 +460,7 @@ public class ResourceTrackerService extends AbstractService
     NodeId nodeId = remoteNodeStatus.getNodeId();
     
     LOG.debug("HOP :: receive heartbeat node " + nodeId);
-
+    
     if (rpcID == null) {
       rpcID = HopYarnAPIUtilities.getRPCID();
       byte[] allHBRequestData = ((NodeHeartbeatRequestPBImpl) request).
@@ -468,10 +468,9 @@ public class ResourceTrackerService extends AbstractService
       RMUtilities
           .persistAppMasterRPC(rpcID, RPC.Type.NodeHeartbeat, allHBRequestData);
     }
-    TransactionState transactionState =
-        new TransactionStateImpl(rpcID, TransactionType.RM, "heartbeat",
-            nodeId);
-    LOG.info("attribute rpc: " + rpcID + " to hb form " + nodeId);
+    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "nodeHeartbeat");
+    ((transactionStateWrapper)transactionState).addTime(1);
+    LOG.debug("attribute rpc: " + rpcID + " to hb form " + nodeId);
     
     /**
      * Here is the node heartbeat sequence... 1. Check if it's a registered
@@ -490,7 +489,7 @@ public class ResourceTrackerService extends AbstractService
       LOG.info(message);
       resync.setDiagnosticsMessage(message);
       
-      transactionState.decCounter("RT");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       return resync;
     }
     
@@ -508,7 +507,7 @@ public class ResourceTrackerService extends AbstractService
           new RMNodeEvent(nodeId, RMNodeEventType.DECOMMISSION,
               transactionState));
       
-      transactionState.decCounter("RT");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       return shutDown;
     }
 
@@ -520,7 +519,7 @@ public class ResourceTrackerService extends AbstractService
       LOG.info(
           "Received duplicate heartbeat from node " + rmNode.getNodeAddress());
       
-      transactionState.decCounter("RT");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       return lastNodeHeartbeatResponse;
     } else if (remoteNodeStatus.getResponseId() + 1 <
         lastNodeHeartbeatResponse.getResponseId()) {
@@ -533,7 +532,7 @@ public class ResourceTrackerService extends AbstractService
       this.rmContext.getDispatcher().getEventHandler().handle(
           new RMNodeEvent(nodeId, RMNodeEventType.REBOOTING, transactionState));
       
-      transactionState.decCounter("RT");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       return resync;
     }
 
@@ -555,8 +554,8 @@ public class ResourceTrackerService extends AbstractService
             remoteNodeStatus.getContainersStatuses(),
             remoteNodeStatus.getKeepAliveApplications(), nodeHeartBeatResponse,
             transactionState));
-    
-    transactionState.decCounter("RT");
+
+    transactionState.decCounter(TransactionState.TransactionType.INIT);
     return nodeHeartBeatResponse;
   }
 

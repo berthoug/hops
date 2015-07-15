@@ -1351,7 +1351,7 @@ public class FairScheduler extends AbstractYarnScheduler {
           public void run() {
             //TOVERIFY FAIR will we miss some states by doing that
             continuousScheduling(
-                    new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+                    new TransactionStateImpl(TransactionState.TransactionType.RM));
           }
         });
         schedulingThread.setName("ContinuousScheduling");

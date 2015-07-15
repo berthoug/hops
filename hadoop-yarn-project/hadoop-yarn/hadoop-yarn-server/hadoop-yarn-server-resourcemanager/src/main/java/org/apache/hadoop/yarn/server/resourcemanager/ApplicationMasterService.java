@@ -250,9 +250,10 @@ public class ApplicationMasterService extends AbstractService
           regAMRequestData, applicationAttemptId.toString());
       
     }
-    TransactionState transactionState =
-        new TransactionStateImpl(rpcID, TransactionType.APP, applicationAttemptId.getApplicationId());
-
+    TransactionState transactionState = 
+            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+                    "registerApplicationMaster");
+    
     ApplicationId appID = applicationAttemptId.getApplicationId();
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
     if (lock == null) {
@@ -261,7 +262,7 @@ public class ApplicationMasterService extends AbstractService
           "Application doesn't exist in cache " + applicationAttemptId,
           "ApplicationMasterService", "Error in registering application master",
           appID, applicationAttemptId);
-      transactionState.decCounter("rpc");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       throwApplicationDoesNotExistInCacheException(applicationAttemptId);
     }
 
@@ -276,7 +277,7 @@ public class ApplicationMasterService extends AbstractService
                 .get(applicationAttemptId.getApplicationId()).getUser(),
             AuditConstants.REGISTER_AM, "", "ApplicationMasterService", message,
             applicationAttemptId.getApplicationId(), applicationAttemptId);
-        transactionState.decCounter("rpc");
+        transactionState.decCounter(TransactionState.TransactionType.INIT);
         throw new InvalidApplicationMasterRequestException(message);
         //TORECOVER OPT save request response and resend it if the request is received again after a recover
       }
@@ -331,7 +332,7 @@ public class ApplicationMasterService extends AbstractService
             // if it's a DNS issue, throw UnknowHostException directly and that
             // will be automatically retried by RMProxy in RPC layer.
             if (e.getCause() instanceof UnknownHostException) {
-              transactionState.decCounter("rpc");
+              transactionState.decCounter(TransactionState.TransactionType.INIT);
               throw (UnknownHostException) e.getCause();
             }
           }
@@ -341,7 +342,7 @@ public class ApplicationMasterService extends AbstractService
             transferredContainers.size() + " containers from previous" +
             " attempts and " + nmTokens.size() + " NM tokens.");
       }
-      transactionState.decCounter("rpc register appmaster return");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       return response;
     }
   }
@@ -370,12 +371,12 @@ public class ApplicationMasterService extends AbstractService
           finAMRequestData, applicationAttemptId.toString());
       
     }
-    TransactionState transactionState =
-        new TransactionStateImpl(rpcID, TransactionType.APP, applicationAttemptId.getApplicationId());
-
+    TransactionState transactionState = 
+            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+                    "finishApplicationMaster");
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
     if (lock == null) {
-      transactionState.decCounter("rpc");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       throwApplicationDoesNotExistInCacheException(applicationAttemptId);
     }
 
@@ -391,7 +392,7 @@ public class ApplicationMasterService extends AbstractService
             AuditConstants.UNREGISTER_AM, "", "ApplicationMasterService",
             message, applicationAttemptId.getApplicationId(),
             applicationAttemptId);
-        transactionState.decCounter("rpc");
+        transactionState.decCounter(TransactionState.TransactionType.INIT);
         throw new InvalidApplicationMasterRequestException(message);
       }
 
@@ -401,7 +402,7 @@ public class ApplicationMasterService extends AbstractService
           getApplicationId());
 
       if (rmApp.isAppFinalStateStored()) {
-        transactionState.decCounter("rpc");
+        transactionState.decCounter(TransactionState.TransactionType.INIT);
         return FinishApplicationMasterResponse.newInstance(true);
       }
 
@@ -411,7 +412,7 @@ public class ApplicationMasterService extends AbstractService
               request.getDiagnostics(), transactionState));
 
       // For UnmanagedAMs, return true so they don't retry
-      transactionState.decCounter("rpc finish appmaster return");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       return FinishApplicationMasterResponse.newInstance(
           rmApp.getApplicationSubmissionContext().getUnmanagedAM());
     }
@@ -465,9 +466,9 @@ public class ApplicationMasterService extends AbstractService
               appAttemptId.toString());
       
     }
-    TransactionState transactionState =
-        new TransactionStateImpl(rpcID, TransactionType.APP, appAttemptId.getApplicationId());
-
+    TransactionState transactionState = 
+            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+                    "allocate");
     this.amLivelinessMonitor.receivedPing(appAttemptId);
 
     /*
@@ -476,7 +477,7 @@ public class ApplicationMasterService extends AbstractService
     AllocateResponseLock lock = responseMap.get(appAttemptId);
     if (lock == null) {
       LOG.error("AppAttemptId doesnt exist in cache " + appAttemptId);
-      transactionState.decCounter("rpc");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       return resync;
     }
     synchronized (lock) {
@@ -491,7 +492,7 @@ public class ApplicationMasterService extends AbstractService
                 .getUser(), AuditConstants.REGISTER_AM, "",
             "ApplicationMasterService", message,
             appAttemptId.getApplicationId(), appAttemptId);
-        transactionState.decCounter("rpc");
+        transactionState.decCounter(TransactionState.TransactionType.INIT);
         throw new InvalidApplicationMasterRequestException(message);
       }
 
@@ -499,7 +500,7 @@ public class ApplicationMasterService extends AbstractService
         /*
          * old heartbeat
          */
-        transactionState.decCounter("rpc");
+        transactionState.decCounter(TransactionState.TransactionType.INIT);
         return lastResponse;
       } else if (request.getResponseId() + 1 < lastResponse.getResponseId()) {
         LOG.error("Invalid responseid from appAttemptId " + appAttemptId);
@@ -507,7 +508,7 @@ public class ApplicationMasterService extends AbstractService
         // Reboot is not useful since after AM reboots, it will send register
         // and
         // get an exception. Might as well throw an exception here.
-        transactionState.decCounter("rpc");
+        transactionState.decCounter(TransactionState.TransactionType.INIT);
         return resync;
       }
 
@@ -533,7 +534,7 @@ public class ApplicationMasterService extends AbstractService
             rScheduler.getMaximumResourceCapability());
       } catch (InvalidResourceRequestException e) {
         LOG.warn("Invalid resource ask by application " + appAttemptId, e);
-        transactionState.decCounter("rpc");
+        transactionState.decCounter(TransactionState.TransactionType.INIT);
         throw e;
       }
 
@@ -541,7 +542,7 @@ public class ApplicationMasterService extends AbstractService
         RMServerUtils.validateBlacklistRequest(blacklistRequest);
       } catch (InvalidResourceBlacklistRequestException e) {
         LOG.warn("Invalid blacklist request by application " + appAttemptId, e);
-        transactionState.decCounter("rpc");
+        transactionState.decCounter(TransactionState.TransactionType.INIT);
         throw e;
       }
 
@@ -557,7 +558,7 @@ public class ApplicationMasterService extends AbstractService
           LOG.
               warn("Invalid container release by application " + appAttemptId,
                   e);
-          transactionState.decCounter("rpc");
+          transactionState.decCounter(TransactionState.TransactionType.INIT);
           throw e;
         }
       }
@@ -625,7 +626,7 @@ public class ApplicationMasterService extends AbstractService
       ((TransactionStateImpl) transactionState).
           addAllocateResponse(appAttemptId, lock);
       lock.setAllocateResponse(allocateResponse);
-      transactionState.decCounter("rpc allocate return");
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
       return allocateResponse;
     }
   }

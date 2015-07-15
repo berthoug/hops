@@ -241,7 +241,7 @@ public class TestRecoverParentCSQueue {
             submitAppData);
 
     TransactionStateImpl parentQueueTranscation
-            = new TransactionStateImpl(rpcID,
+            = new TransactionStateImpl(
                     TransactionState.TransactionType.RM);
 
     root.assignContainers(clusterResource, node_0, parentQueueTranscation);

@@ -17,8 +17,7 @@ package io.hops.metadata.util;
 
 import io.hops.exception.StorageException;
 import io.hops.exception.StorageInitializtionException;
-import io.hops.metadata.yarn.entity.FiCaSchedulerAppLiveContainers;
-import io.hops.metadata.yarn.entity.FiCaSchedulerAppNewlyAllocatedContainers;
+import io.hops.metadata.yarn.entity.FiCaSchedulerAppContainer;
 import io.hops.metadata.yarn.entity.FiCaSchedulerNode;
 import io.hops.metadata.yarn.entity.LaunchedContainers;
 import io.hops.metadata.yarn.entity.Resource;
@@ -235,16 +234,16 @@ public class TestHopYarnAPIUtilities {
         getLiveContainersMap();
 
     //retrieve newlyAllocatedContainers from the database
-    List<FiCaSchedulerAppNewlyAllocatedContainers> dbNewlyAlCont = RMUtilities
+    List<FiCaSchedulerAppContainer> dbNewlyAlCont = RMUtilities
         .getNewlyAllocatedContainers(attempt1.getAppAttemptId().toString());
     //retrieve launchedContainers from the database
     Map<String, List<LaunchedContainers>> map =
         RMUtilities.getAllLaunchedContainers();
     List<LaunchedContainers> dbLaunchCont = map.get(nm1.getNodeId().toString());
     //retrieve liveContainers from the database
-    Map<String, List<FiCaSchedulerAppLiveContainers>> mapLiveCont =
+    Map<String, List<FiCaSchedulerAppContainer>> mapLiveCont =
         RMUtilities.getAllLiveContainers();
-    List<FiCaSchedulerAppLiveContainers> dbLiveCont =
+    List<FiCaSchedulerAppContainer> dbLiveCont =
         mapLiveCont.get(attempt1.getAppAttemptId().toString());
 
     assertEquals(newlyAllocatedContainers.size(), dbNewlyAlCont.size());

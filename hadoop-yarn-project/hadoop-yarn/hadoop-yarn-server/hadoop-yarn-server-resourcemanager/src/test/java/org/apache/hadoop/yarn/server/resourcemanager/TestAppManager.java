@@ -184,7 +184,7 @@ public class TestAppManager {
         throws YarnException {
       super.submitApplication(submissionContext, System.currentTimeMillis(),
           user,
-          new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+          new TransactionStateImpl(TransactionState.TransactionType.RM));
     }
   }
 

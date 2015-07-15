@@ -165,7 +165,7 @@ public class TestRMWebServicesNodes extends JerseyTest {
         .newInstance(false, "test health report", System.currentTimeMillis());
     node.handle(new RMNodeStatusEvent(nm3.getNodeId(), nodeHealth,
         new ArrayList<ContainerStatus>(), null, null,
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM)));
+        new TransactionStateImpl( TransactionState.TransactionType.RM)));
     rm.NMwaitForState(nm3.getNodeId(), NodeState.UNHEALTHY);
 
     ClientResponse response =

@@ -517,18 +517,18 @@ public class LeafQueue implements CSQueue {
   }
 
   @Private
-  public synchronized int getNumApplications(String user) {
-    return getUser(user).getTotalApplications();
+  public synchronized int getNumApplications(String user, TransactionState transactionState) {
+    return getUser(user, transactionState).getTotalApplications();
   }
 
   @Private
-  public synchronized int getNumPendingApplications(String user) {
-    return getUser(user).getPendingApplications();
+  public synchronized int getNumPendingApplications(String user, TransactionState transactionState) {
+    return getUser(user, transactionState).getPendingApplications();
   }
 
   @Private
-  public synchronized int getNumActiveApplications(String user) {
-    return getUser(user).getActiveApplications();
+  public synchronized int getNumActiveApplications(String user, TransactionState transactionState) {
+    return getUser(user, transactionState).getActiveApplications();
   }
 
   public synchronized int getNumContainers() {
@@ -590,11 +590,16 @@ public class LeafQueue implements CSQueue {
             + "numContainers=" + getNumContainers();
   }
 
-  private synchronized User getUser(String userName) {
+  private synchronized User getUser(String userName, TransactionState transactionState) {
     User user = users.get(userName);
     if (user == null) {
       user = new User();
       users.put(userName, user);
+      // Add the attempt to our data-structures
+      if (transactionState != null) {
+        ((TransactionStateImpl) transactionState).getCSQueueInfo().
+                addCSLeafUsers(userName);
+      }
     }
     return user;
   }
@@ -694,12 +699,8 @@ public class LeafQueue implements CSQueue {
           String userName, TransactionState transactionState) {
     // Careful! Locking order is important!
     synchronized (this) {
-      User user = getUser(userName);
-      // Add the attempt to our data-structures
-      if (transactionState != null) {
-        ((TransactionStateImpl) transactionState).getCSQueueInfo().
-                addCSLeafUsers(userName);
-      }
+      User user = getUser(userName, transactionState);
+      
       addApplicationAttempt(application, user, transactionState);
     }
 
@@ -709,7 +710,7 @@ public class LeafQueue implements CSQueue {
 
   @Override
   public void submitApplication(ApplicationId applicationId, String userName,
-          String queue) throws AccessControlException {
+          String queue, TransactionState transactionState) throws AccessControlException {
     // Careful! Locking order is important!
 
     // Check queue ACLs
@@ -743,7 +744,7 @@ public class LeafQueue implements CSQueue {
       }
 
       // Check submission limits for the user on this queue
-      user = getUser(userName);
+      user = getUser(userName, transactionState);
       if (user.getTotalApplications() >= getMaxApplicationsPerUser()) {
         String msg = "Queue " + getQueuePath()
                 + " already has " + user.getTotalApplications()
@@ -756,7 +757,7 @@ public class LeafQueue implements CSQueue {
 
     // Inform the parent queue
     try {
-      getParent().submitApplication(applicationId, userName, queue);
+      getParent().submitApplication(applicationId, userName, queue, transactionState);
     } catch (AccessControlException ace) {
       LOG.info("Failed to submit application to parent-queue: "
               + getParent().getQueuePath(), ace);
@@ -778,7 +779,7 @@ public class LeafQueue implements CSQueue {
       }
 
       // Check user limit
-      User user = getUser(application.getUser());
+      User user = getUser(application.getUser(), transactionState);
       if (user.getActiveApplications() < getMaximumActiveApplicationsPerUser()) {
         user.activateApplication(application.getUser(), transactionState);
         activeApplications.add(application);
@@ -824,7 +825,7 @@ public class LeafQueue implements CSQueue {
           String queue, TransactionState transactionState) {
     // Careful! Locking order is important!
     synchronized (this) {
-      removeApplicationAttempt(application, getUser(application.getUser()),
+      removeApplicationAttempt(application, getUser(application.getUser(), transactionState),
               transactionState);
     }
     getParent().finishApplicationAttempt(application, queue, transactionState);
@@ -933,7 +934,7 @@ public class LeafQueue implements CSQueue {
           //       before all higher priority ones are serviced.
           Resource userLimit = computeUserLimitAndSetHeadroom(application,
                   clusterResource,
-                  required);
+                  required, transactionState);
 
           // Check queue max-capacity limit
           if (!assignToQueue(clusterResource, required)) {
@@ -942,7 +943,7 @@ public class LeafQueue implements CSQueue {
 
           // Check user limit
           if (!assignToUser(clusterResource, application.getUser(),
-                  userLimit)) {
+                  userLimit, transactionState)) {
             break;
           }
 
@@ -1048,7 +1049,7 @@ public class LeafQueue implements CSQueue {
   @Lock({LeafQueue.class, FiCaSchedulerApp.class})
   private Resource computeUserLimitAndSetHeadroom(
           FiCaSchedulerApp application, Resource clusterResource,
-          Resource required) {
+          Resource required, TransactionState transactionState) {
 
     String user = application.getUser();
 
@@ -1056,7 +1057,7 @@ public class LeafQueue implements CSQueue {
      * Headroom is min((userLimit, queue-max-cap) - consumed)
      */
     Resource userLimit = // User limit
-            computeUserLimit(application, clusterResource, required);
+            computeUserLimit(application, clusterResource, required, transactionState);
 
     Resource queueMaxCap = // Queue Max-Capacity
             Resources.multiplyAndNormalizeDown(
@@ -1065,7 +1066,7 @@ public class LeafQueue implements CSQueue {
                     absoluteMaxCapacity,
                     minimumAllocation);
 
-    Resource userConsumed = getUser(user).getConsumedResources();
+    Resource userConsumed = getUser(user, transactionState).getConsumedResources();
     Resource headroom
             = Resources.subtract(
                     Resources.min(resourceCalculator, clusterResource,
@@ -1088,7 +1089,7 @@ public class LeafQueue implements CSQueue {
 
   @Lock(NoLock.class)
   private Resource computeUserLimit(FiCaSchedulerApp application,
-          Resource clusterResource, Resource required) {
+          Resource clusterResource, Resource required, TransactionState transactionState) {
     // What is our current capacity? 
     // * It is equal to the max(required, queue-capacity) if
     //   we're running below capacity. The 'max' ensures that jobs in queues
@@ -1146,7 +1147,7 @@ public class LeafQueue implements CSQueue {
               + " userLimit=" + userLimit
               + " userLimitFactor=" + userLimitFactor
               + " required: " + required
-              + " consumed: " + getUser(userName).getConsumedResources()
+              + " consumed: " + getUser(userName, transactionState).getConsumedResources()
               + " limit: " + limit
               + " queueCapacity: " + queueCapacity
               + " qconsumed: " + usedResources
@@ -1160,9 +1161,9 @@ public class LeafQueue implements CSQueue {
   }
 
   private synchronized boolean assignToUser(Resource clusterResource,
-          String userName, Resource limit) {
+          String userName, Resource limit, TransactionState transactionState) {
 
-    User user = getUser(userName);
+    User user = getUser(userName, transactionState);
 
     // Note: We aren't considering the current request since there is a fixed
     // overhead of the AM, but it's a > check, not a >= check, so...
@@ -1577,7 +1578,7 @@ public class LeafQueue implements CSQueue {
 
     // Update user metrics
     String userName = application.getUser();
-    User user = getUser(userName);
+    User user = getUser(userName, transactionState);
     user.assignContainer(application.getUser(), resource, transactionState);
     Resources.subtractFrom(application.getHeadroom(), resource); // headroom
     metrics.setAvailableResourcesToUser(userName, application.getHeadroom());
@@ -1604,7 +1605,7 @@ public class LeafQueue implements CSQueue {
 
     // Update user metrics
     String userName = application.getUser();
-    User user = getUser(userName);
+    User user = getUser(userName, transactionState);
     user.releaseContainer(application.getUser(), resource, transactionState);
     metrics.setAvailableResourcesToUser(userName, application.getHeadroom());
 
@@ -1645,7 +1646,7 @@ public class LeafQueue implements CSQueue {
     for (FiCaSchedulerApp application : activeApplications) {
       synchronized (application) {
         computeUserLimitAndSetHeadroom(application, clusterResource,
-                Resources.none());
+                Resources.none(), transactionState);
       }
     }
   }

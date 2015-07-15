@@ -89,7 +89,7 @@ public class TestSchedulerApplicationAttempt {
         .newInstance(requestedPriority, ResourceRequest.ANY, requestedResource,
             3);
     app.updateResourceRequests(Arrays.asList(request),
-        new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+        new TransactionStateImpl( TransactionState.TransactionType.RM));
 
     // Allocated container
     RMContainer container1 = createRMContainer(appAttId, 1, requestedResource);

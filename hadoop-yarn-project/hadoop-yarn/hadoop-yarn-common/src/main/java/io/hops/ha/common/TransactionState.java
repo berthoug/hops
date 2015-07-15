@@ -20,10 +20,13 @@ import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 public abstract class TransactionState {
@@ -37,19 +40,21 @@ public abstract class TransactionState {
 
     RM,
     APP,
-    NODE
+    NODE,
+    INIT
   }
 
   private static final Log LOG = LogFactory.getLog(TransactionState.class);
-  private int counter = 1;
-  protected int rpcID;
+  private AtomicInteger counter = new AtomicInteger(0);
   protected final Set<ApplicationId> appIds = new ConcurrentSkipListSet<ApplicationId>();
+//  private final Lock counterLock = new ReentrantLock(true);
+  private Set<Integer> rpcIds = new ConcurrentSkipListSet<Integer>();
   
-  public TransactionState(int rpcID, ApplicationId appId) {
-    this.rpcID = rpcID;
+  public TransactionState(ApplicationId appId, int initialCounter) {
     if(appId!=null){
       addAppId(appId);
     }
+    counter = new AtomicInteger(initialCounter);
   }
 
     public Set<ApplicationId> getAppIds(){
@@ -59,35 +64,23 @@ public abstract class TransactionState {
   abstract void addAppId(ApplicationId appId);
     
   public synchronized void incCounter(Enum type) {
-    counter++;
-    LOG.debug(
-        "counter inc for rpc: " + this.rpcID + " count " + counter + " type: " +
-            type + " classe:" + type.getClass());
+    counter.incrementAndGet();
   }
 
   public synchronized void decCounter(Enum type) throws IOException {
-    counter--;
-    LOG.debug(
-        "counter dec for rpc: " + this.rpcID + " count " + counter + " type: " +
-            type + " classe:" + type.getClass());
-    if (counter == 0) {
-      commit(true);
-    }
+    counter.decrementAndGet();
   }
 
-  public synchronized void decCounter(String type) throws IOException {
-    counter--;
-    LOG.debug(
-        "counter dec for rpc: " + this.rpcID + " count " + counter + " type: " +
-            type);
-    if (counter == 0) {
-      commit(true);
-    }
+  public int getCounter(){
+      return counter.get();
   }
-
-
-  public int getId() {
-    return rpcID;
+ 
+  public void addRPCId(int rpcId, String callingFuncition){
+    rpcIds.add(rpcId);
+  }
+  
+  public Set<Integer> getRPCIds(){
+    return rpcIds;
   }
 
   public abstract void commit(boolean first) throws IOException;

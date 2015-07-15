@@ -19,6 +19,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo;
 import com.google.common.annotations.VisibleForTesting;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
+import io.hops.ha.common.transactionStateWrapper;
 import io.hops.metadata.yarn.entity.AppSchedulingInfo;
 import io.hops.metadata.yarn.entity.FiCaSchedulerNode;
 import io.hops.metadata.yarn.entity.QueueMetrics;
@@ -460,6 +461,15 @@ public class FifoScheduler extends AbstractYarnScheduler
     attempt.stop(rmAppAttemptFinalState, transactionState);
   }
 
+  private class Tuple{
+    public int id;
+    public long value;
+    public Tuple(int id, long value){
+      this.id = id;
+      this.value = value;
+    }
+  }
+  
   /**
    * Heart of the scheduler...
    *
@@ -532,7 +542,7 @@ public class FifoScheduler extends AbstractYarnScheduler
             .updateClusterResource(clusterResource);
       }
     }
-  }
+        }
 
   private int getMaxAllocatableContainers(FiCaSchedulerApp application,
       Priority priority,
@@ -752,7 +762,6 @@ public class FifoScheduler extends AbstractYarnScheduler
       containerLaunchedOnNode(launchedContainer.getContainerId(), node,
           transactionState);
     }
-
     // Process completed containers
     for (ContainerStatus completedContainer : completedContainers) {
       ContainerId containerId = completedContainer.getContainerId();
@@ -760,7 +769,6 @@ public class FifoScheduler extends AbstractYarnScheduler
       containerCompleted(getRMContainer(containerId), completedContainer,
           RMContainerEventType.FINISHED, transactionState);
     }
-
     if (Resources.greaterThanOrEqual(resourceCalculator, clusterResource,
         node.getAvailableResource(), minimumAllocation)) {
       LOG.debug(

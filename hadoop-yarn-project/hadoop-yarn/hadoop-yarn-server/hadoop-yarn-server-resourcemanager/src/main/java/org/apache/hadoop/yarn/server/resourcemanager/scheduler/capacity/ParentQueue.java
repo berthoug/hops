@@ -452,7 +452,7 @@ public class ParentQueue implements CSQueue {
 
   @Override
   public void submitApplication(ApplicationId applicationId, String user,
-          String queue) throws AccessControlException {
+          String queue, TransactionState transactionState) throws AccessControlException {
 
     synchronized (this) {
       // Sanity check
@@ -473,7 +473,7 @@ public class ParentQueue implements CSQueue {
     // Inform the parent queue
     if (parent != null) {
       try {
-        parent.submitApplication(applicationId, user, queue);
+        parent.submitApplication(applicationId, user, queue, transactionState);
       } catch (AccessControlException ace) {
         LOG.info("Failed to submit application to parent-queue: "
                 + parent.getQueuePath(), ace);

@@ -155,7 +155,7 @@ public class TestRecoverRMContainerImpl {
             submitAppData);
 
     TransactionStateImpl reservedTransaction
-            = new TransactionStateImpl(rpcID,
+            = new TransactionStateImpl(
                     TransactionState.TransactionType.RM);
 
     rmContainer.handle(new RMContainerReservedEvent(containerId,

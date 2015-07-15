@@ -30,12 +30,15 @@ import org.apache.hadoop.yarn.util.SystemClock;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 public class AMLivelinessMonitor
     extends AbstractLivelinessMonitor<ApplicationAttemptId> {
 
   private final EventHandler dispatcher;
-
+  private static final Log LOG = LogFactory.getLog(AMLivelinessMonitor.class);
+   
   public AMLivelinessMonitor(Dispatcher d) {
     super("AMLivelinessMonitor", new SystemClock());
     this.dispatcher = d.getEventHandler();
@@ -53,11 +56,12 @@ public class AMLivelinessMonitor
   @Override
   protected void expire(ApplicationAttemptId id) {
     try {
+      LOG.info("create transactionState Liveliness");
       TransactionState ts =
-          new TransactionStateImpl(-1, TransactionState.TransactionType.RM);
+          new TransactionStateImpl(TransactionState.TransactionType.RM);
       dispatcher
           .handle(new RMAppAttemptEvent(id, RMAppAttemptEventType.EXPIRE, ts));
-      ts.decCounter("AMLivelinessMonitor");
+      ts.decCounter(TransactionState.TransactionType.INIT);
     } catch (IOException ex) {
       Logger.getLogger(AMLivelinessMonitor.class.getName())
           .log(Level.SEVERE, null, ex);

@@ -83,67 +83,67 @@ public class TestFSSchedulerApp {
     // Default level should be node-local
     assertEquals(NodeType.NODE_LOCAL, schedulerApp
         .getAllowedLocalityLevel(prio, 10, nodeLocalityThreshold,
-                    rackLocalityThreshold, new TransactionStateImpl(-1,
+                    rackLocalityThreshold, new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
 
     // First five scheduling opportunities should remain node local
     for (int i = 0; i < 5; i++) {
-      schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(-1,
+      schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(
               TransactionState.TransactionType.RM));
       assertEquals(NodeType.NODE_LOCAL, schedulerApp
           .getAllowedLocalityLevel(prio, 10, nodeLocalityThreshold,
-                      rackLocalityThreshold, new TransactionStateImpl(-1,
+                      rackLocalityThreshold, new TransactionStateImpl(
                               TransactionState.TransactionType.RM)));
     }
 
     // After five it should switch to rack local
-    schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(-1,
+    schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(
             TransactionState.TransactionType.RM));
     assertEquals(NodeType.RACK_LOCAL, schedulerApp
         .getAllowedLocalityLevel(prio, 10, nodeLocalityThreshold,
-                    rackLocalityThreshold, new TransactionStateImpl(-1,
+                    rackLocalityThreshold, new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
 
     // Manually set back to node local
     schedulerApp.resetAllowedLocalityLevel(prio, NodeType.NODE_LOCAL);
-    schedulerApp.resetSchedulingOpportunities(prio, new TransactionStateImpl(-1,
+    schedulerApp.resetSchedulingOpportunities(prio, new TransactionStateImpl(
             TransactionState.TransactionType.RM));
     assertEquals(NodeType.NODE_LOCAL, schedulerApp
         .getAllowedLocalityLevel(prio, 10, nodeLocalityThreshold,
-                    rackLocalityThreshold, new TransactionStateImpl(-1,
+                    rackLocalityThreshold, new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
 
     // Now escalate again to rack-local, then to off-switch
     for (int i = 0; i < 5; i++) {
-      schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(-1,
+      schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(
               TransactionState.TransactionType.RM));
       assertEquals(NodeType.NODE_LOCAL, schedulerApp
           .getAllowedLocalityLevel(prio, 10, nodeLocalityThreshold,
-                      rackLocalityThreshold, new TransactionStateImpl(-1,
+                      rackLocalityThreshold, new TransactionStateImpl(
                               TransactionState.TransactionType.RM)));
     }
 
-    schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(-1,
+    schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(
             TransactionState.TransactionType.RM));
     assertEquals(NodeType.RACK_LOCAL, schedulerApp
         .getAllowedLocalityLevel(prio, 10, nodeLocalityThreshold,
-                    rackLocalityThreshold, new TransactionStateImpl(-1,
+                    rackLocalityThreshold, new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
 
     for (int i = 0; i < 6; i++) {
-      schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(-1,
+      schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(
               TransactionState.TransactionType.RM));
       assertEquals(NodeType.RACK_LOCAL, schedulerApp
           .getAllowedLocalityLevel(prio, 10, nodeLocalityThreshold,
-                      rackLocalityThreshold, new TransactionStateImpl(-1,
+                      rackLocalityThreshold, new TransactionStateImpl(
                               TransactionState.TransactionType.RM)));
     }
 
-    schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(-1,
+    schedulerApp.addSchedulingOpportunity(prio, new TransactionStateImpl(
             TransactionState.TransactionType.RM));
     assertEquals(NodeType.OFF_SWITCH, schedulerApp
         .getAllowedLocalityLevel(prio, 10, nodeLocalityThreshold,
-                    rackLocalityThreshold, new TransactionStateImpl(-1,
+                    rackLocalityThreshold, new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
   }
 
@@ -171,7 +171,7 @@ public class TestFSSchedulerApp {
     assertEquals(NodeType.NODE_LOCAL, schedulerApp
             .getAllowedLocalityLevelByTime(prio, nodeLocalityDelayMs,
                     rackLocalityDelayMs, clock.getTime(),
-                    new TransactionStateImpl(-1,
+                    new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
 
     // after 4 seconds should remain node local
@@ -179,7 +179,7 @@ public class TestFSSchedulerApp {
     assertEquals(NodeType.NODE_LOCAL, schedulerApp
             .getAllowedLocalityLevelByTime(prio, nodeLocalityDelayMs,
                     rackLocalityDelayMs, clock.getTime(),
-                    new TransactionStateImpl(-1,
+                    new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
 
     // after 6 seconds should switch to rack local
@@ -187,17 +187,17 @@ public class TestFSSchedulerApp {
     assertEquals(NodeType.RACK_LOCAL, schedulerApp
             .getAllowedLocalityLevelByTime(prio, nodeLocalityDelayMs,
                     rackLocalityDelayMs, clock.getTime(),
-                    new TransactionStateImpl(-1,
+                    new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
 
     // manually set back to node local
     schedulerApp.resetAllowedLocalityLevel(prio, NodeType.NODE_LOCAL);
     schedulerApp.resetSchedulingOpportunities(prio, clock.getTime(),
-            new TransactionStateImpl(-1, TransactionState.TransactionType.RM));
+            new TransactionStateImpl( TransactionState.TransactionType.RM));
     assertEquals(NodeType.NODE_LOCAL, schedulerApp
             .getAllowedLocalityLevelByTime(prio, nodeLocalityDelayMs,
                     rackLocalityDelayMs, clock.getTime(),
-                    new TransactionStateImpl(-1,
+                    new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
 
     // Now escalate again to rack-local, then to off-switch
@@ -205,14 +205,14 @@ public class TestFSSchedulerApp {
     assertEquals(NodeType.RACK_LOCAL, schedulerApp
             .getAllowedLocalityLevelByTime(prio, nodeLocalityDelayMs,
                     rackLocalityDelayMs, clock.getTime(),
-                    new TransactionStateImpl(-1,
+                    new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
 
     clock.tick(7);
     assertEquals(NodeType.OFF_SWITCH, schedulerApp
             .getAllowedLocalityLevelByTime(prio, nodeLocalityDelayMs,
                     rackLocalityDelayMs, clock.getTime(),
-                    new TransactionStateImpl(-1,
+                    new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
   }
 
@@ -230,7 +230,7 @@ public class TestFSSchedulerApp {
         new FSSchedulerApp(applicationAttemptId, "user1", queue, null, null);
     assertEquals(NodeType.OFF_SWITCH,
             schedulerApp.getAllowedLocalityLevel(prio, 10, -1.0, -1.0,
-                    new TransactionStateImpl(-1,
+                    new TransactionStateImpl(
                             TransactionState.TransactionType.RM)));
   }
 }

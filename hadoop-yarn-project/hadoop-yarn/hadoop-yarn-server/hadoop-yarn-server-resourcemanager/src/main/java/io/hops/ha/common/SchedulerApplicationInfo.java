@@ -23,6 +23,7 @@ import io.hops.metadata.yarn.dal.QueueMetricsDataAccess;
 import io.hops.metadata.yarn.dal.SchedulerApplicationDataAccess;
 import io.hops.metadata.yarn.entity.QueueMetrics;
 import io.hops.metadata.yarn.entity.SchedulerApplication;
+import io.hops.metadata.yarn.entity.SchedulerApplicationInfoToAdd;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -31,8 +32,12 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplicat
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSSchedulerApp;
 
 /**
@@ -42,11 +47,12 @@ public class SchedulerApplicationInfo {
 
   private static final Log LOG =
       LogFactory.getLog(SchedulerApplicationInfo.class);
-  private Map<ApplicationId, org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication>
+  private Map<ApplicationId, SchedulerApplicationInfoToAdd>
       schedulerApplicationsToAdd =
-      new HashMap<ApplicationId, org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication>();
-  private List<ApplicationId> applicationsIdToRemove =
-      new ArrayList<ApplicationId>();
+      new HashMap<ApplicationId, SchedulerApplicationInfoToAdd>();
+  private Set<ApplicationId> applicationsIdToRemove =
+      new HashSet<ApplicationId>();
+  Lock fiCaSchedulerAppInfoLock = new ReentrantLock();
   private Map<String, Map<String, FiCaSchedulerAppInfo>> fiCaSchedulerAppInfo =
       new HashMap<String, Map<String, FiCaSchedulerAppInfo>>();
   
@@ -57,13 +63,12 @@ public class SchedulerApplicationInfo {
     persistApplicationIdToAdd(QMDA);
 //    connector.flush();
     long time1 = System.currentTimeMillis()-start;
-    persistApplicationIdToRemove();
-//    connector.flush();
-    long time2 = System.currentTimeMillis()-start;
     persistFiCaSchedulerAppInfo(connector);
 //    connector.flush();
     long time3 = System.currentTimeMillis()-start;
-//    LOG.info("finishRPC: persist schedulerApplicationInfo: " + time1 + " - " + time2 + " - " + time3);
+     persistApplicationIdToRemove();
+//    connector.flush();
+    long time2 = System.currentTimeMillis()-start;
   }
 
   private void persistApplicationIdToAdd(QueueMetricsDataAccess QMDA)
@@ -75,39 +80,15 @@ public class SchedulerApplicationInfo {
       List<QueueMetrics> toAddQueueMetricses = new ArrayList<QueueMetrics>();
       List<SchedulerApplication> toAddSchedulerApp =
           new ArrayList<SchedulerApplication>();
-      for (ApplicationId appId : schedulerApplicationsToAdd.keySet()) {
-        if (!applicationsIdToRemove.remove(appId)) {
-          org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication
-              schedulerApplicationToAdd = schedulerApplicationsToAdd.get(appId);
-          org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics
-              toAddQM = schedulerApplicationToAdd.getQueue().getMetrics();
-          QueueMetrics toAdHopQueueMetrics =
-              new QueueMetrics(toAddQM.getQueueName(),
-                  toAddQM.getAppsSubmitted(), toAddQM.getAppsRunning(),
-                  toAddQM.getAppsPending(), toAddQM.getAppsCompleted(),
-                  toAddQM.getAppsKilled(), toAddQM.getAppsFailed(),
-                  toAddQM.getAllocatedMB(), toAddQM.getAllocatedVirtualCores(),
-                  toAddQM.getAllocatedContainers(),
-                  toAddQM.getAggregateContainersAllocated(),
-                  toAddQM.getaggregateContainersReleased(),
-                  toAddQM.getAvailableMB(), toAddQM.getAvailableVirtualCores(),
-                  toAddQM.getPendingMB(), toAddQM.getPendingVirtualCores(),
-                  toAddQM.getPendingContainers(), toAddQM.getReservedMB(),
-                  toAddQM.getReservedVirtualCores(),
-                  toAddQM.getReservedContainers(), toAddQM.getActiveUsers(),
-                  toAddQM.getActiveApps(), 0);
+      for (SchedulerApplicationInfoToAdd appInfo : schedulerApplicationsToAdd.values()) {
+        
 
-          toAddQueueMetricses.add(toAdHopQueueMetrics);
+          toAddQueueMetricses.add(appInfo.getQueueMetrics());
+          LOG.debug("adding scheduler app " + appInfo.getSchedulerApplication().getAppid());
 
 
-          //Persist SchedulerApplication - Value of applications Map
-          LOG.debug("adding scheduler app " + appId.toString());
-          SchedulerApplication toAddSchedulerApplication =
-              new SchedulerApplication(appId.toString(),
-                  schedulerApplicationToAdd.getUser(),
-                  schedulerApplicationToAdd.getQueue().getQueueName());
-          toAddSchedulerApp.add(toAddSchedulerApplication);
-        }
+          toAddSchedulerApp.add(appInfo.getSchedulerApplication());
+        
       }
       QMDA.addAll(toAddQueueMetricses);
       sappDA.addAll(toAddSchedulerApp);
@@ -122,8 +103,6 @@ public class SchedulerApplicationInfo {
       List<SchedulerApplication> applicationsToRemove =
           new ArrayList<SchedulerApplication>();
       for (ApplicationId appId : applicationsIdToRemove) {
-        LOG.debug("remove scheduler app " + appId.toString());
-        fiCaSchedulerAppInfo.remove(appId.toString());
         applicationsToRemove
             .add(new SchedulerApplication(appId.toString(), null, null));
       }
@@ -133,27 +112,69 @@ public class SchedulerApplicationInfo {
   }
 
   public void setSchedulerApplicationtoAdd(
-      org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication schedulerApplicationToAdd,
-      ApplicationId applicationIdToAdd) {
+          org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication schedulerApplicationToAdd,
+          ApplicationId applicationIdToAdd) {
+
+    org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics toAddQM
+            = schedulerApplicationToAdd.getQueue().getMetrics();
+    QueueMetrics toAdHopQueueMetrics = new QueueMetrics(toAddQM.getQueueName(),
+            toAddQM.getAppsSubmitted(), toAddQM.getAppsRunning(),
+            toAddQM.getAppsPending(), toAddQM.getAppsCompleted(),
+            toAddQM.getAppsKilled(), toAddQM.getAppsFailed(),
+            toAddQM.getAllocatedMB(), toAddQM.getAllocatedVirtualCores(),
+            toAddQM.getAllocatedContainers(),
+            toAddQM.getAggregateContainersAllocated(),
+            toAddQM.getaggregateContainersReleased(),
+            toAddQM.getAvailableMB(), toAddQM.getAvailableVirtualCores(),
+            toAddQM.getPendingMB(), toAddQM.getPendingVirtualCores(),
+            toAddQM.getPendingContainers(), toAddQM.getReservedMB(),
+            toAddQM.getReservedVirtualCores(),
+            toAddQM.getReservedContainers(), toAddQM.getActiveUsers(),
+            toAddQM.getActiveApps(), 0);
+
+    //Persist SchedulerApplication - Value of applications Map
+    SchedulerApplication toAddSchedulerApplication = new SchedulerApplication(
+            applicationIdToAdd.toString(),
+            schedulerApplicationToAdd.getUser(),
+            schedulerApplicationToAdd.getQueue().getQueueName());
+
+    SchedulerApplicationInfoToAdd appInfo = new SchedulerApplicationInfoToAdd(
+            toAddSchedulerApplication, toAdHopQueueMetrics);
+
     this.schedulerApplicationsToAdd
-        .put(applicationIdToAdd, schedulerApplicationToAdd);
+            .put(applicationIdToAdd, appInfo);
+    applicationsIdToRemove.remove(applicationIdToAdd);
   }
 
   public void setApplicationIdtoRemove(ApplicationId applicationIdToRemove) {
-    this.applicationsIdToRemove.add(applicationIdToRemove);
+    if(schedulerApplicationsToAdd.remove(applicationIdToRemove)==null){
+      this.applicationsIdToRemove.add(applicationIdToRemove);
+    }
   }
 
   public FiCaSchedulerAppInfo getFiCaSchedulerAppInfo(
       ApplicationAttemptId appAttemptId) {
+    fiCaSchedulerAppInfoLock.lock();
+    try{
     ApplicationId appId = appAttemptId.getApplicationId();
     if(fiCaSchedulerAppInfo.get(appId.toString())==null){
       fiCaSchedulerAppInfo.put(appId.toString(), new HashMap<String, FiCaSchedulerAppInfo>());
     }
     if (fiCaSchedulerAppInfo.get(appId.toString()).get(appAttemptId.toString()) == null) {
-      fiCaSchedulerAppInfo.get(appId.toString())
-          .put(appAttemptId.toString(), new FiCaSchedulerAppInfo(appAttemptId));
+      Map<String, FiCaSchedulerAppInfo> map = fiCaSchedulerAppInfo.get(appId.toString());
+      String appAttemptIdString = appAttemptId.toString();
+      FiCaSchedulerAppInfo appInfo = new FiCaSchedulerAppInfo(appAttemptId);
+      map.put(appAttemptIdString, appInfo);
+//      fiCaSchedulerAppInfo.get(appId.toString())
+//          .put(appAttemptId.toString(), new FiCaSchedulerAppInfo(appAttemptId));
     }
-    return fiCaSchedulerAppInfo.get(appId.toString()).get(appAttemptId.toString());
+    Map<String, FiCaSchedulerAppInfo> map = fiCaSchedulerAppInfo.get(appId.toString());
+    String appAttemptIdString = appAttemptId.toString();
+    return map.get(appAttemptIdString);
+//    return fiCaSchedulerAppInfo.get(appId.toString()).get(appAttemptId.toString());
+    }finally{
+      fiCaSchedulerAppInfoLock.unlock();
+    }
   }
 
   private void persistFiCaSchedulerAppInfo(StorageConnector connector) throws StorageException {
@@ -166,13 +187,16 @@ public class SchedulerApplicationInfo {
 
   public void setFiCaSchedulerAppInfo(
       SchedulerApplicationAttempt schedulerApp) {
+    
     ApplicationId appId = schedulerApp.getApplicationId();
     FiCaSchedulerAppInfo ficaInfo = new FiCaSchedulerAppInfo(schedulerApp);
+    fiCaSchedulerAppInfoLock.lock();
     if(fiCaSchedulerAppInfo.get(appId.toString())==null){
       fiCaSchedulerAppInfo.put(appId.toString(), new HashMap<String, FiCaSchedulerAppInfo>());
     }
     fiCaSchedulerAppInfo.get(appId.toString())
         .put(schedulerApp.getApplicationAttemptId().toString(), ficaInfo);
+    fiCaSchedulerAppInfoLock.unlock();
   }
 
 }

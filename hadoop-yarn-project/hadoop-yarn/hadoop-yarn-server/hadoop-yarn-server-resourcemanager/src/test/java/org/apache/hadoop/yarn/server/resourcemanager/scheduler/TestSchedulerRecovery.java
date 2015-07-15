@@ -304,18 +304,7 @@ public class TestSchedulerRecovery {
     return attId;
   }
 
-  private TransactionState getTransactionState(int id) {
-    TransactionState ts =
-        new TransactionStateImpl(id, TransactionState.TransactionType.RM);
-    byte[] allNMRequestData = new byte[10];
-    try {
-      RMUtilities.persistAppMasterRPC(id, RPC.Type.SubmitApplication,
-          allNMRequestData);
-    } catch (IOException ex) {
-      LOG.error(ex);
-    }
-    return ts;
-  }
+
 
   private static ApplicationId getApplicationId(int id) {
     return ApplicationId.newInstance(123456, id);

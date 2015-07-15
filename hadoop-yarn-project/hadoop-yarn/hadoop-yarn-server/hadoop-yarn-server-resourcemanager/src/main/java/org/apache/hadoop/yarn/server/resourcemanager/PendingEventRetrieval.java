@@ -255,8 +255,8 @@ public abstract class PendingEventRetrieval implements Runnable {
     LOG.debug(
         "HOP :: RMNodeWorker:" + rmNode.getNodeID() + " processing event:" +
             pendingEvent);
-
-    TransactionState ts = new TransactionStateImpl(Integer.MIN_VALUE,
+    LOG.info("create transactionState PendingEventRetrieval");
+    TransactionState ts = new TransactionStateImpl(
         TransactionState.TransactionType.NODE);
     if (pendingEvent.getType() == TablesDef.PendingEventTableDef.NODE_ADDED) {
       LOG.debug(
@@ -291,7 +291,7 @@ public abstract class PendingEventRetrieval implements Runnable {
           .handle(new NodeUpdateSchedulerEvent(rmNode, ts));
     }
     try {
-      ts.decCounter("PendingEventRetrieval");
+      ts.decCounter(TransactionState.TransactionType.INIT);
     } catch (IOException ex) {
       LOG.error("HOP :: Error decreasing ts counter", ex);
     }

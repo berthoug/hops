@@ -324,7 +324,7 @@ public class FiCaSchedulerNode extends SchedulerNode implements Recoverable{
     //HOP :: Update reservedContainer
     ((TransactionStateImpl) transactionState)
         .getFicaSchedulerNodeInfoToUpdate(this.getNodeID().toString())
-        .updateReservedContainer();
+        .updateReservedContainer(this);
 
   }
 

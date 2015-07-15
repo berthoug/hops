@@ -17,6 +17,7 @@
 package org.apache.hadoop.yarn.server.resourcemanager;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.hops.ha.common.TransactionStateManager;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -54,6 +55,8 @@ public class RMContextImpl implements RMContext {
 
   private static final Log LOG = LogFactory.getLog(RMContextImpl.class);
   private int rmId = Integer.MIN_VALUE;
+  private TransactionStateManager transactionStateManager = new TransactionStateManager();
+    
   //ResourceTracker client
   public ResourceTracker client;
 
@@ -462,5 +465,10 @@ public class RMContextImpl implements RMContext {
   public void setConfigurationProvider(
       ConfigurationProvider configurationProvider) {
     this.configurationProvider = configurationProvider;
+  }
+  
+  @Override
+  public TransactionStateManager getTransactionStateManager() {
+    return transactionStateManager;
   }
 }
