@@ -49,12 +49,14 @@ public abstract class TransactionState {
   protected final Set<ApplicationId> appIds = new ConcurrentSkipListSet<ApplicationId>();
 //  private final Lock counterLock = new ReentrantLock(true);
   private Set<Integer> rpcIds = new ConcurrentSkipListSet<Integer>();
+  private final boolean batch;
   
-  public TransactionState(ApplicationId appId, int initialCounter) {
+  public TransactionState(ApplicationId appId, int initialCounter, boolean batch) {
     if(appId!=null){
       addAppId(appId);
     }
     counter = new AtomicInteger(initialCounter);
+    this.batch = batch;
   }
 
     public Set<ApplicationId> getAppIds(){
@@ -68,7 +70,10 @@ public abstract class TransactionState {
   }
 
   public synchronized void decCounter(Enum type) throws IOException {
-    counter.decrementAndGet();
+    int value = counter.decrementAndGet();
+    if(!batch && value==0){
+      commit(true);
+    }
   }
 
   public int getCounter(){

@@ -592,8 +592,11 @@ public class NDBRMStateStore extends RMStateStore {
           }
           
           Set<NodeId> attemptRanNodes = new HashSet<NodeId>();
-          for(RanNode node: ranNodes.get(attemptId)){
-            attemptRanNodes.add(ConverterUtils.toNodeId(node.getNodeId()));
+          List<RanNode> ranNodeList = ranNodes.get(attemptId);
+          if (ranNodeList != null) {
+            for (RanNode node : ranNodeList) {
+              attemptRanNodes.add(ConverterUtils.toNodeId(node.getNodeId()));
+            }
           }
           
           ApplicationAttemptState attemptState =

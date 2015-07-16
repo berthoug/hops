@@ -47,6 +47,8 @@ public class SchedulerApplicationInfo {
 
   private static final Log LOG =
       LogFactory.getLog(SchedulerApplicationInfo.class);
+  
+  private final TransactionStateImpl transactionState;
   private Map<ApplicationId, SchedulerApplicationInfoToAdd>
       schedulerApplicationsToAdd =
       new HashMap<ApplicationId, SchedulerApplicationInfoToAdd>();
@@ -55,6 +57,10 @@ public class SchedulerApplicationInfo {
   Lock fiCaSchedulerAppInfoLock = new ReentrantLock();
   private Map<String, Map<String, FiCaSchedulerAppInfo>> fiCaSchedulerAppInfo =
       new HashMap<String, Map<String, FiCaSchedulerAppInfo>>();
+  
+  public SchedulerApplicationInfo(TransactionStateImpl transactionState){
+    this.transactionState = transactionState;
+  }
   
   public void persist(QueueMetricsDataAccess QMDA, StorageConnector connector) throws StorageException {
     //TODO: The same QueueMetrics (DEFAULT_QUEUE) is persisted with every app. Its extra overhead. We can persist it just once
@@ -163,7 +169,7 @@ public class SchedulerApplicationInfo {
     if (fiCaSchedulerAppInfo.get(appId.toString()).get(appAttemptId.toString()) == null) {
       Map<String, FiCaSchedulerAppInfo> map = fiCaSchedulerAppInfo.get(appId.toString());
       String appAttemptIdString = appAttemptId.toString();
-      FiCaSchedulerAppInfo appInfo = new FiCaSchedulerAppInfo(appAttemptId);
+      FiCaSchedulerAppInfo appInfo = new FiCaSchedulerAppInfo(appAttemptId, transactionState);
       map.put(appAttemptIdString, appInfo);
 //      fiCaSchedulerAppInfo.get(appId.toString())
 //          .put(appAttemptId.toString(), new FiCaSchedulerAppInfo(appAttemptId));
@@ -189,7 +195,7 @@ public class SchedulerApplicationInfo {
       SchedulerApplicationAttempt schedulerApp) {
     
     ApplicationId appId = schedulerApp.getApplicationId();
-    FiCaSchedulerAppInfo ficaInfo = new FiCaSchedulerAppInfo(schedulerApp);
+    FiCaSchedulerAppInfo ficaInfo = new FiCaSchedulerAppInfo(schedulerApp, transactionState);
     fiCaSchedulerAppInfoLock.lock();
     if(fiCaSchedulerAppInfo.get(appId.toString())==null){
       fiCaSchedulerAppInfo.put(appId.toString(), new HashMap<String, FiCaSchedulerAppInfo>());

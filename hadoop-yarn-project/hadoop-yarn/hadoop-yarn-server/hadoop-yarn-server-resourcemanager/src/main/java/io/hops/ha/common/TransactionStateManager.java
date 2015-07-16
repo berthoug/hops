@@ -36,7 +36,7 @@ public class TransactionStateManager implements Runnable{
   
   public TransactionStateManager(){
     currentTransactionState = new TransactionStateImpl(
-                TransactionState.TransactionType.RM, 0);
+                TransactionState.TransactionType.RM, 0, true);
   }
   
   @Override
@@ -50,7 +50,7 @@ public class TransactionStateManager implements Runnable{
       try {
         //create new transactionState
         currentTransactionState = new TransactionStateImpl(
-                TransactionState.TransactionType.RM, 0);
+                TransactionState.TransactionType.RM, 0, true);
         acceptedRPC=0;
         //accept RPCs
         lock.unlock();
@@ -59,11 +59,13 @@ public class TransactionStateManager implements Runnable{
           waitForBatch(Math.max(0, 10-commitDuration));
         //stop acception RPCs
         lock.lock();
+        
         long cycleDuration = System.currentTimeMillis() - startTime;
         nbCycles++;
         accumulatedCycleDuration+=cycleDuration;
         double avgCycleDuration=accumulatedCycleDuration/nbCycles;
-        LOG.info("cycle duration: " + cycleDuration + "(" + avgCycleDuration + ")");
+        LOG.debug("cycle duration: " + cycleDuration + "(" + avgCycleDuration + ")");
+        
         startTime = System.currentTimeMillis();
         //wait for all the accepted RPCs to finish
         while(currentTransactionState.getCounter() != 0){

@@ -41,6 +41,8 @@ public class FiCaSchedulerNodeInfoToUpdate {
 
   private static final Log LOG =
       LogFactory.getLog(FiCaSchedulerNodeInfoToUpdate.class);
+  
+  private final TransactionStateImpl transactionState;
   private FiCaSchedulerNode
       infoToUpdate;
   private final String id;
@@ -52,8 +54,9 @@ public class FiCaSchedulerNodeInfoToUpdate {
   private Map<Integer, Resource>
       toUpdateResources = new HashMap<Integer, Resource>();
 
-  public FiCaSchedulerNodeInfoToUpdate(String id) {
+  public FiCaSchedulerNodeInfoToUpdate(String id, TransactionStateImpl transactionState) {
     this.id = id;
+    this.transactionState = transactionState;
   }
 
   public void persist(ResourceDataAccess resourceDA,
@@ -77,26 +80,7 @@ public class FiCaSchedulerNodeInfoToUpdate {
 
   public void updateReservedContainer(
           org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode node) {
-    reservedContainerToUpdate = new RMContainer(
-            node.getReservedContainer().getContainerId().toString(),
-            node.getReservedContainer().getApplicationAttemptId()
-                .toString(),
-            node.getReservedContainer().getNodeId().toString(),
-            node.getReservedContainer().getUser(),
-            node.getReservedContainer().getReservedNode().toString(),
-            node.getReservedContainer()
-                .getReservedPriority().getPriority(),
-            node.getReservedContainer().getReservedResource()
-                .getMemory(),
-            node.getReservedContainer().getReservedResource()
-                .getVirtualCores(),
-            node.getReservedContainer().getStartTime(),
-            node.getReservedContainer().getFinishTime(),
-            node.getReservedContainer().getState().toString(),
-            ((RMContainerImpl) node.getReservedContainer())
-                .getContainerState().toString(),
-            ((RMContainerImpl) node.getReservedContainer())
-                .getContainerExitStatus());
+    transactionState.addRMContainerToUpdate((RMContainerImpl) node.getReservedContainer());
   }
 
   public void toRemoveRMContainer(
@@ -185,9 +169,6 @@ public class FiCaSchedulerNodeInfoToUpdate {
     if (infoToUpdate != null) {
 
       ficaNodeDA.add(infoToUpdate);
-      if (reservedContainerToUpdate != null) {
-        rmcontainerDA.add(reservedContainerToUpdate);
-      }
     }
   }
 }

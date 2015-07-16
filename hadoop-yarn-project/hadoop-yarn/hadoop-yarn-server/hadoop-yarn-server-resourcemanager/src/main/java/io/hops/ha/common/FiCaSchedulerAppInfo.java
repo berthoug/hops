@@ -69,6 +69,7 @@ import org.apache.hadoop.yarn.api.records.Priority;
 public class FiCaSchedulerAppInfo {
 
   private static final Log LOG = LogFactory.getLog(FiCaSchedulerAppInfo.class);
+  private final TransactionStateImpl transactionState;
   private AppSchedulingInfo fiCaSchedulerAppToAdd;
   private Map<Integer, Resource> resourcesToUpdate = new HashMap<Integer, Resource>();
   
@@ -123,11 +124,13 @@ public class FiCaSchedulerAppInfo {
     persistRemoval();
   }
 
-  public FiCaSchedulerAppInfo(ApplicationAttemptId applicationAttemptId) {
+  public FiCaSchedulerAppInfo(ApplicationAttemptId applicationAttemptId, TransactionStateImpl transactionState) {
+    this.transactionState = transactionState;
     this.applicationAttemptId = applicationAttemptId;
   }
 
-  public FiCaSchedulerAppInfo(SchedulerApplicationAttempt schedulerApp) {
+  public FiCaSchedulerAppInfo(SchedulerApplicationAttempt schedulerApp, TransactionStateImpl transactionState) {
+    this.transactionState = transactionState;
     this.applicationAttemptId = schedulerApp.getApplicationAttemptId();
     fiCaSchedulerAppToAdd = new AppSchedulingInfo(applicationAttemptId.
             toString(),
@@ -237,6 +240,7 @@ public class FiCaSchedulerAppInfo {
   public void setLiveContainersToAdd(ContainerId key, org.apache.hadoop.yarn.
       server.resourcemanager.rmcontainer.RMContainer val) {
     this.liveContainersToAdd.put(key, convertToToPersistContainersInfo(val));
+    transactionState.addRMContainerToUpdate((RMContainerImpl)val);
     liveContainersToRemove.remove(key);
   }
 
@@ -251,8 +255,7 @@ public class FiCaSchedulerAppInfo {
 
     Container hopContainer = new Container(rmContainer.getContainerId().
             toString(),
-            ((ContainerPBImpl) rmContainer.getContainer()).getProto()
-            .toByteArray());
+            getRMContainerBytes(rmContainer.getContainer()));
     LOG.debug("adding ha_container " + hopContainer.getContainerId());
 
     return new ToPersistContainersInfo(hopRMContainer, fiCaSchedulerAppContainer,
@@ -267,14 +270,20 @@ public class FiCaSchedulerAppInfo {
     
   }
 
+  private byte[] getRMContainerBytes(org.apache.hadoop.yarn.api.records.Container Container){
+    if(Container instanceof ContainerPBImpl){
+      return ((ContainerPBImpl) Container).getProto()
+            .toByteArray();
+    }else{
+      return new byte[0];
+    }
+  }
   public void setNewlyAllocatedContainersToAdd(org.apache.hadoop.yarn.server.
       resourcemanager.rmcontainer.RMContainer rmContainer) {
     RMContainer hopRMContainer = createRMContainer(rmContainer);
 
     Container hopContainer = new Container(rmContainer.getContainerId().
-            toString(),
-            ((ContainerPBImpl) rmContainer.getContainer()).getProto()
-            .toByteArray());
+            toString(),getRMContainerBytes(rmContainer.getContainer()));
 
     FiCaSchedulerAppContainer toAdd
             = new FiCaSchedulerAppContainer(
@@ -285,6 +294,7 @@ public class FiCaSchedulerAppInfo {
             = new ToPersistContainersInfo(hopRMContainer, toAdd,
                     hopContainer);
 
+    transactionState.addRMContainerToUpdate((RMContainerImpl)rmContainer);
     this.newlyAllocatedContainersToAdd.put(rmContainer.getContainerId(),
             containerInfo);
     this.newlyAllocatedContainersToRemove.remove(rmContainer.getContainerId());
@@ -370,7 +380,6 @@ public class FiCaSchedulerAppInfo {
       //Persist LiveContainers
       RMContainerDataAccess rmcDA = (RMContainerDataAccess) RMStorageFactory
           .getDataAccess(RMContainerDataAccess.class);
-      List<RMContainer> toAddRMContainers = new ArrayList<RMContainer>();
       ContainerDataAccess cDA = (ContainerDataAccess) RMStorageFactory
           .getDataAccess(ContainerDataAccess.class);
       List<Container> toAddContainers = new ArrayList<Container>();
@@ -382,11 +391,8 @@ public class FiCaSchedulerAppInfo {
       for (ToPersistContainersInfo container : liveContainersToAdd.values()) {
           toAddLiveContainers.add(container.getFiCaSchedulerAppContainer());
 
-          toAddRMContainers.add(container.getrMContainer());
-
           toAddContainers.add(container.getContainer());
       }
-      rmcDA.addAll(toAddRMContainers);
       cDA.addAll(toAddContainers);
       fsalcDA.addAll(toAddLiveContainers);
       
@@ -420,7 +426,6 @@ public class FiCaSchedulerAppInfo {
       //Persist RMContainers
       RMContainerDataAccess rmcDA = (RMContainerDataAccess) RMStorageFactory
           .getDataAccess(RMContainerDataAccess.class);
-      List<RMContainer> toAddRMContainers = new ArrayList<RMContainer>();
       //Persist Container
       ContainerDataAccess cDA = (ContainerDataAccess) RMStorageFactory
           .getDataAccess(ContainerDataAccess.class);
@@ -428,11 +433,9 @@ public class FiCaSchedulerAppInfo {
 
       for (ToPersistContainersInfo rmContainer : newlyAllocatedContainersToAdd.values()) {
         toAddNewlyAllocatedContainersList.add(rmContainer.getFiCaSchedulerAppContainer());
-        toAddRMContainers.add(rmContainer.getrMContainer());
         toAddContainers.add(rmContainer.getContainer());
       }
       fsanDA.addAll(toAddNewlyAllocatedContainersList);
-      rmcDA.addAll(toAddRMContainers);
       cDA.addAll(toAddContainers);
     }
   }
@@ -604,8 +607,7 @@ public class FiCaSchedulerAppInfo {
 //     
         Container hopContainer = new Container(rmContainer.getContainerId().
                 toString(),
-                ((ContainerPBImpl) rmContainer.getContainer()).getProto().
-                toByteArray());
+                getRMContainerBytes(rmContainer.getContainer()));
         
     
      return new FiCaSchedulerAppReservedContainerInfo(fiCaContainer,
@@ -621,6 +623,7 @@ public class FiCaSchedulerAppInfo {
             convertToFiCaSchedulerAppReservedContainerInfo(rmContainer);
     
     reservedContainersToAdd.put(rmContainer.getContainerId(), reservedContainerInfo);
+    transactionState.addRMContainerToUpdate((RMContainerImpl)rmContainer);
     reservedContainersToRemove.remove(rmContainer.getContainerId());
   }
 
@@ -634,8 +637,6 @@ public class FiCaSchedulerAppInfo {
 
       RMContainerDataAccess rmcDA = (RMContainerDataAccess) RMStorageFactory.
               getDataAccess(RMContainerDataAccess.class);
-      List<io.hops.metadata.yarn.entity.RMContainer> toAddRMContainers
-              = new ArrayList<io.hops.metadata.yarn.entity.RMContainer>();
 
       ContainerDataAccess cDA = (ContainerDataAccess) RMStorageFactory.
               getDataAccess(ContainerDataAccess.class);
@@ -644,11 +645,9 @@ public class FiCaSchedulerAppInfo {
       for (FiCaSchedulerAppReservedContainerInfo rmContainer
               : reservedContainersToAdd.values()) {
         toAddReservedContainers.add(rmContainer.getFiCaContainer());
-        toAddRMContainers.add(rmContainer.getHopRMContainer());
         toAddContainers.add(rmContainer.getHopContainer());
       }
       reservedContDA.addAll(toAddReservedContainers);
-      rmcDA.addAll(toAddRMContainers);
       cDA.addAll(toAddContainers);
     }
   }

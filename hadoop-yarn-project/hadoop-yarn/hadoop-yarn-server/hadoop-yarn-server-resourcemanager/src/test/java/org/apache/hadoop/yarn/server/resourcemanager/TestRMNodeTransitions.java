@@ -71,6 +71,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.hadoop.yarn.api.records.ContainerState;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
@@ -262,6 +263,7 @@ public class TestRMNodeTransitions {
         .getContainerId();
     doReturn(Collections.singletonList(containerStatusFromNode1))
         .when(statusEventFromNode1).getContainers();
+    doReturn(ContainerState.COMPLETE).when(containerStatusFromNode1).getState();
     node.handle(statusEventFromNode1);
     //If Distributed RT is enabled, this is the only way to let the scheduler
     //pick up the event, the PendingEvent retrieval does not invoke the
@@ -282,12 +284,14 @@ public class TestRMNodeTransitions {
         .getContainerId();
     doReturn(Collections.singletonList(containerStatusFromNode2_1))
         .when(statusEventFromNode2_1).getContainers();
-
+    doReturn(ContainerState.COMPLETE).when(containerStatusFromNode2_1).getState();
+ 
     doReturn(completedContainerIdFromNode2_2).when(containerStatusFromNode2_2)
         .getContainerId();
     doReturn(Collections.singletonList(containerStatusFromNode2_2))
         .when(statusEventFromNode2_2).getContainers();
-
+     doReturn(ContainerState.COMPLETE).when(containerStatusFromNode2_2).getState();
+     
     node2.setNextHeartBeat(false);
     node2.handle(statusEventFromNode2_1);
     //If Distributed RT is enabled, this is the only way to let the scheduler
@@ -341,10 +345,11 @@ public class TestRMNodeTransitions {
     doReturn(completedContainerId1).when(containerStatus1).getContainerId();
     doReturn(Collections.singletonList(containerStatus1)).when(statusEvent1)
         .getContainers();
-
+    doReturn(ContainerState.COMPLETE).when(containerStatus1).getState();
     doReturn(completedContainerId2).when(containerStatus2).getContainerId();
     doReturn(Collections.singletonList(containerStatus2)).when(statusEvent2)
         .getContainers();
+    doReturn(ContainerState.COMPLETE).when(containerStatus2).getState();
     verify(scheduler, times(1)).handle(any(NodeUpdateSchedulerEvent.class));
     node.handle(statusEvent1);
     node.handle(statusEvent2);

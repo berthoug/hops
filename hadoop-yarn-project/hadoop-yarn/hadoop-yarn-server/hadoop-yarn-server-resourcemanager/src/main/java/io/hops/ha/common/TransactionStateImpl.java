@@ -115,8 +115,7 @@ public class TransactionStateImpl extends TransactionState {
   private final CSQueueInfo csQueueInfo = new CSQueueInfo();
   
   //APP
-  private final SchedulerApplicationInfo schedulerApplicationInfo =
-      new SchedulerApplicationInfo();
+  private final SchedulerApplicationInfo schedulerApplicationInfo;
   private final Map<ApplicationId, ApplicationState> applicationsToAdd = new HashMap<ApplicationId, ApplicationState>();
   private final Map<ApplicationId, List<UpdatedNode>> updatedNodeIdToAdd = new HashMap<ApplicationId, List<UpdatedNode>>();
   private final List<ApplicationId> applicationsStateToRemove =
@@ -152,13 +151,17 @@ public class TransactionStateImpl extends TransactionState {
   NodeId nodeId = null;
 
    public TransactionStateImpl(TransactionType type) {
-    super(null, 1);
+    super(null, 1, false);
     this.type = type;
+    this.schedulerApplicationInfo =
+      new SchedulerApplicationInfo(this);
   }
    
-  public TransactionStateImpl(TransactionType type, int initialCounter) {
-    super(null, initialCounter);
+  public TransactionStateImpl(TransactionType type, int initialCounter, boolean batch) {
+    super(null, initialCounter, batch);
     this.type = type;
+    this.schedulerApplicationInfo =
+      new SchedulerApplicationInfo(this);
   }
 
   
@@ -214,7 +217,7 @@ public class TransactionStateImpl extends TransactionState {
   public void persistCSQueueInfo(CSQueueDataAccess CSQDA,
           CSLeafQueueUserInfoDataAccess csLQUIDA) throws StorageException {
 
-    csQueueInfo.persist(CSQDA, csLQUIDA);
+      csQueueInfo.persist(CSQDA, csLQUIDA);
   }
   
   public FiCaSchedulerNodeInfoToUpdate getFicaSchedulerNodeInfoToUpdate(
@@ -222,7 +225,7 @@ public class TransactionStateImpl extends TransactionState {
     FiCaSchedulerNodeInfoToUpdate nodeInfo =
         ficaSchedulerNodeInfoToUpdate.get(nodeId);
     if (nodeInfo == null) {
-      nodeInfo = new FiCaSchedulerNodeInfoToUpdate(nodeId);
+      nodeInfo = new FiCaSchedulerNodeInfoToUpdate(nodeId, this);
       ficaSchedulerNodeInfoToUpdate.put(nodeId, nodeInfo);
     }
     return nodeInfo;
@@ -256,25 +259,9 @@ public class TransactionStateImpl extends TransactionState {
                       node.getUsedResource().getVirtualCores()));
     }
     if (node.getReservedContainer() != null) {
-      nodeInfos.setReservedContainer(new RMContainer(
-              node.getReservedContainer().getContainerId().toString(),
-              node.getReservedContainer().getApplicationAttemptId()
-              .toString(),
-              node.getReservedContainer().getNodeId().toString(),
-              node.getReservedContainer().getUser(),
-              node.getReservedContainer().getReservedNode().toString(),
-              node.getReservedContainer().getReservedPriority().getPriority(),
-              node.getReservedContainer().getReservedResource().getMemory(),
-              node.getReservedContainer().getReservedResource().
-              getVirtualCores(),
-              node.getReservedContainer().getStartTime(),
-              node.getReservedContainer().getFinishTime(),
-              node.getReservedContainer().getState().toString(),
-              ((RMContainerImpl) node.getReservedContainer()).
-              getContainerState().toString(),
-              ((RMContainerImpl) node.getReservedContainer()).
-              getContainerExitStatus()));
+      addRMContainerToUpdate((RMContainerImpl)node.getReservedContainer());
     }
+    
     //Add launched containers
     if (node.getRunningContainers() != null) {
       for (org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer rmContainer
@@ -683,9 +670,6 @@ public class TransactionStateImpl extends TransactionState {
         if (nodeInfo.getUsedResource() != null) {
           toAddResources.add(nodeInfo.getUsedResource());
         }
-        if (nodeInfo.getReservedContainer() != null) {
-          rmcontainerToAdd.add(nodeInfo.getReservedContainer());
-        }
         //Add launched containers
         if (nodeInfo.getLaunchedContainers() != null) {
           toAddLaunchedContainers.addAll(nodeInfo.getLaunchedContainers());
@@ -693,7 +677,6 @@ public class TransactionStateImpl extends TransactionState {
       }
       resourceDA.addAll(toAddResources);
       ficaNodeDA.addAll(toAddFiCaSchedulerNodes);
-      rmcontainerDA.addAll(rmcontainerToAdd);
       launchedContainersDA.addAll(toAddLaunchedContainers);
     }
   }
@@ -752,6 +735,8 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
+  public static double totalDuration = 0;
+  public static long nbFinish =0;
   private class RPCFinisher implements Runnable {
 
     private final TransactionStateImpl ts;
@@ -762,7 +747,13 @@ public class TransactionStateImpl extends TransactionState {
 
     public void run() {
 //      try{
+      long start = System.currentTimeMillis();
         RMUtilities.finishRPC(ts);
+        long duration = System.currentTimeMillis() - start;
+        totalDuration+=duration;
+        nbFinish++;
+        double avgDuration = totalDuration/nbFinish;
+        LOG.info("finish commit duration: " + duration + " (" + avgDuration + ")");
 //      }catch(IOException ex){
 //        LOG.error("did not commit state properly", ex);
 //      }
