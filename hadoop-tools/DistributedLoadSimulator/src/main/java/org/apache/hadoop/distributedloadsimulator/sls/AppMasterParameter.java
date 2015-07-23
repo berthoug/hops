@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Apache Software Foundation.
+ * Copyright (C) 2015 hops.io.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,35 +20,40 @@ package org.apache.hadoop.distributedloadsimulator.sls;
  * @author sri
  */
 public class AppMasterParameter {
-  
-  private final  String queueName;
-  private final  String inputLoadTraces;
-  private final   int appSimOffSet;
-  private final  String rmAddress;
 
-  public AppMasterParameter(String queueName, String inputLoadTraces, int appSimOffSet, String rmAddress) {
-    this.queueName = queueName;
-    this.inputLoadTraces = inputLoadTraces;
-    this.appSimOffSet = appSimOffSet;
-    this.rmAddress = rmAddress;
-  }
+    private final String queueName;
+    private final String inputLoadTraces;
+    private final int appSimOffSet;
 
-  public String getQueueName() {
-    return queueName;
-  }
+    private final String rmAddress;
+    private final String rmiAddress;
 
-  public String getInputLoadTraces() {
-    return inputLoadTraces;
-  }
+    public AppMasterParameter(String queueName, String inputLoadTraces, int appSimOffSet, String rmAddress, String rmiAddress) {
+        this.queueName = queueName;
+        this.inputLoadTraces = inputLoadTraces;
+        this.appSimOffSet = appSimOffSet;
+        this.rmAddress = rmAddress;
+        this.rmiAddress = rmiAddress;
+    }
 
-  public int getAppSimOffSet() {
-    return appSimOffSet;
-  }
+    public String getRmiAddress() {
+        return rmiAddress;
+    }
 
-  public String getRmAddress() {
-    return rmAddress;
-  }
-  
-  
-  
+    public String getQueueName() {
+        return queueName;
+    }
+
+    public String getInputLoadTraces() {
+        return inputLoadTraces;
+    }
+
+    public int getAppSimOffSet() {
+        return appSimOffSet;
+    }
+
+    public String getRmAddress() {
+        return rmAddress;
+    }
+
 }

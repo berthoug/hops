@@ -37,6 +37,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode
         .UpdatedContainerInfo;
 import io.hops.ha.common.TransactionState;
+import java.util.Set;
 
 public class NodeInfo {
   private static int NODE_ID = 0;
@@ -180,6 +181,18 @@ public class NodeInfo {
         @Override
         public void recover(RMStateStore.RMState state) throws Exception {
             throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public void setContainersToCleanUp(Set<ContainerId> newSet) {
+        }
+
+        @Override
+        public void setAppsToCleanup(List<ApplicationId> newList) {
+        }
+
+        @Override
+        public void setNextHeartBeat(boolean nextHeartbeat) {
         }
   }
   

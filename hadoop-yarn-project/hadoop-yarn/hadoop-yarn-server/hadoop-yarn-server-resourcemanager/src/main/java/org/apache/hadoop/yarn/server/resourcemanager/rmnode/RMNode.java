@@ -31,6 +31,7 @@ import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.Recoverable;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Node managers information on available resources
@@ -148,6 +149,9 @@ public interface RMNode extends Recoverable {
 
   public List<ApplicationId> getAppsToCleanup();
 
+  public void setContainersToCleanUp(Set<ContainerId> newSet);
+
+  public void setAppsToCleanup(List<ApplicationId> newList);
   /**
    * Update a {@link NodeHeartbeatResponse} with the list of containers and
    * applications to clean up for this node.
@@ -167,4 +171,5 @@ public interface RMNode extends Recoverable {
    * @return containerUpdates accumulated across NM heartbeats.
    */
   public List<UpdatedContainerInfo> pullContainerUpdates(TransactionState ts);
+  public void setNextHeartBeat(boolean nextHeartbeat);
 }

@@ -110,10 +110,14 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
     this.latestNodeHeartBeatResponse = hb;
   }
 
-  public void setUpdatedContainerInfo(
-      ConcurrentLinkedQueue<UpdatedContainerInfo> nodeUpdateQueue) {
-    this.nodeUpdateQueue.addAll(nodeUpdateQueue);
-  }
+   public void setUpdatedContainerInfo(org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo uci) {
+        this.nodeUpdateQueue.add(uci);
+   }
+   
+   public void setUpdatedContainerInfo(
+            ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo> nodeUpdateQueue) {
+        this.nodeUpdateQueue.addAll(nodeUpdateQueue);
+    }
 
   public void setUpdatedContainerInfoId(int updatedContainerInfoId) {
     this.updatedContainerInfoId = updatedContainerInfoId;
@@ -431,6 +435,19 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
   }
 
   @Override
+    public void setAppsToCleanup(List<ApplicationId> newList) {
+        this.writeLock.lock();
+
+        try {
+            this.finishedApplications.clear();
+            this.finishedApplications.addAll(newList);
+        } finally {
+            this.writeLock.unlock();
+        }
+
+    }
+
+  @Override
   public List<ContainerId> getContainersToCleanUp() {
 
     this.readLock.lock();
@@ -441,6 +458,19 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       this.readLock.unlock();
     }
   }
+  
+  @Override
+    public void setContainersToCleanUp(Set<ContainerId> newSet) {
+
+        this.writeLock.lock();
+
+        try {
+            this.containersToClean.clear();
+            this.containersToClean.addAll(newSet);
+        } finally {
+            this.writeLock.unlock();
+        }
+    }
 
   @Override
   public void updateNodeHeartbeatResponseForCleanup(
@@ -965,32 +995,39 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       LOG.debug(
           "HOP :: next herbeat node " + rmNode.nextHeartBeat + " nexthb " +
               rmNode.nextHeartBeat);
+       boolean isDTEnabledAndLeader = false;
+            if (isDistributedRTEnabled
+                    && !rmNode.context.getRMGroupMembershipService().isLeader()) {
+                isDTEnabledAndLeader = true;
+            }
       if (rmNode.nextHeartBeat) {
-        LOG.debug(
-            "HOP :: rmNode.heartbeat-set to false:" + rmNode.nodeId.toString());
-        rmNode.nextHeartBeat = false;
-        rmNode.persisted = false;
-        ((TransactionStateImpl) event.getTransactionState())
+                LOG.debug("HOP :: rmNode.heartbeat-set to false:" + rmNode.nodeId.toString());
+                rmNode.nextHeartBeat = false;
+                ((TransactionStateImpl) event.getTransactionState())
             .getRMNodeInfo(rmNode.nodeId)
             .toAddNextHeartbeat(rmNode.nodeId.
                 toString(), rmNode.nextHeartBeat);
-        if (isDistributedRTEnabled &&
-            !rmNode.context.getRMGroupMembershipService().isLeader()) {
-          //Add NodeUpdatedSchedulerEvent to TransactionState
-          LOG.debug(
-              "HOP :: StatusUpdateWhenHealthyTransition-Added Pending event to TransactionState");
-          ((TransactionStateImpl) event.getTransactionState()).
-              addPendingEventToAdd(rmNode.getNodeID().toString(),
-                  TablesDef.PendingEventTableDef.NODE_UPDATED, TablesDef.PendingEventTableDef.NEW,
-                  rmNode);
-        } else {
-          LOG.debug(
-              "HOP :: StatusUpdateWhenHealthyTransition- handle NodeUpdate");
-          rmNode.context.getDispatcher().getEventHandler()
-              .handle(new NodeUpdateSchedulerEvent(rmNode, event.
-                      getTransactionState()));
-        }
-      }
+              
+                if (isDTEnabledAndLeader) {
+                    //Add NodeUpdatedSchedulerEvent to TransactionState
+                    ((TransactionStateImpl) event.getTransactionState()).
+                            addPendingEventToAdd(rmNode.getNodeID().toString(),
+                                    TablesDef.PendingEventTableDef.NODE_UPDATED,
+                                    TablesDef.PendingEventTableDef.SCHEDULER_FINISHED_PROCESSING, rmNode);
+                } else {
+                    rmNode.context.getDispatcher().getEventHandler().handle(
+                            new NodeUpdateSchedulerEvent(rmNode, event.
+                                    getTransactionState()));
+                }
+            } else if (isDTEnabledAndLeader) {
+                //Add NodeUpdatedSchedulerEvent to TransactionState
+                //LOG.info("falsehb:"+numberoffalse);
+                ((TransactionStateImpl) event.getTransactionState()).
+                        addPendingEventToAdd(rmNode.getNodeID().toString(),
+                                TablesDef.PendingEventTableDef.NODE_UPDATED,
+                                TablesDef.PendingEventTableDef.SCHEDULER_NOT_FINISHED_PROCESSING, rmNode);
+
+            }
 
       //TODO: Consider adding this to TransactionState
       // Update DTRenewer in secure mode to keep these apps alive. Today this is

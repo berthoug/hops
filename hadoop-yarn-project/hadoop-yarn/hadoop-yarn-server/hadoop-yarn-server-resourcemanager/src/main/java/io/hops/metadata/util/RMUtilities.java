@@ -1262,7 +1262,7 @@ public class RMUtilities {
    * @throws IOException
    */
   public static Map<String, ConcurrentSkipListSet<PendingEvent>> getPendingEvents(
-      final int numberOfEvents, final byte status) throws IOException {
+      final int numberOfEvents, final int status) throws IOException {
     LightWeightRequestHandler getPendingEventsHandler =
         new LightWeightRequestHandler(YARNOperationType.TEST) {
           @Override
@@ -1311,7 +1311,7 @@ public class RMUtilities {
    * @throws IOException
    */
   public static Map<String, ConcurrentSkipListSet<PendingEvent>> getAndUpdatePendingEvents(
-      final int numberOfEvents, final byte status) throws IOException {
+      final int numberOfEvents, final int status) throws IOException {
     LightWeightRequestHandler getAndUpdatePendingEventsHandler =
         new LightWeightRequestHandler(YARNOperationType.TEST) {
           @Override

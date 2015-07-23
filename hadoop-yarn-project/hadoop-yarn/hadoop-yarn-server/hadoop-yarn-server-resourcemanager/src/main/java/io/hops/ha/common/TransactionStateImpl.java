@@ -681,7 +681,7 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
-  public void addPendingEventToAdd(String rmnodeId, byte type, byte status) {
+  public void addPendingEventToAdd(String rmnodeId, int type, int status) {
     LOG.debug("HOP :: updatePendingEventToAdd");
     PendingEvent pendingEvent = new PendingEvent(rmnodeId, type, status,
         pendingEventId.getAndIncrement());
@@ -689,7 +689,7 @@ public class TransactionStateImpl extends TransactionState {
     LOG.debug("HOP :: updatePendingEventToAdd, pendingEvent:" + pendingEvent);
   }
 
-  public void addPendingEventToAdd(String rmnodeId, byte type, byte status,
+  public void addPendingEventToAdd(String rmnodeId, int type, int status,
       RMNodeImpl rmNode) {
     addPendingEventToAdd(rmnodeId, type, status);
     this.rmNode = rmNode;
@@ -709,8 +709,8 @@ public class TransactionStateImpl extends TransactionState {
    * @param type
    * @param status
    */
-  public void addPendingEventToRemove(int id, String rmnodeId, byte type,
-      byte status) {
+  public void addPendingEventToRemove(int id, String rmnodeId, int type,
+      int status) {
     this.persistedEventsToRemove
         .add(new PendingEvent(rmnodeId, type, status, id));
   }

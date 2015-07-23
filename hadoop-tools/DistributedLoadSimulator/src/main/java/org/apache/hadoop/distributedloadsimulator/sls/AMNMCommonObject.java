@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Apache Software Foundation.
+ * Copyright (C) 2015 hops.io.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ public interface AMNMCommonObject extends Remote {
  // all the unmanged application master will call this to update node manager's containers 
  // internal data strcutres
   void cleanupContainer(String containerId, String nodeId) throws RemoteException;
-  
+  boolean isNodeExist(String nodeId) throws RemoteException;
   void addNewContainer(String containerId, String nodeId, String httpAddress,
           int memory, int vcores, int priority,long lifeTimeMS) throws RemoteException;
   void decreseApplicationCount() throws RemoteException;

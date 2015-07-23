@@ -100,6 +100,7 @@ public abstract class AMSimulator extends TaskRunner.Task {
   protected final Logger LOG = Logger.getLogger(AMSimulator.class);
   private int amId;
   protected AMNMCommonObject primaryRemoteConnection;
+  protected AMNMCommonObject secondryRemoteConnection;
   
   public AMSimulator() {
     this.responseQueue = new LinkedBlockingQueue<AllocateResponse>();
@@ -108,7 +109,7 @@ public abstract class AMSimulator extends TaskRunner.Task {
   public void init(int id, int heartbeatInterval,
           List<ContainerSimulator> containerList, ResourceManager rm, SLSRunner se,
           long traceStartTime, long traceFinishTime, String user, String queue,
-          boolean isTracked, String oldAppId, ApplicationMasterProtocol applicatonMasterProtocol, ApplicationId applicationId) {
+          boolean isTracked, String oldAppId, ApplicationMasterProtocol applicatonMasterProtocol, ApplicationId applicationId,String remoteSimIp) {
     super.init(traceStartTime, traceStartTime + 1000000L * heartbeatInterval,
             heartbeatInterval);
     this.user = user;
@@ -124,14 +125,32 @@ public abstract class AMSimulator extends TaskRunner.Task {
     this.traceFinishTimeMS = traceFinishTime;
     this.appId = applicationId;
     Registry primaryRegistry;
-    try {
-      primaryRegistry = LocateRegistry.getRegistry("127.0.0.1");
-      primaryRemoteConnection = (AMNMCommonObject) primaryRegistry.lookup("AMNMCommonObject");
-    } catch (RemoteException ex) {
-      java.util.logging.Logger.getLogger(MRAMSimulator.class.getName()).log(Level.SEVERE, null, ex);
-    } catch (NotBoundException ex) {
-      java.util.logging.Logger.getLogger(MRAMSimulator.class.getName()).log(Level.SEVERE, null, ex);
-    }
+        Registry secondryRegistry;
+        try {
+            primaryRegistry = LocateRegistry.getRegistry("127.0.0.1");
+            primaryRemoteConnection = (AMNMCommonObject) primaryRegistry.lookup("AMNMCommonObject");
+        } catch (RemoteException ex) {
+           LOG.error("Remote exception:", ex);
+        } catch (NotBoundException ex) {
+            LOG.error("Unable to bind exception:", ex);
+        }
+
+    //Note: no need to put sleep here, because , remote connection is already up in this point, so just go and 
+        //get the connection
+        // if ip is 127.0.0.1 , then we are considering as standalone simulator so dont try to create rmi connection with other
+        // simulator.
+        if (!(remoteSimIp.equals("127.0.0.1"))) {
+            try {
+                secondryRegistry = LocateRegistry.getRegistry(remoteSimIp);
+                secondryRemoteConnection = (AMNMCommonObject) secondryRegistry.lookup("AMNMCommonObject");
+            } catch (RemoteException ex) {
+                LOG.error("Remote exception:", ex);
+            } catch (NotBoundException ex) {
+                LOG.error("Unable to bind exception:", ex);
+            }
+        } else {
+            LOG.warn("Simulator is starting in non-distributed mode, becasue rmi address is null");
+        }
 
   }
 

@@ -41,107 +41,110 @@ import java.util.Properties;
 
 public class YarnAPIStorageFactory {
 
-  private static boolean isInitialized = false;
-  private static DalStorageFactory dStorageFactory;
-  private static Map<Class, EntityDataAccess> dataAccessAdaptors =
-      new HashMap<Class, EntityDataAccess>();
-  public static final String DFS_STORAGE_DRIVER_JAR_FILE =
-      "dfs.storage.driver.jarFile";
-  public static final String DFS_STORAGE_DRIVER_JAR_FILE_DEFAULT = "";
-  public static final String DFS_STORAGE_DRIVER_CLASS =
-      "dfs.storage.driver.class";
-  public static final String DFS_STORAGE_DRIVER_CLASS_DEFAULT =
-      "io.hops.metadata.ndb.NdbStorageFactory";
-  public static final String DFS_STORAGE_DRIVER_CONFIG_FILE =
-      "dfs.storage.driver.configfile";
-  public static final String DFS_STORAGE_DRIVER_CONFIG_FILE_DEFAULT =
-      "ndb-config.properties";
+    private static boolean isInitialized = false;
+    private static DalStorageFactory dStorageFactory;
+    private static Map<Class, EntityDataAccess> dataAccessAdaptors
+            = new HashMap<Class, EntityDataAccess>();
+    public static final String DFS_STORAGE_DRIVER_JAR_FILE
+            = "dfs.storage.driver.jarFile";
+    public static final String DFS_STORAGE_DRIVER_JAR_FILE_DEFAULT = "";
+    public static final String DFS_STORAGE_DRIVER_CLASS
+            = "dfs.storage.driver.class";
+    public static final String DFS_STORAGE_DRIVER_CLASS_DEFAULT
+            = "io.hops.metadata.ndb.NdbStorageFactory";
+    public static final String DFS_STORAGE_DRIVER_CONFIG_FILE
+            = "dfs.storage.driver.configfile";
+    public static final String DFS_STORAGE_DRIVER_CONFIG_FILE_DEFAULT
+            = "ndb-config.properties";
 
-  public static StorageConnector getConnector() {
-    return dStorageFactory.getConnector();
-  }
+    public static final String NDB_EVENT_STREAMING_FOR_DISTRIBUTED_SERVICE
+            = "se.sics.hop.metadata.ndb.JniNdbEventStreaming";
 
-  public static void setConfiguration(Configuration conf)
-      throws StorageInitializtionException, IOException {
-    if (isInitialized) {
-      return;
-    }
-    addToClassPath(conf.get(DFS_STORAGE_DRIVER_JAR_FILE,
-        DFS_STORAGE_DRIVER_JAR_FILE_DEFAULT));
-    dStorageFactory = DalDriver.load(
-        conf.get(DFS_STORAGE_DRIVER_CLASS, DFS_STORAGE_DRIVER_CLASS_DEFAULT));
-    dStorageFactory.setConfiguration(getMetadataClusterConfiguration(conf));
-    initDataAccessWrappers();
-    EntityManager.addContextInitializer(getContextInitializer());
-    isInitialized = true;
-  }
-
-  public static Properties getMetadataClusterConfiguration(Configuration conf)
-      throws IOException {
-    String configFile =
-        conf.get(YarnAPIStorageFactory.DFS_STORAGE_DRIVER_CONFIG_FILE,
-            YarnAPIStorageFactory.DFS_STORAGE_DRIVER_CONFIG_FILE_DEFAULT);
-    Properties clusterConf = new Properties();
-    InputStream inStream = StorageConnector.class.getClassLoader().
-        getResourceAsStream(configFile);
-    clusterConf.load(inStream);
-    return clusterConf;
-  }
-
-  //[M]: just for testing purposes
-  private static void addToClassPath(String s)
-      throws StorageInitializtionException {
-    try {
-      File f = new File(s);
-      URL u = f.toURI().toURL();
-      URLClassLoader urlClassLoader =
-          (URLClassLoader) ClassLoader.getSystemClassLoader();
-      Class urlClass = URLClassLoader.class;
-      Method method =
-          urlClass.getDeclaredMethod("addURL", new Class[]{URL.class});
-      method.setAccessible(true);
-      method.invoke(urlClassLoader, new Object[]{u});
-    } catch (MalformedURLException ex) {
-      throw new StorageInitializtionException(ex);
-    } catch (IllegalAccessException ex) {
-      throw new StorageInitializtionException(ex);
-    } catch (IllegalArgumentException ex) {
-      throw new StorageInitializtionException(ex);
-    } catch (InvocationTargetException ex) {
-      throw new StorageInitializtionException(ex);
-    } catch (NoSuchMethodException ex) {
-      throw new StorageInitializtionException(ex);
-    } catch (SecurityException ex) {
-      throw new StorageInitializtionException(ex);
-    }
-  }
-
-  private static void initDataAccessWrappers() {
-    dataAccessAdaptors.clear();
-    dataAccessAdaptors.put(YarnVariablesDataAccess.class,
-        new YarnVariablesDALAdaptor((YarnVariablesDataAccess) getDataAccess(
-            YarnVariablesDataAccess.class)));
-  }
-
-  private static ContextInitializer getContextInitializer() {
-    return new ContextInitializer() {
-      @Override
-      public Map<Class, EntityContext> createEntityContexts() {
-        Map<Class, EntityContext> entityContexts = new HashMap<Class, EntityContext>();
-        return entityContexts;
-      }
-
-      @Override
-      public StorageConnector getConnector() {
+    public static StorageConnector getConnector() {
         return dStorageFactory.getConnector();
-      }
-    };
-  }
-
-  public static EntityDataAccess getDataAccess(Class type) {
-    if (dataAccessAdaptors.containsKey(type)) {
-      return dataAccessAdaptors.get(type);
     }
-    return dStorageFactory.getDataAccess(type);
-  }
+
+    public static void setConfiguration(Configuration conf)
+            throws StorageInitializtionException, IOException {
+        if (isInitialized) {
+            return;
+        }
+        addToClassPath(conf.get(DFS_STORAGE_DRIVER_JAR_FILE,
+                DFS_STORAGE_DRIVER_JAR_FILE_DEFAULT));
+        dStorageFactory = DalDriver.load(
+                conf.get(DFS_STORAGE_DRIVER_CLASS, DFS_STORAGE_DRIVER_CLASS_DEFAULT));
+        dStorageFactory.setConfiguration(getMetadataClusterConfiguration(conf));
+        initDataAccessWrappers();
+        EntityManager.addContextInitializer(getContextInitializer());
+        isInitialized = true;
+    }
+
+    public static Properties getMetadataClusterConfiguration(Configuration conf)
+            throws IOException {
+        String configFile
+                = conf.get(YarnAPIStorageFactory.DFS_STORAGE_DRIVER_CONFIG_FILE,
+                        YarnAPIStorageFactory.DFS_STORAGE_DRIVER_CONFIG_FILE_DEFAULT);
+        Properties clusterConf = new Properties();
+        InputStream inStream = StorageConnector.class.getClassLoader().
+                getResourceAsStream(configFile);
+        clusterConf.load(inStream);
+        return clusterConf;
+    }
+
+    //[M]: just for testing purposes
+    private static void addToClassPath(String s)
+            throws StorageInitializtionException {
+        try {
+            File f = new File(s);
+            URL u = f.toURI().toURL();
+            URLClassLoader urlClassLoader
+                    = (URLClassLoader) ClassLoader.getSystemClassLoader();
+            Class urlClass = URLClassLoader.class;
+            Method method
+                    = urlClass.getDeclaredMethod("addURL", new Class[]{URL.class});
+            method.setAccessible(true);
+            method.invoke(urlClassLoader, new Object[]{u});
+        } catch (MalformedURLException ex) {
+            throw new StorageInitializtionException(ex);
+        } catch (IllegalAccessException ex) {
+            throw new StorageInitializtionException(ex);
+        } catch (IllegalArgumentException ex) {
+            throw new StorageInitializtionException(ex);
+        } catch (InvocationTargetException ex) {
+            throw new StorageInitializtionException(ex);
+        } catch (NoSuchMethodException ex) {
+            throw new StorageInitializtionException(ex);
+        } catch (SecurityException ex) {
+            throw new StorageInitializtionException(ex);
+        }
+    }
+
+    private static void initDataAccessWrappers() {
+        dataAccessAdaptors.clear();
+        dataAccessAdaptors.put(YarnVariablesDataAccess.class,
+                new YarnVariablesDALAdaptor((YarnVariablesDataAccess) getDataAccess(
+                                YarnVariablesDataAccess.class)));
+    }
+
+    private static ContextInitializer getContextInitializer() {
+        return new ContextInitializer() {
+            @Override
+            public Map<Class, EntityContext> createEntityContexts() {
+                Map<Class, EntityContext> entityContexts = new HashMap<Class, EntityContext>();
+                return entityContexts;
+            }
+
+            @Override
+            public StorageConnector getConnector() {
+                return dStorageFactory.getConnector();
+            }
+        };
+    }
+
+    public static EntityDataAccess getDataAccess(Class type) {
+        if (dataAccessAdaptors.containsKey(type)) {
+            return dataAccessAdaptors.get(type);
+        }
+        return dStorageFactory.getDataAccess(type);
+    }
 }

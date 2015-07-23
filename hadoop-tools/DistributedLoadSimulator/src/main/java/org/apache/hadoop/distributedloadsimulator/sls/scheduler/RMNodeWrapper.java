@@ -1,13 +1,11 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+/*
+ * Copyright (C) 2015 hops.io.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +16,7 @@
 
 package org.apache.hadoop.distributedloadsimulator.sls.scheduler;
 
+import io.hops.ha.common.TransactionState;
 import org.apache.hadoop.net.Node;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -33,9 +32,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmnode
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import static org.apache.hadoop.distributedloadsimulator.sls.SLSRunner.LOG;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
-import se.sics.hop.ha.common.TransactionState;
 
 public class RMNodeWrapper implements RMNode {
   private RMNode node;
@@ -112,25 +109,25 @@ public class RMNodeWrapper implements RMNode {
     return node.getContainersToCleanUp();
   }
 
-//  @Override
-//  public void setContainersToCleanUp(Set<ContainerId> newSet){
-//    node.setContainersToCleanUp(newSet);
-//  }
-//  
-//  @Override
-//  public void setAppsToCleanup(List<ApplicationId> newList) {
-//    node.setAppsToCleanup(newList);
-//  }
+  @Override
+  public void setContainersToCleanUp(Set<ContainerId> newSet){
+    node.setContainersToCleanUp(newSet);
+  }
+  
+  @Override
+  public void setAppsToCleanup(List<ApplicationId> newList) {
+    node.setAppsToCleanup(newList);
+  }
   
   @Override
   public List<ApplicationId> getAppsToCleanup() {
     return node.getAppsToCleanup();
   }
 
-//  @Override
-//  public void setNextHeartBeat(boolean nextHeartBeat) {
-//    node.setNextHeartBeat(nextHeartBeat);
-//  }
+  @Override
+  public void setNextHeartBeat(boolean nextHeartBeat) {
+    node.setNextHeartBeat(nextHeartBeat);
+  }
       
   @Override
   public void updateNodeHeartbeatResponseForCleanup(

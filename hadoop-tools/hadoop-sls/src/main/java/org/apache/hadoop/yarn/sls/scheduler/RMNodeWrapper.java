@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 import io.hops.ha.common.TransactionState;
+import java.util.Set;
 
 public class RMNodeWrapper implements RMNode {
   private RMNode node;
@@ -159,6 +160,18 @@ public class RMNodeWrapper implements RMNode {
     @Override
     public void recover(RMStateStore.RMState state) throws Exception {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void setContainersToCleanUp(Set<ContainerId> newSet) {
+    }
+
+    @Override
+    public void setAppsToCleanup(List<ApplicationId> newList) {
+    }
+
+    @Override
+    public void setNextHeartBeat(boolean nextHeartbeat) {
     }
 
   

@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with this
- * work for additional information regarding copyright ownership. The ASF
- * licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License.
+/*
+ * Copyright (C) 2015 hops.io.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.hadoop.distributedloadsimulator.sls.nodemanager;
 
@@ -148,28 +147,21 @@ public class NMSimulator extends TaskRunner.Task {
       LOG.info(" HOP::HB  Node : "+node.getNodeID()+ " Sending heart beat request");
       NodeHeartbeatResponse beatResponse = resourceTracker.nodeHeartbeat(beatRequest);
       ++totalHeartBeat;
-//      if (beatResponse.getNextheartbeat()) {
-//        ++trueHeartBeat;
-//      }
-      //LOG.info(" HOP ::  Node  : "+node.getNodeID()+" Hearbeat response next heartbeat - "+beatResponse.getNextheartbeat());
-      //rm.getResourceTrackerService().nodeHeartbeat(beatRequest);
+      if (beatResponse.getNextheartbeat()) {
+        ++trueHeartBeat;
+      }
       if (!beatResponse.getContainersToCleanup().isEmpty()) {
         // remove from queue
         synchronized (releasedContainerList) {
           for (ContainerId containerId : beatResponse.getContainersToCleanup()) {
             if (amContainerList.contains(containerId)) {
-              // AM container (not killed?, only release)
               synchronized (amContainerList) {
                 amContainerList.remove(containerId);
               }
-              //LOG.info(MessageFormat.format("NodeManager {0} releases "
-                 //     + "an AM ({1}).", node.getNodeID(), containerId));
             } else {
               cs = runningContainers.remove(containerId);
               containerQueue.remove(cs);
               releasedContainerList.add(containerId);
-             // LOG.info(MessageFormat.format("NodeManager {0} releases a "
-                    //  + "container ({1}).", node.getNodeID(), containerId));
             }
           }
         }
@@ -208,8 +200,6 @@ public class NMSimulator extends TaskRunner.Task {
     // add complete containers
     synchronized (completedContainerList) {
       for (ContainerId cId : completedContainerList) {
-        //LOG.info(MessageFormat.format("NodeManager {0} completed"
-              //  + " container ({1}).", node.getNodeID(), cId));
         csList.add(newContainerStatus(
                 cId, ContainerState.COMPLETE, ContainerExitStatus.SUCCESS));
       }
@@ -218,8 +208,6 @@ public class NMSimulator extends TaskRunner.Task {
     // released containers
     synchronized (releasedContainerList) {
       for (ContainerId cId : releasedContainerList) {
-       // LOG.info(MessageFormat.format("NodeManager {0} released container"
-             //   + " ({1}).", node.getNodeID(), cId));
         csList.add(newContainerStatus(
                 cId, ContainerState.COMPLETE, ContainerExitStatus.ABORTED));
       }
@@ -249,8 +237,6 @@ public class NMSimulator extends TaskRunner.Task {
    * @param lifeTimeMS
    */
   public void addNewContainer(Container container, long lifeTimeMS) {
-    //LOG.info(MessageFormat.format("NodeManager {0} launches a new "
-          //  + "container ({1}).", node.getNodeID(), container.getId()));
     if (lifeTimeMS != -1) {
       // normal container
       ContainerSimulator cs = new ContainerSimulator(container.getId(),

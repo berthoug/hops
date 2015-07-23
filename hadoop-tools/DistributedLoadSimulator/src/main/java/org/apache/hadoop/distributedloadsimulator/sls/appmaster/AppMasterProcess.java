@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Apache Software Foundation.
+ * Copyright (C) 2015 hops.io.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ public class AppMasterProcess {
   }
   @SuppressWarnings("unchecked")
   private void startAMFromSLSTraces(Resource containerResource,
-          int heartbeatInterval, String inputTrace) throws IOException {
+          int heartbeatInterval, String inputTrace,String remoteSimIp) throws IOException {
     // parse from sls traces
     int localAppSimulatorOffSet = 0;
     JsonFactory jsonF = new JsonFactory();
@@ -136,7 +136,7 @@ public class AppMasterProcess {
           if (amSim != null) {
             amSim.init(appSimulatorId, heartbeatInterval, containerList, null,
                     null, jobStartTime, jobFinishTime, user, queue,
-                    isTracked, oldAppId, appMasterProtocol, applicationId);
+                    isTracked, oldAppId, appMasterProtocol, applicationId,remoteSimIp);
             runner.schedule(amSim);
             maxRuntime = Math.max(maxRuntime, jobFinishTime);
             numTasks += containerList.size();
@@ -160,7 +160,7 @@ public class AppMasterProcess {
 
   }
 
-  public void startAM(String inputTraces, int appSimulatorIdOffSet, long clusterTimeStamp, int suffixId, int attemptId) throws IOException {
+  public void startAM(String inputTraces, int appSimulatorIdOffSet, long clusterTimeStamp, int suffixId, int attemptId,String remoteSimIp) throws IOException {
 
     this.appSimulatorId = appSimulatorIdOffSet;
     this.applicationId = ApplicationId.newInstance(clusterTimeStamp, suffixId);
@@ -178,7 +178,7 @@ public class AppMasterProcess {
             = BuilderUtils.newResource(containerMemoryMB, containerVCores);
 
     // application workload
-    startAMFromSLSTraces(containerResource, heartbeatInterval, inputTraces);
+    startAMFromSLSTraces(containerResource, heartbeatInterval, inputTraces,remoteSimIp);
 
   }
 
@@ -194,7 +194,7 @@ public class AppMasterProcess {
     int appSimulatorId = Integer.parseInt(args[1]);
 
     appMasterProcess.initAMProtocol(args[2]);
-    appMasterProcess.startAM(args[0], appSimulatorId, Long.parseLong(args[3]), Integer.parseInt(args[4]), Integer.parseInt(args[5]));
+    appMasterProcess.startAM(args[0], appSimulatorId, Long.parseLong(args[4]), Integer.parseInt(args[5]), Integer.parseInt(args[6]),args[3]);
 
     runner.start();
   }
