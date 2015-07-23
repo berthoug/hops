@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Apache Software Foundation.
+ * Copyright (C) 2015 hops.io.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,8 @@
 package org.apache.hadoop.yarn.server.resourcemanager;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -37,26 +33,21 @@ public class NdbRtStreamingProcessor implements Runnable {
   private boolean running = false;
   private final RMContext context;
   private RMNode rmNode;
-  private int receivehbcounter=0;
   public NdbRtStreamingProcessor(RMContext context) {
     this.context = context;
   }
 
   public void printStreamingRTComps(StreamingRTComps streamingRTComps) {
-//    List<ApplicationId> applicationIdList = streamingRTComps.getFinishedApp();
-//    for (ApplicationId appId : applicationIdList) {
-//      System.out.println("<Processor> Finished application : appid : " + appId.toString());
-//      LOG.info("<Processor> Finished application : appid : " + appId.toString());
-//    }
-//
-//    Set<ContainerId> containerIdList = streamingRTComps.getContainersToClean();
-//    for (ContainerId conId : containerIdList) {
-//      System.out.println("<Processor> Containers to clean  containerid: " + conId.toString());
-//      LOG.info("<Processor> Containers to clean  containerid: " + conId.toString());
-//    }
-      ++receivehbcounter;
-    //System.out.println("<Processor> RMnode id : " + streamingRTComps.getNodeId() + " next heartbeat : " + streamingRTComps.isNextHeartbeat());
-    LOG.info("RTReceived: " + streamingRTComps.getNodeId() + " nexthb: "+streamingRTComps.isNextHeartbeat() +" counter: "+receivehbcounter );
+    List<org.apache.hadoop.yarn.api.records.ApplicationId> applicationIdList = streamingRTComps.getFinishedApp();
+    for (org.apache.hadoop.yarn.api.records.ApplicationId appId : applicationIdList) {
+      LOG.debug("<Processor> Finished application : appid : " + appId.toString());
+    }
+
+    Set<org.apache.hadoop.yarn.api.records.ContainerId> containerIdList = streamingRTComps.getContainersToClean();
+    for (org.apache.hadoop.yarn.api.records.ContainerId conId : containerIdList) {
+      LOG.debug("<Processor> Containers to clean  containerid: " + conId.toString());
+    }
+    LOG.debug("RTReceived: " + streamingRTComps.getNodeId() + " nexthb: "+streamingRTComps.isNextHeartbeat());
 
   }
 
@@ -74,7 +65,6 @@ public class NdbRtStreamingProcessor implements Runnable {
 
             NodeId nodeId = ConverterUtils.toNodeId(streamingRTComps.getNodeId());
             rmNode = context.getActiveRMNodes().get(nodeId);
-            //LOG.debug("HOP :: RTStreaming processor rmNode:" + rmNode);
             if (rmNode != null) {
               rmNode.setContainersToCleanUp(streamingRTComps.getContainersToClean());
               rmNode.setAppsToCleanup(streamingRTComps.getFinishedApp());

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Apache Software Foundation.
+ * Copyright (C) 2015 hops.io.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
  */
 package org.apache.hadoop.yarn.server.resourcemanager;
 
-import io.hops.metadata.yarn.entity.ApplicationId;
-import io.hops.metadata.yarn.entity.ContainerId;
 import java.util.List;
 import java.util.Set;
 
