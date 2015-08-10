@@ -464,7 +464,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
   public List<ContainerStatus> getJustFinishedContainers() {
     this.readLock.lock();
     try {
-      return new ArrayList<ContainerStatus>(this.justFinishedContainers);
+      return this.justFinishedContainers;
     } finally {
       this.readLock.unlock();
     }
@@ -490,12 +490,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
 
   @Override
   public Set<NodeId> getRanNodes() {
-    this.readLock.lock();
-    try{
-    return new HashSet<NodeId>(ranNodes);
-    } finally {
-      this.readLock.unlock();
-    }
+    return ranNodes;
   }
 
   @Override

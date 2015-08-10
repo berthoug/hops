@@ -372,6 +372,8 @@ public class TransactionStateImpl extends TransactionState {
       }
       appAttemptTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
     }
+    List<ContainerStatus> justFinishedContainers = 
+            new ArrayList<ContainerStatus>(appAttempt.getJustFinishedContainers());
     ApplicationAttemptStateDataPBImpl attemptStateData
             = (ApplicationAttemptStateDataPBImpl) ApplicationAttemptStateDataPBImpl.
             newApplicationAttemptStateData(appAttempt.getAppAttemptId(),
@@ -381,7 +383,7 @@ public class TransactionStateImpl extends TransactionState {
                     appAttempt.getDiagnostics(),
                     appAttempt.getFinalApplicationStatus(),
                     new HashSet<NodeId>(),
-                    appAttempt.getJustFinishedContainers(),
+                    justFinishedContainers,
                     appAttempt.getProgress(), appAttempt.getHost(),
                     appAttempt.getRpcPort());
 
@@ -400,7 +402,8 @@ public class TransactionStateImpl extends TransactionState {
                     getTrackingUrl()));
     
     List<RanNode> ranNodeToPersist = new ArrayList<RanNode>();
-    for(NodeId nid: appAttempt.getRanNodes()){
+    List<NodeId> ranNodes = new ArrayList<NodeId>(appAttempt.getRanNodes());
+    for(NodeId nid: ranNodes){
       ranNodeToPersist.add(new RanNode(appAttempt.getAppAttemptId().toString(), 
         nid.toString()));
     }
@@ -753,7 +756,7 @@ public class TransactionStateImpl extends TransactionState {
         totalDuration+=duration;
         nbFinish++;
         double avgDuration = totalDuration/nbFinish;
-        LOG.info("finish commit duration: " + duration + " (" + avgDuration + ")");
+        LOG.debug("finish commit duration: " + duration + " (" + avgDuration + ")");
 //      }catch(IOException ex){
 //        LOG.error("did not commit state properly", ex);
 //      }
