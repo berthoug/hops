@@ -65,10 +65,10 @@ public class INodeDALAdaptor
   }
 
   @Override
-  public List<ProjectedINode> findInodesForSubtreeOperationsWithReadLock(
+  public List<ProjectedINode> findInodesForSubtreeOperationsWithWriteLock(
       int parentId) throws StorageException {
     List<ProjectedINode> list =
-        dataAccess.findInodesForSubtreeOperationsWithReadLock(parentId);
+        dataAccess.findInodesForSubtreeOperationsWithWriteLock(parentId);
     Collections.sort(list);
     return list;
   }
@@ -258,7 +258,7 @@ public class INodeDALAdaptor
         }
         ((INodeFile) inode).setGenerationStampNoPersistence(
             hopINode.getGenerationStamp());
-        ((INodeFile) inode).setSize(hopINode.getSize());
+        ((INodeFile) inode).setSizeNoPersistence(hopINode.getSize());
       }
       inode.setIdNoPersistance(hopINode.getId());
       inode.setLocalNameNoPersistance(hopINode.getName());
