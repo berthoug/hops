@@ -39,6 +39,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaS
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 
 /**
  * <code>CSQueue</code> represents a node in the tree of
@@ -304,4 +305,6 @@ public interface CSQueue
    */
   public void collectSchedulerApplications(
       Collection<ApplicationAttemptId> apps);
+  
+  public void recover(RMStateStore.RMState state);
 }

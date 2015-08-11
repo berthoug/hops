@@ -2455,7 +2455,7 @@ public class RMUtilities {
             handle();
   }
 
-  public static List<CSQueue> getAllCSQueues() throws IOException {
+  public static Map<String, CSQueue> getAllCSQueues() throws IOException {
     LightWeightRequestHandler handler = new LightWeightRequestHandler(
             YARNOperationType.TEST) {
               @Override
@@ -2466,10 +2466,10 @@ public class RMUtilities {
                 return csqDA.getAll();
               }
             };
-    return (List<CSQueue>) handler.handle();
+    return (Map<String, CSQueue>) handler.handle();
   }
 
-  public static List<CSLeafQueueUserInfo> getAllCSLeafQueueUserInfo()
+  public static Map<String, CSLeafQueueUserInfo> getAllCSLeafQueueUserInfo()
           throws IOException {
     LightWeightRequestHandler handler = new LightWeightRequestHandler(
             YARNOperationType.TEST) {
@@ -2482,7 +2482,7 @@ public class RMUtilities {
                 return csqLUIDA.findAll();
               }
             };
-    return (List<CSLeafQueueUserInfo>) handler.handle();
+    return (Map<String, CSLeafQueueUserInfo>) handler.handle();
   }
 
   //for testing

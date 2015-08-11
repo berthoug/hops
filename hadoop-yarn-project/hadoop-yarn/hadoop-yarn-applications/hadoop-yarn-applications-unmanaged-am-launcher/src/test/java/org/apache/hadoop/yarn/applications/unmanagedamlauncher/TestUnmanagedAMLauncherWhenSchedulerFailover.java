@@ -209,7 +209,7 @@ public class TestUnmanagedAMLauncherWhenSchedulerFailover {
     String[] args = {"--classpath", classpath, "--queue", "default", "--cmd",
       javaHome + "/bin/java -Xmx512m "
       + TestUnmanagedAMLauncherWhenSchedulerFailover.class.
-      getCanonicalName() + " success"};
+      getCanonicalName() + " success " + id};
 
     LOG.info("Initializing Launcher");
     UnmanagedAMLauncher launcher = new UnmanagedAMLauncher(new Configuration(
@@ -308,6 +308,7 @@ public class TestUnmanagedAMLauncherWhenSchedulerFailover {
   }
 
   public static void main(String[] args) throws Exception {
+    int id = Integer.parseInt(args[1]);
     if (args[0].equals("success")) {
       ApplicationMasterProtocol client = ClientRMProxy.createRMProxy(conf,
               ApplicationMasterProtocol.class);
@@ -326,7 +327,7 @@ public class TestUnmanagedAMLauncherWhenSchedulerFailover {
                       new ArrayList<ContainerId>(), ResourceBlacklistRequest
                       .newInstance(new ArrayList<String>(),
                               new ArrayList<String>()));
-      LOG.info("sending container request");
+      LOG.info(id + " sending container request");
       AllocateResponse response = client.allocate(request);
 
       List<Container> containers = response.getAllocatedContainers();
@@ -339,10 +340,10 @@ public class TestUnmanagedAMLauncherWhenSchedulerFailover {
                         new ArrayList<ContainerId>(), ResourceBlacklistRequest
                         .newInstance(new ArrayList<String>(),
                                 new ArrayList<String>()));
-        LOG.info("sending container request");
+        LOG.info(id + " sending container request");
         response = client.allocate(request);
         containers = response.getAllocatedContainers();
-        LOG.info("AM got " + containers.size() + " containers");
+        LOG.info(id + " AM got " + containers.size() + " containers");
       }
 
       Thread.sleep(1000);
@@ -364,21 +365,25 @@ public class TestUnmanagedAMLauncherWhenSchedulerFailover {
       FinishApplicationMasterResponse resp;
       while (true) {
         try {
+          LOG.info(id + " finish applicationMaster");
           resp = client.finishApplicationMaster(
                   FinishApplicationMasterRequest
                   .newInstance(FinalApplicationStatus.SUCCEEDED, "success", null));
           break;
         } catch (IOException ex) {
-          LOG.warn("exception while finishing application", ex);
+          LOG.warn(id + " exception while finishing application", ex);
           nbTry++;
           if (nbTry > 10) {
+            LOG.error(id + " retried 10 time and still error");
             throw ex;
           }
         }
       }
       assertTrue(resp.getIsUnregistered());
+      LOG.info(id + " exiting 0");
       System.exit(0);
     } else {
+      LOG.info(id + " exiting 1");
       System.exit(1);
     }
   }

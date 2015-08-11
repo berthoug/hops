@@ -20,6 +20,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity;
 
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
+import io.hops.metadata.yarn.entity.capacity.CSLeafQueueUserInfo;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -53,6 +54,7 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerState;
@@ -114,7 +116,7 @@ public class LeafQueue implements CSQueue {
 
   private Map<String, User> users = new HashMap<String, User>();  //recovered
 
-  private final QueueMetrics metrics;  //recovered
+  private final QueueMetrics metrics;  //TORECOVER
 
   private QueueInfo queueInfo;   //recovered
 
@@ -132,6 +134,42 @@ public class LeafQueue implements CSQueue {
 
   private final ResourceCalculator resourceCalculator;  // no need
 
+  
+  public void recover(RMStateStore.RMState state) {
+    io.hops.metadata.yarn.entity.capacity.CSQueue hopCSQueue = state.
+            getAllCSQueues().get(this.getQueuePath());
+
+    absoluteUsedCapacity = hopCSQueue.getAbsoluteUsedCapacity();
+    usedResources.setMemory(hopCSQueue.getUsedResourceMemory());
+    usedResources.setVirtualCores(hopCSQueue.getUsedResourceVCores());
+    usedCapacity = hopCSQueue.getUsedCapacity();
+    numContainers = hopCSQueue.getNumContainers();
+
+  }
+
+  public void recoverApp(FiCaSchedulerApp appAttempt, RMStateStore.RMState state)
+          throws AccessControlException {
+    applicationAttemptMap.put(appAttempt.getApplicationAttemptId(), appAttempt);
+
+    if (appAttempt.isPending()) {
+      pendingApplications.add(appAttempt);
+    } else {
+      activeApplications.add(appAttempt);
+    }
+    // Inform the parent queue
+    try {
+      getParent().submitApplication(appAttempt.getApplicationId(),
+              appAttempt.getUser(), appAttempt.getQueueName(), null);
+    } catch (AccessControlException ace) {
+      LOG.info("Failed to submit application to parent-queue: "
+              + getParent().getQueuePath(), ace);
+      throw ace;
+    }
+    User user = getUser(appAttempt.getUser(), null);
+    user.recover(state.getAllCSLeafQueueUserInfo().get(appAttempt.getUser()));
+
+  }
+  
   public LeafQueue(CapacitySchedulerContext cs,
           String queueName, CSQueue parent, CSQueue old) {
     this.scheduler = cs;
@@ -604,15 +642,6 @@ public class LeafQueue implements CSQueue {
     return user;
   }
 
-  public synchronized void initializeUsersMap(String username,
-          Resource consumedResource,
-          int pendingApplicatons, int activeApplications) {
-    User user = new User();
-    user.activeApplications = activeApplications;
-    user.pendingApplications = pendingApplicatons;
-    user.consumed = consumedResource;
-    users.put(username, user);
-  }
 
   public synchronized void initializeApplicationLimits(Resource cluster) {
 
@@ -630,11 +659,6 @@ public class LeafQueue implements CSQueue {
             = CSQueueUtils.computeMaxActiveApplicationsPerUser(
                     maxActiveAppsUsingAbsCap, userLimit, userLimitFactor);
 
-  }
-
-  public void initializeQueueInfo(float currentCapacity) {
-
-    queueInfo.setCurrentCapacity(currentCapacity);
   }
 
   /**
@@ -705,7 +729,7 @@ public class LeafQueue implements CSQueue {
     }
 
     metrics.submitAppAttempt(userName);
-    getParent().submitApplicationAttempt(application, userName, null);
+    getParent().submitApplicationAttempt(application, userName, transactionState);
   }
 
   @Override
@@ -937,7 +961,7 @@ public class LeafQueue implements CSQueue {
                   required, transactionState);
 
           // Check queue max-capacity limit
-          if (!assignToQueue(clusterResource, required)) {
+          if (!assignToQueue(clusterResource, required, transactionState)) {
             return NULL_ASSIGNMENT;
           }
 
@@ -1024,7 +1048,7 @@ public class LeafQueue implements CSQueue {
   }
 
   private synchronized boolean assignToQueue(Resource clusterResource,
-          Resource required) {
+          Resource required, TransactionState transactionState) {
     // Check how of the cluster's absolute capacity we are currently using...
     float potentialNewCapacity
             = Resources.divide(
@@ -1041,8 +1065,12 @@ public class LeafQueue implements CSQueue {
               + " required " + required
               + " potentialNewCapacity: " + potentialNewCapacity + " ( "
               + " max-capacity: " + absoluteMaxCapacity + ")");
+      ((TransactionStateImpl) transactionState).getCSQueueInfo().addCSQueue(
+              this.getQueuePath(), this);
       return false;
     }
+    ((TransactionStateImpl) transactionState).getCSQueueInfo().addCSQueue(
+            this.getQueuePath(), this);
     return true;
   }
 
@@ -1112,7 +1140,8 @@ public class LeafQueue implements CSQueue {
             = Resources.lessThan(resourceCalculator, clusterResource,
                     usedResources, queueCapacity)
                     ? queueCapacity : Resources.add(usedResources, required);
-
+    ((TransactionStateImpl) transactionState).getCSQueueInfo().addCSQueue(
+            this.getQueuePath(), this);
     // Never allow a single user to take more than the 
     // queue's configured capacity * user-limit-factor.
     // Also, the queue's configured capacity should be higher than 
@@ -1591,6 +1620,8 @@ public class LeafQueue implements CSQueue {
               + " user-resources=" + user.getConsumedResources()
       );
     }
+    ((TransactionStateImpl) transactionState).getCSQueueInfo().addCSQueue(
+            this.getQueuePath(), this);
   }
 
   synchronized void releaseResource(Resource clusterResource,
@@ -1613,6 +1644,8 @@ public class LeafQueue implements CSQueue {
             + " used=" + usedResources + " numContainers=" + numContainers
             + " user=" + userName + " user-resources=" + user.
             getConsumedResources());
+    ((TransactionStateImpl) transactionState).getCSQueueInfo().addCSQueue(
+            this.getQueuePath(), this);
   }
 
   @Override
@@ -1658,10 +1691,16 @@ public class LeafQueue implements CSQueue {
 
   static class User {
 
-    Resource consumed = Resources.createResource(0, 0);
-    int pendingApplications = 0;
-    int activeApplications = 0;
+    Resource consumed = Resources.createResource(0, 0);//recovered
+    int pendingApplications = 0; //recovered
+    int activeApplications = 0; //recovered
 
+    public void recover(CSLeafQueueUserInfo hopUserInfo){
+      consumed.setMemory(hopUserInfo.getConsumedMemory());
+      consumed.setVirtualCores(hopUserInfo.getConsumedVCores());
+      pendingApplications = hopUserInfo.getPendingApplications();
+      activeApplications = hopUserInfo.getActiveApplications();
+    }
     public Resource getConsumedResources() {
       return consumed;
     }

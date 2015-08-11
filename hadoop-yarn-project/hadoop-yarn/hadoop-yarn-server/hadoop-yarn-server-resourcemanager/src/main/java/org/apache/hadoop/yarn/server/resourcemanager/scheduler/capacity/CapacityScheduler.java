@@ -1163,37 +1163,48 @@ public class CapacityScheduler extends AbstractYarnScheduler
   @Lock(Lock.NoLock.class)
   public void recover(RMState state) throws Exception {
     try {
+      //recover nodes
+      for (io.hops.metadata.yarn.entity.FiCaSchedulerNode fsnode : state.
+              getAllFiCaSchedulerNodes().
+              values()) {
 
-      // Note - persistApplicationIdToAdd in SchedulerApplictionId class has queuematrix id bug
-      // please correct that
-      Map<String, String> queueNameAndUser = new HashMap<String, String>();
-      Map<String, CSLeafQueueUserInfo> queueNameAndHopCSLeafQueueUser
-              = new HashMap<String, CSLeafQueueUserInfo>();
-      Map<String, ActiveUsersManager> queueNameAndActiveUserManager
-              = new HashMap<String, ActiveUsersManager>();
+        //retrieve nodeId - key of nodes map
+        //NodeId nodeId = HopYarnAPIUtilities.getNodeIdLightweight(fsnode.getNodeidID());
+        NodeId nodeId = ConverterUtils.toNodeId(fsnode.getRmnodeId());
+        //retrieve HopFiCaSchedulerNode
 
-      List<QueueMetrics> recoverQueueMetrics = state.getAllQueueMetrics();
-      // we will first put recoverQueueMetrics in to map for easy usage later.
-      for (QueueMetrics qMetrics : recoverQueueMetrics) {
-        org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics metrics
-                = null;
-        metrics
-                = org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics.
-                forQueue(qMetrics.getQueuename(), null, false, conf);
-        metrics.recover(qMetrics);
-        ActiveUsersManager activeUsersManager = new ActiveUsersManager(metrics);
-        Iterator<String> it = Splitter.on('.').omitEmptyStrings().trimResults().split(qMetrics.getQueuename()).iterator();
-        String queueName = it.next();
-        while(it.hasNext()){
-          queueName=it.next();
-        }
-        queueNameAndActiveUserManager.put(queueName,
-                activeUsersManager);
+        FiCaSchedulerNode ficaNode = new FiCaSchedulerNode(
+                this.rmContext.getActiveRMNodes().get(nodeId),
+                usePortForNodeName, rmContext);
+        ficaNode.recover(state);
+        Resources.addTo(clusterResource, ficaNode.getTotalResource());
+        nodes.put(nodeId, ficaNode);
+        numNodeManagers++;
       }
 
-      Map<String, SchedulerApplication> appsMap = state.
-              getSchedulerApplications();
-      for (SchedulerApplication fsapp : appsMap.values()) {
+      //recover csqueues
+      for (io.hops.metadata.yarn.entity.capacity.CSQueue hopQueue
+              : state.getAllCSQueues().values()) {
+
+        CSQueue csQueue = queues.get(hopQueue.getName());
+        csQueue.recover(state);
+
+        LOG.info("recovered csQueue: " + csQueue.getQueueName()
+                + " with usedcapacity " + csQueue.getUsedCapacity()
+                + ", used memory " + csQueue.getUsedResources().getMemory()
+                + " and used vcores: " + csQueue.getUsedResources().
+                getVirtualCores());
+        //if it is child queue, the inset the user in to map
+        if (!hopQueue.isParent()) {
+          LeafQueue leafQueue = (LeafQueue) csQueue;
+          leafQueue.initializeApplicationLimits(clusterResource);
+        }
+
+      }
+
+      //recover applications
+      for (SchedulerApplication fsapp : state.
+              getSchedulerApplications().values()) {
 
         //construct appliactionId - key of applications map
         ApplicationId appId = ConverterUtils.toApplicationId(fsapp.getAppid());
@@ -1215,110 +1226,19 @@ public class CapacityScheduler extends AbstractYarnScheduler
           FiCaSchedulerApp appAttempt = new FiCaSchedulerApp(appAttemptId,
                   hopFiCaSchedulerApp.getUser(), getQueue(hopFiCaSchedulerApp.
                           getQueuename()),
-                  queueNameAndActiveUserManager.get(hopFiCaSchedulerApp.
-                          getQueuename()), this.rmContext);
+                  queues.get(hopFiCaSchedulerApp.
+                          getQueuename()).getActiveUsersManager(),
+                  this.rmContext);
           appAttempt.recover(state);
           app.setCurrentAppAttempt(appAttempt, null);
           LeafQueue queue = (LeafQueue) getQueue(hopFiCaSchedulerApp.
                   getQueuename());
-          queueNameAndUser.put(hopFiCaSchedulerApp.getQueuename(),
-                  hopFiCaSchedulerApp.getUser());
 
-          queue.applicationAttemptMap.put(appAttemptId, appAttempt);
-          // appAttempt.getR
-
-          if (appAttempt.isPending()) {
-            queue.pendingApplications.add(appAttempt);
-          } else {
-            queue.activeApplications.add(appAttempt);
-          }
+          queue.recoverApp(appAttempt, state);
 
           applications.put(appId, app);
         }
-
       }
-
-      //recover nodes map
-      Map<String, io.hops.metadata.yarn.entity.FiCaSchedulerNode> nodesList
-              = state.getAllFiCaSchedulerNodes();
-      this.numNodeManagers = nodesList.size();   // we should verify this
-      for (io.hops.metadata.yarn.entity.FiCaSchedulerNode fsnode : nodesList.
-              values()) {
-
-        //retrieve nodeId - key of nodes map
-        //NodeId nodeId = HopYarnAPIUtilities.getNodeIdLightweight(fsnode.getNodeidID());
-        NodeId nodeId = ConverterUtils.toNodeId(fsnode.getRmnodeId());
-        //retrieve HopFiCaSchedulerNode
-
-        FiCaSchedulerNode ficaNode = new FiCaSchedulerNode(
-                this.rmContext.getActiveRMNodes().get(nodeId),
-                usePortForNodeName, rmContext);
-        ficaNode.recover(state);
-
-        nodes.put(nodeId, ficaNode);
-      }
-
-      // Recover the total cluster resource
-      io.hops.metadata.yarn.entity.Resource recovered = state.getResource(
-              "cluster", io.hops.metadata.yarn.entity.Resource.CLUSTER,
-              io.hops.metadata.yarn.entity.Resource.AVAILABLE);
-      if (recovered != null) {
-        clusterResource.setMemory(recovered.getMemory());
-        clusterResource.setVirtualCores(recovered.getVirtualCores());
-      }
-
-      // Recover the CSQueue structures
-      List<io.hops.metadata.yarn.entity.capacity.CSQueue> recoverCSQueues
-              = state.getAllCSQueues();
-      List<CSLeafQueueUserInfo> recoverCSLeafQueueUser = state.
-              getAllCSLeafQueueUserInfo();
-
-      // populate the username and corresponding userinfo in to map for later usage
-      for (CSLeafQueueUserInfo hopCSLeafQueue : recoverCSLeafQueueUser) {
-        queueNameAndHopCSLeafQueueUser.put(hopCSLeafQueue.getUserName(),
-                hopCSLeafQueue);
-      }
-
-      for (io.hops.metadata.yarn.entity.capacity.CSQueue hopQueue
-              : recoverCSQueues) {
-
-        CSQueue csQueue = queues.get(hopQueue.getName());
-
-        csQueue.
-                setAbsoluteUsedCapacity(hopQueue.getAbsoluteUsedCapacity(), null);
-        csQueue.setUsedCapacity(hopQueue.getUsedCapacity(), null);
-
-        csQueue.getUsedResources().setMemory(hopQueue.getUsedResourceMemory());
-        csQueue.getUsedResources().setVirtualCores(hopQueue.
-                getUsedResourceVCores());
-
-        //if it is child queue, the inset the user in to map
-        if (!hopQueue.isParent()) {
-          String username = queueNameAndUser.get(csQueue.getQueueName());
-
-          if (queueNameAndHopCSLeafQueueUser.containsKey(username)) {
-            Resource consumedresource = BuilderUtils.newResource(
-                    queueNameAndHopCSLeafQueueUser.get(username).
-                    getConsumedMemory(),
-                    queueNameAndHopCSLeafQueueUser.get(username).
-                    getConsumedVCores());
-
-            LeafQueue leafQueue = (LeafQueue) csQueue;
-            leafQueue.initializeUsersMap(username, consumedresource,
-                    queueNameAndHopCSLeafQueueUser.get(username).
-                    getPendingApplications(),
-                    queueNameAndHopCSLeafQueueUser.get(username).
-                    getActiveApplications());
-
-            leafQueue.initializeQueueInfo(hopQueue.getUsedCapacity());
-
-            leafQueue.initializeApplicationLimits(clusterResource);
-          }
-
-        }
-
-      }
-
     } catch (IOException ex) {
 
       LOG.error(ex.toString());

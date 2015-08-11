@@ -63,6 +63,7 @@ import org.junit.Before;
 import org.junit.Test;
 import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
 import java.util.ArrayList;
+import java.util.Collection;
 
 public class TestRecoverCapacityScheduler {
 
@@ -368,8 +369,8 @@ public class TestRecoverCapacityScheduler {
 //    assertEquals(1, rootA.getNumContainers());
 
     // Retrieve CSLeafQueueUserInfo from the db and make assertions
-    List<CSLeafQueueUserInfo> leafQueueUserInfoList = RMUtilities.
-            getAllCSLeafQueueUserInfo();
+    Collection<CSLeafQueueUserInfo> leafQueueUserInfoList = RMUtilities.
+            getAllCSLeafQueueUserInfo().values();
 
     for (CSLeafQueueUserInfo leafQueueUserInfo : leafQueueUserInfoList) {
       // sri

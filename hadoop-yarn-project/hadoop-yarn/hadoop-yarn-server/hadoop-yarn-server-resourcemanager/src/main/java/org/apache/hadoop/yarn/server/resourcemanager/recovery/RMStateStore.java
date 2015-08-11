@@ -409,8 +409,8 @@ import java.util.TreeSet;
     Map<String, ContainerStatus> allContainerStatus;
     Map<String, List<JustLaunchedContainers>> allJustLaunchedContainers;
     Map<String, Boolean> allRMNodeNextHeartbeats;
-    List<CSQueue> allCSQueues;
-    List<CSLeafQueueUserInfo> allCSLeafQueueUserInfo;
+    Map<String, CSQueue> allCSQueues;
+    Map<String, CSLeafQueueUserInfo> allCSLeafQueueUserInfo;
     
     public Map<ApplicationId, ApplicationState> getApplicationState() {
       return appState;
@@ -512,11 +512,11 @@ import java.util.TreeSet;
       return blackLists.get(id);
     }
 
-    public List<CSQueue> getAllCSQueues(){
+    public Map<String, CSQueue> getAllCSQueues(){
       return allCSQueues;
     }
     
-    public List<CSLeafQueueUserInfo> getAllCSLeafQueueUserInfo(){
+    public Map<String, CSLeafQueueUserInfo> getAllCSLeafQueueUserInfo(){
       return allCSLeafQueueUserInfo;
     }
     
