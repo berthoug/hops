@@ -18,6 +18,8 @@ package io.hops.ha.common;
 
 import io.hops.metadata.util.HopYarnAPIUtilities;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -46,6 +48,7 @@ public class TransactionStateManager implements Runnable{
     long startTime = System.currentTimeMillis();
     double accumulatedCycleDuration=0;
     long nbCycles =0;
+    List<Long> duration = new ArrayList<Long>();
     while(true){
       try {
         //create new transactionState
@@ -63,8 +66,12 @@ public class TransactionStateManager implements Runnable{
         long cycleDuration = System.currentTimeMillis() - startTime;
         nbCycles++;
         accumulatedCycleDuration+=cycleDuration;
-        double avgCycleDuration=accumulatedCycleDuration/nbCycles;
-        LOG.debug("cycle duration: " + cycleDuration + "(" + avgCycleDuration + ")");
+        duration.add(cycleDuration);
+        if(duration.size()>39){
+          double avgCycleDuration=accumulatedCycleDuration/nbCycles;
+          LOG.debug("cycle duration: " + cycleDuration + "(" + avgCycleDuration + ") " + duration.toString());
+          duration = new ArrayList<Long>();
+        }
         
         startTime = System.currentTimeMillis();
         //wait for all the accepted RPCs to finish

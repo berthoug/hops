@@ -40,6 +40,7 @@ import io.hops.metadata.yarn.dal.capacity.CSQueueDataAccess;
 import io.hops.metadata.yarn.dal.fair.AppSchedulableDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocateResponseDataAccess;
+import io.hops.metadata.yarn.dal.rmstatestore.AllocatedContainersDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationAttemptStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.RanNodeDataAccess;
@@ -83,6 +84,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerStatusPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.NodeIdPBImpl;
@@ -434,21 +436,60 @@ public class TransactionStateImpl extends TransactionState {
             = (AllocateResponsePBImpl) allocateResponse.
             getAllocateResponse();
     if (lastResponse != null) {
+      List<String> allocatedContainers = new ArrayList<String>();
+      for(Container container: lastResponse.getAllocatedContainers()){
+        allocatedContainers.add(container.getId().toString());
+      }
+      
+      AllocateResponsePBImpl toPersist = new AllocateResponsePBImpl();
+      toPersist.setAMCommand(lastResponse.getAMCommand());
+      toPersist.setAvailableResources(lastResponse.getAvailableResources());
+      toPersist.setCompletedContainersStatuses(lastResponse.getCompletedContainersStatuses());
+      toPersist.setDecreasedContainers(lastResponse.getDecreasedContainers());
+      toPersist.setIncreasedContainers(lastResponse.getIncreasedContainers());
+      toPersist.setNMTokens(lastResponse.getNMTokens());
+      toPersist.setNumClusterNodes(lastResponse.getNumClusterNodes());
+      toPersist.setPreemptionMessage(lastResponse.getPreemptionMessage());
+      toPersist.setResponseId(lastResponse.getResponseId());
+      toPersist.setUpdatedNodes(lastResponse.getUpdatedNodes());
+      
       this.allocateResponsesToAdd.put(id, new AllocateResponse(id.toString(),
-              lastResponse.
-              getProto().toByteArray()));
+              toPersist.getProto().toByteArray(), allocatedContainers));
+      LOG.debug("add allocateResponse of size " + toPersist.getProto().toByteArray().length + 
+              " for " + id + " content: " + print(allocateResponse.getAllocateResponse()));
       allocateResponsesToRemove.remove(id);
       addAppId(id.getApplicationId());
     }
   }
-
+  
+  private String print(org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse response){
+    String s ="";
+    if(response.getAMCommand()!= null)
+      s = s + "AM comande : " + response.getAMCommand().toString();
+    if(response.getAllocatedContainers()!=null)
+    s = s + " allocated containers size " + response.getAllocatedContainers().size();
+    if(response.getCompletedContainersStatuses()!=null)
+    s = s + " completed containersStatuses size " + response.getCompletedContainersStatuses().size();
+    if(response.getDecreasedContainers()!=null)
+    s = s + " decreasedcont: " + response.getDecreasedContainers().size();
+    if(response.getIncreasedContainers()!= null)
+    s = s + " increased containers: " + response.getIncreasedContainers().size();
+    if(response.getNMTokens()!= null)
+    s = s + " nmtokens " + response.getNMTokens().size();
+    if(response.getUpdatedNodes()!=null)
+    s =s + " updatedNodes " + response.getUpdatedNodes().size();
+    return s;
+  }
 
   private void persistAllocateResponsesToAdd() throws IOException {
     if (!allocateResponsesToAdd.isEmpty()) {
       AllocateResponseDataAccess da =
           (AllocateResponseDataAccess) RMStorageFactory
               .getDataAccess(AllocateResponseDataAccess.class);
+      AllocatedContainersDataAccess containersDA = (AllocatedContainersDataAccess)
+              RMStorageFactory.getDataAccess(AllocatedContainersDataAccess.class);
       da.addAll(allocateResponsesToAdd.values());
+      containersDA.update(allocateResponsesToAdd.values());
     }
   }
   
@@ -740,6 +781,7 @@ public class TransactionStateImpl extends TransactionState {
 
   public static double totalDuration = 0;
   public static long nbFinish =0;
+  static List<Long> durations = new ArrayList<Long>();
   private class RPCFinisher implements Runnable {
 
     private final TransactionStateImpl ts;
@@ -755,8 +797,12 @@ public class TransactionStateImpl extends TransactionState {
         long duration = System.currentTimeMillis() - start;
         totalDuration+=duration;
         nbFinish++;
-        double avgDuration = totalDuration/nbFinish;
-        LOG.debug("finish commit duration: " + duration + " (" + avgDuration + ")");
+        durations.add(duration);
+        if(durations.size()>39){
+          double avgDuration = totalDuration/nbFinish;
+          LOG.info("finish commit duration: " + duration + " (" + avgDuration + ") " + durations.toString());
+          durations = new ArrayList<Long>();
+        }
 //      }catch(IOException ex){
 //        LOG.error("did not commit state properly", ex);
 //      }

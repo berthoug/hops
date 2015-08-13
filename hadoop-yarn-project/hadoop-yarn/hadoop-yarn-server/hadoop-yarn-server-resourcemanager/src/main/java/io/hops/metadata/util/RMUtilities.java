@@ -57,6 +57,7 @@ import io.hops.metadata.yarn.dal.fair.AppSchedulableDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
 import io.hops.metadata.yarn.dal.fair.PreemptionMapDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocateResponseDataAccess;
+import io.hops.metadata.yarn.dal.rmstatestore.AllocatedContainersDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationAttemptStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.DelegationKeyDataAccess;
@@ -169,6 +170,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
+import org.apache.hadoop.yarn.proto.YarnProtos;
 
 public class RMUtilities {
 
@@ -420,6 +423,7 @@ public class RMUtilities {
                     allocateResponse);
               }
             }
+            setAllocatedContainers(allocateResponses);
             return allocateResponses;
           }
         };
@@ -427,6 +431,45 @@ public class RMUtilities {
         .handle();
   }
 
+  private static void setAllocatedContainers(
+          Map<ApplicationAttemptId, org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse> allocateResponses) throws IOException{
+    Map<String, List<String>> allocatedContainersId
+            = getAllAllocatedContainers();
+    Map<String, Container> containersInfo = getAllContainers();
+    for (ApplicationAttemptId applicationAttemptId : allocateResponses.keySet()) {
+      List<org.apache.hadoop.yarn.api.records.Container> allocatedContainers
+              = new ArrayList<org.apache.hadoop.yarn.api.records.Container>();
+      for (String containerId : allocatedContainersId.get(applicationAttemptId.toString())) {
+        Container hopContainer = containersInfo.get(containerId);
+        ContainerPBImpl container = new ContainerPBImpl(
+                YarnProtos.ContainerProto.parseFrom(hopContainer.
+                        getContainerState()));
+        allocatedContainers.add(container);
+      }
+      allocateResponses.get(applicationAttemptId).setAllocatedContainers(
+              allocatedContainers);
+    }
+  }
+
+  private static Map<String, List<String>> getAllAllocatedContainers() throws
+          IOException {
+    LightWeightRequestHandler getAllocatedContainers
+            = new LightWeightRequestHandler(YARNOperationType.TEST) {
+
+              @Override
+              public Object performTask() throws IOException {
+                connector.beginTransaction();
+                connector.writeLock();
+                AllocatedContainersDataAccess da
+                = (AllocatedContainersDataAccess) RMStorageFactory.
+                getDataAccess(AllocatedContainersDataAccess.class);
+                Map<String, List<String>> allocatedContainersId = da.getAll();
+                connector.commit();
+                return allocatedContainersId;
+              }
+            };
+    return (Map<String, List<String>>) getAllocatedContainers.handle();
+  }
   /**
    * Retrieve all RPC rows from database.
    *

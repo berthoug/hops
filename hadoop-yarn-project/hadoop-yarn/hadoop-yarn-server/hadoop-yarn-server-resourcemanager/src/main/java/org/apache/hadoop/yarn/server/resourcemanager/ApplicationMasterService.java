@@ -288,9 +288,9 @@ public class ApplicationMasterService extends AbstractService
       // Setting the response id to 0 to identify if the
       // application master is register for the respective attemptid
       lastResponse.setResponseId(0);
+      lock.setAllocateResponse(lastResponse);
       ((TransactionStateImpl) transactionState)
           .addAllocateResponse(applicationAttemptId, lock);
-      lock.setAllocateResponse(lastResponse);
       LOG.info("AM registration " + applicationAttemptId);
       this.rmContext.getDispatcher().getEventHandler().handle(
           new RMAppAttemptRegistrationEvent(applicationAttemptId,

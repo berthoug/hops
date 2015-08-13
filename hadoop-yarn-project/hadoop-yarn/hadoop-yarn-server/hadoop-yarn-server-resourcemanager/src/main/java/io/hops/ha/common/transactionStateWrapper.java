@@ -70,7 +70,8 @@ public class transactionStateWrapper extends TransactionStateImpl {
     timeInit.put(i, System.currentTimeMillis()-startTime);
   }
   public synchronized void incCounter(Enum type) {
-    handleStarts.put(type.name(), System.currentTimeMillis());
+    String key = type.getDeclaringClass().getName()+ "." + type.name();
+    handleStarts.put(key, System.currentTimeMillis());
     ts.incCounter(type);
     rpcCounter.incrementAndGet();
   }
@@ -89,7 +90,8 @@ public class transactionStateWrapper extends TransactionStateImpl {
   }
   public synchronized void decCounter(Enum type) throws IOException {
     int val = rpcCounter.decrementAndGet();
-    handleDurations.put(type.name(), System.currentTimeMillis() - handleStarts.get(type.name()));
+    String key = type.getDeclaringClass().getName()+ "." + type.name();
+    handleDurations.put(key, System.currentTimeMillis() - handleStarts.get(key));
     if (val == 0) {
       long duration = System.currentTimeMillis() - startTime;
       
