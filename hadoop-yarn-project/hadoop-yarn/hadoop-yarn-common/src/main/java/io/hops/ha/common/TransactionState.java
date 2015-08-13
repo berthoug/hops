@@ -49,6 +49,7 @@ public abstract class TransactionState {
   protected final Set<ApplicationId> appIds = new ConcurrentSkipListSet<ApplicationId>();
 //  private final Lock counterLock = new ReentrantLock(true);
   private Set<Integer> rpcIds = new ConcurrentSkipListSet<Integer>();
+  private int id=-1;
   private final boolean batch;
   
   public TransactionState(ApplicationId appId, int initialCounter, boolean batch) {
@@ -59,6 +60,9 @@ public abstract class TransactionState {
     this.batch = batch;
   }
 
+  public int getId(){
+    return id;
+  }
     public Set<ApplicationId> getAppIds(){
     return appIds;
   }
@@ -81,6 +85,9 @@ public abstract class TransactionState {
   }
  
   public void addRPCId(int rpcId, String callingFuncition){
+    if(rpcId>0 && id<0){
+      id = rpcId;
+    }
     rpcIds.add(rpcId);
   }
   

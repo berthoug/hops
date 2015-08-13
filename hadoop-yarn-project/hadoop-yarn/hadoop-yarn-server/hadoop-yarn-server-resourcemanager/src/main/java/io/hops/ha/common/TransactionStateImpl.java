@@ -16,7 +16,6 @@
 package io.hops.ha.common;
 
 import io.hops.StorageConnector;
-import io.hops.common.GlobalThreadPool;
 import io.hops.exception.StorageException;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.util.RMUtilities;
@@ -37,7 +36,6 @@ import io.hops.metadata.yarn.dal.ResourceDataAccess;
 import io.hops.metadata.yarn.dal.UpdatedContainerInfoDataAccess;
 import io.hops.metadata.yarn.dal.capacity.CSLeafQueueUserInfoDataAccess;
 import io.hops.metadata.yarn.dal.capacity.CSQueueDataAccess;
-import io.hops.metadata.yarn.dal.fair.AppSchedulableDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocateResponseDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocatedContainersDataAccess;
@@ -79,15 +77,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
-import org.apache.hadoop.yarn.api.records.impl.pb.ContainerStatusPBImpl;
-import org.apache.hadoop.yarn.api.records.impl.pb.NodeIdPBImpl;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.LOG;
 
@@ -100,7 +94,7 @@ public class TransactionStateImpl extends TransactionState {
   private Map<String, RMNode>
       rmNodesToUpdate = new HashMap<String, RMNode>();
   private final Map<NodeId, RMNodeInfo> rmNodeInfos =
-      new ConcurrentSkipListMap<NodeId, RMNodeInfo>();
+      new HashMap<NodeId, RMNodeInfo>();
   private final Map<String, FiCaSchedulerNodeInfoToUpdate>
       ficaSchedulerNodeInfoToUpdate =
       new HashMap<String, FiCaSchedulerNodeInfoToUpdate>();
@@ -168,7 +162,7 @@ public class TransactionStateImpl extends TransactionState {
 
   
   private static final ExecutorService executorService =
-      Executors.newFixedThreadPool(1);
+      Executors.newFixedThreadPool(10);
   
   @Override
   public void commit(boolean first) throws IOException {
@@ -190,11 +184,11 @@ public class TransactionStateImpl extends TransactionState {
   }
 
   public void addAppId(ApplicationId appId){
-      if(appIds.add(appId)){
+    if(appIds.add(appId)){
         RMUtilities.putTransactionStateInAppQueue(this, appId);
       }
   }
-  
+    
   public void persist() throws IOException {
     persitApplicationToAdd();
     persistApplicationStateToRemove();
@@ -604,6 +598,10 @@ public class TransactionStateImpl extends TransactionState {
     this.rmNodesToUpdate.put(rmnodeToAdd.getNodeID().toString(), hopRMNode);
   }
 
+  public Map<String, RMNode> getRMNodesToUpdate(){
+    return rmNodesToUpdate;
+  }
+  
   public RMNodeInfo getRMNodeInfo(NodeId rmNodeId) {
     RMNodeInfo result = rmNodeInfos.get(rmNodeId);
     if (result == null) {
@@ -791,21 +789,22 @@ public class TransactionStateImpl extends TransactionState {
     }
 
     public void run() {
-//      try{
+      try{
       long start = System.currentTimeMillis();
-        RMUtilities.finishRPC(ts);
+        RMUtilities.finishRPCs(ts);
         long duration = System.currentTimeMillis() - start;
         totalDuration+=duration;
         nbFinish++;
         durations.add(duration);
         if(durations.size()>39){
-          double avgDuration = totalDuration/nbFinish;
-          LOG.info("finish commit duration: " + duration + " (" + avgDuration + ") " + durations.toString());
+          double avgDuration = totalDuration / nbFinish;
+          LOG.info("finish commit duration: " + duration + " (" + avgDuration
+                  + ") " + durations.toString());
           durations = new ArrayList<Long>();
         }
-//      }catch(IOException ex){
-//        LOG.error("did not commit state properly", ex);
-//      }
+      }catch(IOException ex){
+        LOG.error("did not commit state properly", ex);
+      }
     }
   }
 }
