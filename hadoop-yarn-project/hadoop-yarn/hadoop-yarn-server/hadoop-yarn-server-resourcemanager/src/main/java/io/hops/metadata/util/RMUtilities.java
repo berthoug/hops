@@ -100,6 +100,8 @@ import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
 import io.hops.metadata.yarn.entity.capacity.CSLeafQueueUserInfo;
 import io.hops.metadata.yarn.entity.capacity.CSQueue;
 import io.hops.metadata.yarn.entity.capacity.FiCaSchedulerAppReservedContainers;
+import io.hops.metadata.yarn.entity.fair.FSSchedulerNode;
+import io.hops.metadata.yarn.entity.fair.PreemptionMap;
 import io.hops.metadata.yarn.entity.rmstatestore.AllocateResponse;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationAttemptState;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationState;
@@ -159,10 +161,14 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
@@ -2172,33 +2178,33 @@ public class RMUtilities {
   }
 
   static Map<String, Queue<TransactionState>> transactionStateForRMNode = 
-          new HashMap<String, Queue<TransactionState>>();
+          new ConcurrentHashMap<String, Queue<TransactionState>>();
   static Map<String, Map<Integer, TransactionState>> finishedTransactionStateForRMNode =
           new HashMap<String, Map<Integer, TransactionState>>();
-  public static void putTransactionStateInNodeQueue(TransactionState ts, NodeId nodeId){
-    nextRPCLock.lock();
+  public static void putTransactionStateInNodeQueue(TransactionState ts, Set<String> nodeIds){
+    for(String nodeId: nodeIds){
     Queue<TransactionState> nodeQueue = transactionStateForRMNode.get(nodeId);
     if(nodeQueue==null){
-      nodeQueue = new LinkedList<TransactionState>();
-      transactionStateForRMNode.put(nodeId.toString(), nodeQueue);
+      nodeQueue = new ConcurrentLinkedQueue<TransactionState>();
+      transactionStateForRMNode.put(nodeId, nodeQueue);
     }
     nodeQueue.add(ts);
-    nextRPCLock.unlock();
+    }
   }
   
   static Map<ApplicationId, Queue<TransactionState>> transactionStateForApp = 
-          new HashMap<ApplicationId, Queue<TransactionState>>();
+          new ConcurrentHashMap<ApplicationId, Queue<TransactionState>>();
   static Map<ApplicationId, Map<Integer,TransactionState>> finishedTransactionStateForApp = 
           new HashMap<ApplicationId, Map<Integer,TransactionState>>();
-  public static void putTransactionStateInAppQueue(TransactionState ts, ApplicationId appId){
-    nextRPCLock.lock();
-    Queue<TransactionState> appQueue = transactionStateForApp.get(appId);
-    if(appQueue == null){
-      appQueue = new LinkedList<TransactionState>();
-      transactionStateForApp.put(appId, appQueue);
+  public static void putTransactionStateInAppQueue(TransactionState ts, Set<ApplicationId> appIds){
+    for (ApplicationId appId : appIds) {
+      Queue<TransactionState> appQueue = transactionStateForApp.get(appId);
+      if (appQueue == null) {
+        appQueue = new ConcurrentLinkedQueue<TransactionState>();
+        transactionStateForApp.put(appId, appQueue);
+      }
+      appQueue.add(ts);
     }
-    appQueue.add(ts);
-    nextRPCLock.unlock();
   }
   
   static int nextRPC = 0;
@@ -2426,7 +2432,7 @@ public class RMUtilities {
       }
       nextRPCLock.unlock();
       for (TransactionState state : toCommit.values()) {
-        LOG.debug("recommiting " + state.getId() + " after " + oldid);
+        LOG.info("recommiting " + state.getId() + " after " + oldid);
         state.commit(false);
       }
     }

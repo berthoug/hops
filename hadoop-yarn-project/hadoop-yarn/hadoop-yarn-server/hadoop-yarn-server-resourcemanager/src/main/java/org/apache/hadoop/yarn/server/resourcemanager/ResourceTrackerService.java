@@ -270,6 +270,7 @@ public class ResourceTrackerService extends AbstractService
     Resource capability = request.getResource();
     String nodeManagerVersion = request.getNMVersion();
     
+    boolean isValideNode = this.nodesListManager.isValidNode(host);
     boolean oldNodeExists = false;
     if (rpcID == null) {
       if (isDistributedRTEnabled) {
@@ -328,7 +329,7 @@ public class ResourceTrackerService extends AbstractService
     }
 
     // Check if this node is a 'valid' node
-    if (!this.nodesListManager.isValidNode(host)) {
+    if (!isValideNode) {
       String message = "Disallowed NodeManager from  " + host +
           ", Sending SHUTDOWN signal to the NodeManager.";
       LOG.info(message);
@@ -461,15 +462,6 @@ public class ResourceTrackerService extends AbstractService
     
     LOG.debug("HOP :: receive heartbeat node " + nodeId);
     
-    if (rpcID == null) {
-      rpcID = HopYarnAPIUtilities.getRPCID();
-      byte[] allHBRequestData = ((NodeHeartbeatRequestPBImpl) request).
-          getProto().toByteArray();
-      RMUtilities
-          .persistAppMasterRPC(rpcID, RPC.Type.NodeHeartbeat, allHBRequestData);
-    }
-    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "nodeHeartbeat");
-    ((transactionStateWrapper)transactionState).addTime(1);
     LOG.debug("attribute rpc: " + rpcID + " to hb form " + nodeId);
     
     /**
@@ -489,15 +481,24 @@ public class ResourceTrackerService extends AbstractService
       LOG.info(message);
       resync.setDiagnosticsMessage(message);
       
-      transactionState.decCounter(TransactionState.TransactionType.INIT);
       return resync;
     }
     
     // Send ping
     this.nmLivelinessMonitor.receivedPing(nodeId);
-
+    boolean isValid = this.nodesListManager.isValidNode(rmNode.getHostName());
+     if (rpcID == null) {
+      rpcID = HopYarnAPIUtilities.getRPCID();
+      byte[] allHBRequestData = ((NodeHeartbeatRequestPBImpl) request).
+          getProto().toByteArray();
+      RMUtilities
+          .persistAppMasterRPC(rpcID, RPC.Type.NodeHeartbeat, allHBRequestData);
+    }
+    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "nodeHeartbeat");
+    ((transactionStateWrapper)transactionState).addTime(1);
+    
     // 2. Check if it's a valid (i.e. not excluded) node
-    if (!this.nodesListManager.isValidNode(rmNode.getHostName())) {
+    if (!isValid) {
       String message =
           "Disallowed NodeManager nodeId: " + nodeId + " hostname: " +
               rmNode.getNodeAddress();
@@ -510,7 +511,7 @@ public class ResourceTrackerService extends AbstractService
       transactionState.decCounter(TransactionState.TransactionType.INIT);
       return shutDown;
     }
-
+    
     // 3. Check if it's a 'fresh' heartbeat i.e. not duplicate heartbeat
     NodeHeartbeatResponse lastNodeHeartbeatResponse = rmNode.
         getLastNodeHeartBeatResponse();

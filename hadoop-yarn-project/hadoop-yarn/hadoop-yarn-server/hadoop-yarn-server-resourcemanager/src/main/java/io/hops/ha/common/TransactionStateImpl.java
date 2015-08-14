@@ -77,9 +77,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 
@@ -92,9 +93,9 @@ public class TransactionStateImpl extends TransactionState {
   private final TransactionType type;
   //NODE
   private Map<String, RMNode>
-      rmNodesToUpdate = new HashMap<String, RMNode>();
+      rmNodesToUpdate = new ConcurrentHashMap<String, RMNode>();
   private final Map<NodeId, RMNodeInfo> rmNodeInfos =
-      new HashMap<NodeId, RMNodeInfo>();
+      new ConcurrentSkipListMap<NodeId, RMNodeInfo>();
   private final Map<String, FiCaSchedulerNodeInfoToUpdate>
       ficaSchedulerNodeInfoToUpdate =
       new HashMap<String, FiCaSchedulerNodeInfoToUpdate>();
@@ -166,6 +167,8 @@ public class TransactionStateImpl extends TransactionState {
   
   @Override
   public void commit(boolean first) throws IOException {
+    RMUtilities.putTransactionStateInAppQueue(this, appIds);
+    RMUtilities.putTransactionStateInNodeQueue(this, rmNodesToUpdate.keySet());
     executorService.execute(new RPCFinisher(this));
   }
 
@@ -184,9 +187,7 @@ public class TransactionStateImpl extends TransactionState {
   }
 
   public void addAppId(ApplicationId appId){
-    if(appIds.add(appId)){
-        RMUtilities.putTransactionStateInAppQueue(this, appId);
-      }
+    appIds.add(appId);
   }
     
   public void persist() throws IOException {
@@ -585,7 +586,7 @@ public class TransactionStateImpl extends TransactionState {
   public void toUpdateRMNode(
       org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode rmnodeToAdd) {
     
-      RMUtilities.putTransactionStateInNodeQueue(this, rmnodeToAdd.getNodeID());
+      
     
       RMNode hopRMNode = new RMNode(rmnodeToAdd.getNodeID().toString(),
           rmnodeToAdd.getHostName(), rmnodeToAdd.getCommandPort(),
@@ -804,7 +805,7 @@ public class TransactionStateImpl extends TransactionState {
         }
       }catch(IOException ex){
         LOG.error("did not commit state properly", ex);
-      }
     }
   }
+}
 }

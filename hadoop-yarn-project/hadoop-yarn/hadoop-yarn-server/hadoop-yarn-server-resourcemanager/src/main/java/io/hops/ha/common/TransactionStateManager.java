@@ -16,15 +16,11 @@
 
 package io.hops.ha.common;
 
-import io.hops.metadata.util.HopYarnAPIUtilities;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.logging.Log;
@@ -69,7 +65,7 @@ public class TransactionStateManager implements Runnable{
         duration.add(cycleDuration);
         if(duration.size()>39){
           double avgCycleDuration=accumulatedCycleDuration/nbCycles;
-          LOG.debug("cycle duration: " + cycleDuration + "(" + avgCycleDuration + ") " + duration.toString());
+          LOG.info("cycle duration: " + cycleDuration + "(" + avgCycleDuration + ") " + duration.toString());
           duration = new ArrayList<Long>();
         }
         
@@ -90,13 +86,14 @@ public class TransactionStateManager implements Runnable{
   }
   
   private void waitForBatch(long maxTime) throws InterruptedException {
-    long start = System.currentTimeMillis();
-    while (true) {
-      if (System.currentTimeMillis() - start > maxTime /*|| acceptedRPC >= 1000*/) {
-        break;
-      }
-      Thread.sleep(1);
-    }
+//    long start = System.currentTimeMillis();
+//    while (true) {
+//      if (System.currentTimeMillis() - start > maxTime /*|| acceptedRPC >= 1000*/) {
+//        break;
+//      }
+//      Thread.sleep(1);
+//    }
+    Thread.sleep(maxTime);
   }
   
   public TransactionState getCurrentTransactionState(int rpcId, String callingFuncition) {
