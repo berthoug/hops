@@ -71,10 +71,13 @@ public class SchedulerApplicationInfo {
     long time1 = System.currentTimeMillis()-start;
     persistFiCaSchedulerAppInfo(connector);
 //    connector.flush();
-    long time3 = System.currentTimeMillis()-start;
+    long time2 = System.currentTimeMillis()-start;
      persistApplicationIdToRemove();
 //    connector.flush();
-    long time2 = System.currentTimeMillis()-start;
+    long time3 = System.currentTimeMillis()-start;
+    if(time3>500){
+      LOG.error("commit scheduler app info too long: " + time1 + " " + time2 + " " + time3 );
+    }
   }
 
   private void persistApplicationIdToAdd(QueueMetricsDataAccess QMDA)

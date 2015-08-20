@@ -55,7 +55,7 @@ public class RMContextImpl implements RMContext {
 
   private static final Log LOG = LogFactory.getLog(RMContextImpl.class);
   private int rmId = Integer.MIN_VALUE;
-  private TransactionStateManager transactionStateManager = new TransactionStateManager();
+  private TransactionStateManager transactionStateManager;
     
   //ResourceTracker client
   public ResourceTracker client;
@@ -140,7 +140,8 @@ public class RMContextImpl implements RMContext {
    * Default constructor. To be used in conjunction with setter methods for
    * individual fields.
    */
-  public RMContextImpl() {
+  public RMContextImpl(Configuration conf) {
+    transactionStateManager = new TransactionStateManager(conf);
   }
 
   @VisibleForTesting
@@ -154,8 +155,8 @@ public class RMContextImpl implements RMContext {
       RMContainerTokenSecretManager containerTokenSecretManager,
       NMTokenSecretManagerInRM nmTokenSecretManager,
       ClientToAMTokenSecretManagerInRM clientToAMTokenSecretManager,
-      RMApplicationHistoryWriter rmApplicationHistoryWriter) {
-    this();
+      RMApplicationHistoryWriter rmApplicationHistoryWriter, Configuration conf) {
+    this(conf);
     this.setDispatcher(rmDispatcher);
     this.setContainerAllocationExpirer(containerAllocationExpirer);
     this.setAMLivelinessMonitor(amLivelinessMonitor);
@@ -191,7 +192,7 @@ public class RMContextImpl implements RMContext {
       ClientToAMTokenSecretManagerInRM clientToAMTokenSecretManager,
       RMApplicationHistoryWriter rmApplicationHistoryWriter,
       Configuration conf) {
-    this();
+    this(conf);
     this.setDispatcher(rmDispatcher);
     this.setContainerAllocationExpirer(containerAllocationExpirer);
     this.setAMLivelinessMonitor(amLivelinessMonitor);

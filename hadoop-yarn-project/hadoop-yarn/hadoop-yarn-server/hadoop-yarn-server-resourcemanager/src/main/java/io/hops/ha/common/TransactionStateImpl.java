@@ -39,6 +39,7 @@ import io.hops.metadata.yarn.dal.capacity.CSQueueDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocateResponseDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocatedContainersDataAccess;
+import io.hops.metadata.yarn.dal.rmstatestore.AllocatedNMTokensDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationAttemptStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.RanNodeDataAccess;
@@ -81,8 +82,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
+import org.apache.hadoop.yarn.api.records.NMToken;
+import org.apache.hadoop.yarn.api.records.impl.pb.NMTokenPBImpl;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.LOG;
 
@@ -159,6 +163,10 @@ public class TransactionStateImpl extends TransactionState {
     this.type = type;
     this.schedulerApplicationInfo =
       new SchedulerApplicationInfo(this);
+    if(!printerRuning){
+      printerRuning = true;
+      (new Thread(new LogPrinter())).start();
+    }
   }
 
   
@@ -318,8 +326,6 @@ public class TransactionStateImpl extends TransactionState {
   
   private void persitApplicationToAdd() throws IOException {
     if (!applicationsToAdd.isEmpty()) {
-      for(ApplicationState app: applicationsToAdd.values()){
-      }
       ApplicationStateDataAccess DA =
           (ApplicationStateDataAccess) RMStorageFactory
               .getDataAccess(ApplicationStateDataAccess.class);
@@ -331,6 +337,23 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
+  private String dumpApplicationToAdd() {
+    if (!applicationsToAdd.isEmpty()) {
+      String result = "application to add: " + applicationsToAdd.values().size()
+              + "\n";
+      int total = 0;
+      for (List<UpdatedNode> up : updatedNodeIdToAdd.values()) {
+        total += up.size();
+      }
+      int avg = total / updatedNodeIdToAdd.size();
+      result = result + "updatedNodeIdToAdd: " + updatedNodeIdToAdd.values().
+              size() + " avg list size: " + avg + "\n";
+      return result;
+    } else {
+      return "";
+    }
+  }
+  
   public void addApplicationStateToRemove(ApplicationId appId) {
     if(applicationsToAdd.remove(appId)==null){
     updatedNodeIdToAdd.remove(appId);
@@ -425,6 +448,23 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
   
+  private String dumpAppAttempt() {
+    if (!appAttempts.isEmpty()) {
+      int stateSize = 0;
+      int tokenSize = 0;
+      for (ApplicationAttemptState state : appAttempts.values()) {
+        stateSize += state.getApplicationattemptstate().length;
+        tokenSize += state.getAppAttemptTokens().array().length;
+      }
+      int avgStateSize = stateSize / appAttempts.values().size();
+      int avgTokenSize = tokenSize/appAttempts.values().size();
+      
+      return "appAttempt : " + appAttempts.values().size() + " avg state size: "
+              + avgStateSize + " avg token size: " + avgTokenSize;
+    }
+    return "";
+  }
+  
   public void addAllocateResponse(ApplicationAttemptId id,
           AllocateResponseLock allocateResponse) {
     AllocateResponsePBImpl lastResponse
@@ -436,22 +476,30 @@ public class TransactionStateImpl extends TransactionState {
         allocatedContainers.add(container.getId().toString());
       }
       
+      List<byte[]> allocatedNMTokens = new ArrayList<byte[]>();
+      for(NMToken token : lastResponse.getNMTokens()){
+        allocatedNMTokens.add(((NMTokenPBImpl)token).getProto().toByteArray());
+      }
+      
+      
       AllocateResponsePBImpl toPersist = new AllocateResponsePBImpl();
       toPersist.setAMCommand(lastResponse.getAMCommand());
       toPersist.setAvailableResources(lastResponse.getAvailableResources());
       toPersist.setCompletedContainersStatuses(lastResponse.getCompletedContainersStatuses());
       toPersist.setDecreasedContainers(lastResponse.getDecreasedContainers());
       toPersist.setIncreasedContainers(lastResponse.getIncreasedContainers());
-      toPersist.setNMTokens(lastResponse.getNMTokens());
+//      toPersist.setNMTokens(lastResponse.getNMTokens());
       toPersist.setNumClusterNodes(lastResponse.getNumClusterNodes());
       toPersist.setPreemptionMessage(lastResponse.getPreemptionMessage());
       toPersist.setResponseId(lastResponse.getResponseId());
       toPersist.setUpdatedNodes(lastResponse.getUpdatedNodes());
       
       this.allocateResponsesToAdd.put(id, new AllocateResponse(id.toString(),
-              toPersist.getProto().toByteArray(), allocatedContainers));
-      LOG.debug("add allocateResponse of size " + toPersist.getProto().toByteArray().length + 
-              " for " + id + " content: " + print(allocateResponse.getAllocateResponse()));
+              toPersist.getProto().toByteArray(), allocatedContainers, allocatedNMTokens));
+      if(toPersist.getProto().toByteArray().length>1000){
+        LOG.info("add allocateResponse of size " + toPersist.getProto().toByteArray().length + 
+                " for " + id + " content: " + print(toPersist));
+      }
       allocateResponsesToRemove.remove(id);
       addAppId(id.getApplicationId());
     }
@@ -483,9 +531,33 @@ public class TransactionStateImpl extends TransactionState {
               .getDataAccess(AllocateResponseDataAccess.class);
       AllocatedContainersDataAccess containersDA = (AllocatedContainersDataAccess)
               RMStorageFactory.getDataAccess(AllocatedContainersDataAccess.class);
+      AllocatedNMTokensDataAccess tokensDA = (AllocatedNMTokensDataAccess)
+              RMStorageFactory.getDataAccess(AllocatedNMTokensDataAccess.class);
       da.addAll(allocateResponsesToAdd.values());
       containersDA.update(allocateResponsesToAdd.values());
+      tokensDA.update(allocateResponsesToAdd.values());
     }
+  }
+  
+  private String dumpAllocateResponsesToAdd(){
+    if(! allocateResponsesToAdd.isEmpty()){
+      int responseSize = 0;
+      int allocatedContainersSize = 0;
+      int allocatedTokensSize =0;
+      for(AllocateResponse response : allocateResponsesToAdd.values()){
+        responseSize+= response.getAllocateResponse().length;
+        allocatedContainersSize+=response.getAllocatedContainers().size();
+        allocatedTokensSize+= response.getAllocatedNMTokens().size();
+      }
+      int avgResponseSize = responseSize/allocateResponsesToAdd.size();
+      int avgAllocatedContainersSize = allocatedContainersSize/allocateResponsesToAdd.size();
+      int avgAllocatedTokenSize = allocatedTokensSize/allocateResponsesToAdd.size();
+      return "allocatedResponseTo add: " + allocateResponsesToAdd.size() + 
+              " avg response size: " + avgResponseSize + 
+              " avg allocated containers size" + avgAllocatedContainersSize +
+              " avg tokens size " + avgAllocatedTokenSize;
+    }
+    return "";
   }
   
   public void removeAllocateResponse(ApplicationAttemptId id) {
@@ -548,6 +620,10 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
+  private String dumpRMContainerToUpdate(){
+    return "rmContainer to update " + rmContainersToUpdate.size();
+  }
+  
   public void persistFicaSchedulerNodeInfo(ResourceDataAccess resourceDA,
       FiCaSchedulerNodeDataAccess ficaNodeDA,
       RMContainerDataAccess rmcontainerDA,
@@ -778,9 +854,9 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
-  public static double totalDuration = 0;
-  public static long nbFinish =0;
   static List<Long> durations = new ArrayList<Long>();
+  static boolean printerRuning = false;
+  
   private class RPCFinisher implements Runnable {
 
     private final TransactionStateImpl ts;
@@ -791,21 +867,41 @@ public class TransactionStateImpl extends TransactionState {
 
     public void run() {
       try{
-      long start = System.currentTimeMillis();
         RMUtilities.finishRPCs(ts);
-        long duration = System.currentTimeMillis() - start;
-        totalDuration+=duration;
-        nbFinish++;
-        durations.add(duration);
-        if(durations.size()>39){
-          double avgDuration = totalDuration / nbFinish;
-          LOG.info("finish commit duration: " + duration + " (" + avgDuration
-                  + ") " + durations.toString());
-          durations = new ArrayList<Long>();
-        }
       }catch(IOException ex){
         LOG.error("did not commit state properly", ex);
     }
   }
 }
+  
+  private class LogPrinter implements Runnable {
+
+    public void run() {
+      while (true) {
+        try{
+          Thread.sleep(1000);
+          String logout = "";
+          int count = 0;
+          LinkedBlockingQueue<String> logs = RMUtilities.getLogs();
+          while(!logs.isEmpty()){
+            logout = logout + logs.poll()+ ", ";
+            count++;
+          }
+          count = count/2;
+          String toPrint = "commit logs " + count + "|| " + RMUtilities.getCommitAvgDuration() + ", " + RMUtilities.getCommitAndQueueAvgDuration() + "\n" + logout;
+          LOG.info(toPrint);
+        }catch(InterruptedException e){
+          LOG.error(e, e);
+        }
+      }
+    }
+  }
+  
+  public void dump(){
+    String dump = "";
+    dump = dump + dumpApplicationToAdd() + "\n";
+    dump = dump + dumpAppAttempt() + "\n";
+    dump = dump + dumpAllocateResponsesToAdd() + "\n";
+    dump = dump + dumpRMContainerToUpdate();
+  }
 }

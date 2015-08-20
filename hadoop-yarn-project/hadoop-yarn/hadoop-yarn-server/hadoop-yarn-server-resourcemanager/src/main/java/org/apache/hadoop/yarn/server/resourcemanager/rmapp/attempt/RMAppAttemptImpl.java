@@ -512,9 +512,9 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
 
   @Override
   public void handle(RMAppAttemptEvent event) {
-
+    long start = System.currentTimeMillis();
     this.writeLock.lock();
-
+    long t1= System.currentTimeMillis() - start;
     try {
       ApplicationAttemptId appAttemptID = event.getApplicationAttemptId();
       LOG.debug("Processing event for " + appAttemptID + " of type " +
@@ -530,6 +530,10 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
           ((TransactionStateImpl) event.getTransactionState()).
               addAppAttempt(this);
         }
+        long t2= System.currentTimeMillis() - start;
+        if(t2>100){
+          LOG.error("event handling too long: " + t2 + " event type: " + event.getType() + " t: " + t1 + ", " + t2);
+        }
       } catch (InvalidStateTransitonException e) {
         LOG.error("Can't handle this event at current state", e);
         /*
@@ -537,10 +541,6 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
          */
       }
 
-      if (oldState != getState()) {
-        LOG.info(appAttemptID + " State change from " + oldState + " to " +
-            getState());
-      }
     } finally {
       this.writeLock.unlock();
     }
@@ -737,6 +737,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     @Override
     public RMAppAttemptState transition(RMAppAttemptImpl appAttempt,
         RMAppAttemptEvent event) {
+      long start = System.currentTimeMillis();
       // Acquire the AM container from the scheduler.
       LOG.debug("allocate container for AM");
       Allocation amContainerAllocation = appAttempt.scheduler
@@ -752,9 +753,14 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
       // DNS unavailable causing container token not generated. As such, we
       // return to the previous state and keep retry until am container is
       // fetched.
+      long t1 = System.currentTimeMillis() - start;
       if (amContainerAllocation.getContainers().isEmpty()) {
         appAttempt.retryFetchingAMContainer(appAttempt, event.
             getTransactionState());
+        long t2 = System.currentTimeMillis() - start;
+        if(t2>100){
+          LOG.error("container Allocated too long " + t2 + ": " + t1 + " " + t2);
+        }
         return RMAppAttemptState.SCHEDULED;
       }
 
@@ -772,6 +778,10 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
       appAttempt.getSubmissionContext()
           .setResource(appAttempt.getMasterContainer().getResource());
       appAttempt.launchAttempt(event.getTransactionState());
+      long t2 = System.currentTimeMillis() - start;
+      if(t2>100){
+          LOG.error("container Allocated too long " + t2 + ": " + t1 + " " + t2);
+      }
       return RMAppAttemptState.ALLOCATED;
     }
   }
@@ -1169,12 +1179,12 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     @Override
     public RMAppAttemptState transition(RMAppAttemptImpl appAttempt,
         RMAppAttemptEvent event) {
-
+      long start = System.currentTimeMillis();
       RMAppAttemptContainerFinishedEvent containerFinishedEvent =
           (RMAppAttemptContainerFinishedEvent) event;
       ContainerStatus containerStatus =
           containerFinishedEvent.getContainerStatus();
-
+      long t1 = System.currentTimeMillis() - start;
       // Is this container the AmContainer? If the finished container is same as
       // the AMContainer, AppAttempt fails
       if (appAttempt.masterContainer != null &&
@@ -1183,11 +1193,19 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
         // Remember the follow up transition and save the final attempt state.
         new ContainerFinishedFinalStateSavedTransition()
             .transition(appAttempt, event);
+        long t2 = System.currentTimeMillis()-start;
+        if(t2>100){
+          LOG.error("container Finish too long " + t2 + ": " + t1 + " " + t2);
+        }
         return RMAppAttemptState.FAILED;
       }
 
       // Normal container.Put it in completedcontainers list
       appAttempt.justFinishedContainers.add(containerStatus);
+      long t2 = System.currentTimeMillis() - start;
+      if(t2>100){
+          LOG.error("container Finish too long " + t2 + ": " + t1 + " " + t2);
+      }
       return RMAppAttemptState.RUNNING;
     }
   }
@@ -1231,22 +1249,31 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     @Override
     public RMAppAttemptState transition(RMAppAttemptImpl appAttempt,
         RMAppAttemptEvent event) {
+      long start = System.currentTimeMillis();
       LOG.debug("AMFinishingContainerFinishedTransition " + appAttempt.
           getAppAttemptId());
       RMAppAttemptContainerFinishedEvent containerFinishedEvent =
           (RMAppAttemptContainerFinishedEvent) event;
       ContainerStatus containerStatus =
           containerFinishedEvent.getContainerStatus();
-
+      long t1 = System.currentTimeMillis() - start;
       // Is this container the ApplicationMaster container?
       if (appAttempt.masterContainer.getId()
           .equals(containerStatus.getContainerId())) {
         new FinalTransition(RMAppAttemptState.FINISHED)
             .transition(appAttempt, containerFinishedEvent);
+        long t2 = System.currentTimeMillis() - start;
+        if(t2>100){
+          LOG.error("container Allocated too long " + t2 + ": " + t1 + " " + t2);
+        }
         return RMAppAttemptState.FINISHED;
       }
       // Normal container.
       appAttempt.justFinishedContainers.add(containerStatus);
+      long t2 = System.currentTimeMillis() - start;
+      if(t2>100){
+          LOG.error("container Allocated too long " + t2 + ": " + t1 + " " + t2);
+        }
       return RMAppAttemptState.FINISHING;
     }
   }

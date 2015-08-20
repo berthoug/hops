@@ -84,7 +84,7 @@ public abstract class TransactionState {
       return counter.get();
   }
  
-  public void addRPCId(int rpcId, String callingFuncition){
+  public void addRPCId(int rpcId){
     if(rpcId>0 && id<0){
       id = rpcId;
     }

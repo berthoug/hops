@@ -288,7 +288,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
   @Override
   protected void serviceInit(Configuration conf) throws Exception {
     this.conf = conf;
-    this.rmContext = new RMContextImpl();
+    this.rmContext = new RMContextImpl(conf);
 
     this.configurationProvider =
         ConfigurationProviderFactory.getConfigurationProvider(conf);

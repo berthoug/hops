@@ -57,6 +57,7 @@ import io.hops.metadata.yarn.dal.fair.AppSchedulableDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocateResponseDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocatedContainersDataAccess;
+import io.hops.metadata.yarn.dal.rmstatestore.AllocatedNMTokensDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationAttemptStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.DelegationKeyDataAccess;
@@ -171,7 +172,9 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
+import org.apache.hadoop.yarn.api.records.impl.pb.NMTokenPBImpl;
 import org.apache.hadoop.yarn.proto.YarnProtos;
 
 public class RMUtilities {
@@ -425,6 +428,7 @@ public class RMUtilities {
               }
             }
             setAllocatedContainers(allocateResponses);
+            setAllocatedNMTokens(allocateResponses);
             return allocateResponses;
           }
         };
@@ -452,6 +456,22 @@ public class RMUtilities {
     }
   }
 
+    private static void setAllocatedNMTokens(
+          Map<ApplicationAttemptId, org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse> allocateResponses) throws IOException{
+    Map<String, List<byte[]>> hopAllocatedNMTokens
+            = getAllAllocatedNMTokens();
+    for (ApplicationAttemptId applicationAttemptId : allocateResponses.keySet()) {
+      List<NMToken> allocatedNMTokens
+              = new ArrayList<NMToken>();
+      for (byte[] hopNMToken : hopAllocatedNMTokens.get(applicationAttemptId.toString())) {
+        NMToken token = new NMTokenPBImpl(YarnServiceProtos.NMTokenProto.parseFrom(hopNMToken));
+        allocatedNMTokens.add(token);
+      }
+      allocateResponses.get(applicationAttemptId).setNMTokens(
+              allocatedNMTokens);
+    }
+  }
+    
   private static Map<String, List<String>> getAllAllocatedContainers() throws
           IOException {
     LightWeightRequestHandler getAllocatedContainers
@@ -471,6 +491,27 @@ public class RMUtilities {
             };
     return (Map<String, List<String>>) getAllocatedContainers.handle();
   }
+  
+    private static Map<String, List<byte[]>> getAllAllocatedNMTokens() throws
+          IOException {
+    LightWeightRequestHandler getAllocatedNMTokens
+            = new LightWeightRequestHandler(YARNOperationType.TEST) {
+
+              @Override
+              public Object performTask() throws IOException {
+                connector.beginTransaction();
+                connector.writeLock();
+                AllocatedNMTokensDataAccess da
+                = (AllocatedNMTokensDataAccess) RMStorageFactory.
+                getDataAccess(AllocatedNMTokensDataAccess.class);
+                Map<String, List<byte[]>> allocatedNMTokens = da.getAll();
+                connector.commit();
+                return allocatedNMTokens;
+              }
+            };
+    return (Map<String, List<byte[]>>) getAllocatedNMTokens.handle();
+  }
+    
   /**
    * Retrieve all RPC rows from database.
    *
@@ -2211,8 +2252,9 @@ public class RMUtilities {
   static Map<Integer, TransactionStateImpl> finishedRPCs =
       new HashMap<Integer, TransactionStateImpl>();
   static Lock nextRPCLock = new ReentrantLock(true);
-  
+  static Map<Integer, Long> startCommit = new ConcurrentHashMap<Integer, Long>();
   public static void finishRPCs(TransactionState ts) throws IOException {
+    startCommit.put(ts.getId(), System.currentTimeMillis());
     nextRPCLock.lock();
     if (ts.getAppIds().isEmpty() && ((TransactionStateImpl) ts).
             getRMNodesToUpdate().isEmpty()) {
@@ -2236,7 +2278,7 @@ public class RMUtilities {
     for (ApplicationId appId : ts.getAppIds()) {
       LOG.debug("peek ts for ap " + appId.toString() + " for ts: " + ts.getId());
       if (transactionStateForApp.get(appId).peek().getId() != ts.getId()) {
-        LOG.debug("cannot commit rpc " + ts.getId() + " head for " + appId
+        LOG.info("cannot commit rpc " + ts.getId() + " head for " + appId
                 + " is " + transactionStateForApp.get(appId).peek().getId());
         nextRPCLock.unlock();
         return false;
@@ -2251,7 +2293,7 @@ public class RMUtilities {
     for (String nodeId : ts.getRMNodesToUpdate().keySet()) {
       if (transactionStateForRMNode.get(nodeId).peek().
               getId() != ts.getId()) {
-        LOG.debug("cannot commit rpc " + ts.getId() + " head for " + nodeId
+        LOG.info("cannot commit rpc " + ts.getId() + " head for " + nodeId
                 + " is "
                 + transactionStateForRMNode.get(nodeId).peek().
                 getId());
@@ -2438,9 +2480,16 @@ public class RMUtilities {
     }
   }
 
+  static LinkedBlockingQueue<String> logs = new LinkedBlockingQueue<String>();
+  static double totalCommitDuration = 0;
+  static double totalCommitAndQueueDuration = 0;
+  static long nbFinish =0;
+  static double avgCommitDuration = 0;
+  static double avgCommitAndQueueDuration = 0;
+  
   public static void finishRPC(final TransactionStateImpl ts) {
-
-    
+    logs.add("start commit");
+    long start = System.currentTimeMillis();
     LightWeightRequestHandler setfinishRPCHandler =
         new LightWeightRequestHandler(YARNOperationType.TEST) {
           @Override
@@ -2448,7 +2497,7 @@ public class RMUtilities {
             connector.beginTransaction();
             connector.writeLock();
             LOG.debug("HOP :: finishRPC() - handler for rpc: " );
-
+            long start = System.currentTimeMillis();
             RPCDataAccess DA = (RPCDataAccess) RMStorageFactory
                 .getDataAccess(RPCDataAccess.class);
             RMNodeDataAccess rmnodeDA = (RMNodeDataAccess) RMStorageFactory
@@ -2518,23 +2567,36 @@ public class RMUtilities {
                 rpcToRemove.add(hop);
               }
               DA.removeAll(rpcToRemove);
-            
+            long t1 = System.currentTimeMillis()-start;
             
             //TODO put all of this in ts.persist
             ts.persistCSQueueInfo(csQDA, csLQDA);
+            long t2 = System.currentTimeMillis()-start;
             ts.persistRMNodeToUpdate(rmnodeDA);
+            long t3 = System.currentTimeMillis()-start;
             ts.persistRmcontextInfo(rmnodeDA, resourceDA, nodeDA,
                 rmctxInactiveNodesDA);
+            long t4 = System.currentTimeMillis()-start;
             ts.persistRMNodeInfo(hbDA, cidToCleanDA, justLaunchedContainersDA,
                 updatedContainerInfoDA, faDA, csDA);
+            long t5 = System.currentTimeMillis()-start;
             ts.persist();
+            long t6 = System.currentTimeMillis()-start;
             ts.persistFicaSchedulerNodeInfo(resourceDA, ficaNodeDA,
                 rmcontainerDA, launchedContainersDA);
+            long t7 = System.currentTimeMillis()-start;
             ts.persistFairSchedulerNodeInfo(FSSNodeDA);
+            long t8 = System.currentTimeMillis()-start;
             ts.persistSchedulerApplicationInfo(QMDA, connector);
+            long t9 = System.currentTimeMillis()-start;
             ts.persistPendingEvents(persistedEventDA);
+            long t10 = System.currentTimeMillis()-start;
             connector.commit();
-
+            long t11 = System.currentTimeMillis()-start;
+            if(t11>1000){
+              LOG.error("commit too long: " + t11 + " dt: " + t1 + " "+ t2 + " "+ t3 + " "+ t4 + " "+ t5 + " "+ t6 + " "+ t7 + " "+ t8 + " "+ t9 + " "+ t10 + " "+ t11 + " ");
+              ts.dump();
+            }
             return null;
           }
         };
@@ -2543,8 +2605,33 @@ public class RMUtilities {
     } catch (IOException ex) {
       LOG.error("HOP :: Error commiting finishRPC ", ex);
     }
+    long commitDuration = System.currentTimeMillis() - start;
+    long commitAndQueueDuration = commitDuration;
+    if(ts.getId()!=-1){
+      commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(
+              ts.getId());
+    }
+    
+    totalCommitDuration += commitDuration;
+    totalCommitAndQueueDuration += commitAndQueueDuration;
+    nbFinish++;
+    avgCommitDuration = totalCommitDuration / nbFinish;
+    avgCommitAndQueueDuration = totalCommitAndQueueDuration / nbFinish;
+    logs.add("finish (" + ts.getId() +"): " + commitDuration + ", " + commitAndQueueDuration );
   }
 
+  public static LinkedBlockingQueue<String>getLogs(){
+    return logs;
+  }
+  
+  public static double getCommitAvgDuration(){
+    return avgCommitDuration;
+  }
+  
+  public static double getCommitAndQueueAvgDuration(){
+    return avgCommitAndQueueDuration;
+  }
+  
   //for testing (todo: move in test class)
   public static Resource getResource(final String id, final int type,
       final int parent) throws IOException {

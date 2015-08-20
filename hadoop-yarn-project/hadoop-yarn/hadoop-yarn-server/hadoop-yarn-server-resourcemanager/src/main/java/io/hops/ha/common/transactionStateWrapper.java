@@ -61,9 +61,11 @@ public class transactionStateWrapper extends TransactionStateImpl {
   Map<Integer, Long> timeInit = new HashMap<Integer, Long>();
   
   public transactionStateWrapper(TransactionStateImpl ts, 
-          TransactionType type) {
+          TransactionType type, int rpcId, String rpcType) {
     super(type);
     this.ts = ts;
+    this.rpcId = rpcId;
+    this.rpcType = rpcType;
   }
 
   public void addTime(int i){
@@ -96,7 +98,7 @@ public class transactionStateWrapper extends TransactionStateImpl {
       long duration = System.currentTimeMillis() - startTime;
       
       if (duration > 100) {
-        LOG.info("finishing rpc >100: " + rpcId + " "
+        LOG.info("finishing rpc too long : " + rpcId + " "
                 + rpcType + " after " + duration + printDetailedDurations());
       }
 //      else if (duration > 10) {
@@ -110,7 +112,23 @@ public class transactionStateWrapper extends TransactionStateImpl {
     ts.decCounter(type);
   }
 
-
+  public int getRPCCounter(){
+    return rpcCounter.get();
+  }
+  
+  public String getRPCType(){
+    return rpcType;
+  }
+  
+  public String getRunningEvents(){
+    String result = "nb started events: " + handleStarts.size() + " nb finished events " + handleDurations.size() + " still running: ";
+    for(String key: handleStarts.keySet()){
+      if(!handleDurations.containsKey(key)){
+        result = result + ", " +  key;
+      }
+    }
+    return result;
+  }
   public int getCounter() {
     return ts.getCounter();
   }
@@ -119,10 +137,9 @@ public class transactionStateWrapper extends TransactionStateImpl {
     return rpcId;
   }
   
-  public void addRPCId(int rpcId, String callingFuncition){
+  public void addRPCId(int rpcId){
     this.rpcId = rpcId;
-    rpcType=callingFuncition;
-    ts.addRPCId(rpcId, callingFuncition);
+    ts.addRPCId(rpcId);
   }
 
   @Override
