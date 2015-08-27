@@ -333,10 +333,13 @@ public class RMContainerImpl implements
       writeLock.lock();
       RMContainerState oldState = getState();
       try {
+        RMContainerState old = stateMachine.getCurrentState();
         stateMachine.doTransition(event.getType(), event);
-        if (event.getTransactionState() != null) {
-          ((TransactionStateImpl) event.getTransactionState()).
-              addRMContainerToUpdate(this);
+        if(stateMachine.getCurrentState()!=old){
+          if (event.getTransactionState() != null) {
+            ((TransactionStateImpl) event.getTransactionState()).
+                addRMContainerToUpdate(this);
+          }
         }
       } catch (InvalidStateTransitonException e) {
         LOG.error("Can't handle this event at current state", e);
@@ -374,6 +377,8 @@ public class RMContainerImpl implements
       container.reservedResource = e.getReservedResource();
       container.reservedNode = e.getReservedNode();
       container.reservedPriority = e.getReservedPriority();
+      ((TransactionStateImpl) event.getTransactionState()).
+                addRMContainerToUpdate(container);
     }
   }
 
@@ -427,6 +432,9 @@ public class RMContainerImpl implements
 
       container.rmContext.getRMApplicationHistoryWriter()
           .containerFinished(container, event.getTransactionState());
+      
+      ((TransactionStateImpl) event.getTransactionState()).
+                addRMContainerToUpdate(container);
     }
   }
 

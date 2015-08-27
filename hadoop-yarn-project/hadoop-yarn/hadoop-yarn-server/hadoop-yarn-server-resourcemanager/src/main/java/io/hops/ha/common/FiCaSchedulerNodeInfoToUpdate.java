@@ -50,7 +50,6 @@ public class FiCaSchedulerNodeInfoToUpdate {
   private Set<String> launchedContainersToRemove = new HashSet<String>();
   private RMContainer
       reservedRMContainerToRemove;
-  private RMContainer reservedContainerToUpdate;
   private Map<Integer, Resource>
       toUpdateResources = new HashMap<Integer, Resource>();
 
@@ -59,17 +58,12 @@ public class FiCaSchedulerNodeInfoToUpdate {
     this.transactionState = transactionState;
   }
 
-  public void persist(ResourceDataAccess resourceDA,
-      FiCaSchedulerNodeDataAccess ficaNodeDA,
-      RMContainerDataAccess rmcontainerDA,
-      LaunchedContainersDataAccess launchedContainersDA)
-      throws StorageException {
-
-    persistToUpdateFicaSchedulerNode(ficaNodeDA, rmcontainerDA);
-    persistRmContainerToRemove(rmcontainerDA);
-    persistToUpdateFiCaSchedulerNodeId(resourceDA, launchedContainersDA);
+  public void agregate(FiCaSchedulerNodeInfoAgregate agregate){
+    agregateToUpdateFicaSchedulerNode(agregate);
+    agregateRmContainerToRemove(agregate);
+    agregateToUpdateFiCaSchedulerNodeId(agregate);
   }
-
+  
   public void toUpdateResource(Integer type,
       org.apache.hadoop.yarn.api.records.Resource res) {
 
@@ -80,6 +74,7 @@ public class FiCaSchedulerNodeInfoToUpdate {
 
   public void updateReservedContainer(
           org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode node) {
+    //TOPERSIST reserved container should also be updated??
     transactionState.addRMContainerToUpdate((RMContainerImpl) node.getReservedContainer());
   }
 
@@ -110,65 +105,57 @@ public class FiCaSchedulerNodeInfoToUpdate {
             getNumContainers(), reservedContainer);
   }
 
-  public void persistToUpdateResources(ResourceDataAccess resourceDA)
-          throws StorageException {
+  public void agregateToUpdateResources(FiCaSchedulerNodeInfoAgregate agregate){
     if (toUpdateResources != null) {
-      resourceDA.addAll(toUpdateResources.values());
+      agregate.addAllResourcesToUpdate(toUpdateResources.values());
     }
   }
-
-  public void persistToUpdateFiCaSchedulerNodeId(ResourceDataAccess resourceDA,
-      LaunchedContainersDataAccess launchedContainersDA)
-      throws StorageException {
-    persistLaunchedContainersToAdd(launchedContainersDA);
-    persistLaunchedContainersToRemove(launchedContainersDA);
-    persistToUpdateResources(resourceDA);
+    
+  public void agregateToUpdateFiCaSchedulerNodeId(
+          FiCaSchedulerNodeInfoAgregate agregate){
+    agregateLaunchedContainersToAdd(agregate);
+    agregateLaunchedContainersToRemove(agregate);
+    agregateToUpdateResources(agregate);
   }
-
-  private void persistRmContainerToRemove(RMContainerDataAccess rmcontainerDA)
-      throws StorageException {
+    
+  private void agregateRmContainerToRemove(FiCaSchedulerNodeInfoAgregate agregate){
     if (reservedRMContainerToRemove != null) {
-      rmcontainerDA.remove(reservedRMContainerToRemove);
+      agregate.addReservedRMContainerToRemove(reservedRMContainerToRemove);
     }
   }
-
-  private void persistLaunchedContainersToAdd(
-      LaunchedContainersDataAccess launchedContainersDA)
-      throws StorageException {
+  
+  private void agregateLaunchedContainersToAdd(FiCaSchedulerNodeInfoAgregate agregate){
     if (launchedContainersToAdd != null) {
-      ArrayList<LaunchedContainers> toAddLaunchedContainers =
-          new ArrayList<LaunchedContainers>();
+      ArrayList<LaunchedContainers> toAddLaunchedContainers
+              = new ArrayList<LaunchedContainers>();
       for (String key : launchedContainersToAdd.keySet()) {
         if (launchedContainersToRemove == null || !launchedContainersToRemove.
-            remove(key)) {
+                remove(key)) {
 
           String val = launchedContainersToAdd.get(key);
           toAddLaunchedContainers.add(new LaunchedContainers(id, key, val));
         }
       }
-      launchedContainersDA.addAll(toAddLaunchedContainers);
+      agregate.addAlllaunchedContainersToAdd(toAddLaunchedContainers);
     }
   }
+    
 
-  private void persistLaunchedContainersToRemove(
-      LaunchedContainersDataAccess launchedContainersDA)
-      throws StorageException {
+
+  private void agregateLaunchedContainersToRemove(FiCaSchedulerNodeInfoAgregate agregate){
     if (launchedContainersToRemove != null) {
       ArrayList<LaunchedContainers> toRemoveLaunchedContainers =
           new ArrayList<LaunchedContainers>();
       for (String key : launchedContainersToRemove) {
         toRemoveLaunchedContainers.add(new LaunchedContainers(id, key, null));
       }
-      launchedContainersDA.removeAll(toRemoveLaunchedContainers);
+      agregate.addAllLaunchedContainersToRemove(toRemoveLaunchedContainers);
     }
   }
 
-  public void persistToUpdateFicaSchedulerNode(
-          FiCaSchedulerNodeDataAccess ficaNodeDA,
-          RMContainerDataAccess rmcontainerDA) throws StorageException {
+  private void agregateToUpdateFicaSchedulerNode(FiCaSchedulerNodeInfoAgregate agregate) {
     if (infoToUpdate != null) {
-
-      ficaNodeDA.add(infoToUpdate);
+      agregate.addToUpdateFiCaSchedulerNode(infoToUpdate);
     }
   }
 }

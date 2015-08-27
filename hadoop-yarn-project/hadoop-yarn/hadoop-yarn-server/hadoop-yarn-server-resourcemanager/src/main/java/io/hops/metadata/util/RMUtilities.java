@@ -15,6 +15,7 @@
  */
 package io.hops.metadata.util;
 
+import com.google.common.util.concurrent.AtomicDouble;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.hops.exception.StorageException;
 import io.hops.ha.common.TransactionState;
@@ -57,7 +58,6 @@ import io.hops.metadata.yarn.dal.fair.AppSchedulableDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocateResponseDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocatedContainersDataAccess;
-import io.hops.metadata.yarn.dal.rmstatestore.AllocatedNMTokensDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationAttemptStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.DelegationKeyDataAccess;
@@ -398,7 +398,7 @@ public class RMUtilities {
         .handle();
   }
   
-  public static Map<ApplicationAttemptId, org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse> getAllocateResponses()
+  public static Map<ApplicationAttemptId, org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse> getAllocateResponses(final RMContext rmContext)
       throws IOException {
     LightWeightRequestHandler allocateResponsesHandler =
         new LightWeightRequestHandler(YARNOperationType.TEST) {
@@ -410,14 +410,14 @@ public class RMUtilities {
             AllocateResponseDataAccess da =
                 (AllocateResponseDataAccess) RMStorageFactory
                     .getDataAccess(AllocateResponseDataAccess.class);
-            List<AllocateResponse> hopAllocateResponses =
-                (List<AllocateResponse>) da.getAll();
+            Map<String, AllocateResponse> hopAllocateResponses =
+                (Map<String, AllocateResponse>) da.getAll();
             connector.commit();
             Map<ApplicationAttemptId, org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse>
                 allocateResponses =
                 new HashMap<ApplicationAttemptId, org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse>();
             if (hopAllocateResponses != null) {
-              for (AllocateResponse hopAllocateResponse : hopAllocateResponses) {
+              for (AllocateResponse hopAllocateResponse : hopAllocateResponses.values()) {
                 org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse
                     allocateResponse = new AllocateResponsePBImpl(
                     YarnServiceProtos.AllocateResponseProto
@@ -428,7 +428,6 @@ public class RMUtilities {
               }
             }
             setAllocatedContainers(allocateResponses);
-            setAllocatedNMTokens(allocateResponses);
             return allocateResponses;
           }
         };
@@ -455,22 +454,9 @@ public class RMUtilities {
               allocatedContainers);
     }
   }
-
-    private static void setAllocatedNMTokens(
-          Map<ApplicationAttemptId, org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse> allocateResponses) throws IOException{
-    Map<String, List<byte[]>> hopAllocatedNMTokens
-            = getAllAllocatedNMTokens();
-    for (ApplicationAttemptId applicationAttemptId : allocateResponses.keySet()) {
-      List<NMToken> allocatedNMTokens
-              = new ArrayList<NMToken>();
-      for (byte[] hopNMToken : hopAllocatedNMTokens.get(applicationAttemptId.toString())) {
-        NMToken token = new NMTokenPBImpl(YarnServiceProtos.NMTokenProto.parseFrom(hopNMToken));
-        allocatedNMTokens.add(token);
-      }
-      allocateResponses.get(applicationAttemptId).setNMTokens(
-              allocatedNMTokens);
-    }
-  }
+ 
+    
+   
     
   private static Map<String, List<String>> getAllAllocatedContainers() throws
           IOException {
@@ -491,27 +477,7 @@ public class RMUtilities {
             };
     return (Map<String, List<String>>) getAllocatedContainers.handle();
   }
-  
-    private static Map<String, List<byte[]>> getAllAllocatedNMTokens() throws
-          IOException {
-    LightWeightRequestHandler getAllocatedNMTokens
-            = new LightWeightRequestHandler(YARNOperationType.TEST) {
-
-              @Override
-              public Object performTask() throws IOException {
-                connector.beginTransaction();
-                connector.writeLock();
-                AllocatedNMTokensDataAccess da
-                = (AllocatedNMTokensDataAccess) RMStorageFactory.
-                getDataAccess(AllocatedNMTokensDataAccess.class);
-                Map<String, List<byte[]>> allocatedNMTokens = da.getAll();
-                connector.commit();
-                return allocatedNMTokens;
-              }
-            };
-    return (Map<String, List<byte[]>>) getAllocatedNMTokens.handle();
-  }
-    
+      
   /**
    * Retrieve all RPC rows from database.
    *
@@ -2311,7 +2277,7 @@ public class RMUtilities {
       if (finishedTransactionStateForApp.get(appId) == null ||
                finishedTransactionStateForApp.get(appId).remove(ts.getId())
               == null) {
-        LOG.debug("purging of transaction failed " + ts.getId() + " " + appId);
+        LOG.error("purging of transaction failed " + ts.getId() + " " + appId);
         nextRPCLock.unlock();
         return false;
       }
@@ -2322,7 +2288,7 @@ public class RMUtilities {
       if (finishedTransactionStateForApp.get(nodeId) == null ||
               finishedTransactionStateForRMNode.get(nodeId).
               remove(ts.getId()) == null) {
-        LOG.debug("purging of transaction failed " + ts.getId() + " " + nodeId);
+        LOG.error("purging of transaction failed " + ts.getId() + " " + nodeId);
         nextRPCLock.unlock();
         return false;
       }
@@ -2338,7 +2304,7 @@ public class RMUtilities {
       populateFinishedAppMap(ts);
       nextRPCLock.unlock();
     } else {
-      LOG.debug("finished app rpc " + ts.getId());
+      LOG.info("finished app rpc " + ts.getId());
       nextRPCLock.unlock();
       finishRPC((TransactionStateImpl) ts);
       nextRPCLock.lock();
@@ -2358,7 +2324,7 @@ public class RMUtilities {
       }
       nextRPCLock.unlock();
       for (TransactionState state : toCommit.values()) {
-        LOG.debug("recommiting " + state.getId() + " after " + oldid);
+        LOG.info("recommiting " + state.getId() + " after " + oldid);
         state.commit(false);
       }
     }
@@ -2374,7 +2340,7 @@ public class RMUtilities {
         appMap = new HashMap<Integer, TransactionState>();
         finishedTransactionStateForApp.put(appId, appMap);
       }
-      LOG.debug("populate map with " + ts.getId() + " for app " + appId);
+      LOG.info("populate map with " + ts.getId() + " for app " + appId);
       appMap.put(ts.getId(), ts);
     }
   }
@@ -2386,7 +2352,7 @@ public class RMUtilities {
       populateFinishedRMNodeMap(ts);
       nextRPCLock.unlock();
     } else {
-      LOG.debug("finished rmnode rpc " + ts.getId());
+      LOG.info("finished rmnode rpc " + ts.getId());
       nextRPCLock.unlock();
       finishRPC((TransactionStateImpl) ts);
       nextRPCLock.lock();
@@ -2406,7 +2372,7 @@ public class RMUtilities {
       }
       nextRPCLock.unlock();
       for (TransactionState state : toCommit.values()) {
-        LOG.debug("recommiting " + state.getId() + " after " + oldid);
+        LOG.info("recommiting " + state.getId() + " after " + oldid);
         state.commit(false);
       }
     }
@@ -2420,7 +2386,7 @@ public class RMUtilities {
         tsMap = new HashMap<Integer, TransactionState>();
         finishedTransactionStateForRMNode.put(nodeId, tsMap);
       }
-      LOG.debug("populate map with " + ts.getId() + " for node " + nodeId);
+      LOG.info("populate map with " + ts.getId() + " for node " + nodeId);
       tsMap.put(ts.getId(), ts);
     }
   }
@@ -2433,7 +2399,7 @@ public class RMUtilities {
       populateFinishedRMNodeMap((TransactionStateImpl) ts);
       nextRPCLock.unlock();
     } else {
-      LOG.debug("finished app and rmnode rpc " + ts.getId());
+      LOG.info("finished app and rmnode rpc " + ts.getId());
       nextRPCLock.unlock();
       finishRPC((TransactionStateImpl) ts);
       nextRPCLock.lock();
@@ -2481,12 +2447,21 @@ public class RMUtilities {
   }
 
   static LinkedBlockingQueue<String> logs = new LinkedBlockingQueue<String>();
-  static double totalCommitDuration = 0;
-  static double totalCommitAndQueueDuration = 0;
-  static long nbFinish =0;
-  static double avgCommitDuration = 0;
-  static double avgCommitAndQueueDuration = 0;
-  
+  static AtomicDouble totalCommitDuration =new AtomicDouble(0);
+  static AtomicDouble totalCommitAndQueueDuration =new AtomicDouble(0);
+  static AtomicDouble nbFinish =new AtomicDouble(0);
+  static AtomicDouble totalt1 =new AtomicDouble(0);
+  static AtomicDouble totalt2 =new AtomicDouble(0);
+  static AtomicDouble totalt3 =new AtomicDouble(0);
+  static AtomicDouble totalt4 =new AtomicDouble(0);
+  static AtomicDouble totalt5 =new AtomicDouble(0);
+  static AtomicDouble totalt6 =new AtomicDouble(0);
+  static AtomicDouble totalt7 =new AtomicDouble(0);
+  static AtomicDouble totalt8 =new AtomicDouble(0);
+  static AtomicDouble totalt9 =new AtomicDouble(0);
+  static AtomicDouble totalt10 =new AtomicDouble(0);
+  static AtomicDouble totalt11 =new AtomicDouble(0);
+
   public static void finishRPC(final TransactionStateImpl ts) {
     logs.add("start commit");
     long start = System.currentTimeMillis();
@@ -2494,6 +2469,7 @@ public class RMUtilities {
         new LightWeightRequestHandler(YARNOperationType.TEST) {
           @Override
           public Object performTask() throws IOException {
+            logs.add("start handle");
             connector.beginTransaction();
             connector.writeLock();
             LOG.debug("HOP :: finishRPC() - handler for rpc: " );
@@ -2568,8 +2544,8 @@ public class RMUtilities {
               }
               DA.removeAll(rpcToRemove);
             long t1 = System.currentTimeMillis()-start;
-            
-            //TODO put all of this in ts.persist
+//            
+//            //TODO put all of this in ts.persist
             ts.persistCSQueueInfo(csQDA, csLQDA);
             long t2 = System.currentTimeMillis()-start;
             ts.persistRMNodeToUpdate(rmnodeDA);
@@ -2593,10 +2569,22 @@ public class RMUtilities {
             long t10 = System.currentTimeMillis()-start;
             connector.commit();
             long t11 = System.currentTimeMillis()-start;
-            if(t11>1000){
+            if(t11>100){
               LOG.error("commit too long: " + t11 + " dt: " + t1 + " "+ t2 + " "+ t3 + " "+ t4 + " "+ t5 + " "+ t6 + " "+ t7 + " "+ t8 + " "+ t9 + " "+ t10 + " "+ t11 + " ");
-              ts.dump();
+//              ts.dump();
             }
+            totalt1.addAndGet(t1);
+            totalt2.addAndGet(t2);
+            totalt3.addAndGet(t3);
+            totalt4.addAndGet(t4);
+            totalt5.addAndGet(t5);
+            totalt6.addAndGet(t6);
+            totalt7.addAndGet(t7);
+            totalt8.addAndGet(t8);
+            totalt9.addAndGet(t9);
+            totalt10.addAndGet(t10);
+            totalt11.addAndGet(t11);
+            logs.add("finish handle");
             return null;
           }
         };
@@ -2607,16 +2595,15 @@ public class RMUtilities {
     }
     long commitDuration = System.currentTimeMillis() - start;
     long commitAndQueueDuration = commitDuration;
-    if(ts.getId()!=-1){
-      commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(
-              ts.getId());
-    }
+//    if(ts.getId()!=-1){
+//      commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(
+//              ts.getId());
+//    }
     
-    totalCommitDuration += commitDuration;
-    totalCommitAndQueueDuration += commitAndQueueDuration;
-    nbFinish++;
-    avgCommitDuration = totalCommitDuration / nbFinish;
-    avgCommitAndQueueDuration = totalCommitAndQueueDuration / nbFinish;
+    totalCommitDuration.addAndGet(commitDuration);
+    totalCommitAndQueueDuration.addAndGet(commitAndQueueDuration);
+    nbFinish.addAndGet(1);
+    
     logs.add("finish (" + ts.getId() +"): " + commitDuration + ", " + commitAndQueueDuration );
   }
 
@@ -2624,14 +2611,46 @@ public class RMUtilities {
     return logs;
   }
   
+  public static void resetLogs(){
+    LOG.info("commit logs: reset");
+    TransactionStateImpl.resetLogs();
+    totalCommitDuration = new AtomicDouble(0);
+    totalCommitAndQueueDuration = new AtomicDouble(0);
+    nbFinish= new AtomicDouble(0);
+    totalt1 = new AtomicDouble(0);
+  totalt2 = new AtomicDouble(0);
+  totalt3 = new AtomicDouble(0);
+  totalt4 = new AtomicDouble(0);
+  totalt5 = new AtomicDouble(0);
+  totalt6 = new AtomicDouble(0);
+  totalt7 = new AtomicDouble(0);
+  totalt8 = new AtomicDouble(0);
+  totalt9 = new AtomicDouble(0);
+  totalt10 = new AtomicDouble(0);
+  totalt11 = new AtomicDouble(0);
+  }
   public static double getCommitAvgDuration(){
-    return avgCommitDuration;
+    return totalCommitDuration.get() / nbFinish.get();
   }
   
   public static double getCommitAndQueueAvgDuration(){
-    return avgCommitAndQueueDuration;
+    return totalCommitAndQueueDuration.get() / nbFinish.get();
   }
   
+  public static String getavgt(){
+    double avgt1=totalt1.get()/nbFinish.get();
+    double avgt2=totalt2.get()/nbFinish.get();
+    double avgt3=totalt3.get()/nbFinish.get();
+    double avgt4=totalt4.get()/nbFinish.get();
+    double avgt5=totalt5.get()/nbFinish.get();
+    double avgt6=totalt6.get()/nbFinish.get();
+    double avgt7=totalt7.get()/nbFinish.get();
+    double avgt8=totalt8.get()/nbFinish.get();
+    double avgt9=totalt9.get()/nbFinish.get();
+    double avgt10=totalt10.get()/nbFinish.get();
+    double avgt11=totalt11.get()/nbFinish.get();
+    return avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", " + avgt7 + ", " + avgt8 + ", " + avgt9 + ", " + avgt10 + ", " + avgt11;
+  }
   //for testing (todo: move in test class)
   public static Resource getResource(final String id, final int type,
       final int parent) throws IOException {

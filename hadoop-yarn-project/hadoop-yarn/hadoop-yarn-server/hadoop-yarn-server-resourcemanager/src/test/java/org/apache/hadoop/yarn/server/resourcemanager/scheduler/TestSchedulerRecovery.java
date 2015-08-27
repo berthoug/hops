@@ -256,7 +256,7 @@ public class TestSchedulerRecovery {
             null, conf.getBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
             YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED));
 
-    RMStateStore.RMState rmState = stateStore.loadState();
+    RMStateStore.RMState rmState = stateStore.loadState(rmContext);
     node.recover(rmState);
 
     rmContext.recover(rmState);

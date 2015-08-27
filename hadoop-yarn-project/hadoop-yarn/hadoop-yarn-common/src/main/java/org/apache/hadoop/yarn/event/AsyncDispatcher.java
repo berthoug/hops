@@ -136,7 +136,7 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
           while(next !=null){
             batch = batch + " " + next;
           }
-          LOG.info("dispatched: " + batch);
+//          LOG.info("dispatched: " + batch);
         }
       }
     };

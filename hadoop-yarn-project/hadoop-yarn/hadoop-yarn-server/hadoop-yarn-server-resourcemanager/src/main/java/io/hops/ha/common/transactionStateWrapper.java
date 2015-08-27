@@ -216,12 +216,13 @@ public class transactionStateWrapper extends TransactionStateImpl {
   }
 
   public void addAllocateResponse(ApplicationAttemptId id,
-          ApplicationMasterService.AllocateResponseLock allocateResponse) {
+          ApplicationMasterService.AllocateResponseLock allocateResponse,
+          String user) {
     ts.addAllocateResponse(id, allocateResponse);
   }
 
-  public void removeAllocateResponse(ApplicationAttemptId id) {
-    ts.removeAllocateResponse(id);
+  public void removeAllocateResponse(ApplicationAttemptId id, int responseId) {
+    ts.removeAllocateResponse(id, responseId);
   }
 
   public void addRMContainerToUpdate(RMContainerImpl rmContainer) {

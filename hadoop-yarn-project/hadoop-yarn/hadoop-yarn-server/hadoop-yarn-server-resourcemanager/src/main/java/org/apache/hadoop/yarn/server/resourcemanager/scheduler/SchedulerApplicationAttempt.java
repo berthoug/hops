@@ -739,6 +739,7 @@ public class SchedulerApplicationAttempt implements Recoverable{
     this.lastScheduledContainer = appAttempt.getLastScheduledContainer();
     this.appSchedulingInfo.transferStateFromPreviousAppSchedulingInfo(
         appAttempt.appSchedulingInfo);
+    //TORECOVER??
   }
 
   //TORECOVER FAIR

@@ -69,17 +69,17 @@ public class TransactionStateManager implements Runnable{
         acceptedRPC.set(0);
         //accept RPCs
         lock.unlock();
-        t3= System.currentTimeMillis() - startTime;
         commitDuration = System.currentTimeMillis()-startTime;
+        t3= commitDuration;
 //        Thread.sleep(Math.max(0, 10-commitDuration));
-          waitForBatch(Math.max(0, batchMaxDuration-commitDuration));
-          t4= System.currentTimeMillis() - startTime;
+        waitForBatch(Math.max(0, batchMaxDuration-commitDuration));
+        t4= System.currentTimeMillis() - startTime;
         //stop acception RPCs
         lock.lock();
         
         long cycleDuration = System.currentTimeMillis() - startTime;
         if(cycleDuration> batchMaxDuration + 10){
-          LOG.error("Cycle too long: " + cycleDuration + " " + t1 + " " + t2 + " " + t3 + " " + t4);
+          LOG.error("Cycle too long: " + cycleDuration + "| " + t1 + ", " + t2 + ", " + t3 + ", " + t4);
         }
         nbCycles++;
         accumulatedCycleDuration+=cycleDuration;
@@ -101,11 +101,12 @@ public class TransactionStateManager implements Runnable{
         long startWaiting = System.currentTimeMillis();
         while(currentTransactionState.getCounter() != 0){
           if(System.currentTimeMillis()-startWaiting>1000){
+            startWaiting = System.currentTimeMillis();
             count++;
             LOG.error("waiting too long " + count + " counter: " + currentTransactionState.getCounter());
             for(transactionStateWrapper w : curentRPCs){
               if(w.getRPCCounter()>0){
-                LOG.error("rpc too long: " + w.getRPCID() + " type: " + w.getRPCType() + "counter: " + w.getRPCCounter() + " running events: " + w.getRunningEvents());
+                LOG.error("rpc not finishing: " + w.getRPCID() + " type: " + w.getRPCType() + ", counter: " + w.getRPCCounter() + " running events: " + w.getRunningEvents());
               }
             }
           }

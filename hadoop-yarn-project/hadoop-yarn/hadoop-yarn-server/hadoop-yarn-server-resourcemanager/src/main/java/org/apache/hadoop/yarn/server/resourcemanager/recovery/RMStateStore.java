@@ -943,7 +943,7 @@ import java.util.TreeSet;
    * RMState object populated with that state
    * This must not be called on the dispatcher thread
    */
-  public abstract RMState loadState() throws Exception;
+  public abstract RMState loadState(RMContext rmContext) throws Exception;
 
   /**
    * Non-Blocking API

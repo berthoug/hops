@@ -75,24 +75,19 @@ public class RMNodeInfo {
     this.rmnodeId = rmnodeId;
   }
 
-  public void persist(NodeHBResponseDataAccess hbDA,
-      ContainerIdToCleanDataAccess cidToCleanDA,
-      JustLaunchedContainersDataAccess justLaunchedContainersDA,
-      UpdatedContainerInfoDataAccess updatedContainerInfoDA,
-      FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA)
-      throws StorageException {
-    persistJustLaunchedContainersToAdd(justLaunchedContainersDA, csDA);
-    persistJustLaunchedContainersToRemove(justLaunchedContainersDA);
-    persistContainerToCleanToAdd(cidToCleanDA);
-    persistContainerToCleanToRemove(cidToCleanDA);
-    persistFinishedApplicationToAdd(faDA);
-    persistFinishedApplicationToRemove(faDA);
-    persistNodeUpdateQueueToAdd(updatedContainerInfoDA, csDA);
-    persistNodeUpdateQueueToRemove(updatedContainerInfoDA, csDA);
-    persistLatestHeartBeatResponseToAdd(hbDA);
-    persistNextHeartbeat();
+  public void agregate(RMNodeInfoAgregate agregate){
+    agregateJustLaunchedContainersToAdd(agregate);
+    agregateJustLaunchedContainersToRemove(agregate);
+    agregateContainerToCleanToAdd(agregate);
+    agregateContainerToCleanToRemove(agregate);
+    agregateFinishedApplicationToAdd(agregate);
+    agregateFinishedApplicationToRemove(agregate);
+    agregateNodeUpdateQueueToAdd(agregate);
+    agregateNodeUpdateQueueToRemove(agregate);
+    agregateLatestHeartBeatResponseToAdd(agregate);
+    agregateNextHeartbeat(agregate);
   }
-
+  
   public String getRmnodeId() {
     return rmnodeId;
   }
@@ -234,8 +229,7 @@ public class RMNodeInfo {
     }
   }
 
-  public void persistContainerToCleanToAdd(
-      ContainerIdToCleanDataAccess cidToCleanDA) throws StorageException {
+  public void agregateContainerToCleanToAdd(RMNodeInfoAgregate agregate) {
     if (containerToCleanToAdd != null) {
       ArrayList<ContainerId> toAddHopContainerIdToClean =
           new ArrayList<ContainerId>(containerToCleanToAdd.size());
@@ -244,25 +238,26 @@ public class RMNodeInfo {
         toAddHopContainerIdToClean
             .add(new ContainerId(rmnodeId, cid.toString()));}
       }
-      cidToCleanDA.addAll(toAddHopContainerIdToClean);
+      agregate.addAllContainersToCleanToAdd(toAddHopContainerIdToClean);
     }
   }
+  
+ 
 
-  public void persistContainerToCleanToRemove(
-      ContainerIdToCleanDataAccess cidToCleanDA) throws StorageException {
+   public void agregateContainerToCleanToRemove(RMNodeInfoAgregate agregate){
     if (containerToCleanToRemove != null) {
       ArrayList<ContainerId> toRemoveHopContainerIdToClean =
           new ArrayList<ContainerId>(containerToCleanToRemove.size());
       for (org.apache.hadoop.yarn.api.records.ContainerId cid : containerToCleanToRemove) {
         toRemoveHopContainerIdToClean.add(new ContainerId(rmnodeId, cid.toString()));
       }
-      cidToCleanDA.removeAll(toRemoveHopContainerIdToClean);
+      agregate.addAllContainerToCleanToRemove(toRemoveHopContainerIdToClean);
     }
   }
+   
 
-  public void persistJustLaunchedContainersToAdd(
-      JustLaunchedContainersDataAccess justLaunchedContainersDA,
-      ContainerStatusDataAccess csDA) throws StorageException {
+
+  public void agregateJustLaunchedContainersToAdd(RMNodeInfoAgregate agregate) {
     if (justLaunchedContainersToAdd != null &&
         !justLaunchedContainersToAdd.isEmpty()) {
       List<JustLaunchedContainers> toAddHopJustLaunchedContainers =
@@ -277,17 +272,17 @@ public class RMNodeInfo {
                   value.getContainerid()));
           toAddContainerStatus.add(value);
       }
-      csDA.addAll(toAddContainerStatus);
-      justLaunchedContainersDA.addAll(toAddHopJustLaunchedContainers);
+      agregate.addAllContainersStatusToAdd(toAddContainerStatus);
+      agregate.addAllJustLaunchedContainersToAdd(toAddHopJustLaunchedContainers);
       //Persist ContainerId and ContainerStatus
 
     }
   }
+  
 
 
-  public void persistJustLaunchedContainersToRemove(
-      JustLaunchedContainersDataAccess justLaunchedContainersDA)
-      throws StorageException {
+
+    public void agregateJustLaunchedContainersToRemove(RMNodeInfoAgregate agregate){
     if (justLaunchedContainersToRemove != null &&
         !justLaunchedContainersToRemove.isEmpty()) {
       List<JustLaunchedContainers> toRemoveHopJustLaunchedContainers =
@@ -296,14 +291,14 @@ public class RMNodeInfo {
         toRemoveHopJustLaunchedContainers
             .add(new JustLaunchedContainers(rmnodeId, key.toString()));
       }
-      justLaunchedContainersDA.removeAll(toRemoveHopJustLaunchedContainers);
+      agregate.addAllJustLaunchedContainersToRemove(toRemoveHopJustLaunchedContainers);
     }
   }
+    
 
 
-  public void persistNodeUpdateQueueToAdd(
-      UpdatedContainerInfoDataAccess updatedContainerInfoDA,
-      ContainerStatusDataAccess csDA) throws StorageException {
+
+  public void agregateNodeUpdateQueueToAdd(RMNodeInfoAgregate agregate){
     if (nodeUpdateQueueToAdd != null && !nodeUpdateQueueToAdd.isEmpty()) {
       //Add row at ha_updatedcontainerinfo
       ArrayList<UpdatedContainerInfo> uciToAdd = new ArrayList<UpdatedContainerInfo>();
@@ -313,27 +308,28 @@ public class RMNodeInfo {
         uciToAdd.add(uci.getUci());
         containerStatusToAdd.add(uci.getContainerStatus());
       }
-      csDA.addAll(containerStatusToAdd);
-      updatedContainerInfoDA.addAll(uciToAdd);
+      agregate.addAllContainersStatusToAdd(containerStatusToAdd);
+      agregate.addAllUpdatedContainerInfoToAdd(uciToAdd);
     }
   }
+  
+ 
 
 
-  public void persistNodeUpdateQueueToRemove(
-      UpdatedContainerInfoDataAccess updatedContainerInfoDA,
-      ContainerStatusDataAccess csDA) throws StorageException {
+   public void agregateNodeUpdateQueueToRemove(RMNodeInfoAgregate agregate) {
     if (nodeUpdateQueueToRemove != null && !nodeUpdateQueueToRemove.isEmpty()) {
       Set<UpdatedContainerInfo> uciToRemove = new HashSet<UpdatedContainerInfo>();
       for (UpdatedContainerInfoToAdd uci : nodeUpdateQueueToRemove) {
         uciToRemove.add(uci.getUci());
       }
-      updatedContainerInfoDA.removeAll(uciToRemove);
+      agregate.addAllUpdatedContainerInfoToRemove(uciToRemove);
     }
   }
+   
+ 
 
 
-  public void persistFinishedApplicationToAdd(
-      FinishedApplicationsDataAccess faDA) throws StorageException {
+   public void agregateFinishedApplicationToAdd(RMNodeInfoAgregate agregate){
     if (finishedApplicationsToAdd != null && !finishedApplicationsToAdd.
         isEmpty()) {
       ArrayList<FinishedApplications> toAddHopFinishedApplications =
@@ -345,13 +341,13 @@ public class RMNodeInfo {
           toAddHopFinishedApplications.add(hopFinishedApplications);
         
       }
-      faDA.addAll(toAddHopFinishedApplications);
+      agregate.addAllFinishedAppToAdd(toAddHopFinishedApplications);
     }
   }
+   
+ 
 
-
-  public void persistFinishedApplicationToRemove(
-      FinishedApplicationsDataAccess faDA) throws StorageException {
+public void agregateFinishedApplicationToRemove(RMNodeInfoAgregate agregate){
     if (finishedApplicationsToRemove != null &&
         !finishedApplicationsToRemove.isEmpty()) {
       ArrayList<FinishedApplications> toRemoveHopFinishedApplications =
@@ -361,9 +357,11 @@ public class RMNodeInfo {
             new FinishedApplications(rmnodeId, appId.toString());
         toRemoveHopFinishedApplications.add(hopFinishedApplications);
       }
-      faDA.removeAll(toRemoveHopFinishedApplications);
+      agregate.addAllFinishedAppToRemove(toRemoveHopFinishedApplications);
     }
   }
+
+
 
   public void toAddLatestNodeHeartBeatResponse(NodeHeartbeatResponse resp) {
     if (resp instanceof NodeHeartbeatResponsePBImpl) {
@@ -375,12 +373,13 @@ public class RMNodeInfo {
     }
   }
 
-  public void persistLatestHeartBeatResponseToAdd(NodeHBResponseDataAccess hbDA)
-      throws StorageException {
+   public void agregateLatestHeartBeatResponseToAdd(RMNodeInfoAgregate agregate){
     if (latestNodeHeartBeatResponse != null) {
-      hbDA.add(latestNodeHeartBeatResponse);
+      agregate.addLastHeartbeatResponse(latestNodeHeartBeatResponse);
     }
   }
+   
+ 
 
   public void toAddNextHeartbeat(String rmnodeid, boolean nextHeartbeat) {
     LOG.debug(
@@ -390,15 +389,14 @@ public class RMNodeInfo {
         "HOP :: toAddNextHeartbeat-FINISH:" + rmnodeid + "," + nextHeartbeat);
   }
 
-  public void persistNextHeartbeat() throws StorageException {
+  public void agregateNextHeartbeat(RMNodeInfoAgregate agregate){
     NextHeartbeatDataAccess nextHeartbeatDA =
         (NextHeartbeatDataAccess) RMStorageFactory
             .getDataAccess(NextHeartbeatDataAccess.class);
-    LOG.debug("HOP :: persistNextHeartbeat-START:" + nextHeartbeat);
     if (nextHeartbeat != null) {
-      nextHeartbeatDA.updateNextHeartbeat(nextHeartbeat.getRmnodeid(),
-          nextHeartbeat.isNextheartbeat());
+      agregate.addNextHeartbeat(nextHeartbeat);
     }
     LOG.debug("HOP :: persistNextHeartbeat-FINISH:" + nextHeartbeat);
   }
+ 
 }

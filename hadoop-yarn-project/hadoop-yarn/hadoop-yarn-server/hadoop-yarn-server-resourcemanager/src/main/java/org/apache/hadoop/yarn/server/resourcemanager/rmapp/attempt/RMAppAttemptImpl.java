@@ -616,12 +616,8 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
       TransactionState ts) {
     this.justFinishedContainers = attempt.getJustFinishedContainers();
     this.ranNodes = attempt.getRanNodes();
-    ApplicationAttemptState appAttemptState =
-        new ApplicationAttemptState(this.applicationAttemptId, masterContainer,
-            getCredentials(), startTime, this.stateMachine.getCurrentState(),
-            originalTrackingUrl, "", finalStatus, progress, host, rpcPort,
-            ranNodes, justFinishedContainers);
     ((TransactionStateImpl) ts).addAppAttempt(this);
+    ((TransactionStateImpl) ts).addAllRanNodes(this);
   }
 
   private void recoverAppAttemptCredentials(Credentials appAttemptTokens)
@@ -1170,6 +1166,8 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
       RMAppAttemptContainerAcquiredEvent acquiredEvent =
           (RMAppAttemptContainerAcquiredEvent) event;
       appAttempt.ranNodes.add(acquiredEvent.getContainer().getNodeId());
+      ((TransactionStateImpl) event.getTransactionState()).addRanNode(
+              acquiredEvent.getContainer().getNodeId(), appAttempt.getAppAttemptId());
     }
   }
 

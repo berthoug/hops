@@ -623,9 +623,9 @@ public class ApplicationMasterService extends AbstractService
        * need to worry about unregister call occurring in between (which
        * removes the lock object).
        */
+      lock.setAllocateResponse(allocateResponse);
       ((TransactionStateImpl) transactionState).
           addAllocateResponse(appAttemptId, lock);
-      lock.setAllocateResponse(allocateResponse);
       transactionState.decCounter(TransactionState.TransactionType.INIT);
       return allocateResponse;
     }
@@ -711,10 +711,10 @@ public class ApplicationMasterService extends AbstractService
   public void unregisterAttempt(ApplicationAttemptId attemptId,
       TransactionState transactionState) {
     LOG.info("Unregistering app attempt : " + attemptId);
-    responseMap.remove(attemptId);
+    AllocateResponseLock lock = responseMap.remove(attemptId);
     if (transactionState != null) {
       ((TransactionStateImpl) transactionState)
-          .removeAllocateResponse(attemptId);
+          .removeAllocateResponse(attemptId, lock.getAllocateResponse().getResponseId());
     }
     rmContext.getNMTokenSecretManager().unregisterApplicationAttempt(attemptId);
   }
