@@ -58,7 +58,7 @@ public class YarnAPIStorageFactory {
             = "ndb-config.properties";
 
     public static final String NDB_EVENT_STREAMING_FOR_DISTRIBUTED_SERVICE
-            = "se.sics.hop.metadata.ndb.JniNdbEventStreaming";
+            = "io.hops.metadata.ndb.JniNdbEventStreaming";
 
     public static StorageConnector getConnector() {
         return dStorageFactory.getConnector();

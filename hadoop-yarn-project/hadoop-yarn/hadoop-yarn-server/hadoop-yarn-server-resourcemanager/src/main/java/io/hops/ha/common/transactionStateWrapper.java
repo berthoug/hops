@@ -247,10 +247,10 @@ public class transactionStateWrapper extends TransactionStateImpl {
           ContainerIdToCleanDataAccess cidToCleanDA,
           JustLaunchedContainersDataAccess justLaunchedContainersDA,
           UpdatedContainerInfoDataAccess updatedContainerInfoDA,
-          FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA)
+          FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA,PendingEventDataAccess persistedEventsDA)
           throws StorageException {
     ts.persistRMNodeInfo(hbDA, cidToCleanDA, justLaunchedContainersDA,
-            updatedContainerInfoDA, faDA, csDA);
+            updatedContainerInfoDA, faDA, csDA,persistedEventsDA);
   }
 
   public void updateUsedResource(

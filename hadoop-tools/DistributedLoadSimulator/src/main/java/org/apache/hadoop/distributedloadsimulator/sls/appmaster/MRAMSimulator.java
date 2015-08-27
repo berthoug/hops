@@ -162,10 +162,11 @@ public class MRAMSimulator extends AMSimulator {
                         MR_AM_CONTAINER_RESOURCE_VCORES),
                 ResourceRequest.ANY, 1, 1);
         ask.add(amRequest);
-        //LOG.info(MessageFormat.format("Application {0} sends out allocate "
-        //    + "request for its AM", appId));
+        LOG.info(MessageFormat.format("Application {0} sends out allocate "
+            + "request for its AM", appId));
         final AllocateRequest request = this.createAllocateRequest(ask);
-
+          LOG.info(MessageFormat.format("<finisehd >Application {0} sent out allocate "
+            + "request for its AM", appId));
         AllocateResponse response = appMasterProtocol.allocate(request);
 
         // waiting until the AM container is allocated

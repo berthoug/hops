@@ -602,23 +602,23 @@ public class SchedulerApplicationAttempt implements Recoverable{
          i.hasNext(); ) {
       RMContainer rmContainer = i.next();
       Container container = rmContainer.getContainer();
-      try {
-        // create container token and NMToken altogether.
-        container.setContainerToken(rmContext.getContainerTokenSecretManager()
-            .createContainerToken(container.getId(), container.getNodeId(),
-                getUser(), container.getResource()));
-        NMToken nmToken = rmContext.getNMTokenSecretManager()
-            .createAndGetNMToken(getUser(), getApplicationAttemptId(),
-                container);
-        if (nmToken != null) {
-          nmTokens.add(nmToken);
-        }
-      } catch (IllegalArgumentException e) {
-        // DNS might be down, skip returning this container.
-        LOG.error("Error trying to assign container token and NM token to" +
-            " an allocated container " + container.getId(), e);
-        continue;
-      }
+//      try {
+//        // create container token and NMToken altogether.
+//        container.setContainerToken(rmContext.getContainerTokenSecretManager()
+//            .createContainerToken(container.getId(), container.getNodeId(),
+//                getUser(), container.getResource()));
+//        NMToken nmToken = rmContext.getNMTokenSecretManager()
+//            .createAndGetNMToken(getUser(), getApplicationAttemptId(),
+//                container);
+//        if (nmToken != null) {
+//          nmTokens.add(nmToken);
+//        }
+//      } catch (IllegalArgumentException e) {
+//        // DNS might be down, skip returning this container.
+//        LOG.error("Error trying to assign container token and NM token to" +
+//            " an allocated container " + container.getId(), e);
+//        continue;
+//      }
       returnContainerList.add(container);
       i.remove();
       ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId)

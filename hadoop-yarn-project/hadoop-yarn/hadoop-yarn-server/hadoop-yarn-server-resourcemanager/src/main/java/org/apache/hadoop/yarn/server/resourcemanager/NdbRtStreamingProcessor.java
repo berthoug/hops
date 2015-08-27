@@ -47,7 +47,7 @@ public class NdbRtStreamingProcessor implements Runnable {
     for (org.apache.hadoop.yarn.api.records.ContainerId conId : containerIdList) {
       LOG.debug("<Processor> Containers to clean  containerid: " + conId.toString());
     }
-    LOG.debug("RTReceived: " + streamingRTComps.getNodeId() + " nexthb: "+streamingRTComps.isNextHeartbeat());
+    LOG.info("RTReceived: " + streamingRTComps.getNodeId() + " nexthb: "+streamingRTComps.isNextHeartbeat());
 
   }
 
@@ -61,7 +61,7 @@ public class NdbRtStreamingProcessor implements Runnable {
           StreamingRTComps streamingRTComps = null;
           streamingRTComps = (StreamingRTComps) NdbRtStreamingReceiver.blockingRTQueue.take();
           if (streamingRTComps != null) {
-           // printStreamingRTComps(streamingRTComps);
+            printStreamingRTComps(streamingRTComps);
 
             NodeId nodeId = ConverterUtils.toNodeId(streamingRTComps.getNodeId());
             rmNode = context.getActiveRMNodes().get(nodeId);

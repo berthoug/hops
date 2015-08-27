@@ -21,6 +21,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -32,13 +34,17 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 public class NdbRtStreamingReceiver {
     
  public static BlockingQueue<StreamingRTComps> blockingRTQueue = new ArrayBlockingQueue<StreamingRTComps>(YarnConfiguration.NDB_EVENT_STREAMING_QUEUE_CAPACITY);
+    
+    private static final Log LOG = LogFactory.getLog(NdbRtStreamingReceiver.class);
     private Set<org.apache.hadoop.yarn.api.records.ContainerId> containersToCleanSet = null;
     private List<org.apache.hadoop.yarn.api.records.ApplicationId> finishedAppList = null;
     private String containerId = null;
     private String applicationId = null;
     private String nodeId = null;
     private boolean nextHeartbeat = false;
-
+    private  int finishedAppPendingId=0;
+    private  int cidToCleanPendingId=0;
+    private  int nextHBPendingId=0;
     private String containerIdToCleanrmnodeid = null;
     private String finishedApplicationrmnodeid = null;
 
@@ -47,6 +53,19 @@ public class NdbRtStreamingReceiver {
 
     public void setContainerId(String containerId) {
         this.containerId = containerId;
+    }
+
+    public void setFinishedAppPendingId(int finishedAppPendingId) {
+        this.finishedAppPendingId = finishedAppPendingId;
+    }
+
+    public void setCidToCleanPendingId(int cidToCleanPendingId) {
+        this.cidToCleanPendingId = cidToCleanPendingId;
+    }
+
+    public void setNextHBPendingId(int nextHBPendingId) {
+        this.nextHBPendingId = nextHBPendingId;
+        
     }
 
     public void setContainerIdToClenrmnodeid(String rmnodeid) {

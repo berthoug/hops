@@ -22,7 +22,6 @@ import io.hops.ha.common.TransactionStateImpl;
 import io.hops.metadata.yarn.TablesDef.ContainerStatusTableDef;
 import io.hops.metadata.yarn.TablesDef.PendingEventTableDef;
 import io.hops.metadata.yarn.entity.ContainerStatus;
-import io.hops.metadata.yarn.entity.NodeHBResponse;
 import io.hops.metadata.yarn.entity.PendingEvent;
 import io.hops.metadata.yarn.entity.RMNodeComps;
 import io.hops.metadata.yarn.entity.UpdatedContainerInfo;
@@ -37,9 +36,6 @@ import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceOption;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.proto.YarnServerCommonServiceProtos;
-import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
-import org.apache.hadoop.yarn.server.api.protocolrecords.impl.pb.NodeHeartbeatResponsePBImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeAddedSchedulerEvent;
@@ -57,21 +53,23 @@ import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 
 public abstract class PendingEventRetrieval implements Runnable {
 
-  static final Log LOG = LogFactory.getLog(PendingEventRetrieval.class);
-  protected boolean active = true;
-  protected final RMContext rmContext;
-  protected final Configuration conf;
+    static final Log LOG = LogFactory.getLog(PendingEventRetrieval.class);
+    protected boolean active = true;
+    protected final RMContext rmContext;
+    protected final Configuration conf;
+    private int rpcId = 9999999;
 
-  public PendingEventRetrieval(RMContext rmContext, Configuration conf) {
-    this.rmContext = rmContext;
-    this.conf = conf;
-  }
+    public PendingEventRetrieval(RMContext rmContext, Configuration conf) {
+        this.rmContext = rmContext;
+        this.conf = conf;
+    }
 
-  public void finish() {
-    LOG.info("HOP :: Stopping pendingEventRetrieval");
-    this.active = false;
-  }
-   protected RMNode processHopRMNodeComps(RMNodeComps hopRMNodeFull) throws InvalidProtocolBufferException {
+    public void finish() {
+        LOG.info("HOP :: Stopping pendingEventRetrieval");
+        this.active = false;
+    }
+
+    protected RMNode processHopRMNodeComps(RMNodeComps hopRMNodeFull) throws InvalidProtocolBufferException {
         NodeId nodeId;
         RMNode rmNode = null;
         if (hopRMNodeFull != null) {
@@ -100,7 +98,7 @@ public abstract class PendingEventRetrieval implements Runnable {
                             getMemory(), hopRMNodeFull.getHopResource().getVirtualCores()),
                             hopRMNodeFull.getHopRMNode().getOvercommittimeout());
                 }
-                
+
                 rmNode = new RMNodeImpl(nodeId,
                         rmContext,
                         hopRMNodeFull.getHopRMNode().getHostName(),
@@ -114,12 +112,14 @@ public abstract class PendingEventRetrieval implements Runnable {
                         nextHeartbeat, conf.getBoolean(
                                 YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
                                 YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED));
-                InetSocketAddress addr =
-        NetUtils.createSocketAddrForHost(nodeId.getHost(), nodeId.getPort());
+                
+                InetSocketAddress addr
+                        = NetUtils.createSocketAddrForHost(nodeId.getHost(), nodeId.getPort());
                 BuilderUtils.resolvedHost.put(nodeId.getHost(), addr);
             }
             // now we update the rmnode
 
+            rmNode.setRMNodePendingEventId(hopRMNodeFull.getHopRMNode().getPendingEventId());
             ((RMNodeImpl) rmNode).setState(hopRMNodeFull.getHopRMNode().
                     getCurrentState());
             List<UpdatedContainerInfo> hopUpdatedContainerInfoList
@@ -160,50 +160,45 @@ public abstract class PendingEventRetrieval implements Runnable {
                     ((RMNodeImpl) rmNode).setUpdatedContainerInfoId(hopRMNodeFull.
                             getHopRMNode().getUciId());
                 }
-                ((RMNodeImpl)rmNode).setUpdatedContainerInfo(
+                ((RMNodeImpl) rmNode).setUpdatedContainerInfo(
                         updatedContainerInfoQueue);
             }
-            //5. Retrieve latestNodeHeartBeatResponse
-            NodeHBResponse hopHB = hopRMNodeFull.getHopNodeHBResponse();
-            if (hopHB != null && hopHB.getResponse() != null) {
-                NodeHeartbeatResponse hb = new NodeHeartbeatResponsePBImpl(
-                        YarnServerCommonServiceProtos.NodeHeartbeatResponseProto.
-                        parseFrom(hopHB.getResponse()));
-                ((RMNodeImpl) rmNode).setLatestNodeHBResponse(hb);
-            }
+//            //5. Retrieve latestNodeHeartBeatResponse
+//            NodeHBResponse hopHB = hopRMNodeFull.getHopNodeHBResponse();
+//            if (hopHB != null && hopHB.getResponse() != null) {
+//                NodeHeartbeatResponse hb = new NodeHeartbeatResponsePBImpl(
+//                        YarnServerCommonServiceProtos.NodeHeartbeatResponseProto.
+//                        parseFrom(hopHB.getResponse()));
+//                ((RMNodeImpl) rmNode).setLatestNodeHBResponse(hb);
+//            }
         }
         return rmNode;
     }
-  
-  
-  protected void updateRMContext(RMNode rmNode) {
-    if (rmNode.getState() == NodeState.DECOMMISSIONED ||
-        rmNode.getState() == NodeState.REBOOTED ||
-        rmNode.getState() == NodeState.LOST) {
-      LOG.debug("HOP :: PendingEventRetrieval rmNode:" + rmNode + ", state-" +
-          rmNode.getState());
-      rmContext.getInactiveRMNodes().put(rmNode.getNodeID().
-              getHost(), rmNode);
-      rmContext.getActiveRMNodes().
-          remove(rmNode.getNodeID(), rmNode);
-    } else {
-      LOG.debug("HOP :: PendingEventRetrieval rmNode:" + rmNode + ", state-" +
-          rmNode.getState());
-      rmContext.getInactiveRMNodes().
-          remove(rmNode.getNodeID().getHost(), rmNode);
-      rmContext.getActiveRMNodes().put(rmNode.getNodeID(), rmNode);
+
+    protected void updateRMContext(RMNode rmNode) {
+        if (rmNode.getState() == NodeState.DECOMMISSIONED
+                || rmNode.getState() == NodeState.REBOOTED
+                || rmNode.getState() == NodeState.LOST) {
+            LOG.debug("HOP :: PendingEventRetrieval rmNode:" + rmNode + ", state-"
+                    + rmNode.getState());
+            rmContext.getInactiveRMNodes().put(rmNode.getNodeID().
+                    getHost(), rmNode);
+            rmContext.getActiveRMNodes().
+                    remove(rmNode.getNodeID(), rmNode);
+        } else {
+            LOG.debug("HOP :: PendingEventRetrieval rmNode:" + rmNode + ", state-"
+                    + rmNode.getState());
+            rmContext.getInactiveRMNodes().
+                    remove(rmNode.getNodeID().getHost(), rmNode);
+            rmContext.getActiveRMNodes().put(rmNode.getNodeID(), rmNode);
+        }
+
     }
 
-  }
-  
-  protected void triggerEvent(final RMNode rmNode, PendingEvent pendingEvent) {
-        LOG.debug("HOP :: RMNodeWorker:" + rmNode.getNodeID() + " processing event:"
-                + pendingEvent);
-
-        TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(99999, "nodeHeartbeat");
-        
+    protected void triggerEvent(final RMNode rmNode, PendingEvent pendingEvent) {
+        LOG.info("Nodeupdate event_pending event trigger event - rmnode : "+rmNode.getNodeID());
+        TransactionState transactionState = null;
         GlobalThreadPool.getExecutorService().execute(new Runnable() {
-
             @Override
             public void run() {
                 NetUtils.normalizeHostName(rmNode.getHostName());
@@ -213,7 +208,10 @@ public abstract class PendingEventRetrieval implements Runnable {
             LOG.debug("HOP :: PendingEventRetrieval event NodeAdded: "
                     + pendingEvent);
             //Put pendingEvent to remove (for testing we update the status to COMPLETED
-            ((TransactionStateImpl) transactionState).addPendingEventToRemove(
+               transactionState = new TransactionStateImpl(
+                TransactionState.TransactionType.NODE, 1, false);
+            // transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(--rpcId, "nodeHeartbeat");
+            ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
                     pendingEvent.getId(),
                     rmNode.getNodeID().toString(),
                     PendingEventTableDef.NODE_ADDED,
@@ -226,7 +224,10 @@ public abstract class PendingEventRetrieval implements Runnable {
             LOG.debug("HOP :: PendingEventRetrieval event NodeRemoved: "
                     + pendingEvent);
             //Put pendingEvent to remove (for testing we update the status to COMPLETED
-            ((TransactionStateImpl) transactionState).addPendingEventToRemove(
+            // transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(--rpcId, "nodeHeartbeat");
+               transactionState = new TransactionStateImpl(
+                TransactionState.TransactionType.NODE, 1, false);
+            ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
                     pendingEvent.getId(),
                     rmNode.getNodeID().toString(),
                     PendingEventTableDef.NODE_REMOVED,
@@ -242,23 +243,26 @@ public abstract class PendingEventRetrieval implements Runnable {
             // once scheduler finished the event , nextheartbeat will be true and rt will notfiy
             // whether to process or not
             if (pendingEvent.getStatus() == PendingEventTableDef.SCHEDULER_FINISHED_PROCESSING) {
-                ((TransactionStateImpl) transactionState).addPendingEventToRemove(
-                        pendingEvent.getId(),
-                        rmNode.getNodeID().toString(),
-                        PendingEventTableDef.NODE_UPDATED,
-                        PendingEventTableDef.COMPLETED);
-                rmContext.getDispatcher().getEventHandler().handle(
-                        new NodeUpdateSchedulerEvent(rmNode, transactionState));
+                 transactionState = new TransactionStateImpl(
+                TransactionState.TransactionType.NODE, 1, false);
+                         //rmContext.getTransactionStateManager().getCurrentTransactionState(--rpcId, "nodeHeartbeat");
+//                 ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
+//                        pendingEvent.getId(),
+//                        rmNode.getNodeID().toString(),
+//                        PendingEventTableDef.NODE_UPDATED,
+//                        PendingEventTableDef.COMPLETED);
+                LOG.info("Nodeupdate event_Scheduler_finished_processing rmnode : "+rmNode.getNodeID());
+                ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).setPendingEventId(rmNode.getRMNodePendingEventId());
+                rmContext.getDispatcher().getEventHandler().handle(new NodeUpdateSchedulerEvent(rmNode, transactionState));
 
             } else if (pendingEvent.getStatus() == PendingEventTableDef.SCHEDULER_NOT_FINISHED_PROCESSING) {
-
+                LOG.info("Nodeupdate event_Scheduler_not_finished_processing rmnode : "+rmNode.getNodeID());
             }
         }
 
         try {
-            if (pendingEvent.getStatus() != PendingEventTableDef.SCHEDULER_NOT_FINISHED_PROCESSING) {
-                transactionState.decCounter(TransactionState.TransactionType.RM);
-            }
+            if(transactionState !=null)
+                transactionState.decCounter(TransactionState.TransactionType.INIT);
         } catch (IOException ex) {
             LOG.error("HOP :: Error decreasing ts counter", ex);
         }

@@ -166,7 +166,7 @@ public class TransactionStateImpl extends TransactionState {
 
   
   private static final ExecutorService executorService =
-      Executors.newFixedThreadPool(1);
+      Executors.newFixedThreadPool(200);
   
   @Override
   public void commit(boolean first) throws IOException {
@@ -189,7 +189,7 @@ public class TransactionStateImpl extends TransactionState {
 
   public void addAppId(ApplicationId appId){
       if(appIds.add(appId)){
-        RMUtilities.putTransactionStateInAppQueue(this, appId);
+        //RMUtilities.putTransactionStateInAppQueue(this, appId);
       }
   }
   
@@ -244,19 +244,19 @@ public class TransactionStateImpl extends TransactionState {
     if (node.getTotalResource() != null) {
       nodeInfos.setTotalResource(new Resource(nodeId, Resource.TOTAL_CAPABILITY,
               Resource.FICASCHEDULERNODE, node.getTotalResource().getMemory(),
-              node.getTotalResource().getVirtualCores()));
+              node.getTotalResource().getVirtualCores(),0));
     }
     if (node.getAvailableResource() != null) {
       nodeInfos.setAvailableResource(new Resource(nodeId, Resource.AVAILABLE,
               Resource.FICASCHEDULERNODE,
               node.getAvailableResource().getMemory(),
-              node.getAvailableResource().getVirtualCores()));
+              node.getAvailableResource().getVirtualCores(),0));
     }
     if (node.getUsedResource() != null) {
       nodeInfos.setUsedResource(
               new Resource(nodeId, Resource.USED, Resource.FICASCHEDULERNODE,
                       node.getUsedResource().getMemory(),
-                      node.getUsedResource().getVirtualCores()));
+                      node.getUsedResource().getVirtualCores(),0));
     }
     if (node.getReservedContainer() != null) {
       addRMContainerToUpdate((RMContainerImpl)node.getReservedContainer());
@@ -547,7 +547,7 @@ public class TransactionStateImpl extends TransactionState {
   public void toUpdateRMNode(
       org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode rmnodeToAdd) {
     
-      RMUtilities.putTransactionStateInNodeQueue(this, rmnodeToAdd.getNodeID());
+      //RMUtilities.putTransactionStateInNodeQueue(this, rmnodeToAdd.getNodeID());
     
       RMNode hopRMNode = new RMNode(rmnodeToAdd.getNodeID().toString(),
           rmnodeToAdd.getHostName(), rmnodeToAdd.getCommandPort(),
@@ -556,7 +556,8 @@ public class TransactionStateImpl extends TransactionState {
           rmnodeToAdd.getLastHealthReportTime(),
           ((RMNodeImpl) rmnodeToAdd).getCurrentState(),
           rmnodeToAdd.getNodeManagerVersion(), -1,
-          ((RMNodeImpl) rmnodeToAdd).getUpdatedContainerInfoId());
+          ((RMNodeImpl) rmnodeToAdd).getUpdatedContainerInfoId(),rmnodeToAdd.getRMNodePendingEventId());
+      LOG.info("HOP :: update rmnode : "+ rmnodeToAdd.getNodeID().toString());
     this.rmNodesToUpdate.put(rmnodeToAdd.getNodeID().toString(), hopRMNode);
   }
 
@@ -573,12 +574,13 @@ public class TransactionStateImpl extends TransactionState {
       ContainerIdToCleanDataAccess cidToCleanDA,
       JustLaunchedContainersDataAccess justLaunchedContainersDA,
       UpdatedContainerInfoDataAccess updatedContainerInfoDA,
-      FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA)
+      FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA,PendingEventDataAccess persistedEventsDA)
       throws StorageException {
     if (rmNodeInfos != null) {
+      
       for (RMNodeInfo rmNodeInfo : rmNodeInfos.values()) {
         rmNodeInfo.persist(hbDA, cidToCleanDA, justLaunchedContainersDA,
-            updatedContainerInfoDA, faDA, csDA);
+            updatedContainerInfoDA, faDA, csDA,persistedEventsDA);
       }
     }
   }
@@ -594,7 +596,7 @@ public class TransactionStateImpl extends TransactionState {
           .getDataAccess(ResourceDataAccess.class);
       rDA.add(new Resource("cluster", Resource.CLUSTER, Resource.USED,
           usedResourceToUpdate.getMemory(),
-          usedResourceToUpdate.getVirtualCores()));
+          usedResourceToUpdate.getVirtualCores(),0));
     }
   }
   
@@ -609,7 +611,7 @@ public class TransactionStateImpl extends TransactionState {
           .getDataAccess(ResourceDataAccess.class);
       rDA.add(new Resource("cluster", Resource.CLUSTER, Resource.AVAILABLE,
           clusterResourceToUpdate.getMemory(),
-          clusterResourceToUpdate.getVirtualCores()));
+          clusterResourceToUpdate.getVirtualCores(),0));
     }
   }
 
@@ -625,13 +627,13 @@ public class TransactionStateImpl extends TransactionState {
         //Set memory and virtualcores to zero as we do not need
         //these values during remove anyway.
         toRemoveResources.add(new Resource(nodeId, Resource.TOTAL_CAPABILITY,
-            Resource.FICASCHEDULERNODE, 0, 0));
+            Resource.FICASCHEDULERNODE, 0, 0,0));
         toRemoveResources.add(
             new Resource(nodeId, Resource.AVAILABLE, Resource.FICASCHEDULERNODE,
-                0, 0));
+                0, 0,0));
         toRemoveResources.add(
             new Resource(nodeId, Resource.USED, Resource.FICASCHEDULERNODE, 0,
-                0));
+                0,0));
         // Update FiCaSchedulerNode reservedContainer
         RMContainer container =
             ficaSchedulerNodeInfoToRemove.get(nodeId).getReservedContainer();
@@ -717,11 +719,13 @@ public class TransactionStateImpl extends TransactionState {
 
   public void persistPendingEvents(PendingEventDataAccess persistedEventsDA)
       throws StorageException {
+      LOG.info("HOP_PENDING persit pending event : size : "+this.persistedEventsToAdd.size());
     List<PendingEvent> toPersist = new ArrayList<PendingEvent>();
     for(PendingEvent event : this.persistedEventsToAdd){
       if(!this.persistedEventsToRemove.remove(event)){
         toPersist.add(event);
       }
+       LOG.info("HOP_PENDING persit pending event " + rpcType + " node " + nodeId);
     }
     if (rpcType != null && !this.persistedEventsToAdd.isEmpty()) {
       LOG.info("persisting " + rpcType + " node " + nodeId);
@@ -753,7 +757,7 @@ public class TransactionStateImpl extends TransactionState {
         totalDuration+=duration;
         nbFinish++;
         double avgDuration = totalDuration/nbFinish;
-        LOG.info("finish commit duration: " + duration + " (" + avgDuration + ")");
+        //LOG.info("finish commit duration: " + duration + " (" + avgDuration + ")");
 //      }catch(IOException ex){
 //        LOG.error("did not commit state properly", ex);
 //      }

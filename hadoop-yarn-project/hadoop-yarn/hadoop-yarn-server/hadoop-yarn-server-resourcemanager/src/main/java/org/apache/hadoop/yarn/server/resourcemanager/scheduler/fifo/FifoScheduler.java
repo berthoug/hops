@@ -736,10 +736,10 @@ public class FifoScheduler extends AbstractYarnScheduler
 
   private synchronized void nodeUpdate(RMNode rmNode,
       TransactionState transactionState) {
-    LOG.debug("HOP :: nodeUpdate, rmNode:" + rmNode.getNodeID().toString());
+    
     org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode
         node = getNode(rmNode.getNodeID());
-
+    LOG.info("HOP :: nodeUpdate, rmNode:" + rmNode.getNodeID().toString() + " node : " + node);
     // Update resource if any change
     SchedulerUtils.updateResourceIfChanged(node, rmNode, clusterResource, LOG, transactionState);
     if (transactionState != null) {
@@ -794,7 +794,7 @@ public class FifoScheduler extends AbstractYarnScheduler
 
   @Override
   public void handle(SchedulerEvent event) {
-    LOG.debug("HOP :: FifoScheduler received event of type:" + event.getType());
+    LOG.info("HOP :: FifoScheduler received event of type:" + event.getType());
     switch (event.getType()) {
       case NODE_ADDED: {
         NodeAddedSchedulerEvent nodeAddedEvent =
@@ -995,7 +995,7 @@ public class FifoScheduler extends AbstractYarnScheduler
       org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode node,
       TransactionState ts) {
     this.nodes.put(nodeManager.getNodeID(), node);
-    LOG.debug("HOP :: FifoScheduler - node was added");
+    LOG.info("HOP :: FifoScheduler - node was added - node id - "+nodeManager.getNodeID() + " node - "+node);
     Resources.addTo(clusterResource, nodeManager.getTotalCapability());
     if (ts != null) {
       ((TransactionStateImpl) ts)

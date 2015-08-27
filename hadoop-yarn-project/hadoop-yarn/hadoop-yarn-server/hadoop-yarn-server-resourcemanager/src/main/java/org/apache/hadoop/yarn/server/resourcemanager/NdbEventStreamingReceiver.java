@@ -75,10 +75,13 @@ public class NdbEventStreamingReceiver {
     private String hopRMNodeHttpAddress="";
     private String hopRMNodeHealthReport="";
     private long hopRMNodelastHealthReportTime=0;
+
+
     private String hopRMNodeCurrentState="";
     private String hopRMNodeNodemanagerVersion="";
     private int hopRMNodeOvercommittimeout=0;
     private int hopRMNodeUciId=0;
+    private int hopRMNodePendingEventId=0;
 
     public void setHopRMNodeNodeId(String hopRMNodeNodeId) {
         this.hopRMNodeNodeId = hopRMNodeNodeId;
@@ -128,8 +131,12 @@ public class NdbEventStreamingReceiver {
         this.hopRMNodeUciId = hopRMNodeUciId;
     }
 
+    public void setHopRMNodePendingEventId(int hopRMNodePendingEventId) {
+        this.hopRMNodePendingEventId = hopRMNodePendingEventId;
+    }
+    
     public void buildHopRMNode() {
-        hopRMNode = new RMNode(hopRMNodeNodeId, hopRMNodeHostName, hopRMNodeCommandPort, hopRMNodeHttpPort, hopRMNodeNodeAddress, hopRMNodeHttpAddress, hopRMNodeHealthReport, hopRMNodelastHealthReportTime, hopRMNodeCurrentState, hopRMNodeNodemanagerVersion, hopRMNodeOvercommittimeout, hopRMNodeUciId);
+        hopRMNode = new RMNode(hopRMNodeNodeId, hopRMNodeHostName, hopRMNodeCommandPort, hopRMNodeHttpPort, hopRMNodeNodeAddress, hopRMNodeHttpAddress, hopRMNodeHealthReport, hopRMNodelastHealthReportTime, hopRMNodeCurrentState, hopRMNodeNodemanagerVersion, hopRMNodeOvercommittimeout, hopRMNodeUciId,hopRMNodePendingEventId);
 
     }
 
@@ -139,7 +146,6 @@ public class NdbEventStreamingReceiver {
     private int hopPendingEventStatus=0;
     //Used to order the events when retrieved by scheduler
     private int hopPendingEventId=0;
-    private int lastHBResponseID=0;
 
     public void setHopPendingEventRmnodeId(String hopPendingEventRmnodeId) {
         this.hopPendingEventRmnodeId = hopPendingEventRmnodeId;
@@ -157,59 +163,8 @@ public class NdbEventStreamingReceiver {
         this.hopPendingEventId = hopPendingEventId;
     }
 
-    public void setHopPendingEventHbId(int hopPendingEventHbId) {
-        this.lastHBResponseID = hopPendingEventHbId;
-    }
-
     public void buildHopPendingEvent() {
         hopPendingEvent = new PendingEvent(hopPendingEventRmnodeId, hopPendingEventType, hopPendingEventStatus, hopPendingEventId);
-    }
-
-    /// build hopnext heart beat ///////////////////////////////////////////////////////
-    private String hopNextHBRmnodeid="";
-    private boolean hopNextHBNextheartbeat=true;
-
-    public void setHopNextHBRmnodeid(String hopNextHBRmnodeid) {
-        this.hopNextHBRmnodeid = hopNextHBRmnodeid;
-    }
-
-    public void setHopNextHBNextheartbeat(boolean hopNextHBNextheartbeat) {
-        this.hopNextHBNextheartbeat = hopNextHBNextheartbeat;
-    }
-
-    public void buildHopNextHeartBeat() {
-        hopNextHeartbeat = new NextHeartbeat(hopNextHBRmnodeid, hopNextHBNextheartbeat);
-    }
-
-    /////build heartbeat response //////////////////////////////////////////////////////
-    private String hopHBResponseRmnodeId="";
-    private byte[] hopHBResponse;
-
-    public void setHopHBResponseRmnodeId(String hopHBResponseRmnodeId) {
-        this.hopHBResponseRmnodeId = hopHBResponseRmnodeId;
-    }
-
-    public void setHopHBResponse(byte[] hopHBResponse) throws DataFormatException, IOException {
-        if (hopHBResponse != null) {
-            Inflater decompresser = new Inflater();
-            decompresser.setInput(hopHBResponse);
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream(hopHBResponse.length);
-            byte[] buffer = new byte[1024];
-            while (!decompresser.finished()) {
-                int count = decompresser.inflate(buffer);
-                outputStream.write(buffer, 0, count);
-            }
-            decompresser.end();
-            outputStream.close();
-            this.hopHBResponse = outputStream.toByteArray();
-        } else {
-            this.hopHBResponse = hopHBResponse;
-        }
-
-    }
-
-    public void buildHopHBResponse() {
-        hopNodeHBResponse = new NodeHBResponse(hopHBResponseRmnodeId, hopHBResponse);
     }
 
     /////build hop resource ////////////////////////////////////////////////////////////////
@@ -218,6 +173,7 @@ public class NdbEventStreamingReceiver {
     private int hopResourceParent=0;
     private int hopResourceMemory=0;
     private int hopResourceVirtualcores=0;
+    private int hopResourcePendingEventId=0;
 
     public void setHopResourceId(String hopResourceId) {
         this.hopResourceId = hopResourceId;
@@ -239,8 +195,12 @@ public class NdbEventStreamingReceiver {
         this.hopResourceVirtualcores = hopResourceVirtualcores;
     }
 
+    public void setHopResourcePendingEventId(int hopResourcePendingEventId) {
+        this.hopResourcePendingEventId = hopResourcePendingEventId;
+    }
+ 
     public void buildHopResource() {
-        hopResource = new Resource(hopResourceId, hopResourceType, hopResourceParent, hopResourceMemory, hopResourceVirtualcores);
+        hopResource = new Resource(hopResourceId, hopResourceType, hopResourceParent, hopResourceMemory, hopResourceVirtualcores,hopResourcePendingEventId);
     }
 
     ///build hopnode ///////////////////////////////////////////////////////
@@ -249,6 +209,7 @@ public class NdbEventStreamingReceiver {
     private String hopNodeLocation="";
     private int hopNodeLevel=0;
     private String hopNodeParent="";
+    private int hopNodePendingEventId=0;
 
     public void setHopNodeId(String hopNodeId) {
         this.hopNodeId = hopNodeId;
@@ -270,8 +231,12 @@ public class NdbEventStreamingReceiver {
         this.hopNodeParent = hopNodeParent;
     }
 
+    public void setHopNodePendingEventId(int hopNodePendingEventId) {
+        this.hopNodePendingEventId = hopNodePendingEventId;
+    }
+
     public void buildHopNode() {
-        hopNode = new Node(hopNodeId, hopNodeName, hopNodeLocation, hopNodeLevel, hopNodeParent);
+        hopNode = new Node(hopNodeId, hopNodeName, hopNodeLocation, hopNodeLevel, hopNodeParent,hopNodePendingEventId);
     }
 
     ///list processing - just launched containers ///////////////////////////////////////
@@ -282,7 +247,11 @@ public class NdbEventStreamingReceiver {
 
     private String hopJustLaunchedContainersRmnodeid="";
     private String hopJustLaunchedContainersContainerid="";
+    private int hopJulstLaunchedContainersPendingId=0;
 
+    public void setHopUpdatedContainerInfoPendingId(int hopUpdatedContainerInfoPendingId) {
+        this.hopUpdatedContainerInfoPendingId = hopUpdatedContainerInfoPendingId;
+    }
     public void setHopJustLaunchedContainersRmnodeid(String hopJustLaunchedContainersRmnodeid) {
         this.hopJustLaunchedContainersRmnodeid = hopJustLaunchedContainersRmnodeid;
     }
@@ -292,7 +261,7 @@ public class NdbEventStreamingReceiver {
     }
 
     public void AddJustLaunchedContainers() {
-        JustLaunchedContainers hopJustLaunchedContainers = new JustLaunchedContainers(hopJustLaunchedContainersRmnodeid, hopJustLaunchedContainersContainerid);
+        JustLaunchedContainers hopJustLaunchedContainers = new JustLaunchedContainers(hopJustLaunchedContainersRmnodeid, hopJustLaunchedContainersContainerid,hopJulstLaunchedContainersPendingId);
         hopJustLaunchedContainersList.add(hopJustLaunchedContainers);
     }
 
@@ -304,9 +273,14 @@ public class NdbEventStreamingReceiver {
     private String hopUpdatedContainerInfoRmnodeid="";
     private String hopUpdatedContainerInfoContainerId="";
     private int hopUpdatedContainerInfoUpdatedContainerInfoId=0;
+    private int hopUpdatedContainerInfoPendingId=0;
 
     public void setHopUpdatedContainerInfoRmnodeid(String hopUpdatedContainerInfoRmnodeid) {
         this.hopUpdatedContainerInfoRmnodeid = hopUpdatedContainerInfoRmnodeid;
+    }
+
+    public void setHopJulstLaunchedContainersPendingId(int hopJulstLaunchedContainersPendingId) {
+        this.hopJulstLaunchedContainersPendingId = hopJulstLaunchedContainersPendingId;
     }
 
     public void setHopUpdatedContainerInfoContainerId(String hopUpdatedContainerInfoContainerId) {
@@ -318,51 +292,8 @@ public class NdbEventStreamingReceiver {
     }
 
     public void AddHopUpdatedContainerInfo() {
-        UpdatedContainerInfo hopUpdatedContainerInfo = new UpdatedContainerInfo(hopUpdatedContainerInfoRmnodeid, hopUpdatedContainerInfoContainerId, hopUpdatedContainerInfoUpdatedContainerInfoId);
+        UpdatedContainerInfo hopUpdatedContainerInfo = new UpdatedContainerInfo(hopUpdatedContainerInfoRmnodeid, hopUpdatedContainerInfoContainerId, hopUpdatedContainerInfoUpdatedContainerInfoId,hopUpdatedContainerInfoPendingId);
         hopUpdatedContainerInfoList.add(hopUpdatedContainerInfo);
-    }
-
-    //// list building - build containeridtoclean
-    public void buildHopContainerId() {
-        hopContainerIdsToCleanList = new ArrayList<ContainerId>();
-    }
-
-    private String hopContainerIdToCleanRmnodeid="";
-    private String hopContainerIdToCleanContainerId="";
-
-    public void setHopContainerIdToCleanRmnodeid(String hopContainerIdToCleanRmnodeid) {
-        this.hopContainerIdToCleanRmnodeid = hopContainerIdToCleanRmnodeid;
-    }
-
-    public void setHopContainerIdToCleanContainerId(String hopContainerIdToCleanContainerId) {
-        this.hopContainerIdToCleanContainerId = hopContainerIdToCleanContainerId;
-    }
-
-    public void AddHopContainerIdToClean() {
-        ContainerId hopContainerId = new ContainerId(hopContainerIdToCleanRmnodeid, hopContainerIdToCleanContainerId);
-        hopContainerIdsToCleanList.add(hopContainerId);
-    }
-
-    //// list building - build finished applications
-    public void buildHopFinishedApplications() {
-        hopFinishedApplicationsList = new ArrayList<FinishedApplications>();
-
-    }
-
-    private String hopFinishedApplicationsRmnodeid="";
-    private String hopFinishedApplicationsApplicationId="";
-
-    public void setHopFinishedApplicationsRmnodeid(String hopFinishedApplicationsRmnodeid) {
-        this.hopFinishedApplicationsRmnodeid = hopFinishedApplicationsRmnodeid;
-    }
-
-    public void setHopFinishedApplicationsApplicationId(String hopFinishedApplicationsApplicationId) {
-        this.hopFinishedApplicationsApplicationId = hopFinishedApplicationsApplicationId;
-    }
-
-    public void AddHopFinishedApplications() {
-        FinishedApplications hopFinishedApplications = new FinishedApplications(hopFinishedApplicationsRmnodeid, hopFinishedApplicationsApplicationId);
-        hopFinishedApplicationsList.add(hopFinishedApplications);
     }
 
     //// list building - build container status
@@ -371,6 +302,7 @@ public class NdbEventStreamingReceiver {
     private String hopContainerStatusDiagnostics="";
     private int hopContainerStatusExitstatus=0;
     private String hopContainerStatusRMNodeId="";
+    private int hopContainerStatusPendingId=0;
 
     public void setHopContainerStatusContainerid(String hopContainerStatusContainerid) {
         this.hopContainerStatusContainerid = hopContainerStatusContainerid;
@@ -379,6 +311,11 @@ public class NdbEventStreamingReceiver {
     public void setHopContainerStatusState(String hopContainerStatusState) {
         this.hopContainerStatusState = hopContainerStatusState;
     }
+
+    public void setHopContainerStatusPendingId(int hopContainerStatusPendingId) {
+        this.hopContainerStatusPendingId = hopContainerStatusPendingId;
+    }
+    
 
     public void setHopContainerStatusDiagnostics(String hopContainerStatusDiagnostics) {
         this.hopContainerStatusDiagnostics = hopContainerStatusDiagnostics;
@@ -398,12 +335,13 @@ public class NdbEventStreamingReceiver {
 
     public void AddHopContainerStatus() {
         ContainerStatus hopContainerStatus = new ContainerStatus(hopContainerStatusContainerid, hopContainerStatusState,
-                hopContainerStatusDiagnostics, hopContainerStatusExitstatus, hopContainerStatusRMNodeId);
+                hopContainerStatusDiagnostics, hopContainerStatusExitstatus, hopContainerStatusRMNodeId,hopContainerStatusPendingId);
         hopContainersStatusList.add(hopContainerStatus);
     }
 
     //This will be called by c++ shared library, libhopsndbevent.so
     public void onEventMethod() throws InterruptedException {
+        
         RMNodeComps hopRMNodeBDBObject = new RMNodeComps(hopRMNode, hopNextHeartbeat, hopNode, hopNodeHBResponse, hopResource,
                 hopPendingEvent, hopJustLaunchedContainersList, hopUpdatedContainerInfoList, hopContainerIdsToCleanList, hopFinishedApplicationsList, hopContainersStatusList);
         blockingQueue.put(hopRMNodeBDBObject);

@@ -15,9 +15,7 @@
  */
 package org.apache.hadoop.yarn.server.resourcemanager;
 
-import io.hops.metadata.yarn.entity.ContainerId;
 import io.hops.metadata.yarn.entity.ContainerStatus;
-import io.hops.metadata.yarn.entity.FinishedApplications;
 import io.hops.metadata.yarn.entity.JustLaunchedContainers;
 import io.hops.metadata.yarn.entity.RMNodeComps;
 import io.hops.metadata.yarn.entity.UpdatedContainerInfo;
@@ -45,62 +43,34 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
     public void printHopsRMNodeComps(RMNodeComps hopRMNodeNDBCompObject) {
 
         //print hoprmnode 
+        LOG.info("<EvtProcessor_PRINT_START>-------------------------------------------------------------------");
         if (hopRMNodeNDBCompObject.getHopRMNode() != null) {
-            LOG.debug("<HopRMNode> Host name  :" + hopRMNodeNDBCompObject.getHopRMNode().getHostName()+
-                    "node id : "+hopRMNodeNDBCompObject.getHopRMNode().getNodeId()+
-                    "current state :"+hopRMNodeNDBCompObject.getHopRMNode().getCurrentState());
-        } else {
-            LOG.debug("<HopRMNode> is null");
+             LOG.info("<EvtProcessor> [rmnode] id : "+hopRMNodeNDBCompObject.getHopRMNode().getNodeId() +"| peinding id : "+hopRMNodeNDBCompObject.getHopRMNode().getPendingEventId());
         }
         //print hopnode
         if (hopRMNodeNDBCompObject.getHopNode() != null) {
-            LOG.debug("<HopNode> RMnode id :" + hopRMNodeNDBCompObject.getHopNode().getId() + "| Location : " + hopRMNodeNDBCompObject.getHopNode().getLocation());
-        }
-        //print nexthearbeat
-        if (hopRMNodeNDBCompObject.getHopNextHeartbeat() != null) {
-            LOG.debug("<HopNextHeartbeat> RMNodeid :" + hopRMNodeNDBCompObject.getHopNextHeartbeat().getRmnodeid() + "|NextHeartBeat : " + hopRMNodeNDBCompObject.getHopNextHeartbeat().isNextheartbeat());
-
+            LOG.info("<EvtProcessor> [node] id : "+hopRMNodeNDBCompObject.getHopNode().getId()+"| level : "+hopRMNodeNDBCompObject.getHopNode().getLevel());
         }
         //print hopresource 
         if (hopRMNodeNDBCompObject.getHopResource() != null) {
-            LOG.debug("<HopResource> memory:" + hopRMNodeNDBCompObject.getHopResource().getMemory() + "| Type  : " + hopRMNodeNDBCompObject.getHopResource().getType());
+            LOG.info("<EvtProcessor> [resource] id : "+hopRMNodeNDBCompObject.getHopResource().getId() +"| memory : "+hopRMNodeNDBCompObject.getHopResource().getMemory());
         }
-        // print hbresponse
-        if (hopRMNodeNDBCompObject.getHopNodeHBResponse() != null) {
-            String hbResponse = new String(hopRMNodeNDBCompObject.getHopNodeHBResponse().getResponse());
-            LOG.debug("<HopHBResponse> RMNodeId :" + hopRMNodeNDBCompObject.getHopNodeHBResponse().getRMNodeId() + "| Response  : " + hbResponse);
-        }
-
         if (hopRMNodeNDBCompObject.getPendingEvent() != null) {
-            LOG.debug("<HopPendingEvent> rm node id " + hopRMNodeNDBCompObject.getPendingEvent().getRmnodeId() + "id unique to rmnode :" + hopRMNodeNDBCompObject.getPendingEvent().getId());
+            LOG.info("<EvtProcessor> [pendingevent] id : "+hopRMNodeNDBCompObject.getPendingEvent().getRmnodeId() +"| peinding id : "+hopRMNodeNDBCompObject.getPendingEvent().getId());
         }
-
         List<JustLaunchedContainers> hopJustLaunchedContainers = hopRMNodeNDBCompObject.getHopJustLaunchedContainers();
         for (JustLaunchedContainers hopjl : hopJustLaunchedContainers) {
-            LOG.debug("<HopJustLaunchedContainers> <List> RMNodeid:" + hopjl.getRmnodeid() + "| ContainerID : " + hopjl.getContainerId());
+            LOG.info("<EvtProcessor> [justlaunchedcontainer] id : "+hopjl.getRmnodeid() +"| container id : "+hopjl.getContainerId());
         }
-
         List<UpdatedContainerInfo> hopUpdatedContainerInfo = hopRMNodeNDBCompObject.getHopUpdatedContainerInfo();
         for (UpdatedContainerInfo hopuc : hopUpdatedContainerInfo) {
-            LOG.debug("<HopUpdatedContainerInfo> <map> RMNodeid:" + hopuc.getRmnodeid() + "| ContainerID : " + hopuc.getUpdatedContainerInfoId());
-
+            LOG.info("<EvtProcessor> [updatedcontainerinfo] id : "+hopuc.getRmnodeid() +"| container id : "+hopuc.getContainerId());
         }
-
-        List<ContainerId> hopContainerIdsToClean = hopRMNodeNDBCompObject.getHopContainerIdsToClean();
-
-        for (ContainerId hopidclean : hopContainerIdsToClean) {
-            LOG.debug("<HopContainerIdsToClean> <List> RMNodeid:" + hopidclean.getRmnodeid() + "| ContainerId : " + hopidclean.getContainerId());
-        }
-
-        List<FinishedApplications> hopFinishedApplications = hopRMNodeNDBCompObject.getHopFinishedApplications();
-        for (FinishedApplications hopfinishedapp : hopFinishedApplications) {
-            LOG.debug("<HopFinishedApplications> <List>  RMNodeID :" + hopfinishedapp.getRMNodeID() + "| ApplicationId : " + hopfinishedapp.getApplicationId());
-        }
-
         List<ContainerStatus> hopContainersStatus = hopRMNodeNDBCompObject.getHopContainersStatus();
         for (ContainerStatus hopCS : hopContainersStatus) {
-            LOG.debug("<HopContainersStatus> <map> HopContainerStatus rmnodeid  : " + hopCS.getRMNodeId() + "|Value : Container id : " + hopCS.getContainerid() + "| State : " + hopCS.getState());
+            LOG.info("<EvtProcessor> [containerstatus] id : "+hopCS.getRMNodeId() +"| container id : "+hopCS.getContainerid()+"| container status : "+hopCS.getExitstatus());
         }
+        LOG.info("<EvtProcessor_PRINT_END>-------------------------------------------------------------------");
     }
 
     @Override
@@ -113,7 +83,6 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
                 hopRMNodeCompObject = (RMNodeComps) NdbEventStreamingReceiver.blockingQueue.take();
                 if (hopRMNodeCompObject != null) {
                     printHopsRMNodeComps(hopRMNodeCompObject);
-                           
                  try {
                         rmNode = processHopRMNodeComps(hopRMNodeCompObject);
                         LOG.debug("HOP :: RMNodeWorker rmNode:" + rmNode);

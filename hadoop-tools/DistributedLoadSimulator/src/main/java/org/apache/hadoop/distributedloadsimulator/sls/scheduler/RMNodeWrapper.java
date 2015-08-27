@@ -32,6 +32,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmnode
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import static org.apache.hadoop.distributedloadsimulator.sls.SLSRunner.LOG;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 
 public class RMNodeWrapper implements RMNode {
@@ -173,6 +174,17 @@ public class RMNodeWrapper implements RMNode {
     @Override
     public void recover(RMStateStore.RMState state) throws Exception {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public int getRMNodePendingEventId() {
+        LOG.info("distributed load simulator returning rmnode pending event id ");
+        return 0;
+    }
+
+    @Override
+    public void setRMNodePendingEventId(int pendingId) {
+        LOG.info("distributed load simulator returning rmnode set pending event id ");
     }
 
   

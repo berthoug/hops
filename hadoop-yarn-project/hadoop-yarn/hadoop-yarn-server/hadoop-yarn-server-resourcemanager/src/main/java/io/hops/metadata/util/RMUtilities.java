@@ -19,6 +19,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.hops.exception.StorageException;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
+import io.hops.ha.common.transactionStateWrapper;
 import io.hops.metadata.yarn.TablesDef;
 import io.hops.metadata.yarn.dal.AppSchedulingInfoBlacklistDataAccess;
 import io.hops.metadata.yarn.dal.AppSchedulingInfoDataAccess;
@@ -55,7 +56,6 @@ import io.hops.metadata.yarn.dal.capacity.CSQueueDataAccess;
 import io.hops.metadata.yarn.dal.capacity.FiCaSchedulerAppReservedContainersDataAccess;
 import io.hops.metadata.yarn.dal.fair.AppSchedulableDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
-import io.hops.metadata.yarn.dal.fair.PreemptionMapDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocateResponseDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationAttemptStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationStateDataAccess;
@@ -100,8 +100,6 @@ import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
 import io.hops.metadata.yarn.entity.capacity.CSLeafQueueUserInfo;
 import io.hops.metadata.yarn.entity.capacity.CSQueue;
 import io.hops.metadata.yarn.entity.capacity.FiCaSchedulerAppReservedContainers;
-import io.hops.metadata.yarn.entity.fair.FSSchedulerNode;
-import io.hops.metadata.yarn.entity.fair.PreemptionMap;
 import io.hops.metadata.yarn.entity.rmstatestore.AllocateResponse;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationAttemptState;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationState;
@@ -154,13 +152,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
@@ -2049,9 +2045,7 @@ public class RMUtilities {
             return hopFinishedApps;
           }
         };
-    return (Map<String, List<FinishedApplications>>) getFinishedApplicationsHandler
-        .
-            handle();
+    return (Map<String, List<FinishedApplications>>) getFinishedApplicationsHandler.handle();
   }
   
   public static Map<String, List<JustLaunchedContainers>> getAllJustLaunchedContainers()
@@ -2253,18 +2247,18 @@ public class RMUtilities {
             
             
             //TODO put all of this in ts.persist
-            ts.persistCSQueueInfo(csQDA, csLQDA);
+            //ts.persistCSQueueInfo(csQDA, csLQDA);
             ts.persistRMNodeToUpdate(rmnodeDA);
             ts.persistRmcontextInfo(rmnodeDA, resourceDA, nodeDA,
                 rmctxInactiveNodesDA);
             ts.persistRMNodeInfo(hbDA, cidToCleanDA, justLaunchedContainersDA,
-                updatedContainerInfoDA, faDA, csDA);
-            ts.persist();
-            ts.persistFicaSchedulerNodeInfo(resourceDA, ficaNodeDA,
-                rmcontainerDA, launchedContainersDA);
-            ts.persistFairSchedulerNodeInfo(FSSNodeDA);
-            ts.persistSchedulerApplicationInfo(QMDA, connector);
-            ts.persistPendingEvents(persistedEventDA);
+                updatedContainerInfoDA, faDA, csDA,persistedEventDA);
+           // ts.persist();
+            //ts.persistFicaSchedulerNodeInfo(resourceDA, ficaNodeDA,
+              //  rmcontainerDA, launchedContainersDA);
+           // ts.persistFairSchedulerNodeInfo(FSSNodeDA);
+           /// ts.persistSchedulerApplicationInfo(QMDA, connector);
+            //ts.persistPendingEvents(persistedEventDA);
             connector.commit();
 
             return null;

@@ -147,21 +147,21 @@ public class FiCaSchedulerAppInfo {
               applicationAttemptId.toString(),
               Resource.CURRENTCONSUMPTION, Resource.SCHEDULERAPPLICATIONATTEMPT,
               schedulerApp.getCurrentConsumption().getMemory(),
-              schedulerApp.getCurrentConsumption().getVirtualCores()));
+              schedulerApp.getCurrentConsumption().getVirtualCores(),0));
     }
     if (schedulerApp.getCurrentReservation() != null) {
       resourcesToUpdate.put(Resource.CURRENTRESERVATION, new Resource(
               applicationAttemptId.toString(),
               Resource.CURRENTRESERVATION, Resource.SCHEDULERAPPLICATIONATTEMPT,
               schedulerApp.getCurrentReservation().getMemory(),
-              schedulerApp.getCurrentReservation().getVirtualCores()));
+              schedulerApp.getCurrentReservation().getVirtualCores(),0));
     }
     if (schedulerApp.getResourceLimit() != null) {
       resourcesToUpdate.put(Resource.RESOURCELIMIT, new Resource(
               applicationAttemptId.toString(),
               Resource.RESOURCELIMIT, Resource.SCHEDULERAPPLICATIONATTEMPT,
               schedulerApp.getResourceLimit().getMemory(),
-              schedulerApp.getResourceLimit().getVirtualCores()));
+              schedulerApp.getResourceLimit().getVirtualCores(),0));
     }
     if (!schedulerApp.getLiveContainers().isEmpty()) {
       for(org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer rmContainer:
@@ -202,7 +202,7 @@ public class FiCaSchedulerAppInfo {
     toUpdateResources.put(type, new Resource(applicationAttemptId.toString(), type,
             Resource.SCHEDULERAPPLICATIONATTEMPT,
             res.getMemory(),
-            res.getVirtualCores()));
+            res.getVirtualCores(),0));
   }
 
   public void setRequestsToAdd(
@@ -528,7 +528,7 @@ public class FiCaSchedulerAppInfo {
                 Resource.CURRENTCONSUMPTION,
                 Resource.SCHEDULERAPPLICATIONATTEMPT,
                 schedulerApp.getCurrentConsumption().getMemory(),
-                schedulerApp.getCurrentConsumption().getVirtualCores()));
+                schedulerApp.getCurrentConsumption().getVirtualCores(),0));
       }
       if (schedulerApp.getCurrentReservation() != null) {
         resourcesToUpdate.put(Resource.CURRENTRESERVATION, new Resource(
@@ -536,14 +536,14 @@ public class FiCaSchedulerAppInfo {
                 Resource.CURRENTRESERVATION,
                 Resource.SCHEDULERAPPLICATIONATTEMPT,
                 schedulerApp.getCurrentReservation().getMemory(),
-                schedulerApp.getCurrentReservation().getVirtualCores()));
+                schedulerApp.getCurrentReservation().getVirtualCores(),0));
       }
       if (schedulerApp.getResourceLimit() != null) {
         resourcesToUpdate.put(Resource.RESOURCELIMIT, new Resource(
                 applicationAttemptId.toString(),
                 Resource.RESOURCELIMIT, Resource.SCHEDULERAPPLICATIONATTEMPT,
                 schedulerApp.getResourceLimit().getMemory(),
-                schedulerApp.getResourceLimit().getVirtualCores()));
+                schedulerApp.getResourceLimit().getVirtualCores(),0));
       }
     } else {
       fiCaSchedulerAppToAdd = null;

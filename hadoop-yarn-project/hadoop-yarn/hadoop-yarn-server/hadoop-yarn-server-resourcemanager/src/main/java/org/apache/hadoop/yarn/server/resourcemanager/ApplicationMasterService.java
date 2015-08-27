@@ -250,10 +250,12 @@ public class ApplicationMasterService extends AbstractService
           regAMRequestData, applicationAttemptId.toString());
       
     }
-    TransactionState transactionState = 
-            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
-                    "registerApplicationMaster");
+//    TransactionState transactionState = 
+//            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+//                    "registerApplicationMaster");
     
+        TransactionState transactionState = new TransactionStateImpl(TransactionType.APP,1,
+            false);
     ApplicationId appID = applicationAttemptId.getApplicationId();
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
     if (lock == null) {
@@ -466,9 +468,10 @@ public class ApplicationMasterService extends AbstractService
               appAttemptId.toString());
       
     }
-    TransactionState transactionState = 
-            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
-                    "allocate");
+    TransactionState transactionState = new TransactionStateImpl(
+                TransactionState.TransactionType.RM, 1, true);
+//            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+//                    "allocate");
     this.amLivelinessMonitor.receivedPing(appAttemptId);
 
     /*
@@ -623,8 +626,8 @@ public class ApplicationMasterService extends AbstractService
        * need to worry about unregister call occurring in between (which
        * removes the lock object).
        */
-      ((TransactionStateImpl) transactionState).
-          addAllocateResponse(appAttemptId, lock);
+//      ((TransactionStateImpl) transactionState).
+//          addAllocateResponse(appAttemptId, lock);
       lock.setAllocateResponse(allocateResponse);
       transactionState.decCounter(TransactionState.TransactionType.INIT);
       return allocateResponse;

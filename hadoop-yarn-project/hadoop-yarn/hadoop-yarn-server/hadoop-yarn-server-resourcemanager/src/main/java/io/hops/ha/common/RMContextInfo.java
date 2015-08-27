@@ -81,19 +81,20 @@ public class RMContextInfo {
     Resource hopResource = new Resource(val.getNodeID().toString(),
             Resource.TOTAL_CAPABILITY, Resource.RMNODE, val.
             getTotalCapability().getMemory(), val.getTotalCapability().
-            getVirtualCores());
+            getVirtualCores(),val.getRMNodePendingEventId());
     toAdd.setResources(hopResource);
+    LOG.info("RMNODE resoruce persis - rmnode : "+val.getNodeID() + " pending id :"+val.getRMNodePendingEventId());
     //Persist Node
     if (val.getNode() != null) {
       if (val.getNode().getParent() != null) {
         toAdd.setNodeToAdd(new Node(val.getNodeID().toString(), val.
                 getNode().getName(), val.getNode().getNetworkLocation(),
                 val.getNode().getLevel(), val.getNode().getParent().
-                toString()));
+                toString(),val.getRMNodePendingEventId()));
       } else {
         toAdd.setNodeToAdd(new Node(val.getNodeID().toString(), val.
                 getNode().getName(), val.getNode().getNetworkLocation(),
-                val.getNode().getLevel(), null));
+                val.getNode().getLevel(), null,val.getRMNodePendingEventId()));
       }
     }
     //Persist RMNode
@@ -103,7 +104,7 @@ public class RMContextInfo {
             val.getLastHealthReportTime(),
             ((RMNodeImpl) val).getCurrentState(), val.
             getNodeManagerVersion(), 0, ((RMNodeImpl) val).
-            getUpdatedContainerInfoId());
+            getUpdatedContainerInfoId(),val.getRMNodePendingEventId());
     toAdd.setRMNode(hopRMNode);
     //Persist RMCoxtentNodesMap
     RMContextActiveNodes hopCtxNode = new RMContextActiveNodes(val.

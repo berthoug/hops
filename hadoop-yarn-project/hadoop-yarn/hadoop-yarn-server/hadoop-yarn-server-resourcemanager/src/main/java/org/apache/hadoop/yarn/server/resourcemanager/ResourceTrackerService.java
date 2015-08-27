@@ -160,6 +160,7 @@ public class ResourceTrackerService extends AbstractService
                 RMStorageFactory.kickTheNdbEventStreamingAPI();
                 rtStreamingProcessor = new NdbRtStreamingProcessor(rmContext);
                 new Thread(rtStreamingProcessor).start();
+                //rmContext.getTransactionStateManager().start();
             }
 
         }
@@ -305,8 +306,9 @@ public class ResourceTrackerService extends AbstractService
                         .persistAppMasterRPC(rpcID, RPC.Type.RegisterNM, allNMRequestData);
             }
         }
-        TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "registerNodeManager");
-
+       // TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "registerNodeManager");
+             TransactionState transactionState = new TransactionStateImpl(
+                TransactionState.TransactionType.NODE, 1, false);
         if (!request.getContainerStatuses().isEmpty()) {
             LOG.info("received container statuses on node manager register :"
                     + request.getContainerStatuses());
@@ -372,7 +374,16 @@ public class ResourceTrackerService extends AbstractService
                                 RMNode.OVER_COMMIT_TIMEOUT_MILLIS_DEFAULT), nodeManagerVersion,
                         conf.getBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
                                 YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED));
-
+        
+        // get the pending event and set to this rm node
+        ((TransactionStateImpl) transactionState)
+                    .getRMNodeInfo(nodeId).generatePendingEventId();
+        int pendingEventId = ((TransactionStateImpl) transactionState)
+                    .getRMNodeInfo(nodeId).getPendingId();
+        rmNode.setRMNodePendingEventId(pendingEventId);
+        ///
+        
+        
         if (isDistributedRTEnabled) {
             if (!oldNodeExists) {
                 LOG.info("HOP :: Registering new node at: " + host);
@@ -475,8 +486,11 @@ public class ResourceTrackerService extends AbstractService
             RMUtilities
                     .persistAppMasterRPC(rpcID, RPC.Type.NodeHeartbeat, allHBRequestData);
         }
-        TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "nodeHeartbeat");
-        ((transactionStateWrapper) transactionState).addTime(1);
+        
+         TransactionState transactionState = new TransactionStateImpl(
+                TransactionState.TransactionType.NODE, 1, false);
+        //TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "nodeHeartbeat");
+//        ((transactionStateWrapper) transactionState).addTime(1);
         LOG.debug("attribute rpc: " + rpcID + " to hb form " + nodeId);
 
         /**
@@ -486,6 +500,13 @@ public class ResourceTrackerService extends AbstractService
          * healthStatus to RMNode
          */
         RMNode rmNode = this.rmContext.getActiveRMNodes().get(nodeId);
+        
+        // lets generate pending event id for each heartbeat.
+        ((TransactionStateImpl)transactionState)
+                    .getRMNodeInfo(nodeId).generatePendingEventId();
+         int pendingEventId = ((TransactionStateImpl) transactionState)
+                    .getRMNodeInfo(nodeId).getPendingId();
+        rmNode.setRMNodePendingEventId(pendingEventId);
         // 1. Check if it's a registered node
         if (rmNode == null) {
             /*

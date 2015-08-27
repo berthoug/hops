@@ -282,10 +282,14 @@ public class SLSRunner implements AMNMCommonObject {
     private void startRM() throws IOException, ClassNotFoundException {
         Configuration rmConf = new YarnConfiguration();
 
-        if (standalonemode) {
+         if (standalonemode) {
             rmConf.setBoolean(YarnConfiguration.RM_HA_ENABLED, false);
+            rmConf.setBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED, false);
         } else {
             rmConf.setBoolean(YarnConfiguration.RM_HA_ENABLED, true);
+            rmConf.setBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED, true);
+            rmConf.setBoolean(YarnConfiguration.HOPS_NDB_EVENT_STREAMING_ENABLED, true);
+            rmConf.setBoolean(YarnConfiguration.HOPS_NDB_RT_EVENT_STREAMING_ENABLED, true);
             LOG.info("HOP :: Load simulator is starting resource manager in distributed mode ######################### ");
         }
 

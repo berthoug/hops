@@ -136,6 +136,13 @@ public interface RMNode extends Recoverable {
    */
   public String getRackName();
   
+    /**
+   * This for distributed RT.
+   *
+   * @return the current pendingevent id  of RMnode.
+   */
+  public int getRMNodePendingEventId();
+  
   /**
    * the {@link Node} information for this node.
    *
@@ -151,6 +158,7 @@ public interface RMNode extends Recoverable {
 
   public void setContainersToCleanUp(Set<ContainerId> newSet);
 
+  public void setRMNodePendingEventId(int pendingId);
   public void setAppsToCleanup(List<ApplicationId> newList);
   /**
    * Update a {@link NodeHeartbeatResponse} with the list of containers and

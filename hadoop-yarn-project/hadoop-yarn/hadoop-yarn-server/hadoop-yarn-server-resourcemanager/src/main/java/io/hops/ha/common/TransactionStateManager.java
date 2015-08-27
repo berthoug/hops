@@ -16,13 +16,9 @@
 
 package io.hops.ha.common;
 
-import io.hops.metadata.util.HopYarnAPIUtilities;
 import java.io.IOException;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.logging.Log;

@@ -45,7 +45,8 @@ public abstract class TransactionState {
   }
 
   private static final Log LOG = LogFactory.getLog(TransactionState.class);
-  private AtomicInteger counter = new AtomicInteger(0);
+  //private AtomicInteger counter = new AtomicInteger(0);
+  private int counter=1;
   protected final Set<ApplicationId> appIds = new ConcurrentSkipListSet<ApplicationId>();
 //  private final Lock counterLock = new ReentrantLock(true);
   private Set<Integer> rpcIds = new ConcurrentSkipListSet<Integer>();
@@ -55,7 +56,7 @@ public abstract class TransactionState {
     if(appId!=null){
       addAppId(appId);
     }
-    counter = new AtomicInteger(initialCounter);
+   //counter = new AtomicInteger(initialCounter);
     this.batch = batch;
   }
 
@@ -66,18 +67,23 @@ public abstract class TransactionState {
   abstract void addAppId(ApplicationId appId);
     
   public synchronized void incCounter(Enum type) {
-    counter.incrementAndGet();
+      counter++;
+    //counter.incrementAndGet();
   }
 
   public synchronized void decCounter(Enum type) throws IOException {
-    int value = counter.decrementAndGet();
-    if(!batch && value==0){
-      commit(true);
-    }
+      counter --;
+      if(counter==0){
+       commit(true);
+      }
+//    int value = counter.decrementAndGet();
+//    if(!batch && value==0){
+//      commit(true);
+//    }
   }
 
   public int getCounter(){
-      return counter.get();
+      return counter ; //counter.get();
   }
  
   public void addRPCId(int rpcId, String callingFuncition){
