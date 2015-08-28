@@ -46,11 +46,10 @@ public class LogsPrinter implements Runnable {
             logout = logout + logs.poll()+ ", ";
             count++;
           }
-          count = count/2;
-          String toPrint = "commit logs " + count + "|| " + RMUtilities.getCommitAvgDuration() + ", " + RMUtilities.getCommitAndQueueAvgDuration() + "\n avgt commit: " + RMUtilities.getavgt() + "\n" +
-                  logout;
+          count = count/4;
+          String toPrint = "commit logs " + count + "|| " + RMUtilities.getCommitAvgDuration() + ", " + RMUtilities.getCommitAndQueueAvgDuration() + "\n avgt commit: " + RMUtilities.getavgt() + "\n";
           LOG.info(toPrint);
-          LOG.info(YarnAPIStorageFactory.printYarnState());
+//          LOG.info(YarnAPIStorageFactory.printYarnState());
         }catch(InterruptedException e){
           LOG.error(e, e);
         }

@@ -21,6 +21,12 @@ import io.hops.exception.StorageInitializtionException;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.util.RMUtilities;
 import io.hops.metadata.util.YarnAPIStorageFactory;
+import io.hops.metadata.yarn.dal.ContainerDataAccess;
+import io.hops.metadata.yarn.dal.RMContainerDataAccess;
+import io.hops.metadata.yarn.dal.util.YARNOperationType;
+import io.hops.metadata.yarn.entity.Container;
+import io.hops.metadata.yarn.entity.RMContainer;
+import io.hops.transaction.handler.LightWeightRequestHandler;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,7 +40,6 @@ import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.AllocateResponsePBImpl
 import org.apache.hadoop.yarn.api.records.AMCommand;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -79,64 +84,64 @@ public class TestDBLimites {
       LOG.error(ex);
     }
   }
-  
-  @Test
-  public void TestTransactionStateCommitThroughput(){
-    TransactionStateImpl ts = new TransactionStateImpl(TransactionState.TransactionType.RM);
-    ApplicationId appId = ApplicationIdPBImpl.newInstance(10, 10);
-    ApplicationAttemptId attId = ApplicationAttemptIdPBImpl.newInstance(appId,
-            10);
-    List<ContainerStatus> completedContainers = new ArrayList<ContainerStatus>();
-    for(int i=0;i<1000;i++){
-      ContainerId id = ContainerId.newInstance(attId, i);
-      ContainerStatus status = ContainerStatus.newInstance(id,
-              ContainerState.NEW, "a string", i);
-      completedContainers.add(status);
-    }
-    List<Container> allocatedContainers = new ArrayList<Container>();
-    for(int i=0; i<1000;i++){
-      ContainerId id = ContainerId.newInstance(attId, i);
-      NodeId nodeId = NodeId.newInstance("id", i);
-      Resource r = Resource.newInstance(10, 10);
-      Token containerToken = Token.newInstance(new byte[10], "kind", new byte[10], "service");
-      Container c = Container.newInstance(id, nodeId, "string", r,
-              Priority.UNDEFINED, containerToken);
-    }
-    List<NodeReport> updatedNodes = new ArrayList<NodeReport>();
-    Resource availResources = Resource.newInstance(10, 10);
-    AMCommand command = AMCommand.AM_RESYNC;
-    int numClusterNodes = 10;
-    StrictPreemptionContract set = StrictPreemptionContract.newInstance(new HashSet<PreemptionContainer>());
-    PreemptionContract contract = PreemptionContract.newInstance(new ArrayList<PreemptionResourceRequest>(), new HashSet<PreemptionContainer>());
-    PreemptionMessage preempt = PreemptionMessage.newInstance(set, contract);
-    List<NMToken> nmTokens = new ArrayList<NMToken>();
-    AllocateResponse response = AllocateResponsePBImpl.newInstance(
-            10, completedContainers, allocatedContainers,
-            updatedNodes, availResources, command, numClusterNodes, preempt,
-            nmTokens);
-    ApplicationMasterService.AllocateResponseLock lock = new ApplicationMasterService.AllocateResponseLock(response);
-    ts.addAllocateResponse(attId, lock);
     
-    double totalDuration = 0;
-    long maxDuration =0;
-    long minDuration = Integer.MAX_VALUE;
-    HashMap<Long, Integer> durations = new HashMap<Long, Integer>();
-    int nbruns = 10000;
-    for(int i=0; i<nbruns; i++){
-      long start = System.currentTimeMillis();
-      RMUtilities.finishRPC(ts);
-      long duration = System.currentTimeMillis() - start;
-      totalDuration+=duration;
-      if(duration>maxDuration) maxDuration = duration;
-      if(duration<minDuration) minDuration = duration;
-      if(durations.containsKey(duration)){
-        durations.put(duration, durations.get(duration)+1);
-      }else{
-        durations.put(duration, 1);
-      }
+  @Test
+  public void rmContainerClusterJBombing() throws IOException {
+    final List<RMContainer> toAdd = new ArrayList<RMContainer>();
+    for (int i = 0; i < 4000; i++) {
+      RMContainer container = new RMContainer("containerid", "appAttemptId",
+              "nodeId", "user", "reservedNodeId", i, i, i, i, i,
+              "state", "finishedStatusState", i);
+      toAdd.add(container);
     }
-    double avgDuration = totalDuration/nbruns;
-    LOG.info("avgDuration = " + avgDuration + " max: " + maxDuration + " min: " + minDuration);
-    LOG.info(durations.toString());
+    for(int i= 0; i<50; i++){
+      long start = System.currentTimeMillis();
+      LightWeightRequestHandler bomb = new LightWeightRequestHandler(
+              YARNOperationType.TEST) {
+                @Override
+                public Object performTask() throws IOException {
+                  connector.beginTransaction();
+                  connector.writeLock();
+                  RMContainerDataAccess rmcontainerDA
+                  = (RMContainerDataAccess) RMStorageFactory
+                  .getDataAccess(RMContainerDataAccess.class);
+                  rmcontainerDA.addAll(toAdd);
+                  connector.commit();
+                  return null;
+                }
+              };
+      bomb.handle();
+      long duration = System.currentTimeMillis() - start;
+      LOG.info("duration: " + duration);
+    }
+  }
+  
+   @Test
+  public void ContainerClusterJBombing() throws IOException {
+    final List<Container> toAdd = new ArrayList<Container>();
+    for (int i = 0; i < 3000; i++) {
+      Container c = new Container("containerId", new byte[1]);
+      toAdd.add(c);
+    }
+    for(int i= 0; i<50; i++){
+      long start = System.currentTimeMillis();
+      LightWeightRequestHandler bomb = new LightWeightRequestHandler(
+              YARNOperationType.TEST) {
+                @Override
+                public Object performTask() throws IOException {
+                  connector.beginTransaction();
+                  connector.writeLock();
+                  ContainerDataAccess containerDA
+                  = (ContainerDataAccess) RMStorageFactory
+                  .getDataAccess(ContainerDataAccess.class);
+                  containerDA.addAll(toAdd);
+                  connector.commit();
+                  return null;
+                }
+              };
+      bomb.handle();
+      long duration = System.currentTimeMillis() - start;
+      LOG.info("duration: " + duration);
+    }
   }
 }

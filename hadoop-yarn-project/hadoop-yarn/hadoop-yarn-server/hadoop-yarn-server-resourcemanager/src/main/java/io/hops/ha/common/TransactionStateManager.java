@@ -163,6 +163,9 @@ public class TransactionStateManager implements Runnable{
   }
   
   public void start(){
-    new Thread(this).start();
+    
+    Thread t = new Thread(this);
+    t.setName("transactionStateManager Thread");
+    t.start();
   }
 }

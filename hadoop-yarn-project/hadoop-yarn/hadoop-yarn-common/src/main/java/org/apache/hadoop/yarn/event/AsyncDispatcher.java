@@ -118,29 +118,6 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
       }
     };
   }
-
-  Runnable LogsPrinter(){
-    return new Runnable() {
-
-      @Override
-      public void run() {
-        while(true){
-          try {
-            Thread.sleep(1000);
-          } catch (InterruptedException ex) {
-            Logger.getLogger(AsyncDispatcher.class.getName()).
-                    log(Level.SEVERE, null, ex);
-          }
-          String batch = "";
-          String next = logs.poll();
-          while(next !=null){
-            batch = batch + " " + next;
-          }
-//          LOG.info("dispatched: " + batch);
-        }
-      }
-    };
-  }
   
   @Override
   protected void serviceInit(Configuration conf) throws Exception {
@@ -157,7 +134,6 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
     eventHandlingThread = new Thread(createThread());
     eventHandlingThread.setName("AsyncDispatcher event handler");
     eventHandlingThread.start();
-    new Thread(LogsPrinter()).start();
   }
 
   public void setDrainEventsOnStop() {
