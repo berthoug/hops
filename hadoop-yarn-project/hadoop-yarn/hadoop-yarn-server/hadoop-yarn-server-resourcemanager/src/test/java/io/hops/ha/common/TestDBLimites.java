@@ -19,47 +19,26 @@ package io.hops.ha.common;
 import io.hops.exception.StorageException;
 import io.hops.exception.StorageInitializtionException;
 import io.hops.metadata.util.RMStorageFactory;
-import io.hops.metadata.util.RMUtilities;
 import io.hops.metadata.util.YarnAPIStorageFactory;
+import io.hops.metadata.yarn.dal.AppSchedulingInfoDataAccess;
 import io.hops.metadata.yarn.dal.ContainerDataAccess;
+import io.hops.metadata.yarn.dal.FiCaSchedulerAppNewlyAllocatedContainersDataAccess;
 import io.hops.metadata.yarn.dal.RMContainerDataAccess;
+import io.hops.metadata.yarn.dal.SchedulerApplicationDataAccess;
 import io.hops.metadata.yarn.dal.util.YARNOperationType;
+import io.hops.metadata.yarn.entity.AppSchedulingInfo;
 import io.hops.metadata.yarn.entity.Container;
+import io.hops.metadata.yarn.entity.FiCaSchedulerAppContainer;
 import io.hops.metadata.yarn.entity.RMContainer;
+import io.hops.metadata.yarn.entity.SchedulerApplication;
 import io.hops.transaction.handler.LightWeightRequestHandler;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
-import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.AllocateResponsePBImpl;
-import org.apache.hadoop.yarn.api.records.AMCommand;
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ContainerId;
-import org.apache.hadoop.yarn.api.records.ContainerState;
-import org.apache.hadoop.yarn.api.records.ContainerStatus;
-import org.apache.hadoop.yarn.api.records.NMToken;
-import org.apache.hadoop.yarn.api.records.NodeId;
-import org.apache.hadoop.yarn.api.records.NodeReport;
-import org.apache.hadoop.yarn.api.records.PreemptionContainer;
-import org.apache.hadoop.yarn.api.records.PreemptionContract;
-import org.apache.hadoop.yarn.api.records.PreemptionMessage;
-import org.apache.hadoop.yarn.api.records.PreemptionResourceRequest;
-import org.apache.hadoop.yarn.api.records.Priority;
-import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.api.records.StrictPreemptionContract;
-import org.apache.hadoop.yarn.api.records.Token;
-import org.apache.hadoop.yarn.api.records.impl.pb.ApplicationAttemptIdPBImpl;
-import org.apache.hadoop.yarn.api.records.impl.pb.ApplicationIdPBImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.proto.YarnProtos;
-import org.apache.hadoop.yarn.server.resourcemanager.ApplicationMasterService;
-import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeImpl;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -119,8 +98,8 @@ public class TestDBLimites {
    @Test
   public void ContainerClusterJBombing() throws IOException {
     final List<Container> toAdd = new ArrayList<Container>();
-    for (int i = 0; i < 3000; i++) {
-      Container c = new Container("containerId", new byte[1]);
+    for (int i = 0; i < 1000; i++) {
+      Container c = new Container("containerId", new byte[78]);
       toAdd.add(c);
     }
     for(int i= 0; i<50; i++){
@@ -144,4 +123,79 @@ public class TestDBLimites {
       LOG.info("duration: " + duration);
     }
   }
+
+    @Test
+    public void removeFiCaSchedulerAppNewlyAllocatedContainersClusterJBombing() throws IOException {
+                LightWeightRequestHandler addApp = new LightWeightRequestHandler(
+                        YARNOperationType.TEST) {
+                            @Override
+                            public Object performTask() throws IOException {
+                                connector.beginTransaction();
+                                connector.writeLock();
+                                SchedulerApplicationDataAccess appDA =
+                                        (SchedulerApplicationDataAccess) RMStorageFactory.getDataAccess(SchedulerApplicationDataAccess.class);
+                                List<SchedulerApplication> appToAdd  = new ArrayList<SchedulerApplication>();
+                                appToAdd.add(new SchedulerApplication("appid", "user", "queuename"));
+                                appDA.addAll(appToAdd);
+                                AppSchedulingInfoDataAccess containerDA
+                                = (AppSchedulingInfoDataAccess) RMStorageFactory
+                                .getDataAccess(AppSchedulingInfoDataAccess.class);
+                                List<AppSchedulingInfo> toAdd = new ArrayList<AppSchedulingInfo>();
+                                toAdd.add(new AppSchedulingInfo("appid", "appid", "queuename", "user", 0, true, true));
+                                containerDA.addAll(toAdd);
+                                connector.commit();
+                                return null;
+                            }
+                        };
+                addApp.handle();
+        
+        
+        
+        
+        for (int i = 0; i < 50; i++) {
+            final List<FiCaSchedulerAppContainer> toRemove = new ArrayList<FiCaSchedulerAppContainer>();
+            for (int j = 0; j < 10; j++) {
+                final List<FiCaSchedulerAppContainer> toAdd = new ArrayList<FiCaSchedulerAppContainer>();
+                for (int k = 0; k < i*10; k++) {
+                    FiCaSchedulerAppContainer c = new FiCaSchedulerAppContainer("appid", "containerid" + j + "_" + k);
+                    toAdd.add(c);
+                    toRemove.add(c);
+                }
+                LightWeightRequestHandler filling = new LightWeightRequestHandler(
+                        YARNOperationType.TEST) {
+                            @Override
+                            public Object performTask() throws IOException {
+                                connector.beginTransaction();
+                                connector.writeLock();
+                                FiCaSchedulerAppNewlyAllocatedContainersDataAccess containerDA
+                                = (FiCaSchedulerAppNewlyAllocatedContainersDataAccess) RMStorageFactory
+                                .getDataAccess(FiCaSchedulerAppNewlyAllocatedContainersDataAccess.class);
+                                containerDA.addAll(toAdd);
+                                connector.commit();
+                                return null;
+                            }
+                        };
+                filling.handle();
+            }
+            LOG.info("start removing " + toRemove.size());
+            long start = System.currentTimeMillis();
+            LightWeightRequestHandler bomb = new LightWeightRequestHandler(
+                    YARNOperationType.TEST) {
+                        @Override
+                        public Object performTask() throws IOException {
+                            connector.beginTransaction();
+                            connector.writeLock();
+                            FiCaSchedulerAppNewlyAllocatedContainersDataAccess containerDA
+                            = (FiCaSchedulerAppNewlyAllocatedContainersDataAccess) RMStorageFactory
+                            .getDataAccess(FiCaSchedulerAppNewlyAllocatedContainersDataAccess.class);
+                            containerDA.removeAll(toRemove);
+                            connector.commit();
+                            return null;
+                        }
+                    };
+            bomb.handle();
+            long duration = System.currentTimeMillis() - start;
+            LOG.info("duration: " + duration);
+        }
+    }
 }
