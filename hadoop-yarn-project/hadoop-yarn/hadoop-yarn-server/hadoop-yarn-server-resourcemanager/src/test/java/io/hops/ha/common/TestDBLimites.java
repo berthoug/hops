@@ -35,6 +35,7 @@ import io.hops.transaction.handler.LightWeightRequestHandler;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -68,12 +69,12 @@ public class TestDBLimites {
   public void rmContainerClusterJBombing() throws IOException {
     final List<RMContainer> toAdd = new ArrayList<RMContainer>();
     for (int i = 0; i < 4000; i++) {
-      RMContainer container = new RMContainer("containerid", "appAttemptId",
+      RMContainer container = new RMContainer("containerid" + i, "appAttemptId",
               "nodeId", "user", "reservedNodeId", i, i, i, i, i,
               "state", "finishedStatusState", i);
       toAdd.add(container);
     }
-    for(int i= 0; i<50; i++){
+    for(int i= 0; i<1000; i++){
       long start = System.currentTimeMillis();
       LightWeightRequestHandler bomb = new LightWeightRequestHandler(
               YARNOperationType.TEST) {
@@ -91,17 +92,22 @@ public class TestDBLimites {
               };
       bomb.handle();
       long duration = System.currentTimeMillis() - start;
-      LOG.info("duration: " + duration);
+      LOG.info( i + ") duration: " + duration);
     }
   }
   
    @Test
   public void ContainerClusterJBombing() throws IOException {
     final List<Container> toAdd = new ArrayList<Container>();
-    for (int i = 0; i < 1000; i++) {
-      Container c = new Container("containerId", new byte[78]);
-      toAdd.add(c);
+
+    byte[] container = new byte[77];
+     Random random = new Random();
+  
+    for (int i = 0; i < 2000; i++) {
+      random.nextBytes(container);
+      Container c = new Container("containerId"+i, container);
     }
+    LOG.info("start commit containers");
     for(int i= 0; i<50; i++){
       long start = System.currentTimeMillis();
       LightWeightRequestHandler bomb = new LightWeightRequestHandler(
@@ -120,7 +126,7 @@ public class TestDBLimites {
               };
       bomb.handle();
       long duration = System.currentTimeMillis() - start;
-      LOG.info("duration: " + duration);
+      LOG.info(i + ") duration: " + duration);
     }
   }
 

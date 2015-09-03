@@ -2598,7 +2598,7 @@ public class RMUtilities {
     long commitAndQueueDuration = commitDuration;
     String yarnState = YarnAPIStorageFactory.printYarnState();
     if(commitDuration>1000){
-      LOG.error("commit too long: " + commitDuration + "\n" + yarnState);
+      LOG.error("commit too long state: " + commitDuration + "\n" + yarnState);
     }
     
     totalCommitDuration.addAndGet(commitDuration);

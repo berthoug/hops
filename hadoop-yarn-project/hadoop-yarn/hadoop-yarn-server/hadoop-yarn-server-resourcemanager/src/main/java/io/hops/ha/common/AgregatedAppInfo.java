@@ -218,7 +218,7 @@ public class AgregatedAppInfo {
     persistLiveContainersToAdd();
     persistLiveContainersToRemove();
     long t7 = System.currentTimeMillis() - start;
-//    persistRequestsToAdd();
+    persistRequestsToAdd();
     persistRequestsToRemove();
     long t8 = System.currentTimeMillis() - start;
     persistBlackListsToAdd();

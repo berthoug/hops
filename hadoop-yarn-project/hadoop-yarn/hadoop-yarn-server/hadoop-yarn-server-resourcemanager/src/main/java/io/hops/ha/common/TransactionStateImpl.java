@@ -233,7 +233,7 @@ public class TransactionStateImpl extends TransactionState {
     totalt4=totalt4 + System.currentTimeMillis() - start;
     persistAllocateResponsesToRemove();
     totalt5=totalt5 + System.currentTimeMillis() - start;
-//    persistRMContainerToUpdate();
+    persistRMContainerToUpdate();
     totalt6=totalt6 + System.currentTimeMillis() - start;
     nbFinish++;
     if(nbFinish%100==0){
