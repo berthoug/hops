@@ -224,16 +224,22 @@ public class TransactionStateImpl extends TransactionState {
   public void persist() throws IOException {
     Long start = System.currentTimeMillis();
     persitApplicationToAdd();
-    totalt1=totalt1 + System.currentTimeMillis() - start;
+    long t1 =System.currentTimeMillis() - start;
+    totalt1=totalt1 + t1;
     persistApplicationStateToRemove();
+    long t2 =System.currentTimeMillis() - start;
     totalt2=totalt2 + System.currentTimeMillis() - start;
     persistAppAttempt();
+    long t3 =System.currentTimeMillis() - start;
     totalt3=totalt3 + System.currentTimeMillis() - start;
     persistAllocateResponsesToAdd();
+    long t4 =System.currentTimeMillis() - start;
     totalt4=totalt4 + System.currentTimeMillis() - start;
     persistAllocateResponsesToRemove();
+    long t5 =System.currentTimeMillis() - start;
     totalt5=totalt5 + System.currentTimeMillis() - start;
     persistRMContainerToUpdate();
+    long t6 =System.currentTimeMillis() - start;
     totalt6=totalt6 + System.currentTimeMillis() - start;
     nbFinish++;
     if(nbFinish%100==0){
@@ -245,7 +251,9 @@ public class TransactionStateImpl extends TransactionState {
     double avgt6=totalt6/nbFinish;
     LOG.info("avg time commit transactionStateImpl: " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6);
     }
-            
+    if(t6>1000){
+	LOG.error("commit transactionStateImpl too long : " + t1 + ", " + t2 + ", " + t3 + ", " + t4 + ", " + t5 + ", " + t6);
+    }
     //TODO rebuild cluster resource from node resources
 //    persistClusterResourceToUpdate();
 //    persistUsedResourceToUpdate();

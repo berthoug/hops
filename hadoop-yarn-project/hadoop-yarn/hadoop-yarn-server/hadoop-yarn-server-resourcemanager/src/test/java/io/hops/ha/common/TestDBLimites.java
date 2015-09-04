@@ -68,13 +68,13 @@ public class TestDBLimites {
   @Test
   public void rmContainerClusterJBombing() throws IOException {
     final List<RMContainer> toAdd = new ArrayList<RMContainer>();
-    for (int i = 0; i < 4000; i++) {
+    for (int i = 0; i < 5500; i++) {
       RMContainer container = new RMContainer("containerid" + i, "appAttemptId",
               "nodeId", "user", "reservedNodeId", i, i, i, i, i,
               "state", "finishedStatusState", i);
       toAdd.add(container);
     }
-    for(int i= 0; i<1000; i++){
+    for(int i= 0; i<100; i++){
       long start = System.currentTimeMillis();
       LightWeightRequestHandler bomb = new LightWeightRequestHandler(
               YARNOperationType.TEST) {

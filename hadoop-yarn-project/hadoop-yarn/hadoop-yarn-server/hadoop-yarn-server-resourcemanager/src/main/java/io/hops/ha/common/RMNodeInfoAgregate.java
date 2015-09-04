@@ -52,10 +52,10 @@ public class RMNodeInfoAgregate {
   ArrayList<ContainerId> toAddContainerIdToClean = new ArrayList<ContainerId>();
   ArrayList<ContainerId> toRemoveContainerIdToClean
           = new ArrayList<ContainerId>();
-  ArrayList<FinishedApplications> toAddFinishedApplications
-          = new ArrayList<FinishedApplications>();
-  ArrayList<FinishedApplications> toRemoveFinishedApplications
-          = new ArrayList<FinishedApplications>();
+  Set<FinishedApplications> toAddFinishedApplications
+          = new HashSet<FinishedApplications>();
+  Set<FinishedApplications> toRemoveFinishedApplications
+          = new HashSet<FinishedApplications>();
   ArrayList<UpdatedContainerInfo> uciToAdd
           = new ArrayList<UpdatedContainerInfo>();
   Set<UpdatedContainerInfo> uciToRemove = new HashSet<UpdatedContainerInfo>();
