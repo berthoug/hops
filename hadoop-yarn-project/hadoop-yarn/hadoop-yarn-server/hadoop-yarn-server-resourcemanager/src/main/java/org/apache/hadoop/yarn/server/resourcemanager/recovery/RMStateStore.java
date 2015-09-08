@@ -109,6 +109,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerState;
 
 @Private
 @Unstable
@@ -384,9 +385,6 @@ import java.util.TreeSet;
     Map<String, SchedulerApplication> schedulerApplications;
     Map<String, FiCaSchedulerNode> fiCaSchedulerNodes;
     Map<String, List<LaunchedContainers>> launchedContainers;
-    Map<String, List<FiCaSchedulerAppContainer>>
-        newlyAllocatedContainers;
-    Map<String, List<FiCaSchedulerAppContainer>> liveContainers;
     Map<String, List<ResourceRequest>> resourceRequests;
     Map<String, List<AppSchedulingInfoBlacklist>> blackLists;
     List<QueueMetrics> allQueueMetrics;
@@ -492,14 +490,37 @@ import java.util.TreeSet;
       return reReservations.get(ficaId);
     }
     
-    public List<FiCaSchedulerAppContainer> getNewlyAllocatedContainers(
+    public List<String> getNewlyAllocatedContainers(
         final String ficaId) throws IOException {
-      return newlyAllocatedContainers.get(ficaId);
+       List<String> newlyAllocatedContainers = new ArrayList<String>();
+      for(RMContainer rmc: allRMContainers.values()){
+        if(rmc.getApplicationAttemptIdID().equals(ficaId)){
+          if(rmc.getState().equals(RMContainerState.NEW.toString()) ||
+                  rmc.getState().equals(RMContainerState.RESERVED.toString()) ||
+                  rmc.getState().equals(RMContainerState.ALLOCATED.toString())){
+              newlyAllocatedContainers.add(rmc.getContainerIdID());
+          }
+        }
+      }
+      return newlyAllocatedContainers;
     }
 
-    public List<FiCaSchedulerAppContainer> getLiveContainers(
+    //TODO implement in a more efficient way
+    public List<String> getLiveContainers(
         final String ficaId) throws IOException {
-      return liveContainers.get(ficaId);
+      List<String> liveContainers = new ArrayList<String>();
+      for(RMContainer rmc: allRMContainers.values()){
+        if(rmc.getApplicationAttemptIdID().equals(ficaId)){
+          if(!rmc.getState().equals(RMContainerState.COMPLETED.toString()) &&
+                  !rmc.getState().equals(RMContainerState.EXPIRED.toString()) &&
+                  !rmc.getState().equals(RMContainerState.KILLED.toString()) &&
+                  !rmc.getState().equals(RMContainerState.RELEASED.toString())){
+              liveContainers.add(rmc.getContainerIdID());
+          }
+        }
+      }
+      
+    return liveContainers;
     }
 
     public List<ResourceRequest> getResourceRequests(final String id)

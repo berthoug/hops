@@ -52,10 +52,8 @@ public abstract class TransactionState {
   private int id=-1;
   private final boolean batch;
   
-  public TransactionState(ApplicationId appId, int initialCounter, boolean batch) {
-    if(appId!=null){
-      addAppId(appId);
-    }
+  public TransactionState(int initialCounter, boolean batch) {
+
     counter = new AtomicInteger(initialCounter);
     this.batch = batch;
   }
@@ -67,7 +65,7 @@ public abstract class TransactionState {
     return appIds;
   }
     
-  abstract void addAppId(ApplicationId appId);
+  abstract boolean addAppId(ApplicationId appId);
     
   public synchronized void incCounter(Enum type) {
     counter.incrementAndGet();

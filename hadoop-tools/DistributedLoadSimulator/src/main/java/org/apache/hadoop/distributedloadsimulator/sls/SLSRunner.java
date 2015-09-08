@@ -19,6 +19,8 @@ package org.apache.hadoop.distributedloadsimulator.sls;
  *
  * @author sri
  */
+import io.hops.metadata.util.RMStorageFactory;
+import io.hops.metadata.util.YarnAPIStorageFactory;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -59,8 +61,6 @@ import org.apache.hadoop.distributedloadsimulator.sls.utils.SLSUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.map.ObjectMapper;
-import se.sics.hop.metadata.util.RMStorageFactory;
-import se.sics.hop.metadata.util.YarnAPIStorageFactory;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.distributedloadsimulator.sls.conf.SLSConfiguration;
 import org.apache.hadoop.distributedloadsimulator.sls.nodemanager.NMSimulator;
@@ -247,7 +247,7 @@ public class SLSRunner implements AMNMCommonObject {
             };
             hbExperimentalMonitoring.start();
             runner.start();
-
+            
         } else if (distributedmode) {
           LOG.info("starting distributed mode");
             // before start the rm , let rm to read and get to know about number of applications
@@ -320,8 +320,11 @@ public class SLSRunner implements AMNMCommonObject {
                                 rtPort), rtConf);
         Random random = new Random();
         Set<String> rackSet = new HashSet<String>();
+        int i=0;
         for (String hostName : nodeSet) {
             // we randomize the heartbeat start time from zero to 1 interval
+          i++;
+          LOG.info("Init nm: " + hostName + " (" + i + ")");
             NMSimulator nm = new NMSimulator();
                 nm.init(hostName, nmMemoryMB, nmVCores,
                         random.nextInt(heartbeatInterval), heartbeatInterval, rm, rt);

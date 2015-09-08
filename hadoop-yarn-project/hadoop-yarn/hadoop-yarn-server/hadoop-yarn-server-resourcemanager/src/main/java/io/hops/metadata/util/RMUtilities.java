@@ -2215,13 +2215,23 @@ public class RMUtilities {
     }
   }
   
+  public static synchronized void putTransactionStateInQueues(TransactionState ts, Set<String> nodeIds, Set<ApplicationId> appIds){
+    putTransactionStateInNodeQueue(ts, nodeIds);
+    putTransactionStateInAppQueue(ts, appIds);
+  }
+  
   static int nextRPC = 0;
   static Map<Integer, TransactionStateImpl> finishedRPCs =
       new HashMap<Integer, TransactionStateImpl>();
   static Lock nextRPCLock = new ReentrantLock(true);
   static Map<Integer, Long> startCommit = new ConcurrentHashMap<Integer, Long>();
-  public static void finishRPCs(TransactionState ts) throws IOException {
+  
+  public static void logPutInCommitingQueue(TransactionState ts){
     startCommit.put(ts.getId(), System.currentTimeMillis());
+  }
+  
+  
+  public static void finishRPCs(TransactionState ts) throws IOException {
     nextRPCLock.lock();
     if (ts.getAppIds().isEmpty() && ((TransactionStateImpl) ts).
             getRMNodesToUpdate().isEmpty()) {
@@ -2274,6 +2284,7 @@ public class RMUtilities {
 
   private static boolean purgeFinishedTransactionMap(TransactionState ts) {
   nextRPCLock.lock();
+  LOG.info("purging of transaction failed " + ts.getId());
     for (ApplicationId appId : ts.getAppIds()) {
       if (finishedTransactionStateForApp.get(appId) == null ||
                finishedTransactionStateForApp.get(appId).remove(ts.getId())
@@ -2286,10 +2297,10 @@ public class RMUtilities {
     for (String nodeId : ((TransactionStateImpl) ts).getRMNodesToUpdate().
             keySet()) {
 
-      if (finishedTransactionStateForApp.get(nodeId) == null ||
+      if (finishedTransactionStateForRMNode.get(nodeId) == null ||
               finishedTransactionStateForRMNode.get(nodeId).
               remove(ts.getId()) == null) {
-        LOG.error("purging of transaction failed " + ts.getId() + " " + nodeId);
+        LOG.error("purging of transaction failed " + ts.getId() + " " + nodeId + "(" + finishedTransactionStateForRMNode.get(nodeId) + ")");
         nextRPCLock.unlock();
         return false;
       }
@@ -2387,8 +2398,8 @@ public class RMUtilities {
         tsMap = new HashMap<Integer, TransactionState>();
         finishedTransactionStateForRMNode.put(nodeId, tsMap);
       }
-      LOG.info("populate map with " + ts.getId() + " for node " + nodeId);
       tsMap.put(ts.getId(), ts);
+      LOG.info("populate map with " + ts.getId() + " for node " + nodeId);
     }
   }
 
@@ -2449,6 +2460,10 @@ public class RMUtilities {
 
   static LinkedBlockingQueue<String> logs = new LinkedBlockingQueue<String>();
   static AtomicDouble totalCommitDuration =new AtomicDouble(0);
+  static double minCommitDuration = Double.MAX_VALUE;
+  static double maxCommitDuration = 0;
+  static double minCommitAndQueueDuration = Double.MAX_VALUE;
+  static double maxCommitAndQueueDuration = 0;
   static AtomicDouble totalCommitAndQueueDuration =new AtomicDouble(0);
   static AtomicDouble nbFinish =new AtomicDouble(0);
   static AtomicDouble totalt1 =new AtomicDouble(0);
@@ -2593,16 +2608,36 @@ public class RMUtilities {
       setfinishRPCHandler.handle();
     } catch (IOException ex) {
       LOG.error("HOP :: Error commiting finishRPC ", ex);
+      String yarnState = YarnAPIStorageFactory.printYarnState();
+    
+      LOG.error("commit failed: " + yarnState);
+    
     }
     long commitDuration = System.currentTimeMillis() - start;
     long commitAndQueueDuration = commitDuration;
+    if (ts.getId() > 0) {
+      commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(
+              ts.getId());
+    }
     String yarnState = YarnAPIStorageFactory.printYarnState();
-    if(commitDuration>1000){
+    if (commitDuration > 1000) {
       LOG.error("commit too long state: " + commitDuration + "\n" + yarnState);
     }
     
     totalCommitDuration.addAndGet(commitDuration);
+    if(commitDuration> maxCommitDuration){
+      maxCommitDuration = commitDuration;
+    }
+    if(commitDuration< minCommitDuration){
+      minCommitDuration = commitDuration;
+    }
     totalCommitAndQueueDuration.addAndGet(commitAndQueueDuration);
+        if(commitAndQueueDuration> maxCommitAndQueueDuration){
+      maxCommitAndQueueDuration = commitAndQueueDuration;
+    }
+    if(commitAndQueueDuration< minCommitAndQueueDuration){
+      minCommitAndQueueDuration = commitAndQueueDuration;
+    }
     nbFinish.addAndGet(1);
     
     logs.add("finish (" + ts.getId() +"): " + commitDuration + ", " + commitAndQueueDuration );
@@ -2616,6 +2651,10 @@ public class RMUtilities {
     LOG.info("commit logs: reset");
     TransactionStateImpl.resetLogs();
     totalCommitDuration = new AtomicDouble(0);
+    minCommitDuration = Double.MAX_VALUE;
+    maxCommitDuration = 0;
+        minCommitAndQueueDuration = Double.MAX_VALUE;
+    maxCommitAndQueueDuration = 0;
     totalCommitAndQueueDuration = new AtomicDouble(0);
     nbFinish= new AtomicDouble(0);
     totalt1 = new AtomicDouble(0);
@@ -2632,6 +2671,22 @@ public class RMUtilities {
   }
   public static double getCommitAvgDuration(){
     return totalCommitDuration.get() / nbFinish.get();
+  }
+  
+  public static double getMinCommitDuration(){
+    return minCommitDuration;
+  }
+  
+  public static double getMaxCommitDuration(){
+    return maxCommitDuration;
+  }
+  
+    public static double getMinCommitAndQueueDuration(){
+    return minCommitAndQueueDuration;
+  }
+  
+  public static double getMaxCommitAndQueueDuration(){
+    return maxCommitAndQueueDuration;
   }
   
   public static double getCommitAndQueueAvgDuration(){

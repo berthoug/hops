@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.distributedloadsimulator.sls.nodemanager;
 
+import io.hops.ha.common.TransactionState;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -37,7 +38,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode
         .UpdatedContainerInfo;
-import se.sics.hop.ha.common.TransactionState;
 
 public class NodeInfo {
   private static int NODE_ID = 0;

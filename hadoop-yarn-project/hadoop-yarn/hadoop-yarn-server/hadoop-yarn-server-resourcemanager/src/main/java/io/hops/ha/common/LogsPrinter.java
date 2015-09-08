@@ -47,8 +47,23 @@ public class LogsPrinter implements Runnable {
             count++;
           }
           count = count/4;
-          String toPrint = "commit logs " + count + "|| " + RMUtilities.getCommitAvgDuration() + ", " + RMUtilities.getCommitAndQueueAvgDuration() + "\n avgt commit: " + RMUtilities.getavgt() + "\n";
+          String toPrint = "commit logs " + count + "|| " +
+                  RMUtilities.getCommitAvgDuration() + 
+                  "(min: " +  RMUtilities.getMinCommitDuration() + 
+                  ", max: " + RMUtilities.getMaxCommitDuration() + "), " + 
+                  RMUtilities.getCommitAndQueueAvgDuration() + 
+                  "(min: " +  RMUtilities.getMinCommitAndQueueDuration() +
+                  ", max: " + RMUtilities.getMaxCommitAndQueueDuration() + ")" + 
+                  "\n avgt commit: " + RMUtilities.getavgt() + "\n";
           LOG.info(toPrint);
+          toPrint = "add app id calls: " + TransactionStateImpl.callremoveAllocateResponse + ", " + TransactionStateImpl.callsAddApplicationStateToRemove + ", " + TransactionStateImpl.callsAddApplicationToAdd + ", " + TransactionStateImpl.callsGetSchedulerApplicationInfos + ", " + TransactionStateImpl.callsaddAllocateResponse + ", " + TransactionStateImpl.callsaddAppAttempt;
+          LOG.info(toPrint);
+          TransactionStateImpl.callremoveAllocateResponse =0;
+          TransactionStateImpl.callsAddApplicationStateToRemove =0;
+          TransactionStateImpl.callsAddApplicationToAdd=0;
+          TransactionStateImpl.callsGetSchedulerApplicationInfos=0;
+          TransactionStateImpl.callsaddAllocateResponse=0;
+          TransactionStateImpl.callsaddAppAttempt=0;
 //          LOG.info(YarnAPIStorageFactory.printYarnState());
         }catch(InterruptedException e){
           LOG.error(e, e);

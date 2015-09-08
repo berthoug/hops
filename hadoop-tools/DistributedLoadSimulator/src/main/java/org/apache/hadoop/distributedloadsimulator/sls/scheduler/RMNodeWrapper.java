@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.distributedloadsimulator.sls.scheduler;
 
+import io.hops.ha.common.TransactionState;
 import org.apache.hadoop.net.Node;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -35,7 +36,6 @@ import java.util.List;
 import java.util.Set;
 import static org.apache.hadoop.distributedloadsimulator.sls.SLSRunner.LOG;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
-import se.sics.hop.ha.common.TransactionState;
 
 public class RMNodeWrapper implements RMNode {
   private RMNode node;

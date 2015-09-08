@@ -48,13 +48,14 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   public ContainerStatusPBImpl(ContainerStatusProto proto) {
     this.proto = proto;
     viaProto = true;
-    proto.hasState();
+    this.proto.getExitStatus();
   }
   
   public ContainerStatusProto getProto() {
     mergeLocalToProto();
     proto = viaProto ? proto : builder.build();
     viaProto = true;
+    this.proto.getExitStatus();
     return proto;
   }
 
@@ -98,6 +99,7 @@ public class ContainerStatusPBImpl extends ContainerStatus {
     }
     mergeLocalToBuilder();
     proto = builder.build();
+    this.proto.getExitStatus();
     viaProto = true;
   }
 
@@ -157,6 +159,9 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   @Override
   public int getExitStatus() {
     ContainerStatusProtoOrBuilder p = viaProto ? proto : builder;
+    if(p==null){
+    LOG.error("p is null: " + viaProto);
+    }
     return p.getExitStatus();
   }
 

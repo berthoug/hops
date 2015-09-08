@@ -151,14 +151,14 @@ public class TransactionStateImpl extends TransactionState {
   NodeId nodeId = null;
 
    public TransactionStateImpl(TransactionType type) {
-    super(null, 1, false);
+    super(1, false);
     this.type = type;
     this.schedulerApplicationInfo =
       new SchedulerApplicationInfo(this);
   }
    
   public TransactionStateImpl(TransactionType type, int initialCounter, boolean batch) {
-    super(null, initialCounter, batch);
+    super(initialCounter, batch);
     this.type = type;
     this.schedulerApplicationInfo =
       new SchedulerApplicationInfo(this);
@@ -170,12 +170,12 @@ public class TransactionStateImpl extends TransactionState {
 
   
   private static final ExecutorService executorService =
-      Executors.newFixedThreadPool(1);
+      Executors.newFixedThreadPool(10);
   
   @Override
   public void commit(boolean first) throws IOException {
-    RMUtilities.putTransactionStateInAppQueue(this, appIds);
-    RMUtilities.putTransactionStateInNodeQueue(this, rmNodesToUpdate.keySet());
+    RMUtilities.putTransactionStateInQueues(this, rmNodesToUpdate.keySet(), appIds);
+    RMUtilities.logPutInCommitingQueue(this);
     executorService.execute(new RPCFinisher(this));
   }
 
@@ -188,14 +188,17 @@ public class TransactionStateImpl extends TransactionState {
     fairschedulerNodeInfo.persist(FSSNodeDA);
   }
 
+  public static int callsGetSchedulerApplicationInfos = 0;
   public SchedulerApplicationInfo getSchedulerApplicationInfos(ApplicationId appId) {
-    addAppId(appId);
+    if(!addAppId(appId)){
+      callsGetSchedulerApplicationInfos++;
+    }
     return schedulerApplicationInfo;
   }
 
   
-  public void addAppId(ApplicationId appId){
-    appIds.add(appId);
+  public boolean addAppId(ApplicationId appId){
+    return appIds.add(appId);
   }
     
   static double totalt1 =0;
@@ -347,6 +350,7 @@ public class TransactionStateImpl extends TransactionState {
   }
   
   static boolean firstApp=true;
+  static public int callsAddApplicationToAdd =0;
   public void addApplicationToAdd(RMAppImpl app) {
     if(firstApp){
       firstApp=false;
@@ -376,6 +380,7 @@ public class TransactionStateImpl extends TransactionState {
     }
     updatedNodeIdToAdd.put(app.getApplicationId(), nodeIdsToAdd);
     applicationsStateToRemove.remove(app.getApplicationId());
+    callsAddApplicationToAdd++;
     addAppId(app.getApplicationId());
   }
   
@@ -409,11 +414,13 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
   
+  public static int callsAddApplicationStateToRemove = 0;
   public void addApplicationStateToRemove(ApplicationId appId) {
     if(applicationsToAdd.remove(appId)==null){
     updatedNodeIdToAdd.remove(appId);
     applicationsStateToRemove.add(appId);
     }
+    callsAddApplicationStateToRemove++;
     addAppId(appId);
   }
 
@@ -431,6 +438,7 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
   
+  public static int callsaddAppAttempt = 0;
   public void addAppAttempt(RMAppAttempt appAttempt) {
     String appIdStr = appAttempt.getAppAttemptId().getApplicationId().
             toString();
@@ -475,7 +483,7 @@ public class TransactionStateImpl extends TransactionState {
                     getHost(), appAttempt.getRpcPort(), appAttemptTokens,
                     appAttempt.
                     getTrackingUrl()));
-    
+    callsaddAppAttempt++;
     addAppId(appAttempt.getAppAttemptId().getApplicationId());
   }
   
@@ -530,6 +538,7 @@ public class TransactionStateImpl extends TransactionState {
     return "";
   }
   
+  public static int callsaddAllocateResponse=0;
   public void addAllocateResponse(ApplicationAttemptId id,
           AllocateResponseLock allocateResponse) {
     AllocateResponsePBImpl lastResponse
@@ -561,6 +570,7 @@ public class TransactionStateImpl extends TransactionState {
                 " for " + id + " content: " + print(toPersist));
       }
       allocateResponsesToRemove.remove(id);
+      callsaddAllocateResponse++;
       addAppId(id.getApplicationId());
     }
   }
@@ -628,10 +638,12 @@ public class TransactionStateImpl extends TransactionState {
     return "";
   }
   
+  public static int callremoveAllocateResponse=0;
   public void removeAllocateResponse(ApplicationAttemptId id, int responseId) {
     if(allocateResponsesToAdd.remove(id)==null){
     this.allocateResponsesToRemove.add(new AllocateResponse(id.toString(), responseId));
     }
+    callremoveAllocateResponse++;
     addAppId(id.getApplicationId());
   }
 
@@ -933,11 +945,11 @@ public class TransactionStateImpl extends TransactionState {
     }
 
     public void run() {
-//      try{
-        RMUtilities.finishRPC(ts);
-//      }catch(IOException ex){
-//        LOG.error("did not commit state properly", ex);
-//    }
+      try{
+        RMUtilities.finishRPCs(ts);
+      }catch(IOException ex){
+        LOG.error("did not commit state properly", ex);
+    }
   }
 }
   

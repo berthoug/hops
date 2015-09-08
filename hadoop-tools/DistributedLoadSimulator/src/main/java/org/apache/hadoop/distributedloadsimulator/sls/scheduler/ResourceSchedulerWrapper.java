@@ -85,11 +85,11 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SlidingWindowReservoir;
 import com.codahale.metrics.Timer;
+import io.hops.ha.common.TransactionState;
 import java.util.logging.Level;
 import org.apache.hadoop.yarn.event.AbstractEventTransaction;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.AbstractYarnScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication;
-import se.sics.hop.ha.common.TransactionState;
 
 public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements ResourceScheduler,
         Configurable {

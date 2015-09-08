@@ -148,8 +148,8 @@ public class transactionStateWrapper extends TransactionStateImpl {
   }
 
   @Override
-  public void addAppId(ApplicationId appId) {
-    ts.addAppId(appId);
+  public boolean addAppId(ApplicationId appId) {
+    return ts.addAppId(appId);
   }
 
   public FairSchedulerNodeInfo getFairschedulerNodeInfo() {
@@ -163,7 +163,6 @@ public class transactionStateWrapper extends TransactionStateImpl {
 
   public SchedulerApplicationInfo getSchedulerApplicationInfos(
           ApplicationId appId) {
-    addAppId(appId);
     return ts.getSchedulerApplicationInfos(appId);
   }
 
