@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 hops.io.
+ * Copyright 2015 Apache Software Foundation.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import static java.lang.Thread.sleep;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -42,15 +43,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 
-import org.apache.hadoop.yarn.api.records.NodeState;
-import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.distributedloadsimulator.sls.appmaster.InitializeAppMaster;
+import org.apache.hadoop.distributedloadsimulator.sls.appmaster.ApplicationMasterScheduler;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
@@ -67,7 +65,6 @@ import org.apache.hadoop.distributedloadsimulator.sls.nodemanager.NMSimulator;
 import org.apache.hadoop.distributedloadsimulator.sls.scheduler.ContainerSimulator;
 import org.apache.hadoop.distributedloadsimulator.sls.scheduler.ResourceSchedulerWrapper;
 import org.apache.hadoop.distributedloadsimulator.sls.scheduler.TaskRunner;
-import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.Priority;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -75,7 +72,6 @@ import org.apache.hadoop.yarn.util.resource.Resources;
 
 public class SLSRunner implements AMNMCommonObject {
 
-    ResourceTracker rt;
     private ResourceManager rm;
     private static final TaskRunner runner = new TaskRunner();
     private final String[] inputTraces;
@@ -98,11 +94,13 @@ public class SLSRunner implements AMNMCommonObject {
     private final String metricsOutputDir;
     private final boolean printSimulation;
     private final boolean standalonemode;
+    private boolean firstAMRegistration=false;
     private static boolean distributedmode;
     private final boolean loadsimulatormode;
     private static boolean stopAppSimulation = false;
     private static boolean isFinished = false;
     private static boolean calculationDone = false;
+    
 
     // other simulation information
     private int numNMs, numRacks, numAMs, numTasks;
@@ -117,11 +115,13 @@ public class SLSRunner implements AMNMCommonObject {
     private int numberOfRT = 0;
     private final String[] rtAddresses = new String[5]; // this is kind of fixed,
     ResourceTracker[] resourceTrackers = new ResourceTracker[5];
+
     private int totalJobRunningTimeSec = 0;
 
     private static float hbResponsePercentage;
-    private ArrayList<AppMasterParameter> appMastersList = new ArrayList<AppMasterParameter>();
     private String rmiAddress = null;
+
+    private static Map<String, Integer> applicationProcessMap = new HashMap<String, Integer>();
 
     public SLSRunner(String inputTraces[], String nodeFile,
             String outputDir, Set<String> trackedApps,
@@ -147,6 +147,7 @@ public class SLSRunner implements AMNMCommonObject {
         this.printSimulation = printsimulation;
         metricsOutputDir = outputDir;
         this.rmiAddress = rmiAddress;
+
         nmMap = new HashMap<NodeId, NMSimulator>();
         queueAppNumMap = new HashMap<String, Integer>();
         amMap = new HashMap<String, List<String>>();
@@ -169,101 +170,55 @@ public class SLSRunner implements AMNMCommonObject {
         }
     }
 
-    public void start() throws Exception {
-        // let all componets to run on same machine
-        if (standalonemode) {
-            LOG.info("starting stand alone mode");
-            startRM();
-            // start node managers
-            startNM();
+    public static void addProcessId(String appId, int processId) {
+        LOG.info(MessageFormat.format("Adding the process id in to map {0}  - {1}", appId, processId));
+        applicationProcessMap.put(appId, processId);
+    }
 
-            startAMFromSLSTraces();
-            numAMs = amMap.size();
-            remainingApps = numAMs;
-            ((ResourceSchedulerWrapper) rm.getResourceScheduler())
-                    .setQueueSet(this.queueAppNumMap.keySet());
-            ((ResourceSchedulerWrapper) rm.getResourceScheduler())
-                    .setTrackedAppSet(this.trackedApps);
-            printSimulationInfo();
-
-            waitForNodesRunning();
-
-            Thread hbResponseThread = new Thread() {
-                @Override
-                public void run() {
-                    while (true) {
-                        if (isFinished) {
-                            int totalHb = 0;
-                            int trueTotalHb = 0;
-                            for (NMSimulator nm : nmMap.values()) {
-                                totalHb += nm.getTotalHeartBeat();
-                                trueTotalHb += nm.getTotalTrueHeartBeat();
-                            }
-                            hbResponsePercentage = (trueTotalHb * 100) / totalHb;
-                            LOG.info("================== Result format:hpresponsepercentage,nmsize,amsize,totalhb,truetotalhb,totaljobrunningtieminsec ==================");
-                            LOG.info("Simulation: " + hbResponsePercentage + " " + nmMap.size() + " " + numAMs + " " + totalHb + " " + trueTotalHb + " " + totalJobRunningTimeSec);
-                            calculationDone = true;
-                            isFinished = false;
-                        }
-                        try {
-                            sleep(100);
-                        } catch (InterruptedException ex) {
-                            java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
-                        }
+    private String getRMIAddress(){
+      return  this.rmiAddress;
+    }
+    public void startHbMonitorThread() {
+        Thread hbExperimentalMonitoring = new Thread() {
+            @Override
+            public void run() {
+                while (true) {
+                    try {
+                        sleep(5000);
+                    } catch (InterruptedException ex) {
+                        java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    int totalHb = 0;
+                    int trueTotalHb = 0;
+                    for (NMSimulator nm : nmMap.values()) {
+                        totalHb += nm.getTotalHeartBeat();
+                        trueTotalHb += nm.getTotalTrueHeartBeat();
+                    }
+                    if (totalHb != 0) {
+                        float hbExperimentailResponsePercentage = (trueTotalHb * 100) / totalHb;
+                        LOG.info("Experimental hb response : " + hbExperimentailResponsePercentage + " " + nmMap.size() + " " + numAMs + " " + totalHb + " " + trueTotalHb + " " + totalJobRunningTimeSec);
                     }
                 }
-            };
-            hbResponseThread.start();
-
-            // lets start all appmasters
-            for (AppMasterParameter appMasterParam : appMastersList) {
-                (new Thread(new InitializeAppMaster(appMasterParam.getQueueName(), appMasterParam.getInputLoadTraces(), appMasterParam.getAppSimOffSet(), appMasterParam.getRmAddress(), appMasterParam.getRmiAddress()))).start();
             }
-            runner.start();
+        };
+        hbExperimentalMonitoring.start();
+    }
 
-        } else if (loadsimulatormode) {
-
+    public void start() throws Exception {
+        if (loadsimulatormode) {
             // here we only need to start the load and send rt and scheduler
             startNM();
             // start application masters
             if (!stopAppSimulation) {
+                LOG.info("Starting the applicatoin simulator from ApplicationMaster traces");
                 startAMFromSLSTraces();
             }
             numAMs = amMap.size();
             remainingApps = numAMs;
-            Thread.sleep(15000);
-            if (!stopAppSimulation) {
-                for (AppMasterParameter appMasterParam : appMastersList) {
-                    (new Thread(new InitializeAppMaster(appMasterParam.getQueueName(), appMasterParam.getInputLoadTraces(), appMasterParam.getAppSimOffSet(), appMasterParam.getRmAddress(), appMasterParam.getRmiAddress()))).start();
-                }
-            }
-            Thread hbExperimentalMonitoring = new Thread() {
-                @Override
-                public void run() {
-                    while (true) {
-                        try {
-                            sleep(5000);
-                        } catch (InterruptedException ex) {
-                            java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
-                        }
-                        int totalHb = 0;
-                        int trueTotalHb = 0;
-                        for (NMSimulator nm : nmMap.values()) {
-                            totalHb += nm.getTotalHeartBeat();
-                            trueTotalHb += nm.getTotalTrueHeartBeat();
-                        }
-                        if (totalHb != 0) {
-                            float hbExperimentailResponsePercentage = (trueTotalHb * 100) / totalHb;
-                            LOG.info("Experimental hb response : " + hbExperimentailResponsePercentage + " " + nmMap.size() + " " + numAMs + " " + totalHb + " " + trueTotalHb + " " + totalJobRunningTimeSec);
-                        }
-                    }
-                }
-            };
-            hbExperimentalMonitoring.start();
-            runner.start();
-
+            // this method will be used for only experimental purpose. Every 5 sec , it will print the hb handled percentage
+            //just to get some idea about the experiment.
+            startHbMonitorThread();
         } else if (distributedmode) {
-            LOG.info("starting distributed mode");
             // before start the rm , let rm to read and get to know about number of applications
             startAMFromSLSTraces();
             startRM();
@@ -271,18 +226,15 @@ public class SLSRunner implements AMNMCommonObject {
                     .setQueueSet(this.queueAppNumMap.keySet());
             ((ResourceSchedulerWrapper) rm.getResourceScheduler())
                     .setTrackedAppSet(this.trackedApps);
-//            LOG.info("HOP :: Starting the transaction writer thread ######################### ");
-//            RMUtilities.transactionTimeWriter();
-//            RMUtilities.printTransactioinCommitThroughput();
-            runner.start();
-
         }
+        printSimulationInfo();
+        runner.start();
     }
 
     private void startRM() throws IOException, ClassNotFoundException {
         Configuration rmConf = new YarnConfiguration();
 
-         if (standalonemode) {
+        if (standalonemode) {
             rmConf.setBoolean(YarnConfiguration.RM_HA_ENABLED, false);
             rmConf.setBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED, false);
         } else {
@@ -308,6 +260,7 @@ public class SLSRunner implements AMNMCommonObject {
 
     private void startNM() throws YarnException, IOException {
         // nm configuration
+        // 38GB
         nmMemoryMB = conf.getInt(SLSConfiguration.NM_MEMORY_MB,
                 SLSConfiguration.NM_MEMORY_MB_DEFAULT);
         nmVCores = conf.getInt(SLSConfiguration.NM_VCORES,
@@ -315,6 +268,7 @@ public class SLSRunner implements AMNMCommonObject {
         int heartbeatInterval = conf.getInt(
                 SLSConfiguration.NM_HEARTBEAT_INTERVAL_MS,
                 SLSConfiguration.NM_HEARTBEAT_INTERVAL_MS_DEFAULT);
+        LOG.info("Starting the NM  memory : "+nmMemoryMB + " vcores : "+nmVCores + " hb interval : "+heartbeatInterval);
         // nm information (fetch from topology file, or from sls/rumen json file)
         Set<String> nodeSet = new HashSet<String>();
         if (nodeFile.isEmpty()) {
@@ -366,40 +320,15 @@ public class SLSRunner implements AMNMCommonObject {
         numNMs = nmMap.size();
     }
 
-    private void waitForNodesRunning() throws InterruptedException {
-        long startTimeMS = System.currentTimeMillis();
-        while (true) {
-            int numRunningNodes = 0;
-            for (RMNode node : rm.getRMContext().getActiveRMNodes().values()) {
-                if (node.getState() == NodeState.RUNNING) {
-                    numRunningNodes++;
-                }
-            }
-            if (numRunningNodes == numNMs) {
-                break;
-            }
-            LOG.info(MessageFormat.format("SLSRunner is waiting for all "
-                    + "nodes RUNNING. {0} of {1} NMs initialized.",
-                    numRunningNodes, numNMs));
-            Thread.sleep(1000);
-        }
-        LOG.info(MessageFormat.format("SLSRunner takes {0} ms to launch all nodes.",
-                (System.currentTimeMillis() - startTimeMS)));
-    }
-
     /**
      * parse workload information from sls trace files
      */
     @SuppressWarnings("unchecked")
     private void startAMFromSLSTraces() throws IOException, Exception {
         // parse from sls traces
-        int containerMemoryMB = conf.getInt(SLSConfiguration.CONTAINER_MEMORY_MB,
-                SLSConfiguration.CONTAINER_MEMORY_MB_DEFAULT);
-        int containerVCores = conf.getInt(SLSConfiguration.CONTAINER_VCORES,
-                SLSConfiguration.CONTAINER_VCORES_DEFAULT);
-        Resource containerResource
-                = BuilderUtils.newResource(containerMemoryMB, containerVCores);
-
+        int heartbeatInterval = conf.getInt(
+                SLSConfiguration.AM_HEARTBEAT_INTERVAL_MS,
+                SLSConfiguration.AM_HEARTBEAT_INTERVAL_MS_DEFAULT);
         JsonFactory jsonF = new JsonFactory();
         ObjectMapper mapper = new ObjectMapper();
         for (String inputTrace : inputTraces) {
@@ -410,7 +339,6 @@ public class SLSRunner implements AMNMCommonObject {
                 while (i.hasNext()) {
                     Map jsonJob = i.next();
 
-//          // load job information
                     long jobStartTime = Long.parseLong(
                             jsonJob.get("job.start.ms").toString());
                     long jobFinishTime = Long.parseLong(
@@ -419,11 +347,6 @@ public class SLSRunner implements AMNMCommonObject {
                     String queue = jsonJob.get("job.queue.name").toString();
 
                     String oldAppId = jsonJob.get("job.id").toString();
-                    LOG.info(" HOP :: JOB DETAILS #####################################");
-                    LOG.info(" HOP :: Job app id     ----------------- : " + oldAppId);
-                    LOG.info(" HOP :: Job start time ----------------- : " + jobStartTime);
-                    LOG.info(" HOP :: Job end time   ----------------- : " + jobFinishTime);
-                    boolean isTracked = trackedApps.contains(oldAppId);
                     totalJobRunningTimeSec = (int) jobFinishTime / 1000;// every time we update the time, so final time is total time
                     int queueSize = queueAppNumMap.containsKey(queue)
                             ? queueAppNumMap.get(queue) : 0;
@@ -436,26 +359,16 @@ public class SLSRunner implements AMNMCommonObject {
                     }
                     List<ContainerSimulator> containerList
                             = new ArrayList<ContainerSimulator>();
-                    for (Object o : tasks) {
-                        Map jsonTask = (Map) o;
-                        String hostname = jsonTask.get("container.host").toString();
-                        long taskStart = Long.parseLong(
-                                jsonTask.get("container.start.ms").toString());
-                        long taskFinish = Long.parseLong(
-                                jsonTask.get("container.end.ms").toString());
-                        long lifeTime = taskFinish - taskStart;
-                        int priority = Integer.parseInt(
-                                jsonTask.get("container.priority").toString());
-                        String type = jsonTask.get("container.type").toString();
-                        containerList.add(new ContainerSimulator(containerResource,
-                                lifeTime, hostname, priority, type));
-                    }
                     // create a new AM
-                    appMastersList.add(new AppMasterParameter(queue, inputTrace, AM_ID++, rmAddress, rmiAddress));
+                    // appMastersList.add(new AppMasterParameter(queue, inputTrace, AM_ID++, rmAddress, rmiAddress));
+
+                    ApplicationMasterScheduler appMasterExecutors = new ApplicationMasterScheduler(queue, inputTrace, AM_ID++, rmAddress, rmiAddress);
+                    appMasterExecutors.init(jobStartTime, jobFinishTime, heartbeatInterval);
+                    runner.schedule(appMasterExecutors);
 
                     String amType = jsonJob.get("am.type").toString();
                     maxRuntime = Math.max(maxRuntime, jobFinishTime);
-                    numTasks += containerList.size();
+                    numTasks += tasks.size();
                     List<String> amList = new ArrayList<String>();
                     amList.add(queue);
                     amList.add(amType);
@@ -467,7 +380,6 @@ public class SLSRunner implements AMNMCommonObject {
                 input.close();
             }
         }
-
         numAMs = amMap.size();
         remainingApps = numAMs;
     }
@@ -648,7 +560,7 @@ public class SLSRunner implements AMNMCommonObject {
                         Resources.createResource(memory, vcores),
                         Priority.create(priority), null);
 
-        // this we can move to thread queue to increase the performance, we don't need to wait
+        // this we can move to thread queue to increase the performance, so we don't need to wait
         nmMap.get(container.getNodeId())
                 .addNewContainer(container, lifeTimeMS);
     }
@@ -658,16 +570,65 @@ public class SLSRunner implements AMNMCommonObject {
         nmMap.get(ConverterUtils.toNodeId(nodeId))
                 .cleanupContainer(ConverterUtils.toContainerId(containerId));
     }
+    
+    @Override
+    public int finishedApplicationsCount(){
+        return remainingApps;
+    }
+    @Override
+    public void registerApplicationTimeStamp(){
+       if(!firstAMRegistration){
+         LOG.info("Application_initial_registeration_time : "+System.currentTimeMillis());
+         firstAMRegistration=true;
+       }
+    }
 
     @Override
-    public void decreseApplicationCount() {
+    public void decreseApplicationCount(String applicationId) {
 
         if (!standalonemode) {
             remainingApps--;
             LOG.info("SLS decrease finished application - application count : " + remainingApps);
+
+            int processId = applicationProcessMap.get(applicationId);
+            String killProcess = "kill -9 " + processId;
+            LOG.info(MessageFormat.format("Application {0} is killing now , kill process string : {1} ", applicationId, killProcess));
+            try {
+                Process amProc = Runtime.getRuntime().exec(killProcess);
+            } catch (IOException ex) {
+                java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
             if (remainingApps == 0) {
-                LOG.info("<SLSisShuttingDown>");
-                // if distributed mode enabled , then no point of calculating from rm
+                LOG.info("Distributed_Simulator_shutting_down_time : "+System.currentTimeMillis());
+                //now check whether other simulator is finished 
+                Registry secondryRegistry = null;
+                try {
+                    secondryRegistry = LocateRegistry.getRegistry(getRMIAddress());
+                } catch (RemoteException ex) {
+                    java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                
+                try {
+                    AMNMCommonObject secondryRemoteConnection = (AMNMCommonObject) secondryRegistry.lookup("AMNMCommonObject");
+                    while(secondryRemoteConnection.finishedApplicationsCount()!=0 ){
+                        Thread.sleep(1000);
+                    }
+                } catch (RemoteException ex) {
+                    java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (NotBoundException ex) {
+                    java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (InterruptedException ex) {
+                    java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                
+                try {
+                    // just sleep here, without this sleep , it is sometime possible, other side requestion rmi
+                    //function which this exit
+                    Thread.sleep(3000);
+                } catch (InterruptedException ex) {
+                    java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
+                }
                 int totalHb = 0;
                 int trueTotalHb = 0;
                 for (NMSimulator nm : nmMap.values()) {

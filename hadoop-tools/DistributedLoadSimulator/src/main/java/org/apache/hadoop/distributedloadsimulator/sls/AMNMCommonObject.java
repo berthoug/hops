@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 hops.io.
+ * Copyright 2015 Apache Software Foundation.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@ public interface AMNMCommonObject extends Remote {
   boolean isNodeExist(String nodeId) throws RemoteException;
   void addNewContainer(String containerId, String nodeId, String httpAddress,
           int memory, int vcores, int priority,long lifeTimeMS) throws RemoteException;
-  void decreseApplicationCount() throws RemoteException;
+  void decreseApplicationCount(String applicationId) throws RemoteException;
+  int  finishedApplicationsCount() throws RemoteException;
+  void registerApplicationTimeStamp() throws RemoteException;
   
 }
