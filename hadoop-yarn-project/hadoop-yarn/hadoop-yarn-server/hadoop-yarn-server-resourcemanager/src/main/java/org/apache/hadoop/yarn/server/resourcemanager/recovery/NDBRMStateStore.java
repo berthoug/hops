@@ -135,8 +135,6 @@ public class NDBRMStateStore extends RMStateStore {
     loadSchedulerApplications(rmState);
     loadFiCaSchedulerNodes(rmState);
     loadLaunchedContainers(rmState);
-    loadNewlyAllocatedContainers(rmState);
-    loadLiveContainers(rmState);
     loadSchedulingOpportunities(rmState);
     loadLastScheduleddContainers(rmState);
     loadRereservations(rmState);
@@ -365,16 +363,6 @@ public class NDBRMStateStore extends RMStateStore {
     rmState.launchedContainers = RMUtilities.getAllLaunchedContainers();
   }
     
-  private void loadNewlyAllocatedContainers(RMState rmState)
-      throws IOException {
-    rmState.newlyAllocatedContainers =
-        RMUtilities.getAllNewlyAllocatedContainers();
-  }
-  
-  private void loadLiveContainers(RMState rmState) throws IOException {
-    rmState.liveContainers = RMUtilities.getAllLiveContainers();
-  }
-  
   private void loadSchedulingOpportunities(RMState rmState) throws IOException {
     rmState.schedulingOpportunities = RMUtilities.getAllSchedulingOpportunities();
   }
