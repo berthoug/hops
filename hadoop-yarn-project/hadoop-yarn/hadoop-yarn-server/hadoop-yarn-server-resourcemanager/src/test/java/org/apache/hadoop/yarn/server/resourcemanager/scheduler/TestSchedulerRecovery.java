@@ -250,7 +250,7 @@ public class TestSchedulerRecovery {
         mock(NMTokenSecretManagerInRM.class);
     RMContext rmContext = new RMContextImpl(rmDispatcher, null, null, null,
         mock(DelegationTokenRenewer.class), null, containerTokenSecretManager,
-        nmTokenSecretManager, null, null);
+        nmTokenSecretManager, null, null,conf);
     RMNodeImpl node =
         new RMNodeImpl(nodeId, rmContext, nodeId.getHost(), 0, 0, null, null,
             null, conf.getBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
@@ -278,7 +278,7 @@ public class TestSchedulerRecovery {
             2);
     rmContext = new RMContextImpl(rmDispatcher, null, null, null,
         mock(DelegationTokenRenewer.class), null, containerTokenSecretManager,
-        nmTokenSecretManager, null, null);
+        nmTokenSecretManager, null, null,conf);
     rmContext.recover(rmState);
 
     Thread.sleep(

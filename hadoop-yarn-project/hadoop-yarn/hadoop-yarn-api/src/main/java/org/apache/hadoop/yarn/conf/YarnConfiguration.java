@@ -72,7 +72,7 @@ public class YarnConfiguration extends Configuration {
      */
     public static final String DEBUG_NM_DELETE_DELAY_SEC
             = YarnConfiguration.NM_PREFIX + "delete.debug-delay-sec";
-  ////////////////////////////////
+    ////////////////////////////////
     // IPC Configs
     ////////////////////////////////
     public static final String IPC_PREFIX = YARN_PREFIX + "ipc.";
@@ -103,7 +103,7 @@ public class YarnConfiguration extends Configuration {
     public static final String IPC_RPC_IMPL = IPC_PREFIX + "rpc.class";
     public static final String DEFAULT_IPC_RPC_IMPL
             = "org.apache.hadoop.yarn.ipc.HadoopYarnProtoRPC";
-  ////////////////////////////////
+    ////////////////////////////////
     // Resource Manager Configs
     ////////////////////////////////
     public static final String RM_PREFIX = "yarn.resourcemanager.";
@@ -446,7 +446,7 @@ public class YarnConfiguration extends Configuration {
 
     public static final String INITIALIZEDB = RM_HA_PREFIX + "initializedb";
     public static boolean DEFAULT_INITIALIZEDB = false;
-  ////////////////////////////////
+    ////////////////////////////////
     // RM state store configs
     ////////////////////////////////
     /**
@@ -515,7 +515,7 @@ public class YarnConfiguration extends Configuration {
     public static final String RM_NODEMANAGER_MINIMUM_VERSION
             = RM_PREFIX + "nodemanager.minimum.version";
     public static final String DEFAULT_RM_NODEMANAGER_MINIMUM_VERSION = "NONE";
-  ////////////////////////////////
+    ////////////////////////////////
     // Node Manager Configs
     ////////////////////////////////
     /**
@@ -916,7 +916,7 @@ public class YarnConfiguration extends Configuration {
     public static final String NM_WEBAPP_SPNEGO_KEYTAB_FILE_KEY
             = NM_PREFIX + "webapp.spnego-keytab-file";
     public static final String DEFAULT_NM_USER_HOME_DIR = "/home/";
-  ////////////////////////////////
+    ////////////////////////////////
     // Web Proxy Configs
     ////////////////////////////////
     public static final String PROXY_PREFIX = "yarn.web-proxy.";
@@ -1073,12 +1073,12 @@ public class YarnConfiguration extends Configuration {
             = YARN_PREFIX + "app.container.log.filesize";
     public static final String YARN_APP_CONTAINER_LOG_BACKUPS
             = YARN_PREFIX + "app.container.log.backups";
-  ////////////////////////////////
+    ////////////////////////////////
     // Timeline Service Configs
     ////////////////////////////////
     public static final String TIMELINE_SERVICE_PREFIX
             = YARN_PREFIX + "timeline-service.";
-  // mark app-history related configs @Private as application history is going
+    // mark app-history related configs @Private as application history is going
     // to be integrated into the timeline service
     @Private
     public static final String APPLICATION_HISTORY_PREFIX
@@ -1208,7 +1208,7 @@ public class YarnConfiguration extends Configuration {
             = TIMELINE_SERVICE_LEVELDB_PREFIX + "ttl-interval-ms";
     public static final long DEFAULT_TIMELINE_SERVICE_LEVELDB_TTL_INTERVAL_MS
             = 1000 * 60 * 5;
-  ////////////////////////////////
+    ////////////////////////////////
     // Other Configs
     ////////////////////////////////
     /**
@@ -1288,6 +1288,12 @@ public class YarnConfiguration extends Configuration {
     public static String HOPS_PENDING_EVENTS_BATCH
             = HOPS_RM_PREFIX + "pending-events.batch";
     public static int DEFAULT_HOPS_PENDING_EVENTS_BATCH = 0;
+
+    public static final String HOPS_BATCH_MAX_SIZE = HOPS_RM_PREFIX + "batch.max.size";
+    public static int DEFAULT_HOPS_BATCH_MAX_SIZE = 200;
+
+    public static final String HOPS_BATCH_MAX_DURATION = HOPS_RM_PREFIX + "batch.max.duration";
+    public static int DEFAULT_HOPS_BATCH_MAX_DURATION = 60;
     //NDB event streaming
     public static boolean DEFAULT_HOPS_NDB_EVENT_STREAMING_ENABLED = false;
     public static final String HOPS_NDB_EVENT_STREAMING_ENABLED = HOPS_RM_PREFIX + "ndb-event-streaming.enable";

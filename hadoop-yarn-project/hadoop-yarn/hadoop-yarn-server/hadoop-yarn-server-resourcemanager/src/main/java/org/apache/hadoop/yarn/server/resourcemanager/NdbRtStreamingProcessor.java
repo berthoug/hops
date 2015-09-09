@@ -61,7 +61,7 @@ public class NdbRtStreamingProcessor implements Runnable {
           StreamingRTComps streamingRTComps = null;
           streamingRTComps = (StreamingRTComps) NdbRtStreamingReceiver.blockingRTQueue.take();
           if (streamingRTComps != null) {
-            printStreamingRTComps(streamingRTComps);
+            //printStreamingRTComps(streamingRTComps);
 
             NodeId nodeId = ConverterUtils.toNodeId(streamingRTComps.getNodeId());
             rmNode = context.getActiveRMNodes().get(nodeId);

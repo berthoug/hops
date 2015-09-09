@@ -2239,27 +2239,34 @@ public class RMUtilities {
             
               Set<Integer> rpcIdsToRemove = ts.getRPCIds();
               List<RPC> rpcToRemove = new ArrayList<RPC>();
-              for(Integer rpcId: rpcIdsToRemove){
-                RPC hop = new RPC(rpcId);
-                rpcToRemove.add(hop);
-              }
-              DA.removeAll(rpcToRemove);
+//              for(Integer rpcId: rpcIdsToRemove){
+//                RPC hop = new RPC(rpcId);
+//                rpcToRemove.add(hop);
+//              }
+//              DA.removeAll(rpcToRemove);
             
             
             //TODO put all of this in ts.persist
-            //ts.persistCSQueueInfo(csQDA, csLQDA);
-            ts.persistRMNodeToUpdate(rmnodeDA);
-            ts.persistRmcontextInfo(rmnodeDA, resourceDA, nodeDA,
-                rmctxInactiveNodesDA);
+           // ts.persistCSQueueInfo(csQDA, csLQDA);
+            //long ts1 = System.currentTimeMillis();
+           // ts.persistRMNodeToUpdate(rmnodeDA);
+            //long ts2 = System.currentTimeMillis();
+           // ts.persistRmcontextInfo(rmnodeDA, resourceDA, nodeDA,
+           //     rmctxInactiveNodesDA);
+            //long ts3 = System.currentTimeMillis();
             ts.persistRMNodeInfo(hbDA, cidToCleanDA, justLaunchedContainersDA,
                 updatedContainerInfoDA, faDA, csDA,persistedEventDA);
+            //long ts4 = System.currentTimeMillis();
+           
            // ts.persist();
-            //ts.persistFicaSchedulerNodeInfo(resourceDA, ficaNodeDA,
-              //  rmcontainerDA, launchedContainersDA);
+           // ts.persistFicaSchedulerNodeInfo(resourceDA, ficaNodeDA,
+             //   rmcontainerDA, launchedContainersDA);
            // ts.persistFairSchedulerNodeInfo(FSSNodeDA);
-           /// ts.persistSchedulerApplicationInfo(QMDA, connector);
-            //ts.persistPendingEvents(persistedEventDA);
+           // ts.persistSchedulerApplicationInfo(QMDA, connector);
+             //ts.persistPendingEvents(persistedEventDA);
             connector.commit();
+           // long ts5 = System.currentTimeMillis();
+//            /LOG.info("Commit Time duration - "+ (ts2-ts1) + " - " + (ts3-ts2) + " - " + (ts4-ts3));
 
             return null;
           }

@@ -208,9 +208,7 @@ public abstract class PendingEventRetrieval implements Runnable {
             LOG.debug("HOP :: PendingEventRetrieval event NodeAdded: "
                     + pendingEvent);
             //Put pendingEvent to remove (for testing we update the status to COMPLETED
-               transactionState = new TransactionStateImpl(
-                TransactionState.TransactionType.NODE, 1, false);
-            // transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(--rpcId, "nodeHeartbeat");
+             transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(--rpcId, "nodeHeartbeat");
             ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
                     pendingEvent.getId(),
                     rmNode.getNodeID().toString(),
@@ -224,9 +222,7 @@ public abstract class PendingEventRetrieval implements Runnable {
             LOG.debug("HOP :: PendingEventRetrieval event NodeRemoved: "
                     + pendingEvent);
             //Put pendingEvent to remove (for testing we update the status to COMPLETED
-            // transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(--rpcId, "nodeHeartbeat");
-               transactionState = new TransactionStateImpl(
-                TransactionState.TransactionType.NODE, 1, false);
+             transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(--rpcId, "nodeHeartbeat");
             ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
                     pendingEvent.getId(),
                     rmNode.getNodeID().toString(),
@@ -243,8 +239,7 @@ public abstract class PendingEventRetrieval implements Runnable {
             // once scheduler finished the event , nextheartbeat will be true and rt will notfiy
             // whether to process or not
             if (pendingEvent.getStatus() == PendingEventTableDef.SCHEDULER_FINISHED_PROCESSING) {
-                 transactionState = new TransactionStateImpl(
-                TransactionState.TransactionType.NODE, 1, false);
+                transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(--rpcId, "nodeHeartbeat");
                          //rmContext.getTransactionStateManager().getCurrentTransactionState(--rpcId, "nodeHeartbeat");
 //                 ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
 //                        pendingEvent.getId(),

@@ -16,7 +16,6 @@
 package io.hops.ha.common;
 
 import io.hops.StorageConnector;
-import io.hops.common.GlobalThreadPool;
 import io.hops.exception.StorageException;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.util.RMUtilities;
@@ -37,7 +36,6 @@ import io.hops.metadata.yarn.dal.ResourceDataAccess;
 import io.hops.metadata.yarn.dal.UpdatedContainerInfoDataAccess;
 import io.hops.metadata.yarn.dal.capacity.CSLeafQueueUserInfoDataAccess;
 import io.hops.metadata.yarn.dal.capacity.CSQueueDataAccess;
-import io.hops.metadata.yarn.dal.fair.AppSchedulableDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocateResponseDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationAttemptStateDataAccess;
@@ -81,11 +79,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import org.apache.hadoop.yarn.api.records.ContainerStatus;
-import org.apache.hadoop.yarn.api.records.impl.pb.ContainerStatusPBImpl;
-import org.apache.hadoop.yarn.api.records.impl.pb.NodeIdPBImpl;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.LOG;
 
@@ -166,7 +159,7 @@ public class TransactionStateImpl extends TransactionState {
 
   
   private static final ExecutorService executorService =
-      Executors.newFixedThreadPool(200);
+      Executors.newFixedThreadPool(1);
   
   @Override
   public void commit(boolean first) throws IOException {
@@ -455,7 +448,12 @@ public class TransactionStateImpl extends TransactionState {
     }
     addAppId(id.getApplicationId());
   }
-
+  public void removeAllocateResponse(ApplicationAttemptId id, int responseId) {
+//    if(allocateResponsesToAdd.remove(id)==null){
+//    this.allocateResponsesToRemove.add(new AllocateResponse(id.toString(), responseId));
+//    }
+//    addAppId(id.getApplicationId());
+  }
   private void persistAllocateResponsesToRemove() throws IOException {
     if (!allocateResponsesToRemove.isEmpty()) {
       AllocateResponseDataAccess da =
@@ -557,7 +555,6 @@ public class TransactionStateImpl extends TransactionState {
           ((RMNodeImpl) rmnodeToAdd).getCurrentState(),
           rmnodeToAdd.getNodeManagerVersion(), -1,
           ((RMNodeImpl) rmnodeToAdd).getUpdatedContainerInfoId(),rmnodeToAdd.getRMNodePendingEventId());
-      LOG.info("HOP :: update rmnode : "+ rmnodeToAdd.getNodeID().toString());
     this.rmNodesToUpdate.put(rmnodeToAdd.getNodeID().toString(), hopRMNode);
   }
 

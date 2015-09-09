@@ -160,7 +160,7 @@ public class ResourceTrackerService extends AbstractService
                 RMStorageFactory.kickTheNdbEventStreamingAPI();
                 rtStreamingProcessor = new NdbRtStreamingProcessor(rmContext);
                 new Thread(rtStreamingProcessor).start();
-                //rmContext.getTransactionStateManager().start();
+                rmContext.getTransactionStateManager().start();
             }
 
         }
@@ -297,7 +297,7 @@ public class ResourceTrackerService extends AbstractService
           //2. If RPC already exists, return error message or drop registration request
                     //TODO: Set up response
                     return null;
-                }
+        }
             } else {
                 rpcID = HopYarnAPIUtilities.getRPCID();
                 byte[] allNMRequestData = ((RegisterNodeManagerRequestPBImpl) request).
@@ -306,9 +306,7 @@ public class ResourceTrackerService extends AbstractService
                         .persistAppMasterRPC(rpcID, RPC.Type.RegisterNM, allNMRequestData);
             }
         }
-       // TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "registerNodeManager");
-             TransactionState transactionState = new TransactionStateImpl(
-                TransactionState.TransactionType.NODE, 1, false);
+       TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "registerNodeManager");
         if (!request.getContainerStatuses().isEmpty()) {
             LOG.info("received container statuses on node manager register :"
                     + request.getContainerStatuses());
@@ -471,123 +469,118 @@ public class ResourceTrackerService extends AbstractService
     }
 
     public NodeHeartbeatResponse nodeHeartbeat(NodeHeartbeatRequest request,
-            Integer rpcID) throws YarnException, IOException {
+      Integer rpcID) throws YarnException, IOException {
     //TODO HOPS: If the RMNode is unknown, fetch from NDB first
-
-        NodeStatus remoteNodeStatus = request.getNodeStatus();
-        NodeId nodeId = remoteNodeStatus.getNodeId();
-
-        LOG.debug("HOP :: receive heartbeat node " + nodeId);
-
-        if (rpcID == null) {
-            rpcID = HopYarnAPIUtilities.getRPCID();
-            byte[] allHBRequestData = ((NodeHeartbeatRequestPBImpl) request).
-                    getProto().toByteArray();
-            RMUtilities
-                    .persistAppMasterRPC(rpcID, RPC.Type.NodeHeartbeat, allHBRequestData);
-        }
-        
-         TransactionState transactionState = new TransactionStateImpl(
-                TransactionState.TransactionType.NODE, 1, false);
-        //TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "nodeHeartbeat");
-//        ((transactionStateWrapper) transactionState).addTime(1);
-        LOG.debug("attribute rpc: " + rpcID + " to hb form " + nodeId);
-
-        /**
-         * Here is the node heartbeat sequence... 1. Check if it's a registered
-         * node 2. Check if it's a valid (i.e. not excluded) node 3. Check if
-         * it's a 'fresh' heartbeat i.e. not duplicate heartbeat 4. Send
-         * healthStatus to RMNode
-         */
-        RMNode rmNode = this.rmContext.getActiveRMNodes().get(nodeId);
-        
-        // lets generate pending event id for each heartbeat.
-        ((TransactionStateImpl)transactionState)
+    
+    NodeStatus remoteNodeStatus = request.getNodeStatus();
+    NodeId nodeId = remoteNodeStatus.getNodeId();
+    
+    LOG.debug("HOP :: receive heartbeat node " + nodeId);
+    
+    LOG.debug("attribute rpc: " + rpcID + " to hb form " + nodeId);
+    
+    /**
+     * Here is the node heartbeat sequence... 1. Check if it's a registered
+     * node 2. Check if it's a valid (i.e. not excluded) node 3. Check if
+     * it's a 'fresh' heartbeat i.e. not duplicate heartbeat 4. Send
+     * healthStatus to RMNode
+     */
+    RMNode rmNode = this.rmContext.getActiveRMNodes().get(nodeId);
+    // 1. Check if it's a registered node
+    if (rmNode == null) {
+      /*
+       * node does not exist
+       */
+      String message = "Node not found resyncing " + remoteNodeStatus.
+          getNodeId();
+      LOG.info(message);
+      resync.setDiagnosticsMessage(message);
+      
+      return resync;
+    }
+    
+    // Send ping
+    this.nmLivelinessMonitor.receivedPing(nodeId);
+    boolean isValid = this.nodesListManager.isValidNode(rmNode.getHostName());
+     if (rpcID == null) {
+      rpcID = HopYarnAPIUtilities.getRPCID();
+      byte[] allHBRequestData = ((NodeHeartbeatRequestPBImpl) request).
+          getProto().toByteArray();
+      RMUtilities
+          .persistAppMasterRPC(rpcID, RPC.Type.NodeHeartbeat, allHBRequestData);
+    }
+    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "nodeHeartbeat");
+    ((transactionStateWrapper)transactionState).addTime(1);
+    
+    ((TransactionStateImpl)transactionState)
                     .getRMNodeInfo(nodeId).generatePendingEventId();
          int pendingEventId = ((TransactionStateImpl) transactionState)
                     .getRMNodeInfo(nodeId).getPendingId();
         rmNode.setRMNodePendingEventId(pendingEventId);
-        // 1. Check if it's a registered node
-        if (rmNode == null) {
-            /*
-             * node does not exist
-             */
-            String message = "Node not found resyncing " + remoteNodeStatus.
-                    getNodeId();
-            LOG.info(message);
-            resync.setDiagnosticsMessage(message);
-
-            transactionState.decCounter(TransactionState.TransactionType.INIT);
-            return resync;
-        }
-
-        // Send ping
-        this.nmLivelinessMonitor.receivedPing(nodeId);
-
-        // 2. Check if it's a valid (i.e. not excluded) node
-        if (!this.nodesListManager.isValidNode(rmNode.getHostName())) {
-            String message
-                    = "Disallowed NodeManager nodeId: " + nodeId + " hostname: "
-                    + rmNode.getNodeAddress();
-            LOG.info(message);
-            shutDown.setDiagnosticsMessage(message);
-            this.rmContext.getDispatcher().getEventHandler().handle(
-                    new RMNodeEvent(nodeId, RMNodeEventType.DECOMMISSION,
-                            transactionState));
-
-            transactionState.decCounter(TransactionState.TransactionType.INIT);
-            return shutDown;
-        }
-
-        // 3. Check if it's a 'fresh' heartbeat i.e. not duplicate heartbeat
-        NodeHeartbeatResponse lastNodeHeartbeatResponse = rmNode.
-                getLastNodeHeartBeatResponse();
-        if (remoteNodeStatus.getResponseId() + 1
-                == lastNodeHeartbeatResponse.getResponseId()) {
-            LOG.info(
-                    "Received duplicate heartbeat from node " + rmNode.getNodeAddress());
-
-            transactionState.decCounter(TransactionState.TransactionType.INIT);
-            return lastNodeHeartbeatResponse;
-        } else if (remoteNodeStatus.getResponseId() + 1
-                < lastNodeHeartbeatResponse.getResponseId()) {
-            String message = "Too far behind rm response id:"
-                    + lastNodeHeartbeatResponse.getResponseId() + " nm response id:"
-                    + remoteNodeStatus.getResponseId();
-            LOG.info(message);
-            resync.setDiagnosticsMessage(message);
-            // TODO: Just sending reboot is not enough. Think more.
-            this.rmContext.getDispatcher().getEventHandler().handle(
-                    new RMNodeEvent(nodeId, RMNodeEventType.REBOOTING, transactionState));
-
-            transactionState.decCounter(TransactionState.TransactionType.INIT);
-            return resync;
-        }
-
-        // Heartbeat response
-        NodeHeartbeatResponse nodeHeartBeatResponse = YarnServerBuilderUtils
-                .newNodeHeartbeatResponse(lastNodeHeartbeatResponse.
-                        getResponseId() + 1, NodeAction.NORMAL, null, null, null, null,
-                        nextHeartBeatInterval);
-
-        nodeHeartBeatResponse.setNextheartbeat(((RMNodeImpl) rmNode).getNextHeartbeat());
-        rmNode.updateNodeHeartbeatResponseForCleanup(nodeHeartBeatResponse,
-                transactionState);
-
-        populateKeys(request, nodeHeartBeatResponse);
-        LOG.debug("HOP :: remoteNodeStatus.getContainersStatuses()"
-                + remoteNodeStatus.getContainersStatuses());
-        // 4. Send status to RMNode, saving the latest response.
-        this.rmContext.getDispatcher().getEventHandler().handle(
-                new RMNodeStatusEvent(nodeId, remoteNodeStatus.getNodeHealthStatus(),
-                        remoteNodeStatus.getContainersStatuses(),
-                        remoteNodeStatus.getKeepAliveApplications(), nodeHeartBeatResponse,
-                        transactionState));
-
-        transactionState.decCounter(TransactionState.TransactionType.INIT);
-        return nodeHeartBeatResponse;
+    
+    // 2. Check if it's a valid (i.e. not excluded) node
+    if (!isValid) {
+      String message =
+          "Disallowed NodeManager nodeId: " + nodeId + " hostname: " +
+              rmNode.getNodeAddress();
+      LOG.info(message);
+      shutDown.setDiagnosticsMessage(message);
+      this.rmContext.getDispatcher().getEventHandler().handle(
+          new RMNodeEvent(nodeId, RMNodeEventType.DECOMMISSION,
+              transactionState));
+      
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
+      return shutDown;
+    }
+    
+    // 3. Check if it's a 'fresh' heartbeat i.e. not duplicate heartbeat
+    NodeHeartbeatResponse lastNodeHeartbeatResponse = rmNode.
+        getLastNodeHeartBeatResponse();
+    if (remoteNodeStatus.getResponseId() + 1 ==
+        lastNodeHeartbeatResponse.getResponseId()) {
+      LOG.info(
+          "Received duplicate heartbeat from node " + rmNode.getNodeAddress());
+      
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
+      return lastNodeHeartbeatResponse;
+    } else if (remoteNodeStatus.getResponseId() + 1 <
+        lastNodeHeartbeatResponse.getResponseId()) {
+      String message = "Too far behind rm response id:" +
+          lastNodeHeartbeatResponse.getResponseId() + " nm response id:" +
+          remoteNodeStatus.getResponseId();
+      LOG.info(message);
+      resync.setDiagnosticsMessage(message);
+      // TODO: Just sending reboot is not enough. Think more.
+      this.rmContext.getDispatcher().getEventHandler().handle(
+          new RMNodeEvent(nodeId, RMNodeEventType.REBOOTING, transactionState));
+      
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
+      return resync;
     }
 
+    // Heartbeat response
+    NodeHeartbeatResponse nodeHeartBeatResponse = YarnServerBuilderUtils
+        .newNodeHeartbeatResponse(lastNodeHeartbeatResponse.
+                getResponseId() + 1, NodeAction.NORMAL, null, null, null, null,
+            nextHeartBeatInterval);
+
+    rmNode.updateNodeHeartbeatResponseForCleanup(nodeHeartBeatResponse,
+        transactionState);
+    nodeHeartBeatResponse.setNextheartbeat(((RMNodeImpl) rmNode).getNextHeartbeat());
+
+    populateKeys(request, nodeHeartBeatResponse);
+    LOG.debug("HOP :: remoteNodeStatus.getContainersStatuses()" +
+        remoteNodeStatus.getContainersStatuses());
+    // 4. Send status to RMNode, saving the latest response.
+    this.rmContext.getDispatcher().getEventHandler().handle(
+        new RMNodeStatusEvent(nodeId, remoteNodeStatus.getNodeHealthStatus(),
+            remoteNodeStatus.getContainersStatuses(),
+            remoteNodeStatus.getKeepAliveApplications(), nodeHeartBeatResponse,
+            transactionState));
+
+    transactionState.decCounter(TransactionState.TransactionType.INIT);
+    return nodeHeartBeatResponse;
+  }
     private void populateKeys(NodeHeartbeatRequest request,
             NodeHeartbeatResponse nodeHeartBeatResponse) {
         LOG.debug("HOP :: heartbeat populateKeys check 1");

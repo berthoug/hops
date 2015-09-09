@@ -645,9 +645,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
                 ((TransactionStateImpl) event.getTransactionState())
                         .getRMNodeInfo(rmNode.nodeId).addPendingEventToAdd(rmNode.getNodeID().toString(),
                                 TablesDef.PendingEventTableDef.NODE_ADDED, TablesDef.PendingEventTableDef.NEW);
-//        ((TransactionStateImpl) event.getTransactionState()).
-//            addPendingEventToAdd(rmNode.getNodeID().toString(),
-//                TablesDef.PendingEventTableDef.NODE_ADDED, TablesDef.PendingEventTableDef.NEW);
             } else {
                 LOG.info("HOP :: Added Pending event to TransactionState");
                 rmNode.context.getDispatcher().getEventHandler().handle(
@@ -869,7 +866,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
                     //.getRMNodeInfo(rmNode.nodeId).getPendingId();
             NodeHealthStatus remoteNodeHealthStatus
                     = statusEvent.getNodeHealthStatus();
-            LOG.info("Hop-distributed set pending event id rmnode : " + rmNode + "|pendingid : " + rmNode.getRMNodePendingEventId());
             //rmNode.setRMNodePendingEventId(pendingEventId);
             rmNode.setHealthReport(remoteNodeHealthStatus.getHealthReport());
             rmNode.setLastHealthReportTime(remoteNodeHealthStatus.

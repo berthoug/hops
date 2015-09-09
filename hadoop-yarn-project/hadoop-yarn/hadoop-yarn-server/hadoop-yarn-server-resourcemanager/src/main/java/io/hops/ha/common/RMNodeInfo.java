@@ -89,17 +89,17 @@ public class RMNodeInfo {
             UpdatedContainerInfoDataAccess updatedContainerInfoDA,
             FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA, PendingEventDataAccess persistedEventsDA)
             throws StorageException {
-    persistJustLaunchedContainersToAdd(justLaunchedContainersDA, csDA);
-    persistJustLaunchedContainersToRemove(justLaunchedContainersDA);
-    persistContainerToCleanToAdd(cidToCleanDA);
-    persistContainerToCleanToRemove(cidToCleanDA);
-    persistFinishedApplicationToAdd(faDA);
-    persistFinishedApplicationToRemove(faDA);
-    persistNodeUpdateQueueToAdd(updatedContainerInfoDA, csDA);
-    persistNodeUpdateQueueToRemove(updatedContainerInfoDA, csDA);
-    persistLatestHeartBeatResponseToAdd(hbDA);
+//    persistJustLaunchedContainersToAdd(justLaunchedContainersDA, csDA);
+//    persistJustLaunchedContainersToRemove(justLaunchedContainersDA);
+//    persistContainerToCleanToAdd(cidToCleanDA);
+//    persistContainerToCleanToRemove(cidToCleanDA);
+//    persistFinishedApplicationToAdd(faDA);
+//    persistFinishedApplicationToRemove(faDA);
+//    persistNodeUpdateQueueToAdd(updatedContainerInfoDA, csDA);
+//    persistNodeUpdateQueueToRemove(updatedContainerInfoDA, csDA);
+//    persistLatestHeartBeatResponseToAdd(hbDA);
     persistNextHeartbeat();
-    persistPendingEvents(persistedEventsDA);
+    //persistPendingEvents(persistedEventsDA);
     }
 
     public String getRmnodeId() {
@@ -287,6 +287,7 @@ public class RMNodeInfo {
             }
             csDA.addAll(toAddContainerStatus);
             justLaunchedContainersDA.addAll(toAddHopJustLaunchedContainers);
+            LOG.info("Just  - "+toAddHopJustLaunchedContainers.size()+"|containerStatus - "+toAddContainerStatus.size());
             //Persist ContainerId and ContainerStatus
 
         }
@@ -321,6 +322,7 @@ public class RMNodeInfo {
             }
             csDA.addAll(containerStatusToAdd);
             updatedContainerInfoDA.addAll(uciToAdd);
+            LOG.info("Nodeupdateq uci - "+uciToAdd.size()+"|containerStatus - "+containerStatusToAdd.size());
         }
     }
 

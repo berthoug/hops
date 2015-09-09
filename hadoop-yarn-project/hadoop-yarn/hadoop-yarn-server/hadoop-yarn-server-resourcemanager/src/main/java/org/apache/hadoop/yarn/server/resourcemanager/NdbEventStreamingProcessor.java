@@ -43,34 +43,34 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
     public void printHopsRMNodeComps(RMNodeComps hopRMNodeNDBCompObject) {
 
         //print hoprmnode 
-        LOG.info("<EvtProcessor_PRINT_START>-------------------------------------------------------------------");
+        LOG.debug("<EvtProcessor_PRINT_START>-------------------------------------------------------------------");
         if (hopRMNodeNDBCompObject.getHopRMNode() != null) {
              LOG.info("<EvtProcessor> [rmnode] id : "+hopRMNodeNDBCompObject.getHopRMNode().getNodeId() +"| peinding id : "+hopRMNodeNDBCompObject.getHopRMNode().getPendingEventId());
         }
         //print hopnode
         if (hopRMNodeNDBCompObject.getHopNode() != null) {
-            LOG.info("<EvtProcessor> [node] id : "+hopRMNodeNDBCompObject.getHopNode().getId()+"| level : "+hopRMNodeNDBCompObject.getHopNode().getLevel());
+            LOG.debug("<EvtProcessor> [node] id : "+hopRMNodeNDBCompObject.getHopNode().getId()+"| level : "+hopRMNodeNDBCompObject.getHopNode().getLevel());
         }
         //print hopresource 
         if (hopRMNodeNDBCompObject.getHopResource() != null) {
-            LOG.info("<EvtProcessor> [resource] id : "+hopRMNodeNDBCompObject.getHopResource().getId() +"| memory : "+hopRMNodeNDBCompObject.getHopResource().getMemory());
+            LOG.debug("<EvtProcessor> [resource] id : "+hopRMNodeNDBCompObject.getHopResource().getId() +"| memory : "+hopRMNodeNDBCompObject.getHopResource().getMemory());
         }
         if (hopRMNodeNDBCompObject.getPendingEvent() != null) {
-            LOG.info("<EvtProcessor> [pendingevent] id : "+hopRMNodeNDBCompObject.getPendingEvent().getRmnodeId() +"| peinding id : "+hopRMNodeNDBCompObject.getPendingEvent().getId());
+            LOG.debug("<EvtProcessor> [pendingevent] id : "+hopRMNodeNDBCompObject.getPendingEvent().getRmnodeId() +"| peinding id : "+hopRMNodeNDBCompObject.getPendingEvent().getId());
         }
         List<JustLaunchedContainers> hopJustLaunchedContainers = hopRMNodeNDBCompObject.getHopJustLaunchedContainers();
         for (JustLaunchedContainers hopjl : hopJustLaunchedContainers) {
-            LOG.info("<EvtProcessor> [justlaunchedcontainer] id : "+hopjl.getRmnodeid() +"| container id : "+hopjl.getContainerId());
+            LOG.debug("<EvtProcessor> [justlaunchedcontainer] id : "+hopjl.getRmnodeid() +"| container id : "+hopjl.getContainerId());
         }
         List<UpdatedContainerInfo> hopUpdatedContainerInfo = hopRMNodeNDBCompObject.getHopUpdatedContainerInfo();
         for (UpdatedContainerInfo hopuc : hopUpdatedContainerInfo) {
-            LOG.info("<EvtProcessor> [updatedcontainerinfo] id : "+hopuc.getRmnodeid() +"| container id : "+hopuc.getContainerId());
+            LOG.debug("<EvtProcessor> [updatedcontainerinfo] id : "+hopuc.getRmnodeid() +"| container id : "+hopuc.getContainerId());
         }
         List<ContainerStatus> hopContainersStatus = hopRMNodeNDBCompObject.getHopContainersStatus();
         for (ContainerStatus hopCS : hopContainersStatus) {
-            LOG.info("<EvtProcessor> [containerstatus] id : "+hopCS.getRMNodeId() +"| container id : "+hopCS.getContainerid()+"| container status : "+hopCS.getExitstatus());
+            LOG.debug("<EvtProcessor> [containerstatus] id : "+hopCS.getRMNodeId() +"| container id : "+hopCS.getContainerid()+"| container status : "+hopCS.getExitstatus());
         }
-        LOG.info("<EvtProcessor_PRINT_END>-------------------------------------------------------------------");
+        LOG.debug("<EvtProcessor_PRINT_END>-------------------------------------------------------------------");
     }
 
     @Override
