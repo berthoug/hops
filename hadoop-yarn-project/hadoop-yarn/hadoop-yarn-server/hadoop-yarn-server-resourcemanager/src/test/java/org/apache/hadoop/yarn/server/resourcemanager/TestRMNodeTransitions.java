@@ -122,7 +122,7 @@ public class TestRMNodeTransitions {
     RMUtilities.InitializeDB();
 
     rmContext = new RMContextImpl(rmDispatcher, null, null, null,
-        mock(DelegationTokenRenewer.class), null, null, null, null);
+        mock(DelegationTokenRenewer.class), null, null, null, conf);
     NodesListManager nodesListManager = mock(NodesListManager.class);
     HostsFileReader reader = mock(HostsFileReader.class);
     when(nodesListManager.getHostsReader()).thenReturn(reader);

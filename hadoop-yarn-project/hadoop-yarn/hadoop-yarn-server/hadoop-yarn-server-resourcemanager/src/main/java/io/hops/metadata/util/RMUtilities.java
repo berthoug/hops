@@ -444,12 +444,16 @@ public class RMUtilities {
     for (ApplicationAttemptId applicationAttemptId : allocateResponses.keySet()) {
       List<org.apache.hadoop.yarn.api.records.Container> allocatedContainers
               = new ArrayList<org.apache.hadoop.yarn.api.records.Container>();
-      for (String containerId : allocatedContainersId.get(applicationAttemptId.toString())) {
-        Container hopContainer = containersInfo.get(containerId);
-        ContainerPBImpl container = new ContainerPBImpl(
-                YarnProtos.ContainerProto.parseFrom(hopContainer.
-                        getContainerState()));
-        allocatedContainers.add(container);
+      List<String> allocatedContainersIds = 
+              allocatedContainersId.get(applicationAttemptId.toString());
+      if (allocatedContainersIds != null) {
+        for (String containerId : allocatedContainersIds) {
+          Container hopContainer = containersInfo.get(containerId);
+          ContainerPBImpl container = new ContainerPBImpl(
+                  YarnProtos.ContainerProto.parseFrom(hopContainer.
+                          getContainerState()));
+          allocatedContainers.add(container);
+        }
       }
       allocateResponses.get(applicationAttemptId).setAllocatedContainers(
               allocatedContainers);
@@ -2608,9 +2612,9 @@ public class RMUtilities {
       setfinishRPCHandler.handle();
     } catch (IOException ex) {
       LOG.error("HOP :: Error commiting finishRPC ", ex);
-      String yarnState = YarnAPIStorageFactory.printYarnState();
-    
-      LOG.error("commit failed: " + yarnState);
+//      String yarnState = YarnAPIStorageFactory.printYarnState();
+//    
+//      LOG.error("commit failed: " + yarnState);
     
     }
     long commitDuration = System.currentTimeMillis() - start;
@@ -2618,10 +2622,6 @@ public class RMUtilities {
     if (ts.getId() > 0) {
       commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(
               ts.getId());
-    }
-    String yarnState = YarnAPIStorageFactory.printYarnState();
-    if (commitDuration > 1000) {
-      LOG.error("commit too long state: " + commitDuration + "\n" + yarnState);
     }
     
     totalCommitDuration.addAndGet(commitDuration);
@@ -2639,7 +2639,10 @@ public class RMUtilities {
       minCommitAndQueueDuration = commitAndQueueDuration;
     }
     nbFinish.addAndGet(1);
-    
+    if(maxCommitAndQueueDuration>1000){
+      LOG.error("commit and queue duration too long: " + maxCommitAndQueueDuration + " (" + commitDuration + ") " + " nodes: " + ts.getRMNodesToUpdate().keySet() + 
+              " app: " + ts.getAppIds());
+    }
     logs.add("finish (" + ts.getId() +"): " + commitDuration + ", " + commitAndQueueDuration );
   }
 

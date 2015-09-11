@@ -83,7 +83,7 @@ public abstract class TransactionState {
   }
  
   public void addRPCId(int rpcId){
-    if(rpcId>0 && id<0){
+    if(rpcId>=0 && id<0){
       id = rpcId;
     }
     rpcIds.add(rpcId);

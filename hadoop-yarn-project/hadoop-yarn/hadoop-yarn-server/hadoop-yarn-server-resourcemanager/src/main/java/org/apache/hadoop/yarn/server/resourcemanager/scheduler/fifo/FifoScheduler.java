@@ -741,10 +741,10 @@ public class FifoScheduler extends AbstractYarnScheduler
 
     // Update resource if any change
     SchedulerUtils.updateResourceIfChanged(node, rmNode, clusterResource, LOG, transactionState);
-    if (transactionState != null) {
-      ((TransactionStateImpl) transactionState)
-          .updateClusterResource(clusterResource);
-    }
+//    if (transactionState != null) {
+//      ((TransactionStateImpl) transactionState)
+//          .updateClusterResource(clusterResource);
+//    }
     List<UpdatedContainerInfo> containerInfoList =
         rmNode.pullContainerUpdates(transactionState);
     List<ContainerStatus> newlyLaunchedContainers =
@@ -1075,6 +1075,7 @@ public class FifoScheduler extends AbstractYarnScheduler
           nodes.put(nodeId, ficaNode);
         }
       }
+      //TORECOVER recover from nodes
       Resource recovered =
           state.getResource("cluster", Resource.CLUSTER, Resource.AVAILABLE);
       if (recovered != null) {

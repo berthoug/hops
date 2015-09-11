@@ -82,7 +82,7 @@ public class AgregatedAppInfo {
           = new ArrayList<FiCaSchedulerAppContainer>();
   List<FiCaSchedulerAppContainer> toRemoveLiveContainers
           = new ArrayList<FiCaSchedulerAppContainer>();
-  List<ResourceRequest> toAddResourceRequests = new ArrayList<ResourceRequest>();
+  Set<ResourceRequest> toAddResourceRequests = new HashSet<ResourceRequest>();
   List<ResourceRequest> toRemoveResourceRequests
           = new ArrayList<ResourceRequest>();
   List<AppSchedulingInfoBlacklist> toAddblackListed

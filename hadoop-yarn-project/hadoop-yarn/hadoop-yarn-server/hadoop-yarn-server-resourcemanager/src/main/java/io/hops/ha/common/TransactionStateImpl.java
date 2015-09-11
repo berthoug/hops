@@ -19,6 +19,7 @@ import io.hops.StorageConnector;
 import io.hops.exception.StorageException;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.util.RMUtilities;
+import io.hops.metadata.yarn.dal.ContainerDataAccess;
 import io.hops.metadata.yarn.dal.ContainerIdToCleanDataAccess;
 import io.hops.metadata.yarn.dal.ContainerStatusDataAccess;
 import io.hops.metadata.yarn.dal.FiCaSchedulerNodeDataAccess;
@@ -85,6 +86,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NMToken;
+import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.NMTokenPBImpl;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.LOG;
@@ -110,8 +112,10 @@ public class TransactionStateImpl extends TransactionState {
       new HashMap<String, FiCaSchedulerNodeInfos>();
   private final FairSchedulerNodeInfo fairschedulerNodeInfo =
       new FairSchedulerNodeInfo();
-    private final HashMap<String, RMContainer> rmContainersToUpdate =
+  private final HashMap<String, RMContainer> rmContainersToUpdate =
       new HashMap<String, RMContainer>();
+  private final List<io.hops.metadata.yarn.entity.Container> toAddContainers =
+          new ArrayList<io.hops.metadata.yarn.entity.Container>();
   private final CSQueueInfo csQueueInfo = new CSQueueInfo();
   
   //APP
@@ -170,12 +174,14 @@ public class TransactionStateImpl extends TransactionState {
 
   
   private static final ExecutorService executorService =
-      Executors.newFixedThreadPool(10);
+      Executors.newFixedThreadPool(20);
   
   @Override
   public void commit(boolean first) throws IOException {
-    RMUtilities.putTransactionStateInQueues(this, rmNodesToUpdate.keySet(), appIds);
-    RMUtilities.logPutInCommitingQueue(this);
+    if(first){
+      RMUtilities.putTransactionStateInQueues(this, rmNodesToUpdate.keySet(), appIds);
+      RMUtilities.logPutInCommitingQueue(this);
+    }
     executorService.execute(new RPCFinisher(this));
   }
 
@@ -242,6 +248,7 @@ public class TransactionStateImpl extends TransactionState {
     long t5 =System.currentTimeMillis() - start;
     totalt5=totalt5 + System.currentTimeMillis() - start;
     persistRMContainerToUpdate();
+    persistContainers();
     long t6 =System.currentTimeMillis() - start;
     totalt6=totalt6 + System.currentTimeMillis() - start;
     nbFinish++;
@@ -562,6 +569,8 @@ public class TransactionStateImpl extends TransactionState {
       toPersist.setResponseId(lastResponse.getResponseId());
       toPersist.setUpdatedNodes(lastResponse.getUpdatedNodes());
       
+      int debugid = this.getId();
+      LOG.info("add allocateResponse to persist for rpc: " + debugid);
       this.allocateResponsesToAdd.put(id, new AllocateResponse(id.toString(),
               toPersist.getProto().toByteArray(), allocatedContainers, 
       allocateResponse.getAllocateResponse().getResponseId()));
@@ -599,7 +608,10 @@ public class TransactionStateImpl extends TransactionState {
   static double tt2=0;
   static double tt3=0;
   private void persistAllocateResponsesToAdd() throws IOException {
+    int debugid = this.getId();
+      LOG.info("persist allocateResponse to persist for rpc: " + debugid + " size" + allocateResponsesToAdd.size());
     if (!allocateResponsesToAdd.isEmpty()) {
+      LOG.info("persist allocateResponse to persist for rpc: " + debugid);
       long start = System.currentTimeMillis();
       AllocateResponseDataAccess da =
           (AllocateResponseDataAccess) RMStorageFactory
@@ -654,6 +666,33 @@ public class TransactionStateImpl extends TransactionState {
               .getDataAccess(AllocateResponseDataAccess.class);
 
       da.removeAll(allocateResponsesToRemove);
+    }
+  }
+  
+   private byte[] getRMContainerBytes(org.apache.hadoop.yarn.api.records.Container Container){
+    if(Container instanceof ContainerPBImpl){
+      return ((ContainerPBImpl) Container).getProto()
+            .toByteArray();
+    }else{
+      return new byte[0];
+    }
+  }
+   
+  public void addRMContainerToAdd(RMContainerImpl rmContainer) {
+    addRMContainerToUpdate(rmContainer);
+    io.hops.metadata.yarn.entity.Container hopContainer
+            = new io.hops.metadata.yarn.entity.Container(rmContainer.
+                    getContainerId().
+                    toString(),
+                    getRMContainerBytes(rmContainer.getContainer()));
+    toAddContainers.add(hopContainer);
+  }
+  
+  protected void persistContainers() throws StorageException {
+    if (!toAddContainers.isEmpty()) {
+      ContainerDataAccess cDA = (ContainerDataAccess) RMStorageFactory.
+              getDataAccess(ContainerDataAccess.class);
+      cDA.addAll(toAddContainers);
     }
   }
   
@@ -815,21 +854,21 @@ public class TransactionStateImpl extends TransactionState {
     if (!ficaSchedulerNodeInfoToRemove.isEmpty()) {
       ArrayList<FiCaSchedulerNode> toRemoveFiCaSchedulerNodes =
           new ArrayList<FiCaSchedulerNode>();
-      ArrayList<Resource> toRemoveResources = new ArrayList<Resource>();
+//      ArrayList<Resource> toRemoveResources = new ArrayList<Resource>();
       ArrayList<RMContainer> rmcontainerToRemove = new ArrayList<RMContainer>();
       for (String nodeId : ficaSchedulerNodeInfoToRemove.keySet()) {
         toRemoveFiCaSchedulerNodes.add(new FiCaSchedulerNode(nodeId));
         //Remove Resources
         //Set memory and virtualcores to zero as we do not need
         //these values during remove anyway.
-        toRemoveResources.add(new Resource(nodeId, Resource.TOTAL_CAPABILITY,
-            Resource.FICASCHEDULERNODE, 0, 0));
-        toRemoveResources.add(
-            new Resource(nodeId, Resource.AVAILABLE, Resource.FICASCHEDULERNODE,
-                0, 0));
-        toRemoveResources.add(
-            new Resource(nodeId, Resource.USED, Resource.FICASCHEDULERNODE, 0,
-                0));
+//        toRemoveResources.add(new Resource(nodeId, Resource.TOTAL_CAPABILITY,
+//            Resource.FICASCHEDULERNODE, 0, 0));
+//        toRemoveResources.add(
+//            new Resource(nodeId, Resource.AVAILABLE, Resource.FICASCHEDULERNODE,
+//                0, 0));
+//        toRemoveResources.add(
+//            new Resource(nodeId, Resource.USED, Resource.FICASCHEDULERNODE, 0,
+//                0));
         // Update FiCaSchedulerNode reservedContainer
         RMContainer container =
             ficaSchedulerNodeInfoToRemove.get(nodeId).getReservedContainer();
@@ -837,7 +876,7 @@ public class TransactionStateImpl extends TransactionState {
           rmcontainerToRemove.add(container);
         }
       }
-      resourceDA.removeAll(toRemoveResources);
+//      resourceDA.removeAll(toRemoveResources);
       ficaNodeDA.removeAll(toRemoveFiCaSchedulerNodes);
       rmcontainerDA.removeAll(rmcontainerToRemove);
     }

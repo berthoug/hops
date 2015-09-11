@@ -163,6 +163,7 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
 //          getFiCaSchedulerAppInfo(
 //              this.appSchedulingInfo.getApplicationAttemptId()).
 //          toUpdateResource(Resource.CURRENTCONSUMPTION, currentConsumption);
+      ((TransactionStateImpl) transactionState).addRMContainerToAdd((RMContainerImpl)rmContainer);
       ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId()).
           getFiCaSchedulerAppInfo(
               this.appSchedulingInfo.getApplicationAttemptId()).

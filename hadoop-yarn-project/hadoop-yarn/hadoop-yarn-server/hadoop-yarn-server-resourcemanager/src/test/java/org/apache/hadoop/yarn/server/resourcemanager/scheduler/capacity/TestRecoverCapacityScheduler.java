@@ -430,7 +430,7 @@ public class TestRecoverCapacityScheduler {
 
     nodeManager1.nodeHeartbeat(true);
     nodeManager2.nodeHeartbeat(true);
-
+    Thread.sleep(1000);
     RMAppAttempt attempt_1 = application_0.getCurrentAppAttempt();
     RMAppAttempt attempt_2 = application_1.getCurrentAppAttempt();
         //RMAppAttempt attempt_3 = application_2.getCurrentAppAttempt();

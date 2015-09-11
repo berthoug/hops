@@ -331,7 +331,7 @@ public class TestUnmanagedAMLauncherWhenSchedulerFailover {
       AllocateResponse response = client.allocate(request);
 
       List<Container> containers = response.getAllocatedContainers();
-      while (containers.size() != 1) {
+      while (containers.size() < 1) {
         Thread.sleep(1000);
 
         request = AllocateRequest
