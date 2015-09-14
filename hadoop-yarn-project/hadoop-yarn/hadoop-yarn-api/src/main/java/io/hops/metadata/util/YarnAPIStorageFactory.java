@@ -149,8 +149,4 @@ public class YarnAPIStorageFactory {
   public static String printYarnState(){
     return dStorageFactory.printYarnState();
   }
-  
-  public static String printYarnState(){
-    return dStorageFactory.printYarnState();
-  }
 }

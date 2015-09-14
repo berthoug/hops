@@ -18,7 +18,6 @@ package org.apache.hadoop.yarn.server.resourcemanager;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.hops.common.GlobalThreadPool;
-import io.hops.ha.common.TransactionStateManager;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.util.YarnAPIStorageFactory;
 import io.hops.metadata.yarn.entity.appmasterrpc.RPC;

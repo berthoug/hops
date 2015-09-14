@@ -144,6 +144,7 @@ public class TransactionStateManager implements Runnable{
           transactionStateWrapper wrapper = new transactionStateWrapper((TransactionStateImpl)currentTransactionState,
                   TransactionState.TransactionType.RM, rpcId, callingFuncition);
           wrapper.incCounter(TransactionState.TransactionType.INIT);
+          if(rpcId >= 0)
           wrapper.addRPCId(rpcId);
           curentRPCs.add(wrapper);
           return wrapper;
