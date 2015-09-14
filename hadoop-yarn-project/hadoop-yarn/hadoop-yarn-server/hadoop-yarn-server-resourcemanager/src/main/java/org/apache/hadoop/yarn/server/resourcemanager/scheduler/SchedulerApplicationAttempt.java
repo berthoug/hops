@@ -343,12 +343,6 @@ public class SchedulerApplicationAttempt implements Recoverable{
       org.apache.hadoop.yarn.api.records.Resource globalLimit,
       TransactionState transactionState) {
     this.resourceLimit = globalLimit;
-    if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId)
-          .getFiCaSchedulerAppInfo(
-              this.appSchedulingInfo.getApplicationAttemptId())
-          .toUpdateResource(Resource.RESOURCELIMIT, resourceLimit);
-    }
   }
 
   /**
@@ -439,11 +433,6 @@ public class SchedulerApplicationAttempt implements Recoverable{
           .getResource(applicationAttemptId.toString(),
               Resource.CURRENTCONSUMPTION,
               Resource.SCHEDULERAPPLICATIONATTEMPT);
-      if (recoveringCurrentConsumption != null) {
-        currentConsumption.setMemory(recoveringCurrentConsumption.getMemory());
-        currentConsumption
-            .setVirtualCores(recoveringCurrentConsumption.getVirtualCores());
-      }
       recoverNewlyAllocatedContainers(applicationAttemptId, state);
       recoverLiveContainers(applicationAttemptId, state);
       recoverReservations(applicationAttemptId, state);
@@ -459,13 +448,12 @@ public class SchedulerApplicationAttempt implements Recoverable{
   private void recoverNewlyAllocatedContainers(
       ApplicationAttemptId applicationAttemptId, RMStateStore.RMState state) {
     try {
-      List<FiCaSchedulerAppContainer> list =
+      List<String> list =
           state.getNewlyAllocatedContainers(applicationAttemptId.toString());
       if (list != null && !list.isEmpty()) {
-        for (FiCaSchedulerAppContainer hop : list) {
-
+        for (String rmContainerId : list) {
           newlyAllocatedContainers
-              .add(state.getRMContainer(hop.getRmcontainer_id(), rmContext));
+              .add(state.getRMContainer(rmContainerId, rmContext));
         }
       }
     } catch (IOException ex) {
@@ -478,13 +466,14 @@ public class SchedulerApplicationAttempt implements Recoverable{
   private void recoverLiveContainers(ApplicationAttemptId applicationAttemptId,
       RMStateStore.RMState state) {
     try {
-      List<FiCaSchedulerAppContainer> list =
+      List<String> list =
           state.getLiveContainers(applicationAttemptId.toString());
       if (list != null) {
-        for (FiCaSchedulerAppContainer hop : list) {
+        for (String rmContainerId : list) {
           RMContainer rMContainer =
-              state.getRMContainer(hop.getRmcontainer_id(), rmContext);
+              state.getRMContainer(rmContainerId, rmContext);
           liveContainers.put(rMContainer.getContainerId(), rMContainer);
+          Resources.addTo(currentConsumption, rMContainer.getContainer().getResource());
         }
       }
     } catch (IOException ex) {
@@ -621,10 +610,6 @@ public class SchedulerApplicationAttempt implements Recoverable{
 //      }
       returnContainerList.add(container);
       i.remove();
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId)
-          .getFiCaSchedulerAppInfo(
-              this.appSchedulingInfo.getApplicationAttemptId())
-          .setNewlyAllocatedContainersToRemove(rmContainer);
       rmContainer.handle(new RMContainerEvent(rmContainer.getContainerId(),
           RMContainerEventType.ACQUIRED, transactionState));
     }
@@ -739,6 +724,7 @@ public class SchedulerApplicationAttempt implements Recoverable{
     this.lastScheduledContainer = appAttempt.getLastScheduledContainer();
     this.appSchedulingInfo.transferStateFromPreviousAppSchedulingInfo(
         appAttempt.appSchedulingInfo);
+    //TORECOVER??
   }
 
   //TORECOVER FAIR

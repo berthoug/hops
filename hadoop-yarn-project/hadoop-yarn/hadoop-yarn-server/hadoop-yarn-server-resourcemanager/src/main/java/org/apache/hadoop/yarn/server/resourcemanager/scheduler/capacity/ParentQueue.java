@@ -58,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 
 @Private
 @Evolving
@@ -65,43 +66,53 @@ public class ParentQueue implements CSQueue {
 
   private static final Log LOG = LogFactory.getLog(ParentQueue.class);
 
-  private CSQueue parent;
-  private final String queueName;
+  private CSQueue parent; //in constructor 
+  private final String queueName; //in constructor
 
-  private float capacity;
-  private float maximumCapacity;
-  private float absoluteCapacity;
-  private float absoluteMaxCapacity;
-  private float absoluteUsedCapacity = 0.0f;
+  private float capacity; //recovered
+  private float maximumCapacity; //recovered
+  private float absoluteCapacity;//recovered
+  private float absoluteMaxCapacity;//recovered
+  private float absoluteUsedCapacity = 0.0f; //recovered
 
-  private float usedCapacity = 0.0f;
+  private float usedCapacity = 0.0f; //recovered
 
-  private final Set<CSQueue> childQueues;
-  private final Comparator<CSQueue> queueComparator;
+  private final Set<CSQueue> childQueues; //TORECOVER ??
+  private final Comparator<CSQueue> queueComparator;//in constructor
 
-  private Resource usedResources = Resources.createResource(0, 0);
+  private Resource usedResources = Resources.createResource(0, 0);//recovered
 
-  private final boolean rootQueue;
+  private final boolean rootQueue;//in constructor
 
-  private final Resource minimumAllocation;
+  private final Resource minimumAllocation;//in constructor
 
-  private volatile int numApplications;
-  private volatile int numContainers;
+  private volatile int numApplications; //recovered through child
+  private volatile int numContainers; //recovered
 
-  private QueueState state;
+  private QueueState state;//in configuration
 
-  private final QueueMetrics metrics;
+  private final QueueMetrics metrics;//TORECOVER
 
-  private QueueInfo queueInfo;
+  private QueueInfo queueInfo; //in constructor
 
   private Map<QueueACL, AccessControlList> acls
-          = new HashMap<QueueACL, AccessControlList>();
+          = new HashMap<QueueACL, AccessControlList>(); //in constructor
 
   private final RecordFactory recordFactory
           = RecordFactoryProvider.getRecordFactory(null);
 
-  private final ResourceCalculator resourceCalculator;
+  private final ResourceCalculator resourceCalculator; //in constructor
 
+  public void recover(RMStateStore.RMState state){
+    io.hops.metadata.yarn.entity.capacity.CSQueue hopCSQueue =
+            state.getAllCSQueues().get(this.getQueuePath());
+            
+    absoluteUsedCapacity = hopCSQueue.getAbsoluteUsedCapacity();
+    usedResources.setMemory(hopCSQueue.getUsedResourceMemory());
+    usedResources.setVirtualCores(hopCSQueue.getUsedResourceVCores());
+    usedCapacity = hopCSQueue.getUsedCapacity();
+    numContainers = hopCSQueue.getNumContainers();
+  }
   public ParentQueue(CapacitySchedulerContext cs,
           String queueName, CSQueue parent, CSQueue old) {
     minimumAllocation = cs.getMinimumResourceCapability();
@@ -582,7 +593,7 @@ public class ParentQueue implements CSQueue {
       }
 
       // Are we over maximum-capacity for this queue?
-      if (!assignToQueue(clusterResource)) {
+      if (!assignToQueue(clusterResource, transactionState)) {
         break;
       }
 
@@ -637,13 +648,15 @@ public class ParentQueue implements CSQueue {
     return assignment;
   }
 
-  private synchronized boolean assignToQueue(Resource clusterResource) {
+  private synchronized boolean assignToQueue(Resource clusterResource,
+          TransactionState transactionState) {
     // Check how of the cluster's absolute capacity we are currently using...
     float currentCapacity
             = Resources.divide(
                     resourceCalculator, clusterResource,
                     usedResources, clusterResource);
-
+    ((TransactionStateImpl) transactionState).getCSQueueInfo().addCSQueue(
+              this.getQueuePath(), this);
     if (currentCapacity >= absoluteMaxCapacity) {
       LOG.info(getQueueName()
               + " used=" + usedResources
@@ -766,6 +779,8 @@ public class ParentQueue implements CSQueue {
             resourceCalculator, this, parent, clusterResource, minimumAllocation,
             transactionState);
     ++numContainers;
+    ((TransactionStateImpl) transactionState).getCSQueueInfo().addCSQueue(
+              this.getQueuePath(), this);
   }
 
   synchronized void releaseResource(Resource clusterResource,
@@ -775,6 +790,8 @@ public class ParentQueue implements CSQueue {
             resourceCalculator, this, parent, clusterResource, minimumAllocation,
             transactionState);
     --numContainers;
+    ((TransactionStateImpl) transactionState).getCSQueueInfo().addCSQueue(
+              this.getQueuePath(), this);
   }
 
   @Override

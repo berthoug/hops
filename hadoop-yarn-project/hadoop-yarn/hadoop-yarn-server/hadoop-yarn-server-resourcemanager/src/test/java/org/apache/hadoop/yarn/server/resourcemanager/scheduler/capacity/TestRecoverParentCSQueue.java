@@ -146,7 +146,8 @@ public class TestRecoverParentCSQueue {
         } else {
           FiCaSchedulerApp app1 = getMockApplication(0, "");
           ((LeafQueue) queue).allocateResource(clusterResource, app1,
-                  allocatedResource, null);
+                  allocatedResource, new TransactionStateImpl(
+                          TransactionState.TransactionType.RM));
         }
 
         // Next call - nothing

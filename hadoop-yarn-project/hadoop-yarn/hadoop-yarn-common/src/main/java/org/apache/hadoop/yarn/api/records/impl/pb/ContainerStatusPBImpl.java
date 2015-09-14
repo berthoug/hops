@@ -28,6 +28,8 @@ import org.apache.hadoop.yarn.proto.YarnProtos.ContainerIdProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ContainerStateProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ContainerStatusProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ContainerStatusProtoOrBuilder;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 @Private
 @Unstable
@@ -35,7 +37,7 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   ContainerStatusProto proto = ContainerStatusProto.getDefaultInstance();
   ContainerStatusProto.Builder builder = null;
   boolean viaProto = false;
-  
+    private static final Log LOG = LogFactory.getLog(ContainerStatusPBImpl.class);
   private ContainerId containerId = null;
   
   
@@ -46,12 +48,14 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   public ContainerStatusPBImpl(ContainerStatusProto proto) {
     this.proto = proto;
     viaProto = true;
+    this.proto.getExitStatus();
   }
   
   public ContainerStatusProto getProto() {
     mergeLocalToProto();
     proto = viaProto ? proto : builder.build();
     viaProto = true;
+    this.proto.getExitStatus();
     return proto;
   }
 
@@ -95,6 +99,7 @@ public class ContainerStatusPBImpl extends ContainerStatus {
     }
     mergeLocalToBuilder();
     proto = builder.build();
+    this.proto.getExitStatus();
     viaProto = true;
   }
 
@@ -109,6 +114,10 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   @Override
   public ContainerState getState() {
     ContainerStatusProtoOrBuilder p = viaProto ? proto : builder;
+    if(p==null){
+	LOG.error("p is null: " + viaProto);
+    }
+    
     if (!p.hasState()) {
       return null;
     }
@@ -150,6 +159,9 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   @Override
   public int getExitStatus() {
     ContainerStatusProtoOrBuilder p = viaProto ? proto : builder;
+    if(p==null){
+    LOG.error("p is null: " + viaProto);
+    }
     return p.getExitStatus();
   }
 

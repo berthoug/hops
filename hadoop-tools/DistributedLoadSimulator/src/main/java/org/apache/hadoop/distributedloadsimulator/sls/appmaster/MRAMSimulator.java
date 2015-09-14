@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 hops.io.
+ * Copyright 2015 Apache Software Foundation.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ package org.apache.hadoop.distributedloadsimulator.sls.appmaster;
  * @author sri
  */
 import java.io.IOException;
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -162,15 +161,11 @@ public class MRAMSimulator extends AMSimulator {
                         MR_AM_CONTAINER_RESOURCE_VCORES),
                 ResourceRequest.ANY, 1, 1);
         ask.add(amRequest);
-        LOG.info(MessageFormat.format("Application {0} sends out allocate "
-            + "request for its AM", appId));
         final AllocateRequest request = this.createAllocateRequest(ask);
-          LOG.info(MessageFormat.format("<finisehd >Application {0} sent out allocate "
-            + "request for its AM", appId));
+
         AllocateResponse response = appMasterProtocol.allocate(request);
 
-        // waiting until the AM container is allocated
-        //LOG.info("HOP :: Request AM Container request arrived  response : " + response + "| Allocated container size : " + response.getAllocatedContainers().size());
+    // waiting until the AM container is allocated
         while (true) {
 
             if (response != null && !response.getAllocatedContainers().isEmpty()) {
@@ -265,41 +260,41 @@ public class MRAMSimulator extends AMSimulator {
                     ContainerSimulator cs = scheduledMaps.remove();
                     assignedMaps.put(container.getId(), cs);
                     if (primaryRemoteConnection.isNodeExist(container.getNodeId().toString())) {
-                        primaryRemoteConnection.addNewContainer(
-                                container.getId().toString(),
-                                container.getNodeId().toString(),
-                                container.getNodeHttpAddress(),
-                                container.getResource().getMemory(),
-                                container.getResource().getVirtualCores(),
-                                container.getPriority().getPriority(), cs.getLifeTime());
-                    } else {
+                    primaryRemoteConnection.addNewContainer(
+                            container.getId().toString(),
+                            container.getNodeId().toString(),
+                            container.getNodeHttpAddress(),
+                            container.getResource().getMemory(),
+                            container.getResource().getVirtualCores(),
+                            container.getPriority().getPriority(), cs.getLifeTime());
+                    }else{
                         secondryRemoteConnection.addNewContainer(
-                                container.getId().toString(),
-                                container.getNodeId().toString(),
-                                container.getNodeHttpAddress(),
-                                container.getResource().getMemory(),
-                                container.getResource().getVirtualCores(),
-                                container.getPriority().getPriority(), cs.getLifeTime());
+                            container.getId().toString(),
+                            container.getNodeId().toString(),
+                            container.getNodeHttpAddress(),
+                            container.getResource().getMemory(),
+                            container.getResource().getVirtualCores(),
+                            container.getPriority().getPriority(), cs.getLifeTime());
                     }
                 } else if (!this.scheduledReduces.isEmpty()) {
                     ContainerSimulator cs = scheduledReduces.remove();
                     assignedReduces.put(container.getId(), cs);
                     if (primaryRemoteConnection.isNodeExist(container.getNodeId().toString())) {
-                        primaryRemoteConnection.addNewContainer(
-                                container.getId().toString(),
-                                container.getNodeId().toString(),
-                                container.getNodeHttpAddress(),
-                                container.getResource().getMemory(),
-                                container.getResource().getVirtualCores(),
-                                container.getPriority().getPriority(), cs.getLifeTime());
-                    } else {
-                        secondryRemoteConnection.addNewContainer(
-                                container.getId().toString(),
-                                container.getNodeId().toString(),
-                                container.getNodeHttpAddress(),
-                                container.getResource().getMemory(),
-                                container.getResource().getVirtualCores(),
-                                container.getPriority().getPriority(), cs.getLifeTime());
+                    primaryRemoteConnection.addNewContainer(
+                            container.getId().toString(),
+                            container.getNodeId().toString(),
+                            container.getNodeHttpAddress(),
+                            container.getResource().getMemory(),
+                            container.getResource().getVirtualCores(),
+                            container.getPriority().getPriority(), cs.getLifeTime());
+                    }else{
+                      secondryRemoteConnection.addNewContainer(
+                            container.getId().toString(),
+                            container.getNodeId().toString(),
+                            container.getNodeHttpAddress(),
+                            container.getResource().getMemory(),
+                            container.getResource().getVirtualCores(),
+                            container.getPriority().getPriority(), cs.getLifeTime());
                     }
                 }
             }
@@ -335,7 +330,7 @@ public class MRAMSimulator extends AMSimulator {
             return;
         }
 
-        //LOG.info("HOP :: Send container request ");
+    //LOG.info("HOP :: Send container request ");
         // send out request
         List<ResourceRequest> ask = null;
         if (isAMContainerRunning) {
@@ -347,6 +342,7 @@ public class MRAMSimulator extends AMSimulator {
                     pendingMaps.clear();
                 } else if (!pendingFailedMaps.isEmpty() && scheduledMaps.isEmpty()) {
                     ask = packageRequests(pendingFailedMaps, PRIORITY_MAP);
+                    // pendingFailedMaps.size()));
                     scheduledMaps.addAll(pendingFailedMaps);
                     pendingFailedMaps.clear();
                 }
@@ -359,6 +355,7 @@ public class MRAMSimulator extends AMSimulator {
                 } else if (!pendingFailedReduces.isEmpty()
                         && scheduledReduces.isEmpty()) {
                     ask = packageRequests(pendingFailedReduces, PRIORITY_REDUCE);
+                    // pendingFailedReduces.size()));
                     scheduledReduces.addAll(pendingFailedReduces);
                     pendingFailedReduces.clear();
                 }

@@ -32,8 +32,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Dispatches {@link Event}s in a separate thread. Currently only single thread
@@ -78,6 +81,8 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
     this.eventDispatchers = new HashMap<Class<? extends Enum>, EventHandler>();
   }
 
+  Queue<String> logs = new LinkedBlockingQueue<String>();
+  
   Runnable createThread() {
     return new Runnable() {
       @Override
@@ -104,13 +109,16 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
             return;
           }
           if (event != null) {
+            long start = System.currentTimeMillis();
             dispatch(event);
+            long t = System.currentTimeMillis()-start;
+            logs.add(event.getType() + ": " + t);
           }
         }
       }
     };
   }
-
+  
   @Override
   protected void serviceInit(Configuration conf) throws Exception {
     this.exitOnDispatchException =

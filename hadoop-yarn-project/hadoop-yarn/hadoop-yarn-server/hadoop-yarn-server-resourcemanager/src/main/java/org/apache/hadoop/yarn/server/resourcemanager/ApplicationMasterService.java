@@ -290,9 +290,9 @@ public class ApplicationMasterService extends AbstractService
       // Setting the response id to 0 to identify if the
       // application master is register for the respective attemptid
       lastResponse.setResponseId(0);
+      lock.setAllocateResponse(lastResponse);
       ((TransactionStateImpl) transactionState)
           .addAllocateResponse(applicationAttemptId, lock);
-      lock.setAllocateResponse(lastResponse);
       LOG.info("AM registration " + applicationAttemptId);
       this.rmContext.getDispatcher().getEventHandler().handle(
           new RMAppAttemptRegistrationEvent(applicationAttemptId,
@@ -626,9 +626,9 @@ public class ApplicationMasterService extends AbstractService
        * need to worry about unregister call occurring in between (which
        * removes the lock object).
        */
-//      ((TransactionStateImpl) transactionState).
-//          addAllocateResponse(appAttemptId, lock);
       lock.setAllocateResponse(allocateResponse);
+      ((TransactionStateImpl) transactionState).
+          addAllocateResponse(appAttemptId, lock);
       transactionState.decCounter(TransactionState.TransactionType.INIT);
       return allocateResponse;
     }
@@ -714,10 +714,10 @@ public class ApplicationMasterService extends AbstractService
   public void unregisterAttempt(ApplicationAttemptId attemptId,
       TransactionState transactionState) {
     LOG.info("Unregistering app attempt : " + attemptId);
-    responseMap.remove(attemptId);
+    AllocateResponseLock lock = responseMap.remove(attemptId);
     if (transactionState != null) {
       ((TransactionStateImpl) transactionState)
-          .removeAllocateResponse(attemptId);
+          .removeAllocateResponse(attemptId, lock.getAllocateResponse().getResponseId());
     }
     rmContext.getNMTokenSecretManager().unregisterApplicationAttempt(attemptId);
   }

@@ -18,59 +18,50 @@
     <name>yarn.resourcemanager.webapp.address</name>
     <value>0.0.0.0:25000</value>
   </property>
-
   <property>
     <name>yarn.resourcemanager.address</name>
-    <value>193.10.64.20:25001</value>
+    <value>0.0.0.0:25001</value>
   </property>
     <property>
     <name>yarn.resourcemanager.port</name>
     <value>25001</value>
   </property>
-
   <property>
     <name>yarn.resourcemanager.scheduler.address</name>
-    <value>193.10.64.20:25003</value>
+    <value>0.0.0.0:25003</value>
   </property>
     <property>
     <name>yarn.resourcemanager.scheduler.port</name>
     <value>25003</value>
   </property>
-
   <property>
     <name>yarn.resourcemanager.webapp.https.address</name>
     <value>0.0.0.0:25004</value>
   </property>
-
   <property>
     <name>yarn.resourcemanager.resource-tracker.address</name>
-    <value>193.10.64.20:25005</value>
+    <value>0.0.0.0:25005</value>
   </property>
    <property>
     <name>yarn.resourcemanager.resource-tracker.port</name>
     <value>25005</value>
   </property>
-
   <property>
     <name>yarn.resourcemanager.admin.address</name>
     <value>0.0.0.0:25006</value>
   </property>
   <property>
     <name>yarn.resourcemanager.admin.port</name>
-    <value>
-    25006</value>
+    <value>25006</value>
   </property>
-
   <property>
     <name>yarn.resourcemanager.groupMembership.address</name>
     <value>0.0.0.0:25010</value>
   </property>
   <property>
     <name>yarn.resourcemanager.groupMembership.port</name>
-    <value>
-    25010</value>
+    <value>25010</value>
   </property>
-
   <property>
     <name>yarn.nodemanager.address</name>
     <value>0.0.0.0:25007</value>
@@ -79,91 +70,75 @@
     <name>yarn.nodemanager.localizer.address</name>
     <value>0.0.0.0:25008</value>
   </property>
-
   <property>
     <name>yarn.nodemanager.webapp.address</name>
     <value>0.0.0.0:25009</value>
   </property>
-
   <property>
     <description>Whether to enable log aggregation</description>
     <name>yarn.log-aggregation-enable</name>
     <value>false</value>
   </property>
-
   <property>
     <name>yarn.nodemanager.aux-services</name>
     <value>mapreduce_shuffle</value>
   </property>
-
   <property>
     <name>yarn.nodemanager.aux-services.mapreduce_shuffle.class</name>
     <value>org.apache.hadoop.mapred.ShuffleHandler</value>
   </property>
-
   <property>
     <name>yarn.resourcemanager.scheduler.class</name>
     <value>org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler</value>
   </property>
-
    <property>
     <name>yarn.resourcemanager.ha.automatic-failover.enabled</name>
     <value>false</value>
   </property>
-
  <property>
     <name>yarn.resourcemanager.ha.enabled</name>
     <value>false</value>
   </property>
-<property>
+ <property>
     <name>yarn.resourcemanager.recovery.enabled</name>
     <value>false</value>
   </property>
 <property>
     <name>yarn.resourcemanager.ha.rm-ids</name>
-    <value>cloud3.sics.se</value>
+    <value>bbc7.sics.se,bbc2.sics.se,</value>
   </property>
-
   <property>
     <name>yarn.resourcemanager.store.class</name>
     <value>org.apache.hadoop.yarn.server.resourcemanager.recovery.NDBRMStateStore</value>
   </property>
-
   <property>
     <name>yarn.resourcemanager.store.class</name>
     <value>org.apache.hadoop.yarn.server.resourcemanager.recovery.NDBRMStateStore</value>
   </property>
-
-<property>
+  <property>
     <name>dfs.leader.check.interval</name>
-    <value>1000</value>
+    <value>3000</value>
   </property>
-
-<property>
+  <property>
     <name>yarn.client.failover-sleep-base-ms</name>
     <value>100</value>
   </property>
-
   <property>
     <name>yarn.client.failover-sleep-max-ms</name>
     <value>1000</value>
   </property>
-
   <property>
     <name>mapreduce.jobhistory.address</name>
     <value>cloud3:10020</value>
   </property>
-
   <property>
     <name>yarn.nodemanager.resource.memory-mb</name>
     <value>20480</value>
   </property>
-
   <property>
     <name>yarn.scheduler.minimum-allocation-mb</name>
     <value>1024</value>
   </property>
-
   <property>
     <name>yarn.nodemanager.vmem-pmem-ratio</name>
     <value>1</value>
@@ -180,12 +155,4 @@
       <name>hops.yarn.resourcemanager.pending-events.batch</name>
       <value>0</value>
   </property>
-<!--<property><name>yarn.resourcemanager.hostname.cloud3.sics.se</name><value>cloud3.sics.se</value></property>
-<property><name>yarn.resourcemanager.address.cloud3.sics.se</name><value>cloud3.sics.se:25001</value></property>
-<property><name>yarn.resourcemanager.scheduler.address.cloud3.sics.se</name><value>cloud3.sics.se:25003</value></property>
-<property><name>yarn.resourcemanager.resource-tracker.address.cloud3.sics.se</name><value>cloud3.sics.se:25005</value></property>
-<property><name>yarn.resourcemanager.admin.address.cloud3.sics.se</name><value>cloud3.sics.se:25006</value></property>
-<property><name>yarn.resourcemanager.groupMembership.address.cloud3.sics.se</name><value>cloud3.sics.se:25010</value></property>
-<property><name>yarn.resourcemanager.webapp.address.cloud3.sics.se</name><value>cloud3.sics.se:25000</value></property>
-<property><name>yarn.resourcemanager.ha.initializedb</name><value>false</value></property>-->
 </configuration>

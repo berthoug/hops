@@ -55,7 +55,6 @@ public class RMContextImpl implements RMContext {
 
   private static final Log LOG = LogFactory.getLog(RMContextImpl.class);
   private int rmId = Integer.MIN_VALUE;
-  //private TransactionStateManager transactionStateManager = new TransactionStateManager();
   private TransactionStateManager transactionStateManager;
     
   //ResourceTracker client
@@ -157,7 +156,7 @@ public class RMContextImpl implements RMContext {
       RMContainerTokenSecretManager containerTokenSecretManager,
       NMTokenSecretManagerInRM nmTokenSecretManager,
       ClientToAMTokenSecretManagerInRM clientToAMTokenSecretManager,
-      RMApplicationHistoryWriter rmApplicationHistoryWriter,Configuration conf) {
+      RMApplicationHistoryWriter rmApplicationHistoryWriter, Configuration conf) {
     this(conf);
     this.setDispatcher(rmDispatcher);
     this.setContainerAllocationExpirer(containerAllocationExpirer);

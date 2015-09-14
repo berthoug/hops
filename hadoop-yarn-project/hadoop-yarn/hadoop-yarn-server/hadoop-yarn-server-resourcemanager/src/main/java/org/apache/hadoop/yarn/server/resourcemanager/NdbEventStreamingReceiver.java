@@ -27,14 +27,10 @@ import io.hops.metadata.yarn.entity.RMNode;
 import io.hops.metadata.yarn.entity.RMNodeComps;
 import io.hops.metadata.yarn.entity.Resource;
 import io.hops.metadata.yarn.entity.UpdatedContainerInfo;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 

@@ -19,6 +19,7 @@
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity;
 
 import io.hops.ha.common.TransactionState;
+import io.hops.ha.common.TransactionStateImpl;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -131,11 +132,15 @@ public class TestChildQueueOrder {
         final Resource allocatedResource = Resources.createResource(allocation);
         if (queue instanceof ParentQueue) {
           ((ParentQueue) queue)
-              .allocateResource(clusterResource, allocatedResource, null);
+                  .allocateResource(clusterResource, allocatedResource,
+                          new TransactionStateImpl(
+                                  TransactionState.TransactionType.RM));
         } else {
           FiCaSchedulerApp app1 = getMockApplication(0, "");
           ((LeafQueue) queue)
-              .allocateResource(clusterResource, app1, allocatedResource, null);
+                  .allocateResource(clusterResource, app1, allocatedResource,
+                          new TransactionStateImpl(
+                                  TransactionState.TransactionType.RM));
         }
 
         // Next call - nothing
@@ -268,27 +273,31 @@ public class TestChildQueueOrder {
     stubQueueAllocation(b, clusterResource, node_0, 0 * GB);
     stubQueueAllocation(c, clusterResource, node_0, 0 * GB);
     stubQueueAllocation(d, clusterResource, node_0, 0 * GB);
-    root.assignContainers(clusterResource, node_0, null);
+    root.assignContainers(clusterResource, node_0, new TransactionStateImpl(
+            TransactionState.TransactionType.RM));
     for (int i = 0; i < 2; i++) {
       stubQueueAllocation(a, clusterResource, node_0, 0 * GB);
       stubQueueAllocation(b, clusterResource, node_0, 1 * GB);
       stubQueueAllocation(c, clusterResource, node_0, 0 * GB);
       stubQueueAllocation(d, clusterResource, node_0, 0 * GB);
-      root.assignContainers(clusterResource, node_0, null);
+      root.assignContainers(clusterResource, node_0, new TransactionStateImpl(
+              TransactionState.TransactionType.RM));
     }
     for (int i = 0; i < 3; i++) {
       stubQueueAllocation(a, clusterResource, node_0, 0 * GB);
       stubQueueAllocation(b, clusterResource, node_0, 0 * GB);
       stubQueueAllocation(c, clusterResource, node_0, 1 * GB);
       stubQueueAllocation(d, clusterResource, node_0, 0 * GB);
-      root.assignContainers(clusterResource, node_0, null);
+      root.assignContainers(clusterResource, node_0, new TransactionStateImpl(
+              TransactionState.TransactionType.RM));
     }
     for (int i = 0; i < 4; i++) {
       stubQueueAllocation(a, clusterResource, node_0, 0 * GB);
       stubQueueAllocation(b, clusterResource, node_0, 0 * GB);
       stubQueueAllocation(c, clusterResource, node_0, 0 * GB);
       stubQueueAllocation(d, clusterResource, node_0, 1 * GB);
-      root.assignContainers(clusterResource, node_0, null);
+      root.assignContainers(clusterResource, node_0, new TransactionStateImpl(
+              TransactionState.TransactionType.RM));
     }
     verifyQueueMetrics(a, 1 * GB, clusterResource);
     verifyQueueMetrics(b, 2 * GB, clusterResource);
@@ -300,7 +309,8 @@ public class TestChildQueueOrder {
     //Release 3 x 1GB containers from D
     for (int i = 0; i < 3; i++) {
       d.completedContainer(clusterResource, app_0, node_0, rmContainer, null,
-          RMContainerEventType.KILL, null, null);
+              RMContainerEventType.KILL, null, new TransactionStateImpl(
+                      TransactionState.TransactionType.RM));
     }
     verifyQueueMetrics(a, 1 * GB, clusterResource);
     verifyQueueMetrics(b, 2 * GB, clusterResource);
@@ -319,7 +329,8 @@ public class TestChildQueueOrder {
       stubQueueAllocation(b, clusterResource, node_0, 0 * GB);
       stubQueueAllocation(c, clusterResource, node_0, 0 * GB);
       stubQueueAllocation(d, clusterResource, node_0, 0 * GB);
-      root.assignContainers(clusterResource, node_0, null);
+      root.assignContainers(clusterResource, node_0, new TransactionStateImpl(
+              TransactionState.TransactionType.RM));
     }
     verifyQueueMetrics(a, 3 * GB, clusterResource);
     verifyQueueMetrics(b, 2 * GB, clusterResource);
@@ -330,7 +341,8 @@ public class TestChildQueueOrder {
 
     //Release 1GB Container from A
     a.completedContainer(clusterResource, app_0, node_0, rmContainer, null,
-        RMContainerEventType.KILL, null, null);
+            RMContainerEventType.KILL, null, new TransactionStateImpl(
+                    TransactionState.TransactionType.RM));
     verifyQueueMetrics(a, 2 * GB, clusterResource);
     verifyQueueMetrics(b, 2 * GB, clusterResource);
     verifyQueueMetrics(c, 3 * GB, clusterResource);
@@ -346,7 +358,8 @@ public class TestChildQueueOrder {
     stubQueueAllocation(b, clusterResource, node_0, 1 * GB);
     stubQueueAllocation(c, clusterResource, node_0, 0 * GB);
     stubQueueAllocation(d, clusterResource, node_0, 0 * GB);
-    root.assignContainers(clusterResource, node_0, null);
+    root.assignContainers(clusterResource, node_0, new TransactionStateImpl(
+            TransactionState.TransactionType.RM));
     verifyQueueMetrics(a, 2 * GB, clusterResource);
     verifyQueueMetrics(b, 3 * GB, clusterResource);
     verifyQueueMetrics(c, 3 * GB, clusterResource);
@@ -356,7 +369,8 @@ public class TestChildQueueOrder {
 
     //Release 1GB container resources from B
     b.completedContainer(clusterResource, app_0, node_0, rmContainer, null,
-        RMContainerEventType.KILL, null, null);
+            RMContainerEventType.KILL, null, new TransactionStateImpl(
+                    TransactionState.TransactionType.RM));
     verifyQueueMetrics(a, 2 * GB, clusterResource);
     verifyQueueMetrics(b, 2 * GB, clusterResource);
     verifyQueueMetrics(c, 3 * GB, clusterResource);
@@ -372,7 +386,8 @@ public class TestChildQueueOrder {
     stubQueueAllocation(b, clusterResource, node_0, 0 * GB);
     stubQueueAllocation(c, clusterResource, node_0, 0 * GB);
     stubQueueAllocation(d, clusterResource, node_0, 0 * GB);
-    root.assignContainers(clusterResource, node_0, null);
+    root.assignContainers(clusterResource, node_0, new TransactionStateImpl(
+            TransactionState.TransactionType.RM));
     verifyQueueMetrics(a, 3 * GB, clusterResource);
     verifyQueueMetrics(b, 2 * GB, clusterResource);
     verifyQueueMetrics(c, 3 * GB, clusterResource);
@@ -386,7 +401,8 @@ public class TestChildQueueOrder {
     stubQueueAllocation(b, clusterResource, node_0, 1 * GB);
     stubQueueAllocation(c, clusterResource, node_0, 0 * GB);
     stubQueueAllocation(d, clusterResource, node_0, 1 * GB);
-    root.assignContainers(clusterResource, node_0, null);
+    root.assignContainers(clusterResource, node_0, new TransactionStateImpl(
+            TransactionState.TransactionType.RM));
     InOrder allocationOrder = inOrder(d, b);
     allocationOrder.verify(d)
         .assignContainers(eq(clusterResource), any(FiCaSchedulerNode.class),

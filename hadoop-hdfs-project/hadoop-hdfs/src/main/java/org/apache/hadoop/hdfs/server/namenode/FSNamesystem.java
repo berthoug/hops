@@ -20,7 +20,7 @@ package org.apache.hadoop.hdfs.server.namenode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
-import io.hops.common.BlockIdGen;
+import io.hops.common.IDsGeneratorFactory;
 import io.hops.common.IDsMonitor;
 import io.hops.common.INodeUtil;
 import io.hops.erasure_coding.Codec;
@@ -2408,8 +2408,8 @@ public class FSNamesystem
    */
   Block createNewBlock(INodeFile pendingFile)
       throws IOException, StorageException {
-    Block b = new Block(BlockIdGen.getUniqueBlockId(), 0,
-        0); // HOP. previous code was getFSImage().getUniqueBlockId()
+    Block b = new Block(IDsGeneratorFactory.getInstance().getUniqueBlockID()
+        , 0, 0); // HOP. previous code was getFSImage().getUniqueBlockId()
     // Increment the generation stamp for every new block.
     b.setGenerationStampNoPersistance(pendingFile.nextGenerationStamp());
     return b;
@@ -2781,8 +2781,7 @@ public class FSNamesystem
           public void acquireLock(TransactionLocks locks) throws IOException {
             LockFactory lf = getInstance();
             locks.add(lf.getINodeLock(nameNode, INodeLockType.READ,
-                INodeResolveType.PATH, resolveLink, src))
-                .add(lf.getBlockLock());
+                INodeResolveType.PATH, resolveLink, src));
           }
 
           @Override
@@ -2985,7 +2984,7 @@ public class FSNamesystem
       public void acquireLock(TransactionLocks locks) throws IOException {
         LockFactory lf = getInstance();
         locks.add(
-            lf.getINodeLock(nameNode, INodeLockType.READ, INodeResolveType.PATH,
+            lf.getINodeLock(nameNode, INodeLockType.WRITE, INodeResolveType.PATH,
                 src)).add(lf.getLeaseLock(LockType.READ))
             .add(lf.getBlockLock());
       }
@@ -3002,6 +3001,7 @@ public class FSNamesystem
           pendingFile.updateLengthOfLastBlock(lastBlockLength);
         }
         dir.persistBlocks(src, pendingFile);
+        pendingFile.recomputeFileSize();
         return null;
       }
     }.handle(this);
@@ -3161,10 +3161,13 @@ public class FSNamesystem
 private void commitOrCompleteLastBlock(
       final INodeFileUnderConstruction fileINode, final Block commitBlock)
       throws IOException {
+    
     if (!blockManager.commitOrCompleteLastBlock(fileINode, commitBlock)) {
       return;
     }
 
+    fileINode.recomputeFileSize();     
+    
     if (dir.isQuotaEnabled()) {
       final long diff = fileINode.getPreferredBlockSize()
           - commitBlock.getNumBytes();
@@ -3175,8 +3178,7 @@ private void commitOrCompleteLastBlock(
           -diff * fileINode.getBlockReplication());
       }
     }
-
-    fileINode.inrementSize((int) (commitBlock.getNumBytes() / 1024));
+    
     try {
       if (fileINode.isPathMetaEnabled()) {
         SizeLogDataAccess da = (SizeLogDataAccess)
@@ -3273,7 +3275,7 @@ private void commitOrCompleteLastBlock(
           // update last block
           storedBlock.setGenerationStamp(newgenerationstamp);
           storedBlock.setNumBytes(newlength);
-
+          iFile.recomputeFileSize();
           // find the DatanodeDescriptor objects
           // There should be no locations in the blockManager till now because the
           // file is underConstruction
@@ -3375,9 +3377,12 @@ private void commitOrCompleteLastBlock(
           public void acquireLock(TransactionLocks locks) throws IOException {
             LockFactory lf = LockFactory.getInstance();
             locks.add(lf.getINodeLock(nameNode, INodeLockType.READ,
-                INodeResolveType.PATH_AND_IMMEDIATE_CHILDREN, src))
+                INodeResolveType.PATH_AND_IMMEDIATE_CHILDREN, src));
+            if(needLocation){
+                locks
                 .add(lf.getBlockLock())
                 .add(lf.getBlockRelated(BLK.RE, BLK.ER, BLK.CR, BLK.UC));
+            }
           }
 
           @Override
@@ -4800,7 +4805,7 @@ private void commitOrCompleteLastBlock(
     // Update old block with the new generation stamp and new length
     blockinfo.setGenerationStamp(newBlock.getGenerationStamp());
     blockinfo.setNumBytes(newBlock.getNumBytes());
-
+    pendingFile.recomputeFileSize();
     // find the DatanodeDescriptor objects
     final DatanodeManager dm = getBlockManager().getDatanodeManager();
     DatanodeDescriptor[] descriptors = null;

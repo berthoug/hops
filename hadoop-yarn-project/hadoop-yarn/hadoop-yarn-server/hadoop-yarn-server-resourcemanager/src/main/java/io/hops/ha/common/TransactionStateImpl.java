@@ -38,6 +38,7 @@ import io.hops.metadata.yarn.dal.capacity.CSLeafQueueUserInfoDataAccess;
 import io.hops.metadata.yarn.dal.capacity.CSQueueDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocateResponseDataAccess;
+import io.hops.metadata.yarn.dal.rmstatestore.AllocatedContainersDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationAttemptStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.RanNodeDataAccess;
@@ -76,9 +77,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerStatus;
+import org.apache.hadoop.yarn.api.records.NMToken;
+import org.apache.hadoop.yarn.api.records.impl.pb.NMTokenPBImpl;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.LOG;
 
@@ -89,7 +96,7 @@ public class TransactionStateImpl extends TransactionState {
   private final TransactionType type;
   //NODE
   private Map<String, RMNode>
-      rmNodesToUpdate = new HashMap<String, RMNode>();
+      rmNodesToUpdate = new ConcurrentHashMap<String, RMNode>();
   private final Map<NodeId, RMNodeInfo> rmNodeInfos =
       new ConcurrentSkipListMap<NodeId, RMNodeInfo>();
   private final Map<String, FiCaSchedulerNodeInfoToUpdate>
@@ -115,13 +122,13 @@ public class TransactionStateImpl extends TransactionState {
       new ArrayList<ApplicationId>();
   private final HashMap<String, ApplicationAttemptState> appAttempts =
       new HashMap<String, ApplicationAttemptState>();
-  private final HashMap<ApplicationAttemptId, List<RanNode>>ranNodeToAdd =
-          new HashMap<ApplicationAttemptId, List<RanNode>>();
+  private final HashMap<ApplicationAttemptId, Set<RanNode>>ranNodeToAdd =
+          new HashMap<ApplicationAttemptId, Set<RanNode>>();
   private final HashMap<ApplicationAttemptId, AllocateResponse>
       allocateResponsesToAdd =
       new HashMap<ApplicationAttemptId, AllocateResponse>();
-  private final Set<ApplicationAttemptId> allocateResponsesToRemove =
-      new HashSet<ApplicationAttemptId>();
+  private final Set<AllocateResponse> allocateResponsesToRemove =
+      new HashSet<AllocateResponse>();
   
   
   //COMTEXT
@@ -144,25 +151,31 @@ public class TransactionStateImpl extends TransactionState {
   NodeId nodeId = null;
 
    public TransactionStateImpl(TransactionType type) {
-    super(null, 1, false);
+    super(1, false);
     this.type = type;
     this.schedulerApplicationInfo =
       new SchedulerApplicationInfo(this);
   }
    
   public TransactionStateImpl(TransactionType type, int initialCounter, boolean batch) {
-    super(null, initialCounter, batch);
+    super(initialCounter, batch);
     this.type = type;
     this.schedulerApplicationInfo =
       new SchedulerApplicationInfo(this);
+    if(!printerRuning){
+      printerRuning = true;
+      (new Thread(new LogsPrinter())).start();
+    }
   }
 
   
   private static final ExecutorService executorService =
-      Executors.newFixedThreadPool(1);
+      Executors.newFixedThreadPool(10);
   
   @Override
   public void commit(boolean first) throws IOException {
+    RMUtilities.putTransactionStateInQueues(this, rmNodesToUpdate.keySet(), appIds);
+    RMUtilities.logPutInCommitingQueue(this);
     executorService.execute(new RPCFinisher(this));
   }
 
@@ -175,24 +188,74 @@ public class TransactionStateImpl extends TransactionState {
     fairschedulerNodeInfo.persist(FSSNodeDA);
   }
 
+  public static int callsGetSchedulerApplicationInfos = 0;
   public SchedulerApplicationInfo getSchedulerApplicationInfos(ApplicationId appId) {
-    addAppId(appId);
+    if(!addAppId(appId)){
+      callsGetSchedulerApplicationInfos++;
+    }
     return schedulerApplicationInfo;
   }
 
-  public void addAppId(ApplicationId appId){
-      if(appIds.add(appId)){
-        //RMUtilities.putTransactionStateInAppQueue(this, appId);
-      }
+  public boolean addAppId(ApplicationId appId){
+    return appIds.add(appId);
   }
-  
+    
+  static double totalt1 =0;
+  static double totalt2 =0;
+  static double totalt3 =0;
+  static double totalt4 =0;
+  static double totalt5 =0;
+  static double totalt6 =0;
+
+    static long nbFinish =0;
+    
+  public static void resetLogs(){
+    
+    nbFinish=0;
+
+    nbFinish=0;
+    totalt1 =0;
+  totalt2 =0;
+  totalt3 =0;
+  totalt4 =0;
+  totalt5 =0;
+  totalt6 =0;
+
+  }
+      
   public void persist() throws IOException {
+    Long start = System.currentTimeMillis();
     persitApplicationToAdd();
+    long t1 =System.currentTimeMillis() - start;
+    totalt1=totalt1 + t1;
     persistApplicationStateToRemove();
+    long t2 =System.currentTimeMillis() - start;
+    totalt2=totalt2 + System.currentTimeMillis() - start;
     persistAppAttempt();
+    long t3 =System.currentTimeMillis() - start;
+    totalt3=totalt3 + System.currentTimeMillis() - start;
     persistAllocateResponsesToAdd();
+    long t4 =System.currentTimeMillis() - start;
+    totalt4=totalt4 + System.currentTimeMillis() - start;
     persistAllocateResponsesToRemove();
+    long t5 =System.currentTimeMillis() - start;
+    totalt5=totalt5 + System.currentTimeMillis() - start;
     persistRMContainerToUpdate();
+    long t6 =System.currentTimeMillis() - start;
+    totalt6=totalt6 + System.currentTimeMillis() - start;
+    nbFinish++;
+    if(nbFinish%100==0){
+    double avgt1=totalt1/nbFinish;
+    double avgt2=totalt2/nbFinish;
+    double avgt3=totalt3/nbFinish;
+    double avgt4=totalt4/nbFinish;
+    double avgt5=totalt5/nbFinish;
+    double avgt6=totalt6/nbFinish;
+    LOG.info("avg time commit transactionStateImpl: " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6);
+    }
+    if(t6>1000){
+	LOG.error("commit transactionStateImpl too long : " + t1 + ", " + t2 + ", " + t3 + ", " + t4 + ", " + t5 + ", " + t6);
+    }
     //TODO rebuild cluster resource from node resources
 //    persistClusterResourceToUpdate();
 //    persistUsedResourceToUpdate();
@@ -285,7 +348,14 @@ public class TransactionStateImpl extends TransactionState {
     ficaSchedulerNodeInfoToUpdate.remove(nodeId);
   }
   
+  static boolean firstApp=true;
+  static public int callsAddApplicationToAdd =0;
   public void addApplicationToAdd(RMAppImpl app) {
+    if(firstApp){
+      firstApp=false;
+      RMUtilities.resetLogs();
+    }
+    
     ApplicationStateDataPBImpl appStateData =
               (ApplicationStateDataPBImpl) ApplicationStateDataPBImpl
                   .newApplicationStateData(app.getSubmitTime(),
@@ -309,13 +379,12 @@ public class TransactionStateImpl extends TransactionState {
     }
     updatedNodeIdToAdd.put(app.getApplicationId(), nodeIdsToAdd);
     applicationsStateToRemove.remove(app.getApplicationId());
+    callsAddApplicationToAdd++;
     addAppId(app.getApplicationId());
   }
   
   private void persitApplicationToAdd() throws IOException {
     if (!applicationsToAdd.isEmpty()) {
-      for(ApplicationState app: applicationsToAdd.values()){
-      }
       ApplicationStateDataAccess DA =
           (ApplicationStateDataAccess) RMStorageFactory
               .getDataAccess(ApplicationStateDataAccess.class);
@@ -327,11 +396,30 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
+  private String dumpApplicationToAdd() {
+    if (!applicationsToAdd.isEmpty()) {
+      String result = "application to add: " + applicationsToAdd.values().size()
+              + "\n";
+      int total = 0;
+      for (List<UpdatedNode> up : updatedNodeIdToAdd.values()) {
+        total += up.size();
+      }
+      int avg = total / updatedNodeIdToAdd.size();
+      result = result + "updatedNodeIdToAdd: " + updatedNodeIdToAdd.values().
+              size() + " avg list size: " + avg + "\n";
+      return result;
+    } else {
+      return "";
+    }
+  }
+  
+  public static int callsAddApplicationStateToRemove = 0;
   public void addApplicationStateToRemove(ApplicationId appId) {
     if(applicationsToAdd.remove(appId)==null){
     updatedNodeIdToAdd.remove(appId);
     applicationsStateToRemove.add(appId);
     }
+    callsAddApplicationStateToRemove++;
     addAppId(appId);
   }
 
@@ -349,6 +437,7 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
   
+  public static int callsaddAppAttempt = 0;
   public void addAppAttempt(RMAppAttempt appAttempt) {
     String appIdStr = appAttempt.getAppAttemptId().getApplicationId().
             toString();
@@ -365,6 +454,8 @@ public class TransactionStateImpl extends TransactionState {
       }
       appAttemptTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
     }
+    List<ContainerStatus> justFinishedContainers = 
+            new ArrayList<ContainerStatus>(appAttempt.getJustFinishedContainers());
     ApplicationAttemptStateDataPBImpl attemptStateData
             = (ApplicationAttemptStateDataPBImpl) ApplicationAttemptStateDataPBImpl.
             newApplicationAttemptStateData(appAttempt.getAppAttemptId(),
@@ -374,7 +465,7 @@ public class TransactionStateImpl extends TransactionState {
                     appAttempt.getDiagnostics(),
                     appAttempt.getFinalApplicationStatus(),
                     new HashSet<NodeId>(),
-                    appAttempt.getJustFinishedContainers(),
+                    justFinishedContainers,
                     appAttempt.getProgress(), appAttempt.getHost(),
                     appAttempt.getRpcPort());
 
@@ -391,19 +482,30 @@ public class TransactionStateImpl extends TransactionState {
                     getHost(), appAttempt.getRpcPort(), appAttemptTokens,
                     appAttempt.
                     getTrackingUrl()));
-    
-    List<RanNode> ranNodeToPersist = new ArrayList<RanNode>();
-    for(NodeId nid: appAttempt.getRanNodes()){
-      ranNodeToPersist.add(new RanNode(appAttempt.getAppAttemptId().toString(), 
-        nid.toString()));
-    }
-       
-    this.ranNodeToAdd.put(appAttempt.getAppAttemptId(),
-            ranNodeToPersist);
-    
+    callsaddAppAttempt++;
     addAppId(appAttempt.getAppAttemptId().getApplicationId());
   }
+  
+  public void addAllRanNodes(RMAppAttempt appAttempt) {
+    Set<RanNode> ranNodeToPersist = new HashSet<RanNode>();
+    List<NodeId> ranNodes = new ArrayList<NodeId>(appAttempt.getRanNodes());
+    for (NodeId nid : ranNodes) {
+      ranNodeToPersist.add(
+              new RanNode(appAttempt.getAppAttemptId().toString(),
+                      nid.toString()));
+    }
 
+    this.ranNodeToAdd.put(appAttempt.getAppAttemptId(),
+            ranNodeToPersist);
+  }
+
+  public void addRanNode(NodeId nid, ApplicationAttemptId appAttemptId) {
+    if(!this.ranNodeToAdd.containsKey(appAttemptId)){
+      this.ranNodeToAdd.put(appAttemptId, new HashSet<RanNode>());
+    }
+    this.ranNodeToAdd.get(appAttemptId).add(new RanNode(appAttemptId.toString(), nid.toString()));
+  }
+  
   private void persistAppAttempt() throws IOException {
     if (!appAttempts.isEmpty()) {
 
@@ -418,52 +520,139 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
   
+  private String dumpAppAttempt() {
+    if (!appAttempts.isEmpty()) {
+      int stateSize = 0;
+      int tokenSize = 0;
+      for (ApplicationAttemptState state : appAttempts.values()) {
+        stateSize += state.getApplicationattemptstate().length;
+        tokenSize += state.getAppAttemptTokens().array().length;
+      }
+      int avgStateSize = stateSize / appAttempts.values().size();
+      int avgTokenSize = tokenSize/appAttempts.values().size();
+      
+      return "appAttempt : " + appAttempts.values().size() + " avg state size: "
+              + avgStateSize + " avg token size: " + avgTokenSize;
+    }
+    return "";
+  }
+  
+  public static int callsaddAllocateResponse=0;
   public void addAllocateResponse(ApplicationAttemptId id,
           AllocateResponseLock allocateResponse) {
     AllocateResponsePBImpl lastResponse
             = (AllocateResponsePBImpl) allocateResponse.
             getAllocateResponse();
     if (lastResponse != null) {
+      List<String> allocatedContainers = new ArrayList<String>();
+      for(Container container: lastResponse.getAllocatedContainers()){
+        allocatedContainers.add(container.getId().toString());
+      }
+      
+      AllocateResponsePBImpl toPersist = new AllocateResponsePBImpl();
+      toPersist.setAMCommand(lastResponse.getAMCommand());
+      toPersist.setAvailableResources(lastResponse.getAvailableResources());
+      toPersist.setCompletedContainersStatuses(lastResponse.getCompletedContainersStatuses());
+      toPersist.setDecreasedContainers(lastResponse.getDecreasedContainers());
+      toPersist.setIncreasedContainers(lastResponse.getIncreasedContainers());
+//      toPersist.setNMTokens(lastResponse.getNMTokens());
+      toPersist.setNumClusterNodes(lastResponse.getNumClusterNodes());
+      toPersist.setPreemptionMessage(lastResponse.getPreemptionMessage());
+      toPersist.setResponseId(lastResponse.getResponseId());
+      toPersist.setUpdatedNodes(lastResponse.getUpdatedNodes());
+      
       this.allocateResponsesToAdd.put(id, new AllocateResponse(id.toString(),
-              lastResponse.
-              getProto().toByteArray()));
+              toPersist.getProto().toByteArray(), allocatedContainers, 
+      allocateResponse.getAllocateResponse().getResponseId()));
+      if(toPersist.getProto().toByteArray().length>1000){
+        LOG.info("add allocateResponse of size " + toPersist.getProto().toByteArray().length + 
+                " for " + id + " content: " + print(toPersist));
+      }
       allocateResponsesToRemove.remove(id);
+      callsaddAllocateResponse++;
       addAppId(id.getApplicationId());
     }
   }
+  
+  private String print(org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse response){
+    String s ="";
+    if(response.getAMCommand()!= null)
+      s = s + "AM comande : " + response.getAMCommand().toString();
+    if(response.getAllocatedContainers()!=null)
+    s = s + " allocated containers size " + response.getAllocatedContainers().size();
+    if(response.getCompletedContainersStatuses()!=null)
+    s = s + " completed containersStatuses size " + response.getCompletedContainersStatuses().size();
+    if(response.getDecreasedContainers()!=null)
+    s = s + " decreasedcont: " + response.getDecreasedContainers().size();
+    if(response.getIncreasedContainers()!= null)
+    s = s + " increased containers: " + response.getIncreasedContainers().size();
+    if(response.getNMTokens()!= null)
+    s = s + " nmtokens " + response.getNMTokens().size();
+    if(response.getUpdatedNodes()!=null)
+    s =s + " updatedNodes " + response.getUpdatedNodes().size();
+    return s;
+  }
 
-
+  static double nbPersist =0;
+  static double tt1=0;
+  static double tt2=0;
+  static double tt3=0;
   private void persistAllocateResponsesToAdd() throws IOException {
     if (!allocateResponsesToAdd.isEmpty()) {
+      long start = System.currentTimeMillis();
       AllocateResponseDataAccess da =
           (AllocateResponseDataAccess) RMStorageFactory
               .getDataAccess(AllocateResponseDataAccess.class);
-      da.addAll(allocateResponsesToAdd.values());
+      AllocatedContainersDataAccess containersDA = (AllocatedContainersDataAccess)
+              RMStorageFactory.getDataAccess(AllocatedContainersDataAccess.class);
+      da.update(allocateResponsesToAdd.values());
+      tt1 = tt1 + System.currentTimeMillis() - start;
+      containersDA.update(allocateResponsesToAdd.values());
+      tt2 = tt2 + System.currentTimeMillis() - start;
+      tt3 = tt3 + System.currentTimeMillis() - start;
+      nbPersist++;
+      if(nbPersist%100 == 0){
+        double avgt1 = tt1/nbPersist;
+        double avgt2 = tt2/nbPersist;
+        double avgt3 = tt3/nbPersist;
+        LOG.info("persist allocate response to add avg time: " + avgt1 + ", " + avgt2 + ", " + avgt3);
+      }
     }
   }
   
-  public void removeAllocateResponse(ApplicationAttemptId id) {
-    if(allocateResponsesToAdd.remove(id)==null){
-    this.allocateResponsesToRemove.add(id);
+  private String dumpAllocateResponsesToAdd(){
+    if(! allocateResponsesToAdd.isEmpty()){
+      int responseSize = 0;
+      int allocatedContainersSize = 0;
+      for(AllocateResponse response : allocateResponsesToAdd.values()){
+        responseSize+= response.getAllocateResponse().length;
+        allocatedContainersSize+=response.getAllocatedContainers().size();
+      }
+      int avgResponseSize = responseSize/allocateResponsesToAdd.size();
+      int avgAllocatedContainersSize = allocatedContainersSize/allocateResponsesToAdd.size();
+      return "allocatedResponseTo add: " + allocateResponsesToAdd.size() + 
+              " avg response size: " + avgResponseSize + 
+              " avg allocated containers size" + avgAllocatedContainersSize;
     }
+    return "";
+  }
+  
+  public static int callremoveAllocateResponse=0;
+  public void removeAllocateResponse(ApplicationAttemptId id, int responseId) {
+    if(allocateResponsesToAdd.remove(id)==null){
+    this.allocateResponsesToRemove.add(new AllocateResponse(id.toString(), responseId));
+    }
+    callremoveAllocateResponse++;
     addAppId(id.getApplicationId());
   }
-  public void removeAllocateResponse(ApplicationAttemptId id, int responseId) {
-//    if(allocateResponsesToAdd.remove(id)==null){
-//    this.allocateResponsesToRemove.add(new AllocateResponse(id.toString(), responseId));
-//    }
-//    addAppId(id.getApplicationId());
-  }
+  
   private void persistAllocateResponsesToRemove() throws IOException {
     if (!allocateResponsesToRemove.isEmpty()) {
       AllocateResponseDataAccess da =
           (AllocateResponseDataAccess) RMStorageFactory
               .getDataAccess(AllocateResponseDataAccess.class);
-      List<AllocateResponse> toRemove = new ArrayList<AllocateResponse>();
-      for (ApplicationAttemptId id : allocateResponsesToRemove) {
-        toRemove.add(new AllocateResponse(id.toString()));
-      }
-      da.removeAll(toRemove);
+
+      da.removeAll(allocateResponsesToRemove);
     }
   }
   
@@ -507,6 +696,10 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
+  private String dumpRMContainerToUpdate(){
+    return "rmContainer to update " + rmContainersToUpdate.size();
+  }
+  
   public void persistFicaSchedulerNodeInfo(ResourceDataAccess resourceDA,
       FiCaSchedulerNodeDataAccess ficaNodeDA,
       RMContainerDataAccess rmcontainerDA,
@@ -514,12 +707,12 @@ public class TransactionStateImpl extends TransactionState {
       throws StorageException {
     persistFiCaSchedulerNodeToAdd(resourceDA, ficaNodeDA, rmcontainerDA,
         launchedContainersDA);
-
+    FiCaSchedulerNodeInfoAgregate agregate = new FiCaSchedulerNodeInfoAgregate();
     for (FiCaSchedulerNodeInfoToUpdate nodeInfo : ficaSchedulerNodeInfoToUpdate
         .values()) {
-      nodeInfo
-          .persist(resourceDA, ficaNodeDA, rmcontainerDA, launchedContainersDA);
+      nodeInfo.agregate(agregate);
     }
+    agregate.persist(resourceDA, ficaNodeDA, rmcontainerDA, launchedContainersDA);
     persistFiCaSchedulerNodeToRemove(resourceDA, ficaNodeDA, rmcontainerDA, launchedContainersDA);
   }
 
@@ -544,9 +737,7 @@ public class TransactionStateImpl extends TransactionState {
 
   public void toUpdateRMNode(
       org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode rmnodeToAdd) {
-    
-      //RMUtilities.putTransactionStateInNodeQueue(this, rmnodeToAdd.getNodeID());
-    
+
       RMNode hopRMNode = new RMNode(rmnodeToAdd.getNodeID().toString(),
           rmnodeToAdd.getHostName(), rmnodeToAdd.getCommandPort(),
           rmnodeToAdd.getHttpPort(), rmnodeToAdd.getNodeAddress(),
@@ -558,6 +749,10 @@ public class TransactionStateImpl extends TransactionState {
     this.rmNodesToUpdate.put(rmnodeToAdd.getNodeID().toString(), hopRMNode);
   }
 
+  public Map<String, RMNode> getRMNodesToUpdate(){
+    return rmNodesToUpdate;
+  }
+  
   public RMNodeInfo getRMNodeInfo(NodeId rmNodeId) {
     RMNodeInfo result = rmNodeInfos.get(rmNodeId);
     if (result == null) {
@@ -574,11 +769,12 @@ public class TransactionStateImpl extends TransactionState {
       FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA,PendingEventDataAccess persistedEventsDA)
       throws StorageException {
     if (rmNodeInfos != null) {
-      
+      RMNodeInfoAgregate agregate = new RMNodeInfoAgregate();
       for (RMNodeInfo rmNodeInfo : rmNodeInfos.values()) {
-        rmNodeInfo.persist(hbDA, cidToCleanDA, justLaunchedContainersDA,
-            updatedContainerInfoDA, faDA, csDA,persistedEventsDA);
+        rmNodeInfo.agregate(agregate);
       }
+      agregate.persist(hbDA, cidToCleanDA, justLaunchedContainersDA,
+              updatedContainerInfoDA, faDA, csDA,persistedEventsDA);
     }
   }
   
@@ -736,8 +932,9 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
-  public static double totalDuration = 0;
-  public static long nbFinish =0;
+  static List<Long> durations = new ArrayList<Long>();
+  static boolean printerRuning = false;
+  
   private class RPCFinisher implements Runnable {
 
     private final TransactionStateImpl ts;
@@ -747,17 +944,21 @@ public class TransactionStateImpl extends TransactionState {
     }
 
     public void run() {
-//      try{
-      long start = System.currentTimeMillis();
-        RMUtilities.finishRPC(ts);
-        long duration = System.currentTimeMillis() - start;
-        totalDuration+=duration;
-        nbFinish++;
-        double avgDuration = totalDuration/nbFinish;
-        //LOG.info("finish commit duration: " + duration + " (" + avgDuration + ")");
-//      }catch(IOException ex){
-//        LOG.error("did not commit state properly", ex);
-//      }
+      try{
+        RMUtilities.finishRPCs(ts);
+      }catch(IOException ex){
+        LOG.error("did not commit state properly", ex);
     }
+  }
+}
+  
+  
+  
+  public void dump(){
+    String dump = "";
+    dump = dump + dumpApplicationToAdd() + "\n";
+    dump = dump + dumpAppAttempt() + "\n";
+    dump = dump + dumpAllocateResponsesToAdd() + "\n";
+    dump = dump + dumpRMContainerToUpdate();
   }
 }

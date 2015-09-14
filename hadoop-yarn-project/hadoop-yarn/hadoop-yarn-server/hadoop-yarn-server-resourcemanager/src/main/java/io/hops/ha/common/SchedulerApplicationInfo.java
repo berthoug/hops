@@ -62,19 +62,28 @@ public class SchedulerApplicationInfo {
     this.transactionState = transactionState;
   }
   
+  static double totalt1 = 0;
+  static double totalt2 = 0;
+  static double totalt3 = 0;
+  static long nbFinish = 0;
+  
   public void persist(QueueMetricsDataAccess QMDA, StorageConnector connector) throws StorageException {
     //TODO: The same QueueMetrics (DEFAULT_QUEUE) is persisted with every app. Its extra overhead. We can persist it just once
-//    connector.flush();
     long start = System.currentTimeMillis();
     persistApplicationIdToAdd(QMDA);
-//    connector.flush();
-    long time1 = System.currentTimeMillis()-start;
+    totalt1 = totalt1 +  System.currentTimeMillis()-start;
     persistFiCaSchedulerAppInfo(connector);
-//    connector.flush();
-    long time3 = System.currentTimeMillis()-start;
+    totalt2 = totalt2 + System.currentTimeMillis()-start;
      persistApplicationIdToRemove();
-//    connector.flush();
-    long time2 = System.currentTimeMillis()-start;
+    totalt3 = totalt3 + System.currentTimeMillis()-start;
+    nbFinish++;
+    if (nbFinish % 100 == 0) {
+      double avgt1 = totalt1 / nbFinish;
+      double avgt2 = totalt2 / nbFinish;
+      double avgt3 = totalt3 / nbFinish;
+      LOG.info("avg time commit scheduler app info: " + avgt1 + ", " + avgt2
+              + ", " + avgt3);
+    }
   }
 
   private void persistApplicationIdToAdd(QueueMetricsDataAccess QMDA)
@@ -83,20 +92,17 @@ public class SchedulerApplicationInfo {
       SchedulerApplicationDataAccess sappDA =
           (SchedulerApplicationDataAccess) RMStorageFactory
               .getDataAccess(SchedulerApplicationDataAccess.class);
-      List<QueueMetrics> toAddQueueMetricses = new ArrayList<QueueMetrics>();
       List<SchedulerApplication> toAddSchedulerApp =
           new ArrayList<SchedulerApplication>();
       for (SchedulerApplicationInfoToAdd appInfo : schedulerApplicationsToAdd.values()) {
         
 
-          toAddQueueMetricses.add(appInfo.getQueueMetrics());
           LOG.debug("adding scheduler app " + appInfo.getSchedulerApplication().getAppid());
 
 
           toAddSchedulerApp.add(appInfo.getSchedulerApplication());
         
       }
-      QMDA.addAll(toAddQueueMetricses);
       sappDA.addAll(toAddSchedulerApp);
     }
   }
@@ -120,23 +126,23 @@ public class SchedulerApplicationInfo {
   public void setSchedulerApplicationtoAdd(
           org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication schedulerApplicationToAdd,
           ApplicationId applicationIdToAdd) {
-
-    org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics toAddQM
-            = schedulerApplicationToAdd.getQueue().getMetrics();
-    QueueMetrics toAdHopQueueMetrics = new QueueMetrics(toAddQM.getQueueName(),
-            toAddQM.getAppsSubmitted(), toAddQM.getAppsRunning(),
-            toAddQM.getAppsPending(), toAddQM.getAppsCompleted(),
-            toAddQM.getAppsKilled(), toAddQM.getAppsFailed(),
-            toAddQM.getAllocatedMB(), toAddQM.getAllocatedVirtualCores(),
-            toAddQM.getAllocatedContainers(),
-            toAddQM.getAggregateContainersAllocated(),
-            toAddQM.getaggregateContainersReleased(),
-            toAddQM.getAvailableMB(), toAddQM.getAvailableVirtualCores(),
-            toAddQM.getPendingMB(), toAddQM.getPendingVirtualCores(),
-            toAddQM.getPendingContainers(), toAddQM.getReservedMB(),
-            toAddQM.getReservedVirtualCores(),
-            toAddQM.getReservedContainers(), toAddQM.getActiveUsers(),
-            toAddQM.getActiveApps(), 0);
+    //TODO the queue metrics are shared by several nodes they should not be persisted for each nodes.
+//    org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics toAddQM
+//            = schedulerApplicationToAdd.getQueue().getMetrics();
+//    QueueMetrics toAdHopQueueMetrics = new QueueMetrics(toAddQM.getQueueName(),
+//            toAddQM.getAppsSubmitted(), toAddQM.getAppsRunning(),
+//            toAddQM.getAppsPending(), toAddQM.getAppsCompleted(),
+//            toAddQM.getAppsKilled(), toAddQM.getAppsFailed(),
+//            toAddQM.getAllocatedMB(), toAddQM.getAllocatedVirtualCores(),
+//            toAddQM.getAllocatedContainers(),
+//            toAddQM.getAggregateContainersAllocated(),
+//            toAddQM.getaggregateContainersReleased(),
+//            toAddQM.getAvailableMB(), toAddQM.getAvailableVirtualCores(),
+//            toAddQM.getPendingMB(), toAddQM.getPendingVirtualCores(),
+//            toAddQM.getPendingContainers(), toAddQM.getReservedMB(),
+//            toAddQM.getReservedVirtualCores(),
+//            toAddQM.getReservedContainers(), toAddQM.getActiveUsers(),
+//            toAddQM.getActiveApps(), 0);
 
     //Persist SchedulerApplication - Value of applications Map
     SchedulerApplication toAddSchedulerApplication = new SchedulerApplication(
@@ -145,7 +151,7 @@ public class SchedulerApplicationInfo {
             schedulerApplicationToAdd.getQueue().getQueueName());
 
     SchedulerApplicationInfoToAdd appInfo = new SchedulerApplicationInfoToAdd(
-            toAddSchedulerApplication, toAdHopQueueMetrics);
+            toAddSchedulerApplication);
 
     this.schedulerApplicationsToAdd
             .put(applicationIdToAdd, appInfo);
@@ -184,10 +190,20 @@ public class SchedulerApplicationInfo {
   }
 
   private void persistFiCaSchedulerAppInfo(StorageConnector connector) throws StorageException {
+    if(!fiCaSchedulerAppInfo.isEmpty()){
+    long start = System.currentTimeMillis();
+    AgregatedAppInfo agregatedAppInfo = new AgregatedAppInfo();
     for (Map<String,FiCaSchedulerAppInfo> map : fiCaSchedulerAppInfo.values()) {
       for(FiCaSchedulerAppInfo appInfo: map.values()){
-        appInfo.persist(connector);
+        appInfo.agregate(agregatedAppInfo);
       }
+    }
+    long t1=System.currentTimeMillis()-start;
+    agregatedAppInfo.persist();
+    long t2 = System.currentTimeMillis()-start;
+    if(t2>100){
+      LOG.error("persist fica scheduler app info too long: " + t1 + ", " + t2);
+    }
     }
   }
 

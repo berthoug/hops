@@ -42,9 +42,9 @@ public class ActiveUsersManager {
   
   private final QueueMetrics metrics;
   
-  private int activeUsers = 0;
+  private int activeUsers = 0; //TORECOVER
   private Map<String, Set<ApplicationId>> usersApplications =
-      new HashMap<String, Set<ApplicationId>>();
+      new HashMap<String, Set<ApplicationId>>(); //TORECOVER
   
   public ActiveUsersManager(QueueMetrics metrics) {
     this.metrics = metrics;

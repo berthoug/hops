@@ -30,6 +30,7 @@ import io.hops.metadata.yarn.entity.capacity.CSLeafQueueUserInfo;
 import io.hops.transaction.handler.LightWeightRequestHandler;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -273,8 +274,8 @@ public class TestRecoverLeafCSQueue {
     assertEquals(recoverCSQueue.getAbsoluteUsedCapacity(), a.
             getAbsoluteUsedCapacity(), DELTA);
 
-    List<CSLeafQueueUserInfo> recoverCSLeafQueueUser = RMUtilities.
-            getAllCSLeafQueueUserInfo();
+    Collection<CSLeafQueueUserInfo> recoverCSLeafQueueUser = RMUtilities.
+            getAllCSLeafQueueUserInfo().values();
 
     for (UserInfo userInfo : a.getUsers()) {
 

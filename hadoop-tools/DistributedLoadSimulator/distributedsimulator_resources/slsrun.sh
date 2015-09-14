@@ -14,6 +14,8 @@
 #
 
 ###############################################################################
+YARN_DIRECTORY=""
+
 printUsage() {
   echo "Usage: slsrun.sh <OPTIONS>"
   echo "                 --input-rumen|--input-sls=<FILE1,FILE2,...>"
@@ -21,7 +23,7 @@ printUsage() {
   echo "                 [--nodes=<SLS_NODES_FILE>]"
   echo "                 [--track-jobs=<JOBID1,JOBID2,...>]"
   echo "                 [--print-simulation]"
-  echo "                 [--standalone-mode]"
+  echo "                 [--yarnnode]"
   echo "                 [--distriubted-mode]"
   echo "		 [--loadsimulator-mode]"
   echo "                 [--rt-address]"
@@ -51,8 +53,8 @@ parseArgs() {
     --print-simulation)
       printsimulation="true"
       ;;
-    --standalone-mode)
-      standalonemode="true"
+    --yarnnode)
+      yarnnode="true"
       ;;
     --distributed-mode)
       distributedmode="true"
@@ -74,6 +76,9 @@ parseArgs() {
       ;;
       --rmi-address=*)
       rmiaddress=${i#*=}
+      ;;
+      --yarn-directory=*)
+      YARN_DIRECTORY=${i#*=}
       ;;
     *)
       echo "Invalid option"
@@ -99,17 +104,8 @@ parseArgs() {
   fi
 }
 
-###############################################################################
-calculateClasspath() {
-  HADOOP_BASE=`which hadoop`
-  HADOOP_BASE=`dirname $HADOOP_BASE`
-  DEFAULT_LIBEXEC_DIR=${HADOOP_BASE}/../libexec
-  HADOOP_LIBEXEC_DIR=${HADOOP_LIBEXEC_DIR:-$DEFAULT_LIBEXEC_DIR}
-  . $HADOOP_LIBEXEC_DIR/hadoop-config.sh
-  export HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:${TOOL_PATH}:html"
-}
-###############################################################################
 runSimulation() {
+
   if [[ "${inputsls}" == "" ]] ; then
     args="-inputrumen ${inputrumen}"
   else
@@ -130,8 +126,8 @@ runSimulation() {
     args="${args} -printsimulation"
   fi
  
-  if [[ "${standalonemode}" == "true" ]] ; then
-    args="${args} -standalonemode"
+  if [[ "${yarnnode}" == "true" ]] ; then
+    args="${args} -yarnnode"
   fi
 
   if [[ "${distributedmode}" == "true" ]] ; then
@@ -162,13 +158,10 @@ runSimulation() {
     args="${args} -rmiaddress ${rmiaddress}"
   fi
   
-
- ####  hadoop org.apache.hadoop.distributedloadsimulator.sls.SLSRunner ${args}
- /home/sri/realsimulator/hop_distro/hadoop-2.4.0/bin/yarn org.apache.hadoop.distributedloadsimulator.sls.SLSRunner ${args}
+ $YARN_DIRECTORY/hadoop-2.4.0/bin/yarn org.apache.hadoop.distributedloadsimulator.sls.SLSRunner ${args}
 }
 ###############################################################################
 
-###calculateClasspath
 parseArgs "$@"
 runSimulation
 

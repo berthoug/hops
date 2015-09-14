@@ -37,7 +37,7 @@ if [ "$1" = "$command_1" ];
 #  cp sls-backup/yarn-site.xml $hadoopbasedir/etc/hadoop/yarn-site.xml                                                                                                                      
 cp $hadoopbasedir/etc/hadoop/yarn-site.xml ./
  cd $hadoopbasedir/share/hadoop/tools/sls;
- ./bin/slsrun.sh --input-sls=sls-jobs.json --output-dir=output --nodes=sls-nodes.json --print-simulation --loadsimulator-mode --rt-address=pinkit --rm-address=pinkit:25001
+ ./bin/slsrun.sh --input-sls=sls-jobs.json --output-dir=output --nodes=sls-nodes.json --print-simulation --loadsimulator-mode --rt-address=$2 --rm-address=$2:25001
 else
   echo "=================  Formating the database ===================================="
   $hadoopbasedir/bin/yarn rmRTEval format

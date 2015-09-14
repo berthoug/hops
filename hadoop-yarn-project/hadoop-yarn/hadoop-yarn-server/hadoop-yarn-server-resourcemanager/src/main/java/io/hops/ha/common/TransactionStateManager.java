@@ -139,7 +139,6 @@ public class TransactionStateManager implements Runnable{
   public TransactionState getCurrentTransactionState(int rpcId, String callingFuncition) {
     while (true) {
       if (acceptedRPC.incrementAndGet() < batchMaxSize) {
-      acceptedRPC.incrementAndGet();
               lock.lock();
         try {
           transactionStateWrapper wrapper = new transactionStateWrapper((TransactionStateImpl)currentTransactionState,

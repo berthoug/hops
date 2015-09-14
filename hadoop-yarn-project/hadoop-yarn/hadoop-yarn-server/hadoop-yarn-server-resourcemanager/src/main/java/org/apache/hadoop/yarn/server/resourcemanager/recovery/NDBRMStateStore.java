@@ -56,7 +56,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 
 /**
@@ -120,21 +122,19 @@ public class NDBRMStateStore extends RMStateStore {
   }
 
   @Override
-  public RMState loadState() throws Exception {
+  public RMState loadState(RMContext rmContext) throws Exception {
     RMState rmState = new RMState();
     // recover DelegationTokenSecretManager
     loadRMDTSecretManagerState(rmState);
     // recover RM applications
     loadRMAppState(rmState);
     loadNMTokenSecretMamagerCurrentKey(rmState);
-    loadAllocateResponses(rmState);
-    loadRPCs(rmState);
     loadAppSchedulingInfos(rmState);
+    loadAllocateResponses(rmState, rmContext);
+    loadRPCs(rmState);
     loadSchedulerApplications(rmState);
     loadFiCaSchedulerNodes(rmState);
     loadLaunchedContainers(rmState);
-    loadNewlyAllocatedContainers(rmState);
-    loadLiveContainers(rmState);
     loadSchedulingOpportunities(rmState);
     loadLastScheduleddContainers(rmState);
     loadRereservations(rmState);
@@ -315,10 +315,29 @@ public class NDBRMStateStore extends RMStateStore {
     rMState.secretMamagerKeys = RMUtilities.getSecretMamagerKeys();
   }
 
-  private void loadAllocateResponses(RMState rmState) throws IOException {
-    rmState.allocateResponses = RMUtilities.getAllocateResponses();
+  private void loadAllocateResponses(RMState rmState, RMContext rmContext) throws IOException {
+    rmState.allocateResponses = RMUtilities.getAllocateResponses(rmContext);
+    setAllocatedNMTokens(rmState.allocateResponses, rmContext, rmState);
   }
 
+   private static void setAllocatedNMTokens(
+          Map<ApplicationAttemptId, org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse> allocateResponses,
+            RMContext rmContext, RMState rmState) throws IOException{
+
+    for (ApplicationAttemptId applicationAttemptId : allocateResponses.keySet()) {
+      List<NMToken> allocatedNMTokens
+              = new ArrayList<NMToken>();
+      for(org.apache.hadoop.yarn.api.records.Container container: allocateResponses.get(applicationAttemptId).getAllocatedContainers()){
+        NMToken nmToken = rmContext.getNMTokenSecretManager()
+            .createAndGetNMToken(rmState.appSchedulingInfos.get(applicationAttemptId.toString()).getUser(), applicationAttemptId,
+                container);
+        allocatedNMTokens.add(nmToken);
+      }
+      allocateResponses.get(applicationAttemptId).setNMTokens(
+              allocatedNMTokens);
+    }
+  }
+   
   private void loadRPCs(RMState rmState) throws IOException {
     rmState.appMasterRPCs = RMUtilities.getAppMasterRPCs();
   }
@@ -344,16 +363,6 @@ public class NDBRMStateStore extends RMStateStore {
     rmState.launchedContainers = RMUtilities.getAllLaunchedContainers();
   }
     
-  private void loadNewlyAllocatedContainers(RMState rmState)
-      throws IOException {
-    rmState.newlyAllocatedContainers =
-        RMUtilities.getAllNewlyAllocatedContainers();
-  }
-  
-  private void loadLiveContainers(RMState rmState) throws IOException {
-    rmState.liveContainers = RMUtilities.getAllLiveContainers();
-  }
-  
   private void loadSchedulingOpportunities(RMState rmState) throws IOException {
     rmState.schedulingOpportunities = RMUtilities.getAllSchedulingOpportunities();
   }

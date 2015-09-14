@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 hops.io.
+ * Copyright 2015 Apache Software Foundation.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -135,7 +135,7 @@ public class AppMasterProcess {
                   amClassMap.get(amType), new Configuration());
           if (amSim != null) {
             amSim.init(appSimulatorId, heartbeatInterval, containerList, null,
-                    null, jobStartTime, jobFinishTime, user, queue,
+                    null, 0, jobFinishTime-jobStartTime, user, queue,
                     isTracked, oldAppId, appMasterProtocol, applicationId,remoteSimIp);
             runner.schedule(amSim);
             maxRuntime = Math.max(maxRuntime, jobFinishTime);
@@ -155,9 +155,6 @@ public class AppMasterProcess {
     applicationMasterConf.setStrings(YarnConfiguration.RM_ADDRESS, rmAddress);
     appMasterProtocol = ClientRMProxy.createRMProxy(applicationMasterConf,
             ApplicationMasterProtocol.class);
-
-    LOG.info("HOP :: Application master protocol is created to submit application : " + appMasterProtocol);
-
   }
 
   public void startAM(String inputTraces, int appSimulatorIdOffSet, long clusterTimeStamp, int suffixId, int attemptId,String remoteSimIp) throws IOException {
@@ -166,7 +163,7 @@ public class AppMasterProcess {
     this.applicationId = ApplicationId.newInstance(clusterTimeStamp, suffixId);
     this.appAttemptId = ApplicationAttemptId.newInstance(applicationId, attemptId);
 
-    LOG.info("HOP :: Application id is constructed : " + applicationId.toString() + "| AppAttempID : " + appAttemptId);
+    LOG.debug("HOP :: Application id is constructed : " + applicationId.toString() + "| AppAttempID : " + appAttemptId);
     int heartbeatInterval = conf.getInt(
             SLSConfiguration.AM_HEARTBEAT_INTERVAL_MS,
             SLSConfiguration.AM_HEARTBEAT_INTERVAL_MS_DEFAULT);
@@ -187,9 +184,10 @@ public class AppMasterProcess {
     // arg[0] - inputTrace
     // arg[1] - applicationSimulatorId
     // arg[2] - resource manager address
-    // arg[3] - cluster time stamp
-    // arg[4] - application suffix id
-    // arg[5] - application attempt id
+    // arg[3] - rmiaddress
+    // arg[4] - cluster time stamp
+    // arg[5] - application suffix id
+    // arg[6] - application attempt id
     AppMasterProcess appMasterProcess = new AppMasterProcess();
     int appSimulatorId = Integer.parseInt(args[1]);
 
@@ -198,5 +196,4 @@ public class AppMasterProcess {
 
     runner.start();
   }
-
 }

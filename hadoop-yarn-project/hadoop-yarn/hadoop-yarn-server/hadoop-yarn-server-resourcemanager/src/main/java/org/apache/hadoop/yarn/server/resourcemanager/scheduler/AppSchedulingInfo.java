@@ -75,7 +75,7 @@ public class AppSchedulingInfo {
   private Set<String> blacklist = new HashSet<String>();//recovered
 
   //private final ApplicationStore store;
-  private ActiveUsersManager activeUsersManager;//recovered
+  private ActiveUsersManager activeUsersManager;//TORECOVER
 
   /* Allocated by scheduler */
   boolean pending = true;// for app metrics //recovered

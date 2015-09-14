@@ -1,23 +1,50 @@
 #!/bin/bash
+## get the hadoop home path from user
+basedir=$1
+## in the distributed mode, scheduler should clean the database and initialize with good values
+distributedcomponentmode=$2
+
+## number of nodes variable, so we can copy the corresponding jobs and nodes files to output folder
+numberofnodes=$3
+
+if [ -z "${basedir}" ]; then
+    echo "Hadoop HOP distro dirctory can not be empty!!"
+    echo "usage : ./distributedsls.sh /home/sri/batchmode/hop_distro scheduler 1000"
+    exit
+fi
+
+if [ -z "${numberofnodes}" ]; then
+    echo "Should provide the number of nodes"
+    echo "usage : ./distributedsls.sh /home/sri/batchmode/hop_distro scheduler 1000"
+    exit
+fi
+
+
+
 ## confirm the rmiregistry killing process, every time we should restart the rmiregistry
-ps ax | grep "rmiregistry" | awk {'print $1'} | head -n 1 | xargs kill -9
-ps ax | grep "rmiregistry" | awk {'print $1'} | head -n 1 | xargs kill -9
-
+ps axf | grep "rmiregistry" | grep -v grep | awk '{print "kill -9 " $1}' | sh
+ps axf | grep "SLSRunner" | grep -v grep | awk '{print "kill -9 " $1}' | sh
 ## clear the class path and export again 
-export CLASSPATH=" "; export CLASSPATH="sls-backup/DistributedLoadSimulator-2.4.0.jar:$CLASSPATH"
+export CLASSPATH=" "; export CLASSPATH="DistributedLoadSimulator-2.4.0.jar:$CLASSPATH"
 
-### not start the rmiregisttry in background
-
+### now start the rmiregisttry in background
 rmiregistry &
 
-cp sls-backup/yarn-site.xml /home/sri/hop_distro/hadoop-2.4.0/etc/hadoop/yarn-site.xml
-cp sls-backup/sls-runner.xml /home/sri/hop_distro/hadoop-2.4.0/etc/hadoop/sls-runner.xml
+rm  $basedir/hadoop-2.4.0/logs/*.log
 
-cp -rf sls-backup/output  /home/sri/hop_distro/hadoop-2.4.0/share/hadoop/tools/sls/
-cp sls-backup/slsrun.sh /home/sri/hop_distro/hadoop-2.4.0/share/hadoop/tools/sls/bin
-cp sls-backup/DistributedLoadSimulator-2.4.0.jar  /home/sri/hop_distro/hadoop-2.4.0/share/hadoop/tools/lib
+cp yarn-site.xml                        $basedir/hadoop-2.4.0/etc/hadoop/yarn-site.xml
+cp sls-runner.xml                       $basedir/hadoop-2.4.0/etc/hadoop/sls-runner.xml
+cp tracefiles/$numberofnodes/sls*       output/
+cp -rf output                           $basedir/hadoop-2.4.0/share/hadoop/tools/sls/
+cp slsrun.sh                            $basedir/hadoop-2.4.0/share/hadoop/tools/sls/bin
+cp DistributedLoadSimulator-2.4.0.jar   $basedir/hadoop-2.4.0/share/hadoop/tools/lib
 
-cd /home/sri/hop_distro/hadoop-2.4.0/share/hadoop/tools/sls;
+## if it is scheduler, format the database
+if [ "$distributedcomponentmode" = "scheduler" ];
+ then
+$basedir/hadoop-2.4.0/bin/yarn io.hops.metadata.util.DistributedRTRMEvaluation format
+ fi
 
-./bin/slsrun.sh --input-sls=output/sls-jobs.json --output-dir=output --nodes=output/sls-nodes.json --print-simulation --distributed-mode --rt-address=193.10.64.85 --rm-address=193.10.64.85
-
+cd $basedir/hadoop-2.4.0/share/hadoop/tools/sls;
+##start the component
+./bin/slsrun.sh --input-sls=output/sls-jobs.json --output-dir=output --nodes=output/sls-nodes.json --print-simulation --distributed-mode --yarnnode --rt-address=193.10.64.20 --rm-address=193.10.64.86 --yarn-directory=$basedir

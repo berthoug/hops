@@ -91,12 +91,6 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
     if (null == liveContainers.remove(rmContainer.getContainerId())) {
       return false;
     }
-    if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
-          .getFiCaSchedulerAppInfo(
-              this.appSchedulingInfo.getApplicationAttemptId())
-          .setLiveContainersToRemove(rmContainer);
-    }
     Container container = rmContainer.getContainer();
     ContainerId containerId = container.getId();
 
@@ -120,12 +114,12 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
         .releaseResources(getUser(), 1, containerResource);
     Resources.subtractFrom(currentConsumption, containerResource);
     //HOP : Update Resources
-    if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
-          .getFiCaSchedulerAppInfo(
-              this.appSchedulingInfo.getApplicationAttemptId())
-          .toUpdateResource(Resource.CURRENTCONSUMPTION, currentConsumption);
-    }
+//    if (transactionState != null) {
+//      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
+//          .getFiCaSchedulerAppInfo(
+//              this.appSchedulingInfo.getApplicationAttemptId())
+//          .toUpdateResource(Resource.CURRENTCONSUMPTION, currentConsumption);
+//    }
     return true;
   }
 
@@ -158,17 +152,6 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
     
     liveContainers.put(container.getId(), rmContainer);
     
-    if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
-          .getFiCaSchedulerAppInfo(
-              this.appSchedulingInfo.getApplicationAttemptId())
-          .setNewlyAllocatedContainersToAdd(rmContainer);
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
-          .getFiCaSchedulerAppInfo(
-              this.appSchedulingInfo.getApplicationAttemptId())
-          .setLiveContainersToAdd(container.getId(), rmContainer);
-    }
-    
 
     // Update consumption and track allocations
     appSchedulingInfo
@@ -176,10 +159,10 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
     Resources.addTo(currentConsumption, container.getResource());
     //HOP : Update Resources
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId()).
-          getFiCaSchedulerAppInfo(
-              this.appSchedulingInfo.getApplicationAttemptId()).
-          toUpdateResource(Resource.CURRENTCONSUMPTION, currentConsumption);
+//      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId()).
+//          getFiCaSchedulerAppInfo(
+//              this.appSchedulingInfo.getApplicationAttemptId()).
+//          toUpdateResource(Resource.CURRENTCONSUMPTION, currentConsumption);
       ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId()).
           getFiCaSchedulerAppInfo(
               this.appSchedulingInfo.getApplicationAttemptId()).

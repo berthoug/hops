@@ -176,7 +176,7 @@ public class TestResourceManager {
     AppAttemptRemovedSchedulerEvent appRemovedEvent1 =
         new AppAttemptRemovedSchedulerEvent(
             application.getApplicationAttemptId(), RMAppAttemptState.FINISHED,
-            false, null);
+            false, new TransactionStateImpl(TransactionState.TransactionType.RM));
     resourceManager.getResourceScheduler().handle(appRemovedEvent1);
 
     checkResourceUsage(nm1, nm2);

@@ -101,29 +101,26 @@ public class FiCaSchedulerAppInfo {
   Multiset<Priority> reReservations;
 
   // Not used by fifo scheduler
-  public void persist(StorageConnector connector) throws StorageException {
-    long start = System.currentTimeMillis();
-    persistApplicationToAdd();
+   public void agregate(AgregatedAppInfo agregate) throws StorageException {
+    agregateApplicationToAdd(agregate);
     //connector.flush();
-//    long time1 = System.currentTimeMillis() -start;
-    persistReservedContainersToAdd();
-    
-    persistReservedContainersToRemove();
-    persistLastScheduledContainersToAdd();
-    persistSchedulingOpportunitiesToAdd();
-    persistReReservations();
-    persistNewlyAllocatedContainersToAdd();
-    persistNewlyAllocatedContainersToRemove();
-    persistLiveContainersToAdd();
-    persistLiveContainersToRemove();
-    persistRequestsToAdd();
-    persistRequestsToRemove();
-    persistBlackListsToAdd();
-    persistBlackListsToRemove();
-    persistToUpdateResources(connector);
-    persistRemoval();
+    agregateReservedContainersToAdd(agregate);
+    agregateReservedContainersToRemove(agregate);
+    agregateLastScheduledContainersToAdd(agregate);
+    agregateSchedulingOpportunitiesToAdd(agregate);
+    agregateReReservations(agregate);
+    agregateNewlyAllocatedContainersToAdd(agregate);
+    agregateNewlyAllocatedContainersToRemove(agregate);
+    agregateLiveContainersToAdd(agregate);
+    agregateLiveContainersToRemove(agregate);
+    agregateRequestsToAdd(agregate);
+    agregateRequestsToRemove(agregate);
+    agregateBlackListsToAdd(agregate);
+    agregateBlackListsToRemove(agregate);
+    agregateToUpdateResources(agregate);
+    agregateRemoval(agregate);
   }
-
+   
   public FiCaSchedulerAppInfo(ApplicationAttemptId applicationAttemptId, TransactionStateImpl transactionState) {
     this.transactionState = transactionState;
     this.applicationAttemptId = applicationAttemptId;
@@ -315,12 +312,9 @@ public class FiCaSchedulerAppInfo {
     }
   }
 
-  private void persistRequestsToAdd() throws StorageException {
+  private void agregateRequestsToAdd(AgregatedAppInfo agregate) throws StorageException {
     if (requestsToAdd != null) {
       //Persist AppSchedulingInfo requests map and ResourceRequest
-      ResourceRequestDataAccess resRequestDA =
-          (ResourceRequestDataAccess) RMStorageFactory
-              .getDataAccess(ResourceRequestDataAccess.class);
       List<ResourceRequest> toAddResourceRequests =
           new ArrayList<ResourceRequest>();
       for (ResourceRequest key : requestsToAdd) {
@@ -331,16 +325,13 @@ public class FiCaSchedulerAppInfo {
           toAddResourceRequests.add(key);
         
       }
-      resRequestDA.addAll(toAddResourceRequests);
+      agregate.addAllResourceRequest(toAddResourceRequests);
     }
   }
-
-  private void persistRequestsToRemove() throws StorageException {
+  
+  private void agregateRequestsToRemove(AgregatedAppInfo agregate) throws StorageException {
     if (requestsToRemove != null && !requestsToRemove.isEmpty()) {
       //Remove AppSchedulingInfo requests map and ResourceRequest
-      ResourceRequestDataAccess resRequestDA =
-          (ResourceRequestDataAccess) RMStorageFactory
-              .getDataAccess(ResourceRequestDataAccess.class);
       List<ResourceRequest> toRemoveResourceRequests =
           new ArrayList<ResourceRequest>();
       for (ResourceRequest key : requestsToRemove) {
@@ -348,44 +339,25 @@ public class FiCaSchedulerAppInfo {
         toRemoveResourceRequests.add(key);
 
       }
-      resRequestDA.removeAll(toRemoveResourceRequests);
+      agregate.addAllResourceRequestsToRemove(toRemoveResourceRequests);
     }
   }
-
-  private void persistApplicationToAdd() throws StorageException {
+  
+  private void agregateApplicationToAdd(AgregatedAppInfo agregate) throws StorageException {
     if (fiCaSchedulerAppToAdd != null && !remove) {
-      //Persist ApplicationAttemptId
-      //Persist FiCaScheduler App - SchedulerApplicationAttempt instance of SchedulerApplication object
-      //Also here we persist the appSchedulingInfo because it is created at the time the FiCaSchedulerApp object is created
-      AppSchedulingInfoDataAccess asinfoDA =
-          (AppSchedulingInfoDataAccess) RMStorageFactory
-              .getDataAccess(AppSchedulingInfoDataAccess.class);
-      ResourceDataAccess resourceDA = (ResourceDataAccess) RMStorageFactory
-          .getDataAccess(ResourceDataAccess.class);
-
-      LOG.debug("adding appscheduling info " + applicationAttemptId.toString() +
-          " appid " + applicationAttemptId.getApplicationId().toString());
-     
-      asinfoDA.add(fiCaSchedulerAppToAdd);
+      agregate.addFiCaSchedulerApp(fiCaSchedulerAppToAdd);
 
       if (!resourcesToUpdate.isEmpty()) {
         
-        resourceDA.addAll(resourcesToUpdate.values());
+        agregate.addAllResources(resourcesToUpdate.values());
       }
     }
   }
-
-  private void persistLiveContainersToAdd() throws StorageException {
+  
+    private void agregateLiveContainersToAdd(AgregatedAppInfo agregate) throws StorageException {
     if (liveContainersToAdd != null) {
       //Persist LiveContainers
-      RMContainerDataAccess rmcDA = (RMContainerDataAccess) RMStorageFactory
-          .getDataAccess(RMContainerDataAccess.class);
-      ContainerDataAccess cDA = (ContainerDataAccess) RMStorageFactory
-          .getDataAccess(ContainerDataAccess.class);
       List<Container> toAddContainers = new ArrayList<Container>();
-      FiCaSchedulerAppLiveContainersDataAccess fsalcDA =
-          (FiCaSchedulerAppLiveContainersDataAccess) RMStorageFactory.
-              getDataAccess(FiCaSchedulerAppLiveContainersDataAccess.class);
       List<FiCaSchedulerAppContainer> toAddLiveContainers =
           new ArrayList<FiCaSchedulerAppContainer>();
       for (ToPersistContainersInfo container : liveContainersToAdd.values()) {
@@ -393,61 +365,44 @@ public class FiCaSchedulerAppInfo {
 
           toAddContainers.add(container.getContainer());
       }
-      cDA.addAll(toAddContainers);
-      fsalcDA.addAll(toAddLiveContainers);
+      agregate.addAllContainers(toAddContainers);
+      agregate.addAllLiveContainersToAdd(toAddLiveContainers);
       
     }
   }
-
-  private void persistLiveContainersToRemove() throws StorageException {
+    
+  private void agregateLiveContainersToRemove(AgregatedAppInfo agregate) throws StorageException {
     if (liveContainersToRemove != null && !liveContainersToRemove.isEmpty()) {
-      FiCaSchedulerAppLiveContainersDataAccess fsalcDA =
-          (FiCaSchedulerAppLiveContainersDataAccess) RMStorageFactory.
-              getDataAccess(FiCaSchedulerAppLiveContainersDataAccess.class);
       List<FiCaSchedulerAppContainer> toRemoveLiveContainers =
           new ArrayList<FiCaSchedulerAppContainer>();
       for (ToPersistContainersInfo container : liveContainersToRemove.values()) {
         toRemoveLiveContainers.add(container.getFiCaSchedulerAppContainer());
       }
-      fsalcDA.removeAll(toRemoveLiveContainers);
+      agregate.addAllLiveContainersToRemove(toRemoveLiveContainers);
     }
   }
-
-  private void persistNewlyAllocatedContainersToAdd() throws StorageException {
+    
+  private void agregateNewlyAllocatedContainersToAdd(AgregatedAppInfo agregate) throws StorageException {
     if (newlyAllocatedContainersToAdd != null) {
       //Persist NewllyAllocatedContainers list
-      FiCaSchedulerAppNewlyAllocatedContainersDataAccess fsanDA =
-          (FiCaSchedulerAppNewlyAllocatedContainersDataAccess) RMStorageFactory
-              .getDataAccess(
-                  FiCaSchedulerAppNewlyAllocatedContainersDataAccess.class);
       List<FiCaSchedulerAppContainer>
           toAddNewlyAllocatedContainersList =
           new ArrayList<FiCaSchedulerAppContainer>();
-      //Persist RMContainers
-      RMContainerDataAccess rmcDA = (RMContainerDataAccess) RMStorageFactory
-          .getDataAccess(RMContainerDataAccess.class);
-      //Persist Container
-      ContainerDataAccess cDA = (ContainerDataAccess) RMStorageFactory
-          .getDataAccess(ContainerDataAccess.class);
       List<Container> toAddContainers = new ArrayList<Container>();
 
       for (ToPersistContainersInfo rmContainer : newlyAllocatedContainersToAdd.values()) {
         toAddNewlyAllocatedContainersList.add(rmContainer.getFiCaSchedulerAppContainer());
         toAddContainers.add(rmContainer.getContainer());
       }
-      fsanDA.addAll(toAddNewlyAllocatedContainersList);
-      cDA.addAll(toAddContainers);
+      agregate.addAllNewlyAllocatedcontainersToAdd(toAddNewlyAllocatedContainersList);
+      agregate.addAllContainers(toAddContainers);
     }
   }
-
-  private void persistNewlyAllocatedContainersToRemove()
+  
+    private void agregateNewlyAllocatedContainersToRemove(AgregatedAppInfo agregate)
       throws StorageException {
     if (newlyAllocatedContainersToRemove != null) {
       //Remove NewllyAllocatedContainers list
-      FiCaSchedulerAppNewlyAllocatedContainersDataAccess fsanDA =
-          (FiCaSchedulerAppNewlyAllocatedContainersDataAccess) RMStorageFactory
-              .getDataAccess(
-                  FiCaSchedulerAppNewlyAllocatedContainersDataAccess.class);
       List<FiCaSchedulerAppContainer>
           toRemoveNewlyAllocatedContainersList =
           new ArrayList<FiCaSchedulerAppContainer>();
@@ -461,15 +416,12 @@ public class FiCaSchedulerAppInfo {
         
         toRemoveNewlyAllocatedContainersList.add(rmContainer.getFiCaSchedulerAppContainer());
       }
-      fsanDA.removeAll(toRemoveNewlyAllocatedContainersList);
+      agregate.addAllNewlyAllocatedContainersToRemove(toRemoveNewlyAllocatedContainersList);
     }
   }
-
-  private void persistBlackListsToAdd() throws StorageException {
+    
+  private void agregateBlackListsToAdd(AgregatedAppInfo agregate) throws StorageException {
     if (blacklistToAdd != null) {
-      AppSchedulingInfoBlacklistDataAccess blDA =
-          (AppSchedulingInfoBlacklistDataAccess) RMStorageFactory.
-              getDataAccess(AppSchedulingInfoBlacklistDataAccess.class);
       List<AppSchedulingInfoBlacklist> toAddblackListed =
           new ArrayList<AppSchedulingInfoBlacklist>();
       for (String blackList : blacklistToAdd) {
@@ -482,15 +434,12 @@ public class FiCaSchedulerAppInfo {
           toAddblackListed.add(hopBlackList);
         }
       }
-      blDA.addAll(toAddblackListed);
+      agregate.addAllBlackListToAdd(toAddblackListed);
     }
   }
-
-  private void persistBlackListsToRemove() throws StorageException {
+    
+  private void agregateBlackListsToRemove(AgregatedAppInfo agregate) throws StorageException {
     if (blacklistToRemove != null && !blacklistToRemove.isEmpty()) {
-      AppSchedulingInfoBlacklistDataAccess blDA =
-          (AppSchedulingInfoBlacklistDataAccess) RMStorageFactory.
-              getDataAccess(AppSchedulingInfoBlacklistDataAccess.class);
       List<AppSchedulingInfoBlacklist> toRemoveblackListed =
           new ArrayList<AppSchedulingInfoBlacklist>();
       for (String blackList : blacklistToRemove) {
@@ -500,22 +449,20 @@ public class FiCaSchedulerAppInfo {
         LOG.debug("remove BlackLists " + hopBlackList);
         toRemoveblackListed.add(hopBlackList);
       }
-      blDA.removeAll(toRemoveblackListed);
+      agregate.addAllBlackListToRemove(toRemoveblackListed);
     }
   }
-
-  private void persistToUpdateResources(StorageConnector connector) throws StorageException {
+  
+  private void agregateToUpdateResources(AgregatedAppInfo agregate) throws StorageException {
     if (toUpdateResources != null) {
-      ResourceDataAccess resourceDA = (ResourceDataAccess) RMStorageFactory
-          .getDataAccess(ResourceDataAccess.class);
       ArrayList<Resource> toAddResources = new ArrayList<Resource>();
       for (Resource resource : toUpdateResources.values()) {
         toAddResources.add(resource);
       }
-      resourceDA.addAll(toAddResources);
+      agregate.addAllResources(toAddResources);
     }
   }
-
+  
   public void remove(SchedulerApplicationAttempt schedulerApp) {
     if (fiCaSchedulerAppToAdd == null) {
       remove = true;
@@ -550,22 +497,16 @@ public class FiCaSchedulerAppInfo {
     }
   }
 
-  private void persistRemoval() throws StorageException {
+  private void agregateRemoval(AgregatedAppInfo agregate) throws StorageException {
     if (remove) {
-      AppSchedulingInfoDataAccess asinfoDA =
-          (AppSchedulingInfoDataAccess) RMStorageFactory
-              .getDataAccess(AppSchedulingInfoDataAccess.class);
-      ResourceDataAccess resourceDA = (ResourceDataAccess) RMStorageFactory.
-          getDataAccess(ResourceDataAccess.class);
+
+      agregate.addFiCaSchedulerAppToRemove(fiCaSchedulerAppToAdd);
 
 
-      asinfoDA.remove(fiCaSchedulerAppToAdd);
-
-
-      resourceDA.removeAll(resourcesToUpdate.values());
+      agregate.addAllResourcesToRemove(resourcesToUpdate.values());
     }
   }
-
+    
   
   private FiCaSchedulerAppReservedContainerInfo convertToFiCaSchedulerAppReservedContainerInfo(
     org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer rmContainer){
@@ -627,19 +568,12 @@ public class FiCaSchedulerAppInfo {
     reservedContainersToRemove.remove(rmContainer.getContainerId());
   }
 
-  protected void persistReservedContainersToAdd() throws StorageException {
+  protected void agregateReservedContainersToAdd(AgregatedAppInfo agregate) throws StorageException {
     if (reservedContainersToAdd != null) {
-      FiCaSchedulerAppReservedContainersDataAccess reservedContDA
-              = (FiCaSchedulerAppReservedContainersDataAccess) RMStorageFactory.
-              getDataAccess(FiCaSchedulerAppReservedContainersDataAccess.class);
       List<FiCaSchedulerAppReservedContainers> toAddReservedContainers
               = new ArrayList<FiCaSchedulerAppReservedContainers>();
 
-      RMContainerDataAccess rmcDA = (RMContainerDataAccess) RMStorageFactory.
-              getDataAccess(RMContainerDataAccess.class);
 
-      ContainerDataAccess cDA = (ContainerDataAccess) RMStorageFactory.
-              getDataAccess(ContainerDataAccess.class);
       List<Container> toAddContainers = new ArrayList<Container>();
 
       for (FiCaSchedulerAppReservedContainerInfo rmContainer
@@ -647,10 +581,12 @@ public class FiCaSchedulerAppInfo {
         toAddReservedContainers.add(rmContainer.getFiCaContainer());
         toAddContainers.add(rmContainer.getHopContainer());
       }
-      reservedContDA.addAll(toAddReservedContainers);
-      cDA.addAll(toAddContainers);
+      agregate.addAllReservedContainers(toAddReservedContainers);
+      agregate.addAllContainers(toAddContainers);
     }
   }
+    
+
 
   public void removeReservedContainer(
           org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer cont) {
@@ -661,34 +597,23 @@ public class FiCaSchedulerAppInfo {
     }
   }
 
-  protected void persistReservedContainersToRemove() throws StorageException {
+  protected void agregateReservedContainersToRemove(AgregatedAppInfo agregate) throws StorageException {
     if (reservedContainersToRemove != null && !reservedContainersToRemove.
             isEmpty()) {
-      FiCaSchedulerAppReservedContainersDataAccess reservedContDA
-              = (FiCaSchedulerAppReservedContainersDataAccess) RMStorageFactory.
-              getDataAccess(FiCaSchedulerAppReservedContainersDataAccess.class);
       List<FiCaSchedulerAppReservedContainers> toRemoveReservedContainers
               = new ArrayList<FiCaSchedulerAppReservedContainers>();
 
-      RMContainerDataAccess rmcDA = (RMContainerDataAccess) RMStorageFactory.
-              getDataAccess(RMContainerDataAccess.class);
       List<io.hops.metadata.yarn.entity.RMContainer> toRemoveRMContainers
               = new ArrayList<io.hops.metadata.yarn.entity.RMContainer>();
 
-      ContainerDataAccess cDA = (ContainerDataAccess) RMStorageFactory.
-              getDataAccess(ContainerDataAccess.class);
-
       for (FiCaSchedulerAppReservedContainerInfo rmContainer
               : reservedContainersToRemove.values()) {
-        //Remove reservedContainers
         toRemoveReservedContainers.add(rmContainer.getFiCaContainer());
-
-        
         toRemoveRMContainers.add(rmContainer.getHopRMContainer());
 
       }
-      reservedContDA.removeAll(toRemoveReservedContainers);
-      rmcDA.removeAll(toRemoveRMContainers);
+      agregate.addAllReservedContainersToRemove(toRemoveReservedContainers);
+      agregate.addAllRMContainersToRemove(toRemoveRMContainers);
     }
   }
 
@@ -699,12 +624,8 @@ public class FiCaSchedulerAppInfo {
     lastScheduledContainerToAdd.put(p, time);
   }
 
-  protected void persistLastScheduledContainersToAdd() throws StorageException {
+  protected void agregateLastScheduledContainersToAdd(AgregatedAppInfo agregate) throws StorageException {
     if (lastScheduledContainerToAdd != null) {
-      FiCaSchedulerAppLastScheduledContainerDataAccess lsDA
-              = (FiCaSchedulerAppLastScheduledContainerDataAccess) RMStorageFactory.
-              getDataAccess(
-                      FiCaSchedulerAppLastScheduledContainerDataAccess.class);
       List<FiCaSchedulerAppLastScheduledContainer> toAddLastScheduledCont
               = new ArrayList<FiCaSchedulerAppLastScheduledContainer>();
 
@@ -714,10 +635,10 @@ public class FiCaSchedulerAppInfo {
                 applicationAttemptId.toString(), p.getPriority(),
                 lastScheduledContainerToAdd.get(p)));
       }
-      lsDA.addAll(toAddLastScheduledCont);
+      agregate.addAllLastScheduerContainersToAdd(toAddLastScheduledCont);
     }
   }
-
+    
   public void addSchedulingOppurtunity(Priority p, int count) {
     if (schedulingOpportunitiesToAdd == null) {
       schedulingOpportunitiesToAdd = HashMultiset.create();
@@ -725,12 +646,8 @@ public class FiCaSchedulerAppInfo {
     schedulingOpportunitiesToAdd.setCount(p, count);
   }
 
-  protected void persistSchedulingOpportunitiesToAdd() throws StorageException {
+  protected void agregateSchedulingOpportunitiesToAdd(AgregatedAppInfo agregate) throws StorageException {
     if (schedulingOpportunitiesToAdd != null) {
-      FiCaSchedulerAppSchedulingOpportunitiesDataAccess soDA
-              = (FiCaSchedulerAppSchedulingOpportunitiesDataAccess) RMStorageFactory.
-              getDataAccess(
-                      FiCaSchedulerAppSchedulingOpportunitiesDataAccess.class);
       List<FiCaSchedulerAppSchedulingOpportunities> toAddSO
               = new ArrayList<FiCaSchedulerAppSchedulingOpportunities>();
 
@@ -739,10 +656,10 @@ public class FiCaSchedulerAppInfo {
                 applicationAttemptId.toString(), p.
                 getPriority(), schedulingOpportunitiesToAdd.count(p)));
       }
-      soDA.addAll(toAddSO);
+      agregate.addAllSchedulingOportunitiesToAdd(toAddSO);
     }
   }
-
+  
   public void addReReservation(Priority p) {
     if (reReservations == null) {
       reReservations = HashMultiset.create();
@@ -756,11 +673,8 @@ public class FiCaSchedulerAppInfo {
     }
   }
 
-  protected void persistReReservations() throws StorageException {
+  protected void agregateReReservations(AgregatedAppInfo agregate) throws StorageException {
     if (reReservations != null) {
-      FiCaSchedulerAppReservationsDataAccess reservationsDA
-              = (FiCaSchedulerAppReservationsDataAccess) RMStorageFactory.
-              getDataAccess(FiCaSchedulerAppReservationsDataAccess.class);
       List<SchedulerAppReservations> toAddReservations
               = new ArrayList<SchedulerAppReservations>();
 
@@ -769,10 +683,10 @@ public class FiCaSchedulerAppInfo {
                 toString(), p.
                 getPriority(), reReservations.count(p)));
       }
-      reservationsDA.addAll(toAddReservations);
+      agregate.addAllReReservateion(toAddReservations);
     }
   }
-
+  
   private RMContainer createRMContainer(
           org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer rmContainer) {
 

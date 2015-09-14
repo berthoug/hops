@@ -93,14 +93,12 @@ public class SLSRunner implements AMNMCommonObject {
     // metrics
     private final String metricsOutputDir;
     private final boolean printSimulation;
-    private final boolean standalonemode;
-    private boolean firstAMRegistration=false;
+    private boolean yarnNode = false;
+    private boolean firstAMRegistration = false;
     private static boolean distributedmode;
     private final boolean loadsimulatormode;
     private static boolean stopAppSimulation = false;
-    private static boolean isFinished = false;
-    private static boolean calculationDone = false;
-    
+    private static final boolean calculationDone = false;
 
     // other simulation information
     private int numNMs, numRacks, numAMs, numTasks;
@@ -121,14 +119,14 @@ public class SLSRunner implements AMNMCommonObject {
     private static float hbResponsePercentage;
     private String rmiAddress = null;
 
-    private static Map<String, Integer> applicationProcessMap = new HashMap<String, Integer>();
+    private static final Map<String, Integer> applicationProcessMap = new HashMap<String, Integer>();
 
     public SLSRunner(String inputTraces[], String nodeFile,
             String outputDir, Set<String> trackedApps,
-            boolean printsimulation, boolean standaloneMode, boolean distributedMode, boolean loadSimMode, String resourceTrackerAddress, String resourceManagerAddress, String rmiAddress)
+            boolean printsimulation, boolean yarnNodeDeployment, boolean distributedMode, boolean loadSimMode, String resourceTrackerAddress, String resourceManagerAddress, String rmiAddress)
             throws IOException, ClassNotFoundException {
         this.rm = null;
-        this.standalonemode = standaloneMode;
+        this.yarnNode = yarnNodeDeployment;
         distributedmode = distributedMode;
         this.loadsimulatormode = loadSimMode;
         if (resourceTrackerAddress.split(",").length == 1) { // so we only have one RT
@@ -175,9 +173,10 @@ public class SLSRunner implements AMNMCommonObject {
         applicationProcessMap.put(appId, processId);
     }
 
-    private String getRMIAddress(){
-      return  this.rmiAddress;
+    private String getRMIAddress() {
+        return this.rmiAddress;
     }
+
     public void startHbMonitorThread() {
         Thread hbExperimentalMonitoring = new Thread() {
             @Override
@@ -234,16 +233,12 @@ public class SLSRunner implements AMNMCommonObject {
     private void startRM() throws IOException, ClassNotFoundException {
         Configuration rmConf = new YarnConfiguration();
 
-        if (standalonemode) {
-            rmConf.setBoolean(YarnConfiguration.RM_HA_ENABLED, false);
-            rmConf.setBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED, false);
-        } else {
-            rmConf.setBoolean(YarnConfiguration.RM_HA_ENABLED, true);
-            rmConf.setBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED, true);
-            rmConf.setBoolean(YarnConfiguration.HOPS_NDB_EVENT_STREAMING_ENABLED, true);
-            rmConf.setBoolean(YarnConfiguration.HOPS_NDB_RT_EVENT_STREAMING_ENABLED, true);
-            LOG.info("HOP :: Load simulator is starting resource manager in distributed mode ######################### ");
-        }
+        rmConf.setBoolean(YarnConfiguration.RM_HA_ENABLED, true);
+        rmConf.setBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED, true);
+        rmConf.setBoolean(YarnConfiguration.HOPS_NDB_EVENT_STREAMING_ENABLED, true);
+        rmConf.setBoolean(YarnConfiguration.HOPS_NDB_RT_EVENT_STREAMING_ENABLED, true);
+        rmConf.setBoolean(YarnConfiguration.AUTO_FAILOVER_ENABLED, true);
+        LOG.info("HOP :: Load simulator is starting resource manager in distributed mode ######################### ");
 
         YarnAPIStorageFactory.setConfiguration(rmConf);
         RMStorageFactory.setConfiguration(rmConf);
@@ -268,7 +263,6 @@ public class SLSRunner implements AMNMCommonObject {
         int heartbeatInterval = conf.getInt(
                 SLSConfiguration.NM_HEARTBEAT_INTERVAL_MS,
                 SLSConfiguration.NM_HEARTBEAT_INTERVAL_MS_DEFAULT);
-        LOG.info("Starting the NM  memory : "+nmMemoryMB + " vcores : "+nmVCores + " hb interval : "+heartbeatInterval);
         // nm information (fetch from topology file, or from sls/rumen json file)
         Set<String> nodeSet = new HashSet<String>();
         if (nodeFile.isEmpty()) {
@@ -361,11 +355,13 @@ public class SLSRunner implements AMNMCommonObject {
                             = new ArrayList<ContainerSimulator>();
                     // create a new AM
                     // appMastersList.add(new AppMasterParameter(queue, inputTrace, AM_ID++, rmAddress, rmiAddress));
-
-                    ApplicationMasterScheduler appMasterExecutors = new ApplicationMasterScheduler(queue, inputTrace, AM_ID++, rmAddress, rmiAddress);
-                    appMasterExecutors.init(jobStartTime, jobFinishTime, heartbeatInterval);
-                    runner.schedule(appMasterExecutors);
-
+                    // if it is yarn node, don't execute applications
+                    if (!yarnNode) {
+                        LOG.info("Application simulation is starting now .");
+                        ApplicationMasterScheduler appMasterExecutors = new ApplicationMasterScheduler(queue, inputTrace, AM_ID++, rmAddress, rmiAddress);
+                        appMasterExecutors.init(jobStartTime, jobFinishTime, heartbeatInterval);
+                        runner.schedule(appMasterExecutors);
+                    }
                     String amType = jsonJob.get("am.type").toString();
                     maxRuntime = Math.max(maxRuntime, jobFinishTime);
                     numTasks += tasks.size();
@@ -444,7 +440,6 @@ public class SLSRunner implements AMNMCommonObject {
             LOG.info("<SLSisShuttingDown>");
             // if distributed mode enabled , then no point of calculating from rm
             if (!distributedmode) {
-                isFinished = true;
                 while (!calculationDone) {
                     try {
                         Thread.sleep(100);
@@ -466,7 +461,7 @@ public class SLSRunner implements AMNMCommonObject {
                 "jobs to be tracked during simulating");
         options.addOption("printsimulation", false,
                 "print out simulation information");
-        options.addOption("standalonemode", false, "taking boolean to enable rt mode");
+        options.addOption("yarnnode", false, "taking boolean to enable rt mode");
         options.addOption("distributedmode", false, "taking boolean to enable scheduler mode");
         options.addOption("loadsimulatormode", false, "taking boolean to enable load simulator mode");
         options.addOption("rtaddress", true, "Resourcetracker address");
@@ -522,7 +517,7 @@ public class SLSRunner implements AMNMCommonObject {
             rmiAddress = cmd.getOptionValue("rmiaddress"); // currently we support only two simulator in parallel
         }
         SLSRunner sls = new SLSRunner(inputFiles, nodeFile, output,
-                trackedJobSet, cmd.hasOption("printsimulation"), cmd.hasOption("standalonemode"), cmd.hasOption("distributedmode"), cmd.hasOption("loadsimulatormode"), rtAddress, rmAddress, rmiAddress
+                trackedJobSet, cmd.hasOption("printsimulation"), cmd.hasOption("yarnnode"), cmd.hasOption("distributedmode"), cmd.hasOption("loadsimulatormode"), rtAddress, rmAddress, rmiAddress
         );
         if (!cmd.hasOption("distributedmode")) {
             try {
@@ -570,23 +565,24 @@ public class SLSRunner implements AMNMCommonObject {
         nmMap.get(ConverterUtils.toNodeId(nodeId))
                 .cleanupContainer(ConverterUtils.toContainerId(containerId));
     }
-    
+
     @Override
-    public int finishedApplicationsCount(){
+    public int finishedApplicationsCount() {
         return remainingApps;
     }
+
     @Override
-    public void registerApplicationTimeStamp(){
-       if(!firstAMRegistration){
-         LOG.info("Application_initial_registeration_time : "+System.currentTimeMillis());
-         firstAMRegistration=true;
-       }
+    public void registerApplicationTimeStamp() {
+        if (!firstAMRegistration) {
+            LOG.info("Application_initial_registeration_time : " + System.currentTimeMillis());
+            firstAMRegistration = true;
+        }
     }
 
     @Override
     public void decreseApplicationCount(String applicationId) {
 
-        if (!standalonemode) {
+        if (!yarnNode) {
             remainingApps--;
             LOG.info("SLS decrease finished application - application count : " + remainingApps);
 
@@ -600,7 +596,7 @@ public class SLSRunner implements AMNMCommonObject {
             }
 
             if (remainingApps == 0) {
-                LOG.info("Distributed_Simulator_shutting_down_time : "+System.currentTimeMillis());
+                LOG.info("Distributed_Simulator_shutting_down_time : " + System.currentTimeMillis());
                 //now check whether other simulator is finished 
                 Registry secondryRegistry = null;
                 try {
@@ -608,10 +604,10 @@ public class SLSRunner implements AMNMCommonObject {
                 } catch (RemoteException ex) {
                     java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                
+
                 try {
                     AMNMCommonObject secondryRemoteConnection = (AMNMCommonObject) secondryRegistry.lookup("AMNMCommonObject");
-                    while(secondryRemoteConnection.finishedApplicationsCount()!=0 ){
+                    while (secondryRemoteConnection.finishedApplicationsCount() != 0) {
                         Thread.sleep(1000);
                     }
                 } catch (RemoteException ex) {
@@ -621,7 +617,7 @@ public class SLSRunner implements AMNMCommonObject {
                 } catch (InterruptedException ex) {
                     java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                
+
                 try {
                     // just sleep here, without this sleep , it is sometime possible, other side requestion rmi
                     //function which this exit

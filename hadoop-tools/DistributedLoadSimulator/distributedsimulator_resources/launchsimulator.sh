@@ -1,9 +1,13 @@
 #!/bin/bash
 
 user="root"
-## basedir where hadoop version is deployed
-basedir="/home/sri/realsimulator"
-remoteSimIp=$1
+
+basedir=$1
+if [ -z "${basedir}" ]; then
+    echo "Hadoop HOP distro dirctory can not be empty. <Ex : ./distributedsls.sh /home/sri/batchmode/hop_distro>"
+    exit
+fi
+remoteSimIp=$2
 if [ -z "${remoteSimIp}" ]; then
     echo "Remote simulator ip is not set or empty ."
     exit
@@ -22,10 +26,10 @@ for nm in {1000..1000..1000}
                 cp tracefiles/$nm/sls-nodes.json output
 
                 ## start the remote resource manager        
-                 ssh $user@$remoteSimIp "cd $basedir/distributedsimulator_resources; ./initsimulator.sh simulator" &
+                 ssh $user@$remoteSimIp "cd $basedir/distributedsimulator_resources; ./initsimulator.sh $basedir" &
 
                  ### start the simulator on this host 
-                ./initsimulator.sh simulator
+                ./initsimulator.sh $basedir
 
                  ### once this host experiments is done , kill the remote one too
                  ssh $user@$remoteSimIp "cd $basedir/distributedsimulator_resources; ./killsimulator.sh"

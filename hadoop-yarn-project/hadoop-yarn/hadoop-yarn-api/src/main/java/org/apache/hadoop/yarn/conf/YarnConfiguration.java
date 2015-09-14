@@ -72,7 +72,7 @@ public class YarnConfiguration extends Configuration {
      */
     public static final String DEBUG_NM_DELETE_DELAY_SEC
             = YarnConfiguration.NM_PREFIX + "delete.debug-delay-sec";
-    ////////////////////////////////
+  ////////////////////////////////
     // IPC Configs
     ////////////////////////////////
     public static final String IPC_PREFIX = YARN_PREFIX + "ipc.";
@@ -103,7 +103,7 @@ public class YarnConfiguration extends Configuration {
     public static final String IPC_RPC_IMPL = IPC_PREFIX + "rpc.class";
     public static final String DEFAULT_IPC_RPC_IMPL
             = "org.apache.hadoop.yarn.ipc.HadoopYarnProtoRPC";
-    ////////////////////////////////
+  ////////////////////////////////
     // Resource Manager Configs
     ////////////////////////////////
     public static final String RM_PREFIX = "yarn.resourcemanager.";
@@ -115,9 +115,9 @@ public class YarnConfiguration extends Configuration {
      */
     public static final String RM_ADDRESS = RM_PREFIX + "address";
     public static final String RM_PORT = RM_PREFIX + "port";
-    public static final int DEFAULT_RM_PORT = 8032;
+    public static final int DEFAULT_RM_PORT = 25001;
     public static final String DEFAULT_RM_ADDRESS
-            = "127.0.0.1:" + DEFAULT_RM_PORT;
+            = "0.0.0.0:" + DEFAULT_RM_PORT;
     /**
      * The number of threads used to handle applications manager requests.
      */
@@ -136,7 +136,7 @@ public class YarnConfiguration extends Configuration {
     public static final String RM_SCHEDULER_PORT = RM_PREFIX + "scheduler.port";
     public static final int DEFAULT_RM_SCHEDULER_PORT = 8030;
     public static final String DEFAULT_RM_SCHEDULER_ADDRESS
-            = "localhost:" + DEFAULT_RM_SCHEDULER_PORT;
+            = "0.0.0.0:" + DEFAULT_RM_SCHEDULER_PORT;
     /**
      * Miniumum request grant-able by the RM scheduler.
      */
@@ -190,7 +190,7 @@ public class YarnConfiguration extends Configuration {
     public static final String RM_WEBAPP_ADDRESS = RM_PREFIX + "webapp.address";
     public static final int DEFAULT_RM_WEBAPP_PORT = 8088;
     public static final String DEFAULT_RM_WEBAPP_ADDRESS
-            = "localhost:" + DEFAULT_RM_WEBAPP_PORT;
+            = "0.0.0.0:" + DEFAULT_RM_WEBAPP_PORT;
     /**
      * The https address of the RM web application.
      */
@@ -201,14 +201,14 @@ public class YarnConfiguration extends Configuration {
             = "ssl-server.xml";
     public static final int DEFAULT_RM_WEBAPP_HTTPS_PORT = 8090;
     public static final String DEFAULT_RM_WEBAPP_HTTPS_ADDRESS
-            = "localhost:" + DEFAULT_RM_WEBAPP_HTTPS_PORT;
+            = "0.0.0.0:" + DEFAULT_RM_WEBAPP_HTTPS_PORT;
     public static final String RM_RESOURCE_TRACKER_ADDRESS
             = RM_PREFIX + "resource-tracker.address";
     public static final String RM_RESOURCE_TRACKER_PORT
             = RM_PREFIX + "resource-tracker.port";
     public static final int DEFAULT_RM_RESOURCE_TRACKER_PORT = 8031;
     public static final String DEFAULT_RM_RESOURCE_TRACKER_ADDRESS
-            = "localhost:" + DEFAULT_RM_RESOURCE_TRACKER_PORT;
+            = "0.0.0.0:" + DEFAULT_RM_RESOURCE_TRACKER_PORT;
     /**
      * The expiry interval for application master reporting.
      */
@@ -242,7 +242,7 @@ public class YarnConfiguration extends Configuration {
     public static final String RM_ADMIN_PORT = RM_PREFIX + "admin.port";
     public static final int DEFAULT_RM_ADMIN_PORT = 8033;
     public static final String DEFAULT_RM_ADMIN_ADDRESS
-            = "localhost:" + DEFAULT_RM_ADMIN_PORT;
+            = "0.0.0.0:" + DEFAULT_RM_ADMIN_PORT;
 
     /**
      * The address of the RM group membership interface.
@@ -253,7 +253,7 @@ public class YarnConfiguration extends Configuration {
             = RM_PREFIX + "groupMembership.port";
     public static final int DEFAULT_RM_GROUP_MEMBERSHIP_PORT = 8034;
     public static final String DEFAULT_RM_GROUP_MEMBERSHIP_ADDRESS
-            = "localhost:" + DEFAULT_RM_GROUP_MEMBERSHIP_PORT;
+            = "0.0.0.0:" + DEFAULT_RM_GROUP_MEMBERSHIP_PORT;
 
     /**
      * Number of threads used to handle RM admin interface.
@@ -446,7 +446,7 @@ public class YarnConfiguration extends Configuration {
 
     public static final String INITIALIZEDB = RM_HA_PREFIX + "initializedb";
     public static boolean DEFAULT_INITIALIZEDB = false;
-    ////////////////////////////////
+  ////////////////////////////////
     // RM state store configs
     ////////////////////////////////
     /**
@@ -515,7 +515,7 @@ public class YarnConfiguration extends Configuration {
     public static final String RM_NODEMANAGER_MINIMUM_VERSION
             = RM_PREFIX + "nodemanager.minimum.version";
     public static final String DEFAULT_RM_NODEMANAGER_MINIMUM_VERSION = "NONE";
-    ////////////////////////////////
+  ////////////////////////////////
     // Node Manager Configs
     ////////////////////////////////
     /**
@@ -545,7 +545,7 @@ public class YarnConfiguration extends Configuration {
     public static final String NM_ADDRESS = NM_PREFIX + "address";
     public static final int DEFAULT_NM_PORT = 0;
     public static final String DEFAULT_NM_ADDRESS
-            = "localhost:" + DEFAULT_NM_PORT;
+            = "0.0.0.0:" + DEFAULT_NM_PORT;
     /**
      * who will execute(launch) the containers.
      */
@@ -594,7 +594,7 @@ public class YarnConfiguration extends Configuration {
             = NM_PREFIX + "localizer.address";
     public static final int DEFAULT_NM_LOCALIZER_PORT = 8040;
     public static final String DEFAULT_NM_LOCALIZER_ADDRESS
-            = "localhost:" + DEFAULT_NM_LOCALIZER_PORT;
+            = "0.0.0.0:" + DEFAULT_NM_LOCALIZER_PORT;
     /**
      * Interval in between cache cleanups.
      */
@@ -727,7 +727,7 @@ public class YarnConfiguration extends Configuration {
     public static final String NM_WEBAPP_ADDRESS = NM_PREFIX + "webapp.address";
     public static final int DEFAULT_NM_WEBAPP_PORT = 8042;
     public static final String DEFAULT_NM_WEBAPP_ADDRESS
-            = "localhost:" + DEFAULT_NM_WEBAPP_PORT;
+            = "0.0.0.0:" + DEFAULT_NM_WEBAPP_PORT;
     /**
      * NM Webapp https address.*
      */
@@ -735,7 +735,7 @@ public class YarnConfiguration extends Configuration {
             = NM_PREFIX + "webapp.https.address";
     public static final int DEFAULT_NM_WEBAPP_HTTPS_PORT = 8044;
     public static final String DEFAULT_NM_WEBAPP_HTTPS_ADDRESS
-            = "localhost:" + DEFAULT_NM_WEBAPP_HTTPS_PORT;
+            = "0.0.0.0:" + DEFAULT_NM_WEBAPP_HTTPS_PORT;
     /**
      * How often to monitor containers.
      */
@@ -916,7 +916,7 @@ public class YarnConfiguration extends Configuration {
     public static final String NM_WEBAPP_SPNEGO_KEYTAB_FILE_KEY
             = NM_PREFIX + "webapp.spnego-keytab-file";
     public static final String DEFAULT_NM_USER_HOME_DIR = "/home/";
-    ////////////////////////////////
+  ////////////////////////////////
     // Web Proxy Configs
     ////////////////////////////////
     public static final String PROXY_PREFIX = "yarn.web-proxy.";
@@ -934,7 +934,7 @@ public class YarnConfiguration extends Configuration {
     public static final String PROXY_ADDRESS = PROXY_PREFIX + "address";
     public static final int DEFAULT_PROXY_PORT = 9099;
     public static final String DEFAULT_PROXY_ADDRESS
-            = "localhost:" + DEFAULT_RM_PORT;
+            = "0.0.0.0:" + DEFAULT_RM_PORT;
     /**
      * YARN Service Level Authorization
      */
@@ -1073,12 +1073,12 @@ public class YarnConfiguration extends Configuration {
             = YARN_PREFIX + "app.container.log.filesize";
     public static final String YARN_APP_CONTAINER_LOG_BACKUPS
             = YARN_PREFIX + "app.container.log.backups";
-    ////////////////////////////////
+  ////////////////////////////////
     // Timeline Service Configs
     ////////////////////////////////
     public static final String TIMELINE_SERVICE_PREFIX
             = YARN_PREFIX + "timeline-service.";
-    // mark app-history related configs @Private as application history is going
+  // mark app-history related configs @Private as application history is going
     // to be integrated into the timeline service
     @Private
     public static final String APPLICATION_HISTORY_PREFIX
@@ -1125,7 +1125,7 @@ public class YarnConfiguration extends Configuration {
             = TIMELINE_SERVICE_PREFIX + "address";
     public static final int DEFAULT_TIMELINE_SERVICE_PORT = 10200;
     public static final String DEFAULT_TIMELINE_SERVICE_ADDRESS
-            = "localhost:" + DEFAULT_TIMELINE_SERVICE_PORT;
+            = "0.0.0.0:" + DEFAULT_TIMELINE_SERVICE_PORT;
     /**
      * The number of threads to handle client RPC API requests.
      */
@@ -1139,7 +1139,7 @@ public class YarnConfiguration extends Configuration {
             = TIMELINE_SERVICE_PREFIX + "webapp.address";
     public static final int DEFAULT_TIMELINE_SERVICE_WEBAPP_PORT = 8188;
     public static final String DEFAULT_TIMELINE_SERVICE_WEBAPP_ADDRESS
-            = "localhost:" + DEFAULT_TIMELINE_SERVICE_WEBAPP_PORT;
+            = "0.0.0.0:" + DEFAULT_TIMELINE_SERVICE_WEBAPP_PORT;
     /**
      * The https address of the timeline service web application.
      */
@@ -1147,7 +1147,7 @@ public class YarnConfiguration extends Configuration {
             = TIMELINE_SERVICE_PREFIX + "webapp.https.address";
     public static final int DEFAULT_TIMELINE_SERVICE_WEBAPP_HTTPS_PORT = 8190;
     public static final String DEFAULT_TIMELINE_SERVICE_WEBAPP_HTTPS_ADDRESS
-            = "localhost:" + DEFAULT_TIMELINE_SERVICE_WEBAPP_HTTPS_PORT;
+            = "0.0.0.0:" + DEFAULT_TIMELINE_SERVICE_WEBAPP_HTTPS_PORT;
     /**
      * The kerberos principal to be used for spnego filter for timeline service.
      */
@@ -1208,7 +1208,7 @@ public class YarnConfiguration extends Configuration {
             = TIMELINE_SERVICE_LEVELDB_PREFIX + "ttl-interval-ms";
     public static final long DEFAULT_TIMELINE_SERVICE_LEVELDB_TTL_INTERVAL_MS
             = 1000 * 60 * 5;
-    ////////////////////////////////
+  ////////////////////////////////
     // Other Configs
     ////////////////////////////////
     /**
@@ -1290,10 +1290,11 @@ public class YarnConfiguration extends Configuration {
     public static int DEFAULT_HOPS_PENDING_EVENTS_BATCH = 0;
 
     public static final String HOPS_BATCH_MAX_SIZE = HOPS_RM_PREFIX + "batch.max.size";
-    public static int DEFAULT_HOPS_BATCH_MAX_SIZE = 200;
+    public static int DEFAULT_HOPS_BATCH_MAX_SIZE = 50;
 
     public static final String HOPS_BATCH_MAX_DURATION = HOPS_RM_PREFIX + "batch.max.duration";
-    public static int DEFAULT_HOPS_BATCH_MAX_DURATION = 60;
+    public static int DEFAULT_HOPS_BATCH_MAX_DURATION = 100;
+
     //NDB event streaming
     public static boolean DEFAULT_HOPS_NDB_EVENT_STREAMING_ENABLED = false;
     public static final String HOPS_NDB_EVENT_STREAMING_ENABLED = HOPS_RM_PREFIX + "ndb-event-streaming.enable";
@@ -1333,10 +1334,10 @@ public class YarnConfiguration extends Configuration {
         }
         for (int i = 0; i < NUMBER_OF_RM; i++) {
             DEFAULT_RM_RESOURCE_TRACKER_ADDRESS_HOP
-                    .add("localhost:" + DEFAULT_RM_RESOURCE_TRACKER_PORT_HOP.get(i));
-            DEFAULT_RM_ADDRESS_HOP.add("localhost:" + DEFAULT_RM_PORT_HOP.get(i));
+                    .add("0.0.0.0:" + DEFAULT_RM_RESOURCE_TRACKER_PORT_HOP.get(i));
+            DEFAULT_RM_ADDRESS_HOP.add("0.0.0.0:" + DEFAULT_RM_PORT_HOP.get(i));
             DEFAULT_RM_ADMIN_ADDRESS_HOP
-                    .add("localhost:" + DEFAULT_RM_ADMIN_PORT_HOP.get(i));
+                    .add("0.0.0.0:" + DEFAULT_RM_ADMIN_PORT_HOP.get(i));
         }
 
     }

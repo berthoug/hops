@@ -40,12 +40,12 @@ public class NdbRtStreamingProcessor implements Runnable {
   public void printStreamingRTComps(StreamingRTComps streamingRTComps) {
     List<org.apache.hadoop.yarn.api.records.ApplicationId> applicationIdList = streamingRTComps.getFinishedApp();
     for (org.apache.hadoop.yarn.api.records.ApplicationId appId : applicationIdList) {
-      LOG.debug("<Processor> Finished application : appid : " + appId.toString());
+      LOG.info("<Processor> Finished application : appid : " + appId.toString());
     }
 
     Set<org.apache.hadoop.yarn.api.records.ContainerId> containerIdList = streamingRTComps.getContainersToClean();
     for (org.apache.hadoop.yarn.api.records.ContainerId conId : containerIdList) {
-      LOG.debug("<Processor> Containers to clean  containerid: " + conId.toString());
+      LOG.info("<Processor> Containers to clean  containerid: " + conId.toString());
     }
     LOG.info("RTReceived: " + streamingRTComps.getNodeId() + " nexthb: "+streamingRTComps.isNextHeartbeat());
 
@@ -61,7 +61,7 @@ public class NdbRtStreamingProcessor implements Runnable {
           StreamingRTComps streamingRTComps = null;
           streamingRTComps = (StreamingRTComps) NdbRtStreamingReceiver.blockingRTQueue.take();
           if (streamingRTComps != null) {
-            //printStreamingRTComps(streamingRTComps);
+            printStreamingRTComps(streamingRTComps);
 
             NodeId nodeId = ConverterUtils.toNodeId(streamingRTComps.getNodeId());
             rmNode = context.getActiveRMNodes().get(nodeId);
