@@ -1289,8 +1289,13 @@ public class YarnConfiguration extends Configuration {
             = HOPS_RM_PREFIX + "pending-events.batch";
     public static int DEFAULT_HOPS_PENDING_EVENTS_BATCH = 0;
 
-    public static final String HOPS_BATCH_MAX_SIZE = HOPS_RM_PREFIX + "batch.max.size";
-    public static int DEFAULT_HOPS_BATCH_MAX_SIZE = 50;
+  public static final String HOPS_BATCH_MAX_SIZE = HOPS_RM_PREFIX + "batch.max.size";
+  public static int DEFAULT_HOPS_BATCH_MAX_SIZE = 50;
+  
+  public static final String HOPS_BATCH_MAX_DURATION = HOPS_RM_PREFIX + "batch.max.duration";
+  public static int DEFAULT_HOPS_BATCH_MAX_DURATION = 100;
+  
+  static {
 
     public static final String HOPS_BATCH_MAX_DURATION = HOPS_RM_PREFIX + "batch.max.duration";
     public static int DEFAULT_HOPS_BATCH_MAX_DURATION = 100;

@@ -80,7 +80,7 @@ public class TestNMReconnect {
 
     RMContextImpl context =
         new RMContextImpl(dispatcher, null, null, null, null, null, null, null,
-            null);
+            conf);
     groupMembership = new GroupMembershipService(null, context);
     context.setRMGroupMembershipService(groupMembership);
     dispatcher.register(SchedulerEventType.class,

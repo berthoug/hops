@@ -16,7 +16,6 @@
 package io.hops.ha.common;
 
 import io.hops.exception.StorageException;
-import static io.hops.ha.common.FiCaSchedulerNodeInfoAgregate.totalt1;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.yarn.dal.ContainerIdToCleanDataAccess;
 import io.hops.metadata.yarn.dal.ContainerStatusDataAccess;
@@ -34,14 +33,12 @@ import io.hops.metadata.yarn.entity.NextHeartbeat;
 import io.hops.metadata.yarn.entity.NodeHBResponse;
 import io.hops.metadata.yarn.entity.PendingEvent;
 import io.hops.metadata.yarn.entity.UpdatedContainerInfo;
-import io.hops.metadata.yarn.entity.UpdatedContainerInfoToAdd;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 public class RMNodeInfoAgregate {
 
@@ -78,6 +75,14 @@ public class RMNodeInfoAgregate {
         this.toAddJustLaunchedContainers.addAll(toAddJustLaunchedContainers);
     }
 
+    public void addAllPendingEventsToAdd(ArrayList<PendingEvent> toAddPendingEvents) {
+        this.toAddPendingEvents.addAll(toAddPendingEvents);
+    }
+
+    public void addAllPendingEventsToRemove(ArrayList<PendingEvent> toRemovePendingEvents) {
+        this.toRemovePendingEvents.addAll(toRemovePendingEvents);
+    }
+
     public void addAllJustLaunchedContainersToRemove(
             List<JustLaunchedContainers> toRemoveJustLaunchedContainers) {
         this.toRemoveJustLaunchedContainers.addAll(toAddJustLaunchedContainers);
@@ -101,14 +106,6 @@ public class RMNodeInfoAgregate {
     public void addAllFinishedAppToRemove(
             ArrayList<FinishedApplications> toRemoveFinishedApplications) {
         this.toRemoveFinishedApplications.addAll(toAddFinishedApplications);
-    }
-
-    public void addAllPendingEventsToAdd(ArrayList<PendingEvent> toAddPendingEvents) {
-        this.toAddPendingEvents.addAll(toAddPendingEvents);
-    }
-    
-    public void addAllPendingEventsToRemove(ArrayList<PendingEvent> toRemovePendingEvents) {
-        this.toRemovePendingEvents.addAll(toRemovePendingEvents);
     }
 
     public void addAllUpdatedContainerInfoToAdd(
@@ -148,7 +145,7 @@ public class RMNodeInfoAgregate {
             ContainerIdToCleanDataAccess cidToCleanDA,
             JustLaunchedContainersDataAccess justLaunchedContainersDA,
             UpdatedContainerInfoDataAccess updatedContainerInfoDA,
-            FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA,PendingEventDataAccess persistedEventsDA)
+            FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA, PendingEventDataAccess persistedEventsDA)
             throws StorageException {
         Long start = System.currentTimeMillis();
         persistContainerStatusToAdd(csDA);
@@ -178,6 +175,7 @@ public class RMNodeInfoAgregate {
         persistPendingEventsToRemove(persistedEventsDA);
         totalt13 = totalt13 + System.currentTimeMillis() - start;
         nbFinish++;
+        nbFinish++;
         if (nbFinish % 100 == 0) {
             double avgt1 = totalt1 / nbFinish;
             double avgt2 = totalt2 / nbFinish;
@@ -195,8 +193,8 @@ public class RMNodeInfoAgregate {
             LOG.info("avg time commit node info agregate: " + avgt1 + ", " + avgt2
                     + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", "
                     + avgt7 + ", " + avgt8 + ", " + avgt9 + ", " + avgt10 + ", "
-                    + avgt11+ ", "
-                    + avgt12+ ", "
+                    + avgt11 + ", "
+                    + avgt12 + ", "
                     + avgt13);
         }
     }
@@ -247,21 +245,22 @@ public class RMNodeInfoAgregate {
         updatedContainerInfoDA.addAll(uciToAdd);
     }
 
+    public void persistNodeUpdateQueueToRemove(
+            UpdatedContainerInfoDataAccess updatedContainerInfoDA) throws
+            StorageException {
+        updatedContainerInfoDA.removeAll(uciToRemove);
+    }
+
     public void persistPendingEventsToAdd(
             PendingEventDataAccess persistedEventsDA) throws
             StorageException {
         persistedEventsDA.addAll(toAddPendingEvents);
     }
-    
+
     public void persistPendingEventsToRemove(
             PendingEventDataAccess persistedEventsDA) throws
             StorageException {
         persistedEventsDA.removeAll(toRemovePendingEvents);
-    }
-    public void persistNodeUpdateQueueToRemove(
-            UpdatedContainerInfoDataAccess updatedContainerInfoDA) throws
-            StorageException {
-        updatedContainerInfoDA.removeAll(uciToRemove);
     }
 
     public void persistLatestHeartBeatResponseToAdd(NodeHBResponseDataAccess hbDA)

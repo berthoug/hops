@@ -292,9 +292,12 @@ public class SLSRunner implements AMNMCommonObject {
         int totalNodes = nodeSet.size();
         int threshHoldLimit = totalNodes / numberOfRT;
         int rtOffSet = 0;
+        int i=0;
         for (String hostName : nodeSet) {
             ++counter;
             // we randomize the heartbeat start time from zero to 1 interval
+          i++;
+          LOG.info("Init nm: " + hostName + " (" + i + ")");
             NMSimulator nm = new NMSimulator();
             if (counter <= threshHoldLimit) {
                 nm.init(hostName, nmMemoryMB, nmVCores,

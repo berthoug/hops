@@ -113,7 +113,7 @@ public class TestAppManager {
     RMContext context =
         new RMContextImpl(rmDispatcher, containerAllocationExpirer,
             amLivelinessMonitor, amFinishingMonitor, null, null, null, writer,
-            null) {
+            new YarnConfiguration()) {
           @Override
           public ConcurrentMap<ApplicationId, RMApp> getRMApps() {
             return map;

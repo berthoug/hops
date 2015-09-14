@@ -436,12 +436,16 @@ public class RMUtilities {
     for (ApplicationAttemptId applicationAttemptId : allocateResponses.keySet()) {
       List<org.apache.hadoop.yarn.api.records.Container> allocatedContainers
               = new ArrayList<org.apache.hadoop.yarn.api.records.Container>();
-      for (String containerId : allocatedContainersId.get(applicationAttemptId.toString())) {
-        Container hopContainer = containersInfo.get(containerId);
-        ContainerPBImpl container = new ContainerPBImpl(
-                YarnProtos.ContainerProto.parseFrom(hopContainer.
-                        getContainerState()));
-        allocatedContainers.add(container);
+      List<String> allocatedContainersIds = 
+              allocatedContainersId.get(applicationAttemptId.toString());
+      if (allocatedContainersIds != null) {
+        for (String containerId : allocatedContainersIds) {
+          Container hopContainer = containersInfo.get(containerId);
+          ContainerPBImpl container = new ContainerPBImpl(
+                  YarnProtos.ContainerProto.parseFrom(hopContainer.
+                          getContainerState()));
+          allocatedContainers.add(container);
+        }
       }
       allocateResponses.get(applicationAttemptId).setAllocatedContainers(
               allocatedContainers);
@@ -865,7 +869,7 @@ public class RMUtilities {
             if (rpcDA.findByTypeAndUserId(type.toString(), userId) /*||
                         rpcDA.findByTypeAndUserId(HopRPC.Type.NodeHeartbeat.toString(), userId)*/) {
               LOG.debug("HOP :: rmnodeRPCValidation() - RPC already exists");
-              connector.commit();
+              nbCommit.incrementAndGet(); connector.commit();
               return null;
             } else {
               LOG.debug("HOP :: rmnodeRPCValidation() rpcIdFound was null");
@@ -898,7 +902,7 @@ public class RMUtilities {
             } else {
               toReturn.put(1, false);
             }
-            connector.commit();
+            nbCommit.incrementAndGet(); connector.commit();
             return toReturn;
           }
         };
@@ -2466,7 +2470,6 @@ public class RMUtilities {
   static AtomicDouble totalt8 =new AtomicDouble(0);
   static AtomicDouble totalt9 =new AtomicDouble(0);
   static AtomicDouble totalt10 =new AtomicDouble(0);
-  //static AtomicDouble totalt11 =new AtomicDouble(0);
 
   public static void finishRPC(final TransactionStateImpl ts) {
     logs.add("start commit");
@@ -2542,13 +2545,13 @@ public class RMUtilities {
                             AppSchedulableDataAccess.class);
 
             
-//              Set<Integer> rpcIdsToRemove = ts.getRPCIds();
-//              List<RPC> rpcToRemove = new ArrayList<RPC>();
-//              for(Integer rpcId: rpcIdsToRemove){
-//                RPC hop = new RPC(rpcId);
-//                rpcToRemove.add(hop);
-//              }
-//              DA.removeAll(rpcToRemove);
+              Set<Integer> rpcIdsToRemove = ts.getRPCIds();
+              List<RPC> rpcToRemove = new ArrayList<RPC>();
+              for(Integer rpcId: rpcIdsToRemove){
+                RPC hop = new RPC(rpcId);
+                rpcToRemove.add(hop);
+              }
+              DA.removeAll(rpcToRemove);
             long t1 = System.currentTimeMillis()-start;
 //            
 //            //TODO put all of this in ts.persist
@@ -2598,20 +2601,15 @@ public class RMUtilities {
       setfinishRPCHandler.handle();
     } catch (IOException ex) {
       LOG.error("HOP :: Error commiting finishRPC ", ex);
-      String yarnState = YarnAPIStorageFactory.printYarnState();
-    
-      LOG.error("commit failed: " + yarnState);
-    
+//      String yarnState = YarnAPIStorageFactory.printYarnState();
+//    
+//      LOG.error("commit failed: " + yarnState);
     }
     long commitDuration = System.currentTimeMillis() - start;
     long commitAndQueueDuration = commitDuration;
     if (ts.getId() > 0) {
       commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(
               ts.getId());
-    }
-    String yarnState = YarnAPIStorageFactory.printYarnState();
-    if (commitDuration > 1000) {
-      LOG.error("commit too long state: " + commitDuration + "\n" + yarnState);
     }
     
     totalCommitDuration.addAndGet(commitDuration);
@@ -2629,7 +2627,10 @@ public class RMUtilities {
       minCommitAndQueueDuration = commitAndQueueDuration;
     }
     nbFinish.addAndGet(1);
-    
+    if(maxCommitAndQueueDuration>1000){
+      LOG.error("commit and queue duration too long: " + maxCommitAndQueueDuration + " (" + commitDuration + ") " + " nodes: " + ts.getRMNodesToUpdate().keySet() + 
+              " app: " + ts.getAppIds());
+    }
     logs.add("finish (" + ts.getId() +"): " + commitDuration + ", " + commitAndQueueDuration );
   }
 
@@ -2657,7 +2658,6 @@ public class RMUtilities {
   totalt8 = new AtomicDouble(0);
   totalt9 = new AtomicDouble(0);
   totalt10 = new AtomicDouble(0);
-//  totalt11 = new AtomicDouble(0);
   }
   public static double getCommitAvgDuration(){
     return totalCommitDuration.get() / nbFinish.get();
@@ -2696,10 +2696,9 @@ public class RMUtilities {
     double avgt8=totalt8.get()/nbFinish.get();
     double avgt9=totalt9.get()/nbFinish.get();
     double avgt10=totalt10.get()/nbFinish.get();
-    //double avgt11=totalt11.get()/nbFinish.get();
     int nbCommits = nbCommit.get()-oldNBCommit;
     oldNBCommit = nbCommit.get();
-    return "nb commits: " + nbCommits + "| " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", " + avgt7 + ", " + avgt8 + ", " + avgt9 + ", " + avgt10;
+    return "nb commits: " + nbCommits + "| " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", " + avgt7 + ", " + avgt8 + ", " + avgt9 + ", " + avgt1;
   }
   //for testing (todo: move in test class)
   public static Resource getResource(final String id, final int type,

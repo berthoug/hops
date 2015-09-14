@@ -85,8 +85,6 @@
 //
 //  public abstract void commit(boolean first) throws IOException;
 //}
-
-
 /*
  * Copyright (C) 2015 hops.io.
  *
@@ -108,79 +106,74 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 public abstract class TransactionState {
 
-  
   //TODO: Should we persist this id when the RT crashes and the NM starts 
-  //sending HBs to the new RT?
-  protected static AtomicInteger pendingEventId = new AtomicInteger(0);
+    //sending HBs to the new RT?
+    protected static AtomicInteger pendingEventId = new AtomicInteger(0);
 
-  public enum TransactionType {
+    public enum TransactionType {
 
-    RM,
-    APP,
-    NODE,
-    INIT
-  }
+        RM,
+        APP,
+        NODE,
+        INIT
+    }
 
-  private static final Log LOG = LogFactory.getLog(TransactionState.class);
-  private AtomicInteger counter = new AtomicInteger(0);
-  protected final Set<ApplicationId> appIds = new ConcurrentSkipListSet<ApplicationId>();
+    private static final Log LOG = LogFactory.getLog(TransactionState.class);
+    private AtomicInteger counter = new AtomicInteger(0);
+    protected final Set<ApplicationId> appIds = new ConcurrentSkipListSet<ApplicationId>();
 //  private final Lock counterLock = new ReentrantLock(true);
-  private Set<Integer> rpcIds = new ConcurrentSkipListSet<Integer>();
-  private int id=-1;
-  private final boolean batch;
-  
-  public TransactionState(int initialCounter, boolean batch) {
+    private Set<Integer> rpcIds = new ConcurrentSkipListSet<Integer>();
+    private int id = -1;
+    private final boolean batch;
 
-    counter = new AtomicInteger(initialCounter);
-    this.batch = batch;
-  }
+    public TransactionState(int initialCounter, boolean batch) {
 
-  public int getId(){
-    return id;
-  }
-    public Set<ApplicationId> getAppIds(){
-    return appIds;
-  }
-    
-  abstract boolean addAppId(ApplicationId appId);
-    
-  public synchronized void incCounter(Enum type) {
-    counter.incrementAndGet();
-  }
-
-  public synchronized void decCounter(Enum type) throws IOException {
-    int value = counter.decrementAndGet();
-    if(!batch && value==0){
-      commit(true);
+        counter = new AtomicInteger(initialCounter);
+        this.batch = batch;
     }
-  }
 
-  public int getCounter(){
-      return counter.get();
-  }
- 
-  public void addRPCId(int rpcId){
-    if(rpcId>0 && id<0){
-      id = rpcId;
+    public int getId() {
+        return id;
     }
-    rpcIds.add(rpcId);
-  }
-  
-  public Set<Integer> getRPCIds(){
-    return rpcIds;
-  }
 
-  public abstract void commit(boolean first) throws IOException;
+    public Set<ApplicationId> getAppIds() {
+        return appIds;
+    }
+
+    abstract boolean addAppId(ApplicationId appId);
+
+    public synchronized void incCounter(Enum type) {
+        counter.incrementAndGet();
+    }
+
+    public synchronized void decCounter(Enum type) throws IOException {
+        int value = counter.decrementAndGet();
+        if (!batch && value == 0) {
+            commit(true);
+        }
+    }
+
+    public int getCounter() {
+        return counter.get();
+    }
+
+    public void addRPCId(int rpcId) {
+        if (rpcId >= 0 && id < 0) {
+            id = rpcId;
+        }
+        rpcIds.add(rpcId);
+    }
+
+    public Set<Integer> getRPCIds() {
+        return rpcIds;
+    }
+
+    public abstract void commit(boolean first) throws IOException;
 }

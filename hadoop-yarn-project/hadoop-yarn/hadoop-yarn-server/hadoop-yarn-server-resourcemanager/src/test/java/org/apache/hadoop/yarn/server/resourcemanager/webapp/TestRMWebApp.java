@@ -163,7 +163,7 @@ public class TestRMWebApp {
       deactivatedNodesMap.put(node.getHostName(), node);
     }
     return new RMContextImpl(null, null, null, null, null, null, null, null,
-        null) {
+        new YarnConfiguration()) {
       @Override
       public ConcurrentMap<ApplicationId, RMApp> getRMApps() {
         return applicationsMaps;

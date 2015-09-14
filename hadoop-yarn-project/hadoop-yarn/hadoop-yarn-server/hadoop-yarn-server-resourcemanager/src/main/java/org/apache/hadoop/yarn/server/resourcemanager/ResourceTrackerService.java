@@ -75,7 +75,6 @@ import org.apache.hadoop.yarn.util.YarnVersionInfo;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.util.Map;
 
 public class ResourceTrackerService extends AbstractService
         implements ResourceTracker {

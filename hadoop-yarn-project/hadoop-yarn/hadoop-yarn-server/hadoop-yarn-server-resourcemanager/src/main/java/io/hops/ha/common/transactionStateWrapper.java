@@ -344,9 +344,11 @@ import io.hops.metadata.yarn.dal.UpdatedContainerInfoDataAccess;
 import io.hops.metadata.yarn.dal.capacity.CSLeafQueueUserInfoDataAccess;
 import io.hops.metadata.yarn.dal.capacity.CSQueueDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
+import io.hops.metadata.yarn.entity.RMNode;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -632,4 +634,36 @@ public class transactionStateWrapper extends TransactionStateImpl {
           throws StorageException {
     ts.persistPendingEvents(persistedEventsDA);
   }
+  
+   public int getId(){
+    return ts.getId();
+  }
+    public Set<ApplicationId> getAppIds(){
+    return ts.getAppIds();
+  }
+    
+  public void addRMContainerToAdd(RMContainerImpl rmContainer) {
+    ts.addRMContainerToAdd(rmContainer);
+  }  
+
+  public void addAllocateResponse(ApplicationAttemptId id,
+          ApplicationMasterService.AllocateResponseLock allocateResponse) {
+    ts.addAllocateResponse(id, allocateResponse);
+  }
+    
+  public void addAllRanNodes(RMAppAttempt appAttempt) {
+    ts.addAllRanNodes(appAttempt);
+  }
+
+  public void addRanNode(NodeId nid, ApplicationAttemptId appAttemptId) {
+   ts.addRanNode(nid, appAttemptId);
+  }
+    
+  @Override
+  public Map<String, RMNode> getRMNodesToUpdate(){
+    return ts.getRMNodesToUpdate();
+  }
+
+
+
 }

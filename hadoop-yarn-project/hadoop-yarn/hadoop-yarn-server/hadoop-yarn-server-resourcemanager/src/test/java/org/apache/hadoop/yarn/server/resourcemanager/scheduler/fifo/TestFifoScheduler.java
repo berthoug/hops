@@ -149,7 +149,7 @@ public class TestFifoScheduler {
     RMApplicationHistoryWriter writer = mock(RMApplicationHistoryWriter.class);
     RMContext rmContext =
         new RMContextImpl(dispatcher, null, null, null, null, null, null,
-            writer, null);
+            writer, config);
 
     FifoScheduler schedular = new FifoScheduler();
     schedular.reinitialize(new Configuration(), rmContext);

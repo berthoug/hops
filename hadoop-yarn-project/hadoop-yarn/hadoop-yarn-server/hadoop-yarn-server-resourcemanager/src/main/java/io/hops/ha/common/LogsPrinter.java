@@ -18,8 +18,6 @@ package io.hops.ha.common;
 
 import io.hops.metadata.util.RMUtilities;
 import io.hops.metadata.util.YarnAPIStorageFactory;
-import io.hops.metadata.yarn.dal.AppSchedulingInfoBlacklistDataAccess;
-import io.hops.metadata.yarn.dal.AppSchedulingInfoDataAccess;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -64,7 +62,7 @@ public class LogsPrinter implements Runnable {
           TransactionStateImpl.callsGetSchedulerApplicationInfos=0;
           TransactionStateImpl.callsaddAllocateResponse=0;
           TransactionStateImpl.callsaddAppAttempt=0;
-//          LOG.info(YarnAPIStorageFactory.printYarnState());
+          LOG.info(YarnAPIStorageFactory.printYarnState());
         }catch(InterruptedException e){
           LOG.error(e, e);
         }

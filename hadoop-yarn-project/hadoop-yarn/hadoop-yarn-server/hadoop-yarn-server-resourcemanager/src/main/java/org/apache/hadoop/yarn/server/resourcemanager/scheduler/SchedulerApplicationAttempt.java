@@ -429,10 +429,6 @@ public class SchedulerApplicationAttempt implements Recoverable{
         resourceLimit
             .setVirtualCores(recoveringResourceLimit.getVirtualCores());
       }
-      Resource recoveringCurrentConsumption = state
-          .getResource(applicationAttemptId.toString(),
-              Resource.CURRENTCONSUMPTION,
-              Resource.SCHEDULERAPPLICATIONATTEMPT);
       recoverNewlyAllocatedContainers(applicationAttemptId, state);
       recoverLiveContainers(applicationAttemptId, state);
       recoverReservations(applicationAttemptId, state);
