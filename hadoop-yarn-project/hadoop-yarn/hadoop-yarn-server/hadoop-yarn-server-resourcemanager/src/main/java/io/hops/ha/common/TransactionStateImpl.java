@@ -82,12 +82,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
-import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
-import org.apache.hadoop.yarn.api.records.impl.pb.NMTokenPBImpl;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.LOG;
 
@@ -126,8 +123,8 @@ public class TransactionStateImpl extends TransactionState {
       new ArrayList<ApplicationId>();
   private final HashMap<String, ApplicationAttemptState> appAttempts =
       new HashMap<String, ApplicationAttemptState>();
-  private final HashMap<ApplicationAttemptId, Set<RanNode>>ranNodeToAdd =
-          new HashMap<ApplicationAttemptId, Set<RanNode>>();
+  private final HashMap<ApplicationAttemptId, Map<Integer, RanNode>>ranNodeToAdd =
+          new HashMap<ApplicationAttemptId, Map<Integer, RanNode>>();
   private final HashMap<ApplicationAttemptId, AllocateResponse>
       allocateResponsesToAdd =
       new HashMap<ApplicationAttemptId, AllocateResponse>();
@@ -308,19 +305,19 @@ public class TransactionStateImpl extends TransactionState {
     if (node.getTotalResource() != null) {
       nodeInfos.setTotalResource(new Resource(nodeId, Resource.TOTAL_CAPABILITY,
               Resource.FICASCHEDULERNODE, node.getTotalResource().getMemory(),
-              node.getTotalResource().getVirtualCores()));
+              node.getTotalResource().getVirtualCores(),0));
     }
     if (node.getAvailableResource() != null) {
       nodeInfos.setAvailableResource(new Resource(nodeId, Resource.AVAILABLE,
               Resource.FICASCHEDULERNODE,
               node.getAvailableResource().getMemory(),
-              node.getAvailableResource().getVirtualCores()));
+              node.getAvailableResource().getVirtualCores(),0));
     }
     if (node.getUsedResource() != null) {
       nodeInfos.setUsedResource(
               new Resource(nodeId, Resource.USED, Resource.FICASCHEDULERNODE,
                       node.getUsedResource().getMemory(),
-                      node.getUsedResource().getVirtualCores()));
+                      node.getUsedResource().getVirtualCores(),0));
     }
     if (node.getReservedContainer() != null) {
       addRMContainerToUpdate((RMContainerImpl)node.getReservedContainer());
@@ -495,12 +492,12 @@ public class TransactionStateImpl extends TransactionState {
   }
   
   public void addAllRanNodes(RMAppAttempt appAttempt) {
-    Set<RanNode> ranNodeToPersist = new HashSet<RanNode>();
+    Map<Integer, RanNode> ranNodeToPersist = new HashMap<Integer, RanNode>();
     List<NodeId> ranNodes = new ArrayList<NodeId>(appAttempt.getRanNodes());
     for (NodeId nid : ranNodes) {
-      ranNodeToPersist.add(
-              new RanNode(appAttempt.getAppAttemptId().toString(),
-                      nid.toString()));
+      RanNode node = new RanNode(appAttempt.getAppAttemptId().toString(),
+                      nid.toString());
+      ranNodeToPersist.put(node.hashCode(),node);
     }
 
     this.ranNodeToAdd.put(appAttempt.getAppAttemptId(),
@@ -509,9 +506,10 @@ public class TransactionStateImpl extends TransactionState {
 
   public void addRanNode(NodeId nid, ApplicationAttemptId appAttemptId) {
     if(!this.ranNodeToAdd.containsKey(appAttemptId)){
-      this.ranNodeToAdd.put(appAttemptId, new HashSet<RanNode>());
+      this.ranNodeToAdd.put(appAttemptId, new HashMap<Integer,RanNode>());
     }
-    this.ranNodeToAdd.get(appAttemptId).add(new RanNode(appAttemptId.toString(), nid.toString()));
+    RanNode node = new RanNode(appAttemptId.toString(), nid.toString());
+    this.ranNodeToAdd.get(appAttemptId).put(node.hashCode(),node);
   }
   
   private void persistAppAttempt() throws IOException {
@@ -658,7 +656,7 @@ public class TransactionStateImpl extends TransactionState {
     callremoveAllocateResponse++;
     addAppId(id.getApplicationId());
   }
-
+  
   private void persistAllocateResponsesToRemove() throws IOException {
     if (!allocateResponsesToRemove.isEmpty()) {
       AllocateResponseDataAccess da =
@@ -777,9 +775,6 @@ public class TransactionStateImpl extends TransactionState {
 
   public void toUpdateRMNode(
       org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode rmnodeToAdd) {
-    
-      
-    
       RMNode hopRMNode = new RMNode(rmnodeToAdd.getNodeID().toString(),
           rmnodeToAdd.getHostName(), rmnodeToAdd.getCommandPort(),
           rmnodeToAdd.getHttpPort(), rmnodeToAdd.getNodeAddress(),
@@ -787,7 +782,8 @@ public class TransactionStateImpl extends TransactionState {
           rmnodeToAdd.getLastHealthReportTime(),
           ((RMNodeImpl) rmnodeToAdd).getCurrentState(),
           rmnodeToAdd.getNodeManagerVersion(), -1,
-          ((RMNodeImpl) rmnodeToAdd).getUpdatedContainerInfoId());
+            ((RMNodeImpl) rmnodeToAdd).getUpdatedContainerInfoId(), rmnodeToAdd.
+            getRMNodePendingEventId());
     this.rmNodesToUpdate.put(rmnodeToAdd.getNodeID().toString(), hopRMNode);
   }
 
@@ -807,16 +803,17 @@ public class TransactionStateImpl extends TransactionState {
   public void persistRMNodeInfo(NodeHBResponseDataAccess hbDA,
       ContainerIdToCleanDataAccess cidToCleanDA,
       JustLaunchedContainersDataAccess justLaunchedContainersDA,
-      UpdatedContainerInfoDataAccess updatedContainerInfoDA,
-      FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA)
-      throws StorageException {
+          UpdatedContainerInfoDataAccess updatedContainerInfoDA,
+          FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA,
+          PendingEventDataAccess persistedEventsDA)
+          throws StorageException {
     if (rmNodeInfos != null) {
       RMNodeInfoAgregate agregate = new RMNodeInfoAgregate();
       for (RMNodeInfo rmNodeInfo : rmNodeInfos.values()) {
         rmNodeInfo.agregate(agregate);
       }
       agregate.persist(hbDA, cidToCleanDA, justLaunchedContainersDA,
-              updatedContainerInfoDA, faDA, csDA);
+              updatedContainerInfoDA, faDA, csDA,persistedEventsDA);
     }
   }
   
@@ -831,7 +828,7 @@ public class TransactionStateImpl extends TransactionState {
           .getDataAccess(ResourceDataAccess.class);
       rDA.add(new Resource("cluster", Resource.CLUSTER, Resource.USED,
           usedResourceToUpdate.getMemory(),
-          usedResourceToUpdate.getVirtualCores()));
+          usedResourceToUpdate.getVirtualCores(),0));
     }
   }
   
@@ -846,7 +843,7 @@ public class TransactionStateImpl extends TransactionState {
           .getDataAccess(ResourceDataAccess.class);
       rDA.add(new Resource("cluster", Resource.CLUSTER, Resource.AVAILABLE,
           clusterResourceToUpdate.getMemory(),
-          clusterResourceToUpdate.getVirtualCores()));
+          clusterResourceToUpdate.getVirtualCores(),0));
     }
   }
 
@@ -918,7 +915,7 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
-  public void addPendingEventToAdd(String rmnodeId, byte type, byte status) {
+  public void addPendingEventToAdd(String rmnodeId, int type, int status) {
     LOG.debug("HOP :: updatePendingEventToAdd");
     PendingEvent pendingEvent = new PendingEvent(rmnodeId, type, status,
         pendingEventId.getAndIncrement());
@@ -926,7 +923,7 @@ public class TransactionStateImpl extends TransactionState {
     LOG.debug("HOP :: updatePendingEventToAdd, pendingEvent:" + pendingEvent);
   }
 
-  public void addPendingEventToAdd(String rmnodeId, byte type, byte status,
+  public void addPendingEventToAdd(String rmnodeId, int type, int status,
       RMNodeImpl rmNode) {
     addPendingEventToAdd(rmnodeId, type, status);
     this.rmNode = rmNode;
@@ -946,19 +943,22 @@ public class TransactionStateImpl extends TransactionState {
    * @param type
    * @param status
    */
-  public void addPendingEventToRemove(int id, String rmnodeId, byte type,
-      byte status) {
+  public void addPendingEventToRemove(int id, String rmnodeId, int type,
+      int status) {
     this.persistedEventsToRemove
         .add(new PendingEvent(rmnodeId, type, status, id));
   }
 
   public void persistPendingEvents(PendingEventDataAccess persistedEventsDA)
-      throws StorageException {
+          throws StorageException {
+    LOG.info("HOP_PENDING persit pending event : size : "
+            + this.persistedEventsToAdd.size());
     List<PendingEvent> toPersist = new ArrayList<PendingEvent>();
     for(PendingEvent event : this.persistedEventsToAdd){
       if(!this.persistedEventsToRemove.remove(event)){
         toPersist.add(event);
       }
+       LOG.info("HOP_PENDING persit pending event " + rpcType + " node " + nodeId);
     }
     if (rpcType != null && !this.persistedEventsToAdd.isEmpty()) {
       LOG.info("persisting " + rpcType + " node " + nodeId);

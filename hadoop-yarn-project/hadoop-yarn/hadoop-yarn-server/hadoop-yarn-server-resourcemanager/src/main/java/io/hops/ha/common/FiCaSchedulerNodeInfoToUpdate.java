@@ -69,7 +69,7 @@ public class FiCaSchedulerNodeInfoToUpdate {
 
     toUpdateResources.put(type, new Resource(id, type, Resource.FICASCHEDULERNODE,
             res.getMemory(),
-            res.getVirtualCores()));
+            res.getVirtualCores(),0));
   }
 
   public void updateReservedContainer(

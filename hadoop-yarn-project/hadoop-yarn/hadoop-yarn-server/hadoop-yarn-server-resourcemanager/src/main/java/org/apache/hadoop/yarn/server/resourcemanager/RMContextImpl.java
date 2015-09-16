@@ -139,6 +139,7 @@ public class RMContextImpl implements RMContext {
   /**
    * Default constructor. To be used in conjunction with setter methods for
    * individual fields.
+     * @param conf
    */
   public RMContextImpl(Configuration conf) {
     transactionStateManager = new TransactionStateManager(conf);

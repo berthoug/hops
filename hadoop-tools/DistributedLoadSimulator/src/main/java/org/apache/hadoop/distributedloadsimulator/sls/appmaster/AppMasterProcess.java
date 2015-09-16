@@ -74,7 +74,7 @@ public class AppMasterProcess {
   }
   @SuppressWarnings("unchecked")
   private void startAMFromSLSTraces(Resource containerResource,
-          int heartbeatInterval, String inputTrace) throws IOException {
+          int heartbeatInterval, String inputTrace,String remoteSimIp) throws IOException {
     // parse from sls traces
     int localAppSimulatorOffSet = 0;
     JsonFactory jsonF = new JsonFactory();
@@ -135,8 +135,8 @@ public class AppMasterProcess {
                   amClassMap.get(amType), new Configuration());
           if (amSim != null) {
             amSim.init(appSimulatorId, heartbeatInterval, containerList, null,
-                    null, jobStartTime, jobFinishTime, user, queue,
-                    isTracked, oldAppId, appMasterProtocol, applicationId);
+                    null, 0, jobFinishTime-jobStartTime, user, queue,
+                    isTracked, oldAppId, appMasterProtocol, applicationId,remoteSimIp);
             runner.schedule(amSim);
             maxRuntime = Math.max(maxRuntime, jobFinishTime);
             numTasks += containerList.size();
@@ -155,18 +155,15 @@ public class AppMasterProcess {
     applicationMasterConf.setStrings(YarnConfiguration.RM_ADDRESS, rmAddress);
     appMasterProtocol = ClientRMProxy.createRMProxy(applicationMasterConf,
             ApplicationMasterProtocol.class);
-
-    LOG.info("HOP :: Application master protocol is created to submit application : " + appMasterProtocol);
-
   }
 
-  public void startAM(String inputTraces, int appSimulatorIdOffSet, long clusterTimeStamp, int suffixId, int attemptId) throws IOException {
+  public void startAM(String inputTraces, int appSimulatorIdOffSet, long clusterTimeStamp, int suffixId, int attemptId,String remoteSimIp) throws IOException {
 
     this.appSimulatorId = appSimulatorIdOffSet;
     this.applicationId = ApplicationId.newInstance(clusterTimeStamp, suffixId);
     this.appAttemptId = ApplicationAttemptId.newInstance(applicationId, attemptId);
 
-    LOG.info("HOP :: Application id is constructed : " + applicationId.toString() + "| AppAttempID : " + appAttemptId);
+    LOG.debug("HOP :: Application id is constructed : " + applicationId.toString() + "| AppAttempID : " + appAttemptId);
     int heartbeatInterval = conf.getInt(
             SLSConfiguration.AM_HEARTBEAT_INTERVAL_MS,
             SLSConfiguration.AM_HEARTBEAT_INTERVAL_MS_DEFAULT);
@@ -178,7 +175,7 @@ public class AppMasterProcess {
             = BuilderUtils.newResource(containerMemoryMB, containerVCores);
 
     // application workload
-    startAMFromSLSTraces(containerResource, heartbeatInterval, inputTraces);
+    startAMFromSLSTraces(containerResource, heartbeatInterval, inputTraces,remoteSimIp);
 
   }
 
@@ -187,16 +184,16 @@ public class AppMasterProcess {
     // arg[0] - inputTrace
     // arg[1] - applicationSimulatorId
     // arg[2] - resource manager address
-    // arg[3] - cluster time stamp
-    // arg[4] - application suffix id
-    // arg[5] - application attempt id
+    // arg[3] - rmiaddress
+    // arg[4] - cluster time stamp
+    // arg[5] - application suffix id
+    // arg[6] - application attempt id
     AppMasterProcess appMasterProcess = new AppMasterProcess();
     int appSimulatorId = Integer.parseInt(args[1]);
 
     appMasterProcess.initAMProtocol(args[2]);
-    appMasterProcess.startAM(args[0], appSimulatorId, Long.parseLong(args[3]), Integer.parseInt(args[4]), Integer.parseInt(args[5]));
+    appMasterProcess.startAM(args[0], appSimulatorId, Long.parseLong(args[4]), Integer.parseInt(args[5]), Integer.parseInt(args[6]),args[3]);
 
     runner.start();
   }
-
 }

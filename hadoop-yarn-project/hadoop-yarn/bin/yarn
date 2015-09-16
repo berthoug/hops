@@ -162,8 +162,7 @@ if [ -d "$HADOOP_YARN_HOME/build/tools" ]; then
 fi
 
 CLASSPATH=${CLASSPATH}:$HADOOP_YARN_HOME/${YARN_DIR}/*
-CLASSPATH=${CLASSPATH}:$HADOOP_YARN_HOME/${YARN_LIB_JARS_DIR}/*
-
+CLASSPATH=${CLASSPATH}:$HADOOP_YARN_HOME/${YARN_LIB_JARS_DIR}/*:${TOOL_PATH}:html
 # so that filenames w/ spaces are handled correctly in loops below
 IFS=
 

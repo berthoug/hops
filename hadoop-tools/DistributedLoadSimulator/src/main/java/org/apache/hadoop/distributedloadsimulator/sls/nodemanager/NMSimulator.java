@@ -17,10 +17,8 @@
 package org.apache.hadoop.distributedloadsimulator.sls.nodemanager;
 
 import java.io.IOException;
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -127,8 +125,6 @@ public class NMSimulator extends TaskRunner.Task {
       while ((cs = containerQueue.poll()) != null) {
         runningContainers.remove(cs.getId());
         completedContainerList.add(cs.getId());
-        //LOG.info(MessageFormat.format("Container {0} has completed",
-             //   cs.getId()));
       }
     }
 
@@ -148,11 +144,9 @@ public class NMSimulator extends TaskRunner.Task {
       LOG.info(" HOP::HB  Node : "+node.getNodeID()+ " Sending heart beat request");
       NodeHeartbeatResponse beatResponse = resourceTracker.nodeHeartbeat(beatRequest);
       ++totalHeartBeat;
-//      if (beatResponse.getNextheartbeat()) {
-//        ++trueHeartBeat;
-//      }
-      //LOG.info(" HOP ::  Node  : "+node.getNodeID()+" Hearbeat response next heartbeat - "+beatResponse.getNextheartbeat());
-      //rm.getResourceTrackerService().nodeHeartbeat(beatRequest);
+      if (beatResponse.getNextheartbeat()) {
+        ++trueHeartBeat;
+      }
       if (!beatResponse.getContainersToCleanup().isEmpty()) {
         // remove from queue
         synchronized (releasedContainerList) {
@@ -162,14 +156,10 @@ public class NMSimulator extends TaskRunner.Task {
               synchronized (amContainerList) {
                 amContainerList.remove(containerId);
               }
-              //LOG.info(MessageFormat.format("NodeManager {0} releases "
-                 //     + "an AM ({1}).", node.getNodeID(), containerId));
             } else {
               cs = runningContainers.remove(containerId);
               containerQueue.remove(cs);
               releasedContainerList.add(containerId);
-             // LOG.info(MessageFormat.format("NodeManager {0} releases a "
-                    //  + "container ({1}).", node.getNodeID(), containerId));
             }
           }
         }
@@ -208,8 +198,6 @@ public class NMSimulator extends TaskRunner.Task {
     // add complete containers
     synchronized (completedContainerList) {
       for (ContainerId cId : completedContainerList) {
-        //LOG.info(MessageFormat.format("NodeManager {0} completed"
-              //  + " container ({1}).", node.getNodeID(), cId));
         csList.add(newContainerStatus(
                 cId, ContainerState.COMPLETE, ContainerExitStatus.SUCCESS));
       }
@@ -218,8 +206,6 @@ public class NMSimulator extends TaskRunner.Task {
     // released containers
     synchronized (releasedContainerList) {
       for (ContainerId cId : releasedContainerList) {
-       // LOG.info(MessageFormat.format("NodeManager {0} released container"
-             //   + " ({1}).", node.getNodeID(), cId));
         csList.add(newContainerStatus(
                 cId, ContainerState.COMPLETE, ContainerExitStatus.ABORTED));
       }
@@ -249,8 +235,6 @@ public class NMSimulator extends TaskRunner.Task {
    * @param lifeTimeMS
    */
   public void addNewContainer(Container container, long lifeTimeMS) {
-    //LOG.info(MessageFormat.format("NodeManager {0} launches a new "
-          //  + "container ({1}).", node.getNodeID(), container.getId()));
     if (lifeTimeMS != -1) {
       // normal container
       ContainerSimulator cs = new ContainerSimulator(container.getId(),

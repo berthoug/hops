@@ -19,19 +19,13 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 public abstract class TransactionState {
 
-  
   //TODO: Should we persist this id when the RT crashes and the NM starts 
   //sending HBs to the new RT?
   protected static AtomicInteger pendingEventId = new AtomicInteger(0);
@@ -51,7 +45,7 @@ public abstract class TransactionState {
   private Set<Integer> rpcIds = new ConcurrentSkipListSet<Integer>();
   private int id=-1;
   private final boolean batch;
-  
+
   public TransactionState(int initialCounter, boolean batch) {
 
     counter = new AtomicInteger(initialCounter);
@@ -64,9 +58,9 @@ public abstract class TransactionState {
     public Set<ApplicationId> getAppIds(){
     return appIds;
   }
-    
+
   abstract boolean addAppId(ApplicationId appId);
-    
+
   public synchronized void incCounter(Enum type) {
     counter.incrementAndGet();
   }
@@ -79,16 +73,16 @@ public abstract class TransactionState {
   }
 
   public int getCounter(){
-      return counter.get();
+    return counter.get();
   }
- 
+
   public void addRPCId(int rpcId){
     if(rpcId>=0 && id<0){
       id = rpcId;
     }
     rpcIds.add(rpcId);
   }
-  
+
   public Set<Integer> getRPCIds(){
     return rpcIds;
   }

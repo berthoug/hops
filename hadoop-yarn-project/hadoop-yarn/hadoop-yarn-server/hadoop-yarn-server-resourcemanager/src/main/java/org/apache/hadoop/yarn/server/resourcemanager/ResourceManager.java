@@ -18,7 +18,6 @@ package org.apache.hadoop.yarn.server.resourcemanager;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.hops.common.GlobalThreadPool;
-import io.hops.ha.common.TransactionStateManager;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.util.YarnAPIStorageFactory;
 import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
@@ -216,7 +215,8 @@ public class ResourceManager extends CompositeService implements Recoverable {
     rmSecretManagerService = createRMSecretManagerService();
     service.addService(rmSecretManagerService);
 
-    containerAllocationExpirer = new ContainerAllocationExpirer(rmDispatcher);
+    containerAllocationExpirer = new ContainerAllocationExpirer(rmDispatcher,
+            rmContext);
     service.addService(containerAllocationExpirer);
     rmContext.setContainerAllocationExpirer(containerAllocationExpirer);
 
@@ -337,8 +337,6 @@ public class ResourceManager extends CompositeService implements Recoverable {
     if (this.rmContext.isHAEnabled()) {
       HAUtil.verifyAndSetConfiguration(this.conf);
     }
-    createAndInitActiveServices();
-
     if (HAUtil.isHAEnabled(conf)) {
       webAppAddress = WebAppUtils.getRMHAWebAppURLWithoutScheme(this.conf);
     } else {
@@ -352,6 +350,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
         YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED)) {
       startDistributedRTServices(this);
     }
+    createAndInitActiveServices();
     super.serviceInit(this.conf);
   }
 
@@ -400,11 +399,11 @@ public class ResourceManager extends CompositeService implements Recoverable {
   }
 
   private NMLivelinessMonitor createNMLivelinessMonitor() {
-    return new NMLivelinessMonitor(this.rmContext.getDispatcher());
+    return new NMLivelinessMonitor(this.rmContext.getDispatcher(), rmContext);
   }
 
   protected AMLivelinessMonitor createAMLivelinessMonitor() {
-    return new AMLivelinessMonitor(this.rmDispatcher);
+    return new AMLivelinessMonitor(this.rmDispatcher, rmContext);
   }
 
   protected DelegationTokenRenewer createDelegationTokenRenewer() {
@@ -960,8 +959,19 @@ public class ResourceManager extends CompositeService implements Recoverable {
     //Start periodic retrieval of pending scheduler events
     if (conf.getBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
         YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED)) {
-      LOG.debug("HOP :: Starting PendingEvent retrieval thread");
-      retrievalThread = new PendingEventRetrievalBatch(rmContext, conf);
+    if (conf.getBoolean(YarnConfiguration.HOPS_NDB_EVENT_STREAMING_ENABLED,
+              YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED)) {
+        if (!conf.getBoolean(
+                YarnConfiguration.HOPS_NDB_RT_EVENT_STREAMING_ENABLED,
+                YarnConfiguration.DEFAULT_HOPS_NDB_RT_EVENT_STREAMING_ENABLED)) {
+          LOG.info("HOP :: NDB Event streaming is starting now ..");
+          RMStorageFactory.kickTheNdbEventStreamingAPI();
+        }
+        retrievalThread = new NdbEventStreamingProcessor(rmContext, conf);
+      } else {
+        LOG.debug("HOP :: Starting PendingEvent retrieval thread");
+        retrievalThread = new PendingEventRetrievalBatch(rmContext, conf);
+      }
       GlobalThreadPool.getExecutorService().execute(retrievalThread);
     }
   }

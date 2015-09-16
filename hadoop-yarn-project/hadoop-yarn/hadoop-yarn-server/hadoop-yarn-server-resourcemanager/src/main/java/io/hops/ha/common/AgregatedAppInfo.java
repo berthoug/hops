@@ -15,7 +15,6 @@
  */
 package io.hops.ha.common;
 
-import io.hops.StorageConnector;
 import io.hops.exception.StorageException;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.yarn.dal.AppSchedulingInfoBlacklistDataAccess;
@@ -35,21 +34,16 @@ import io.hops.metadata.yarn.entity.AppSchedulingInfoBlacklist;
 import io.hops.metadata.yarn.entity.Container;
 import io.hops.metadata.yarn.entity.FiCaSchedulerAppContainer;
 import io.hops.metadata.yarn.entity.FiCaSchedulerAppLastScheduledContainer;
-import io.hops.metadata.yarn.entity.FiCaSchedulerAppReservedContainerInfo;
 import io.hops.metadata.yarn.entity.FiCaSchedulerAppSchedulingOpportunities;
 import io.hops.metadata.yarn.entity.Resource;
 import io.hops.metadata.yarn.entity.ResourceRequest;
 import io.hops.metadata.yarn.entity.SchedulerAppReservations;
-import io.hops.metadata.yarn.entity.ToPersistContainersInfo;
 import io.hops.metadata.yarn.entity.capacity.FiCaSchedulerAppReservedContainers;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.yarn.api.records.Priority;
 
 public class AgregatedAppInfo {
 
@@ -59,11 +53,11 @@ public class AgregatedAppInfo {
           = new ArrayList<AppSchedulingInfo>();
   List<AppSchedulingInfo> appSchedulingInfoToRemove
           = new ArrayList<AppSchedulingInfo>();
-  Set<Resource> resourcesToPersist = new HashSet<Resource>();
-  Set<Resource> resourcesToRemove = new HashSet<Resource>();
+  List<Resource> resourcesToPersist = new ArrayList<Resource>();
+  List<Resource> resourcesToRemove = new ArrayList<Resource>();
   List<FiCaSchedulerAppReservedContainers> toAddReservedContainers
           = new ArrayList<FiCaSchedulerAppReservedContainers>();
-  Set<Container> toAddContainers = new HashSet<Container>();
+  List<Container> toAddContainers = new ArrayList<Container>();
   List<FiCaSchedulerAppReservedContainers> toRemoveReservedContainers
           = new ArrayList<FiCaSchedulerAppReservedContainers>();
   List<io.hops.metadata.yarn.entity.RMContainer> toRemoveRMContainers
@@ -82,7 +76,7 @@ public class AgregatedAppInfo {
           = new ArrayList<FiCaSchedulerAppContainer>();
   List<FiCaSchedulerAppContainer> toRemoveLiveContainers
           = new ArrayList<FiCaSchedulerAppContainer>();
-  Set<ResourceRequest> toAddResourceRequests = new HashSet<ResourceRequest>();
+  List<ResourceRequest> toAddResourceRequests = new ArrayList<ResourceRequest>();
   List<ResourceRequest> toRemoveResourceRequests
           = new ArrayList<ResourceRequest>();
   List<AppSchedulingInfoBlacklist> toAddblackListed

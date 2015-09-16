@@ -18,8 +18,6 @@ package io.hops.ha.common;
 
 import io.hops.metadata.util.RMUtilities;
 import io.hops.metadata.util.YarnAPIStorageFactory;
-import io.hops.metadata.yarn.dal.AppSchedulingInfoBlacklistDataAccess;
-import io.hops.metadata.yarn.dal.AppSchedulingInfoDataAccess;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

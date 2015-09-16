@@ -41,17 +41,18 @@ public class InitializeAppMaster implements Runnable {
 
   protected static Configuration conf = new YarnConfiguration();
   private UnmanagedAMLauncher launcher;
-  private String queueName;
-  private String inputLoadTraces;
-  private int slsLoad;
-  private int appSimOffSet;
-  private String rmAddress;
+  private final String queueName;
+  private final String inputLoadTraces;
+  private final int appSimOffSet;
+  private final String rmAddress;
+  private String rmiAddress;
 
-  public InitializeAppMaster(String queueName, String inputLoadTraces, int appSimOffSet, String rmAddress) {
+  public InitializeAppMaster(String queueName, String inputLoadTraces, int appSimOffSet, String rmAddress,String rmiAddress) {
     this.queueName = queueName;
     this.inputLoadTraces = inputLoadTraces;
     this.appSimOffSet = appSimOffSet;
     this.rmAddress = rmAddress;
+    this.rmiAddress=rmiAddress;
   }
 
   private String getRunTimeClassPath() {
@@ -87,7 +88,8 @@ public class InitializeAppMaster implements Runnable {
       + AppMasterProcess.class.getCanonicalName() + " "
       + inputLoadTraces + " "
       + Integer.toString(appSimOffSet) + " "
-      + rmAddress};
+      + rmAddress + " "
+      + rmiAddress};
 
     LOG.info("Initializing Launcher : setting resource manger address : " + rmAddress);
     conf.setStrings(YarnConfiguration.RM_ADDRESS,rmAddress);

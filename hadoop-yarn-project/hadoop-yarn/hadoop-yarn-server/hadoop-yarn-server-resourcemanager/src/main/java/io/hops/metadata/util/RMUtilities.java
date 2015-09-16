@@ -101,8 +101,6 @@ import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
 import io.hops.metadata.yarn.entity.capacity.CSLeafQueueUserInfo;
 import io.hops.metadata.yarn.entity.capacity.CSQueue;
 import io.hops.metadata.yarn.entity.capacity.FiCaSchedulerAppReservedContainers;
-import io.hops.metadata.yarn.entity.fair.FSSchedulerNode;
-import io.hops.metadata.yarn.entity.fair.PreemptionMap;
 import io.hops.metadata.yarn.entity.rmstatestore.AllocateResponse;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationAttemptState;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationState;
@@ -156,26 +154,20 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
-import org.apache.hadoop.yarn.api.records.impl.pb.NMTokenPBImpl;
 import org.apache.hadoop.yarn.proto.YarnProtos;
 
 public class RMUtilities {
@@ -1318,7 +1310,7 @@ public class RMUtilities {
    * @throws IOException
    */
   public static Map<String, ConcurrentSkipListSet<PendingEvent>> getPendingEvents(
-      final int numberOfEvents, final byte status) throws IOException {
+      final int numberOfEvents, final int status) throws IOException {
     LightWeightRequestHandler getPendingEventsHandler =
         new LightWeightRequestHandler(YARNOperationType.TEST) {
           @Override
@@ -1367,7 +1359,7 @@ public class RMUtilities {
    * @throws IOException
    */
   public static Map<String, ConcurrentSkipListSet<PendingEvent>> getAndUpdatePendingEvents(
-      final int numberOfEvents, final byte status) throws IOException {
+      final int numberOfEvents, final int status) throws IOException {
     LightWeightRequestHandler getAndUpdatePendingEventsHandler =
         new LightWeightRequestHandler(YARNOperationType.TEST) {
           @Override
@@ -2105,9 +2097,8 @@ public class RMUtilities {
             return hopFinishedApps;
           }
         };
-    return (Map<String, List<FinishedApplications>>) getFinishedApplicationsHandler
-        .
-            handle();
+    return (Map<String, List<FinishedApplications>>) 
+            getFinishedApplicationsHandler.handle();
   }
   
   public static Map<String, List<JustLaunchedContainers>> getAllJustLaunchedContainers()
@@ -2480,7 +2471,6 @@ public class RMUtilities {
   static AtomicDouble totalt8 =new AtomicDouble(0);
   static AtomicDouble totalt9 =new AtomicDouble(0);
   static AtomicDouble totalt10 =new AtomicDouble(0);
-  static AtomicDouble totalt11 =new AtomicDouble(0);
 
   public static void finishRPC(final TransactionStateImpl ts) {
     logs.add("start commit");
@@ -2574,7 +2564,7 @@ public class RMUtilities {
                 rmctxInactiveNodesDA);
             long t4 = System.currentTimeMillis()-start;
             ts.persistRMNodeInfo(hbDA, cidToCleanDA, justLaunchedContainersDA,
-                updatedContainerInfoDA, faDA, csDA);
+                updatedContainerInfoDA, faDA, csDA,persistedEventDA);
             long t5 = System.currentTimeMillis()-start;
             ts.persist();
             long t6 = System.currentTimeMillis()-start;
@@ -2585,13 +2575,12 @@ public class RMUtilities {
             long t8 = System.currentTimeMillis()-start;
             ts.persistSchedulerApplicationInfo(QMDA, connector);
             long t9 = System.currentTimeMillis()-start;
-            ts.persistPendingEvents(persistedEventDA);
-            long t10 = System.currentTimeMillis()-start;
             nbCommit.incrementAndGet(); connector.commit();
-            long t11 = System.currentTimeMillis()-start;
-            if(t11>100){
-              LOG.error("commit too long: " + t11 + " dt: " + t1 + " "+ t2 + " "+ t3 + " "+ t4 + " "+ t5 + " "+ t6 + " "+ t7 + " "+ t8 + " "+ t9 + " "+ t10 + " "+ t11 + " ");
-//              ts.dump();
+            long t10 = System.currentTimeMillis()-start;
+            if (t10 > 100) {
+              LOG.error("commit too long: " + t10 + " dt: " + t1 + " " + t2
+                      + " " + t3 + " " + t4 + " " + t5 + " " + t6 + " " + t7
+                      + " " + t8 + " " + t9 + " " + t10 + " ");
             }
             totalt1.addAndGet(t1);
             totalt2.addAndGet(t2);
@@ -2603,7 +2592,7 @@ public class RMUtilities {
             totalt8.addAndGet(t8);
             totalt9.addAndGet(t9);
             totalt10.addAndGet(t10);
-            totalt11.addAndGet(t11);
+            //totalt11.addAndGet(t11);
             logs.add("finish handle");
             return null;
           }
@@ -2612,10 +2601,6 @@ public class RMUtilities {
       setfinishRPCHandler.handle();
     } catch (IOException ex) {
       LOG.error("HOP :: Error commiting finishRPC ", ex);
-//      String yarnState = YarnAPIStorageFactory.printYarnState();
-//    
-//      LOG.error("commit failed: " + yarnState);
-    
     }
     long commitDuration = System.currentTimeMillis() - start;
     long commitAndQueueDuration = commitDuration;
@@ -2670,7 +2655,6 @@ public class RMUtilities {
   totalt8 = new AtomicDouble(0);
   totalt9 = new AtomicDouble(0);
   totalt10 = new AtomicDouble(0);
-  totalt11 = new AtomicDouble(0);
   }
   public static double getCommitAvgDuration(){
     return totalCommitDuration.get() / nbFinish.get();
@@ -2709,10 +2693,11 @@ public class RMUtilities {
     double avgt8=totalt8.get()/nbFinish.get();
     double avgt9=totalt9.get()/nbFinish.get();
     double avgt10=totalt10.get()/nbFinish.get();
-    double avgt11=totalt11.get()/nbFinish.get();
     int nbCommits = nbCommit.get()-oldNBCommit;
     oldNBCommit = nbCommit.get();
-    return "nb commits: " + nbCommits + "| " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", " + avgt7 + ", " + avgt8 + ", " + avgt9 + ", " + avgt10 + ", " + avgt11;
+    return "nb commits: " + nbCommits + "| " + avgt1 + ", " + avgt2 + ", "
+            + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", " + avgt7
+            + ", " + avgt8 + ", " + avgt9 + ", " + avgt1;
   }
   //for testing (todo: move in test class)
   public static Resource getResource(final String id, final int type,

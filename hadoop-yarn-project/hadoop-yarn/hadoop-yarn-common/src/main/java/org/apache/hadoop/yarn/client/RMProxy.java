@@ -92,14 +92,14 @@ public class RMProxy<T> {
         (YarnConfiguration) configuration :
         new YarnConfiguration(configuration);
     RetryPolicy retryPolicy = createRetryPolicy(conf);
-    LOG.info("HAEnabled " + HAUtil.isHAEnabled(conf));
+    LOG.debug("HAEnabled " + HAUtil.isHAEnabled(conf));
     if (HAUtil.isHAEnabled(conf)) {
       RMFailoverProxyProvider<T> provider =
           instance.createRMFailoverProxyProvider(conf, protocol, leader);
       return (T) RetryProxy.create(protocol, provider, retryPolicy);
     } else {
       InetSocketAddress rmAddress = instance.getRMAddress(conf, protocol);
-      LOG.info("Connecting to ResourceManager at " + rmAddress);
+      LOG.debug("Connecting to ResourceManager at " + rmAddress);
       T proxy = RMProxy.<T>getProxy(conf, protocol, rmAddress);
       return (T) RetryProxy.create(protocol, proxy, retryPolicy);
     }

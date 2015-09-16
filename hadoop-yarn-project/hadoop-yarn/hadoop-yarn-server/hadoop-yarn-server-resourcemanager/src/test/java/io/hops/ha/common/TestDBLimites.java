@@ -156,7 +156,7 @@ public class TestDBLimites {
     for (RMContainer rmContainer : rmContainersList) {
       ContainerStatus status = new ContainerStatus(rmContainer.
               getContainerIdID(), "running", "", 0,
-              "nodeid_" + random.nextInt(10));
+              "nodeid_" + random.nextInt(10),0);
       toAdd.add(status);
     }
     return toAdd;
@@ -166,7 +166,7 @@ public class TestDBLimites {
     List<NextHeartbeat> toAdd = new ArrayList<NextHeartbeat>();
     for (int i = 0; i < nbHB; i++) {
       NextHeartbeat nhb
-              = new NextHeartbeat("nodeid_" + random.nextInt(10), true);
+              = new NextHeartbeat("nodeid_" + random.nextInt(10), true,0);
       toAdd.add(nhb);
     }
     return toAdd;
@@ -190,7 +190,7 @@ public class TestDBLimites {
       RMNode rmNode
               = new RMNode("nodeid_" + random.nextInt(4000), "hostName", 1,
                       1, "nodeAddress", "httpAddress", "", 1, "currentState",
-                      "version", 1, 1);
+                      "version", 1, 1,0);
       toAdd.add(rmNode);
     }
     return toAdd;
@@ -223,7 +223,7 @@ public class TestDBLimites {
                 for (int i = 0; i < 4000; i++) {
                   RMNode rmNode = new RMNode("nodeid_" + i, "hostName", 1,
                           1, "nodeAddress", "httpAddress", "", 1, "currentState",
-                          "version", 1, 1);
+                          "version", 1, 1,0);
                   toAdd.add(rmNode);
                 }
 

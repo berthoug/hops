@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Apache Software Foundation.
+ * Copyright (C) 2015 hops.io.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,9 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 
+import java.lang.reflect.Field;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -40,6 +43,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.distributedloadsimulator.sls.SLSRunner;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
@@ -243,7 +247,27 @@ public class UnmanagedAMLauncher {
     LOG.info("HOP :: Applicaton master process cmd: "+amCmd + "|Env variable: "+Arrays.toString(envAMList.toArray(envAM)));
     
     Process amProc = Runtime.getRuntime().exec(amCmd, envAMList.toArray(envAM));
-   
+
+    Field processField = null;
+    try {
+      processField = amProc.getClass().getDeclaredField("pid");
+      processField.setAccessible(true);
+      Object pid = processField.get(amProc);
+      LOG.info(
+              "HOP :: Application master process is started with process id :  "
+              + pid);
+      SLSRunner.addProcessId(appId.toString(), (Integer) pid);
+    } catch (NoSuchFieldException ex) {
+      LOG.error(ex);
+    } catch (SecurityException ex) {
+      LOG.error(ex);
+    } catch (IllegalArgumentException ex) {
+      Logger.getLogger(UnmanagedAMLauncher.class.getName()).
+              log(Level.SEVERE, null, ex);
+    } catch (IllegalAccessException ex) {
+      Logger.getLogger(UnmanagedAMLauncher.class.getName()).
+              log(Level.SEVERE, null, ex);
+    }
     LOG.info("HOP :: Application master process is started ");
    
   

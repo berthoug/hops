@@ -16,7 +16,6 @@
 package io.hops.ha.common;
 
 import io.hops.exception.StorageException;
-import static io.hops.ha.common.FiCaSchedulerNodeInfoAgregate.totalt1;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.yarn.dal.ContainerIdToCleanDataAccess;
 import io.hops.metadata.yarn.dal.ContainerStatusDataAccess;
@@ -24,6 +23,7 @@ import io.hops.metadata.yarn.dal.FinishedApplicationsDataAccess;
 import io.hops.metadata.yarn.dal.JustLaunchedContainersDataAccess;
 import io.hops.metadata.yarn.dal.NextHeartbeatDataAccess;
 import io.hops.metadata.yarn.dal.NodeHBResponseDataAccess;
+import io.hops.metadata.yarn.dal.PendingEventDataAccess;
 import io.hops.metadata.yarn.dal.UpdatedContainerInfoDataAccess;
 import io.hops.metadata.yarn.entity.ContainerId;
 import io.hops.metadata.yarn.entity.ContainerStatus;
@@ -31,15 +31,16 @@ import io.hops.metadata.yarn.entity.FinishedApplications;
 import io.hops.metadata.yarn.entity.JustLaunchedContainers;
 import io.hops.metadata.yarn.entity.NextHeartbeat;
 import io.hops.metadata.yarn.entity.NodeHBResponse;
+import io.hops.metadata.yarn.entity.PendingEvent;
 import io.hops.metadata.yarn.entity.UpdatedContainerInfo;
-import io.hops.metadata.yarn.entity.UpdatedContainerInfoToAdd;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 public class RMNodeInfoAgregate {
 
@@ -52,13 +53,17 @@ public class RMNodeInfoAgregate {
   ArrayList<ContainerId> toAddContainerIdToClean = new ArrayList<ContainerId>();
   ArrayList<ContainerId> toRemoveContainerIdToClean
           = new ArrayList<ContainerId>();
-  Set<FinishedApplications> toAddFinishedApplications
-          = new HashSet<FinishedApplications>();
-  Set<FinishedApplications> toRemoveFinishedApplications
-          = new HashSet<FinishedApplications>();
+  List<FinishedApplications> toAddFinishedApplications
+          = new ArrayList<FinishedApplications>();
+  Set<PendingEvent> toAddPendingEvents
+          = new HashSet<PendingEvent>();
+  Set<PendingEvent> toRemovePendingEvents
+          = new HashSet<PendingEvent>();
+  List<FinishedApplications> toRemoveFinishedApplications
+          = new ArrayList<FinishedApplications>();
   ArrayList<UpdatedContainerInfo> uciToAdd
           = new ArrayList<UpdatedContainerInfo>();
-  Set<UpdatedContainerInfo> uciToRemove = new HashSet<UpdatedContainerInfo>();
+  List<UpdatedContainerInfo> uciToRemove = new ArrayList<UpdatedContainerInfo>();
   List<NodeHBResponse> hbResponseToAdd = new ArrayList<NodeHBResponse>();
   List<NextHeartbeat> nextHeartBeatToUpdate = new ArrayList<NextHeartbeat>();
 
@@ -72,9 +77,19 @@ public class RMNodeInfoAgregate {
     this.toAddJustLaunchedContainers.addAll(toAddJustLaunchedContainers);
   }
 
-  public void addAllJustLaunchedContainersToRemove(
+    public void addAllJustLaunchedContainersToRemove(
           List<JustLaunchedContainers> toRemoveJustLaunchedContainers) {
-    this.toRemoveJustLaunchedContainers.addAll(toAddJustLaunchedContainers);
+    this.toRemoveJustLaunchedContainers.addAll(toRemoveJustLaunchedContainers);
+  }
+    
+  public void addAllPendingEventsToAdd(
+          ArrayList<PendingEvent> toAddPendingEvents) {
+    this.toAddPendingEvents.addAll(toAddPendingEvents);
+  }
+
+  public void addAllPendingEventsToRemove(
+          ArrayList<PendingEvent> toRemovePendingEvents) {
+    this.toRemovePendingEvents.addAll(toRemovePendingEvents);
   }
 
   public void addAllContainersToCleanToAdd(
@@ -94,7 +109,7 @@ public class RMNodeInfoAgregate {
 
   public void addAllFinishedAppToRemove(
           ArrayList<FinishedApplications> toRemoveFinishedApplications) {
-    this.toRemoveFinishedApplications.addAll(toAddFinishedApplications);
+    this.toRemoveFinishedApplications.addAll(toRemoveFinishedApplications);
   }
 
   public void addAllUpdatedContainerInfoToAdd(
@@ -103,7 +118,7 @@ public class RMNodeInfoAgregate {
   }
 
   public void addAllUpdatedContainerInfoToRemove(
-          Set<UpdatedContainerInfo> uciToRemove) {
+          List<UpdatedContainerInfo> uciToRemove) {
     this.uciToRemove.addAll(uciToRemove);
   }
 
@@ -126,13 +141,16 @@ public class RMNodeInfoAgregate {
   static double totalt9 = 0;
   static double totalt10 = 0;
   static double totalt11 = 0;
+  static double totalt12 = 0;
+  static double totalt13 = 0;
   static long nbFinish = 0;
 
   public void persist(NodeHBResponseDataAccess hbDA,
           ContainerIdToCleanDataAccess cidToCleanDA,
           JustLaunchedContainersDataAccess justLaunchedContainersDA,
           UpdatedContainerInfoDataAccess updatedContainerInfoDA,
-          FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA)
+          FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA,
+          PendingEventDataAccess persistedEventsDA)
           throws StorageException {
     Long start = System.currentTimeMillis();
     persistContainerStatusToAdd(csDA);
@@ -157,6 +175,10 @@ public class RMNodeInfoAgregate {
     totalt10 = totalt10 + System.currentTimeMillis() - start;
     persistNextHeartbeat();
     totalt11 = totalt11 + System.currentTimeMillis() - start;
+    persistPendingEventsToAdd(persistedEventsDA);
+    totalt12 = totalt12 + System.currentTimeMillis() - start;
+    persistPendingEventsToRemove(persistedEventsDA);
+    totalt13 = totalt13 + System.currentTimeMillis() - start;
     nbFinish++;
     if (nbFinish % 100 == 0) {
       double avgt1 = totalt1 / nbFinish;
@@ -170,10 +192,14 @@ public class RMNodeInfoAgregate {
       double avgt9 = totalt9 / nbFinish;
       double avgt10 = totalt10 / nbFinish;
       double avgt11 = totalt11 / nbFinish;
+      double avgt12 = totalt12 / nbFinish;
+      double avgt13 = totalt13 / nbFinish;
       LOG.info("avg time commit node info agregate: " + avgt1 + ", " + avgt2
               + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", "
               + avgt7 + ", " + avgt8 + ", " + avgt9 + ", " + avgt10 + ", "
-              + avgt11);
+              + avgt11 + ", "
+              + avgt12 + ", "
+              + avgt13);
     }
   }
 
@@ -227,6 +253,18 @@ public class RMNodeInfoAgregate {
           UpdatedContainerInfoDataAccess updatedContainerInfoDA) throws
           StorageException {
     updatedContainerInfoDA.removeAll(uciToRemove);
+  }
+
+  public void persistPendingEventsToAdd(
+          PendingEventDataAccess persistedEventsDA) throws
+          StorageException {
+    persistedEventsDA.addAll(toAddPendingEvents);
+  }
+
+  public void persistPendingEventsToRemove(
+          PendingEventDataAccess persistedEventsDA) throws
+          StorageException {
+    persistedEventsDA.removeAll(toRemovePendingEvents);
   }
 
   public void persistLatestHeartBeatResponseToAdd(NodeHBResponseDataAccess hbDA)

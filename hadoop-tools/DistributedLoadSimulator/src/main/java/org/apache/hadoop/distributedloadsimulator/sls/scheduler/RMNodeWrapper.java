@@ -1,13 +1,11 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+/*
+ * Copyright (C) 2015 hops.io.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -112,25 +110,25 @@ public class RMNodeWrapper implements RMNode {
     return node.getContainersToCleanUp();
   }
 
-//  @Override
-//  public void setContainersToCleanUp(Set<ContainerId> newSet){
-//    node.setContainersToCleanUp(newSet);
-//  }
-//  
-//  @Override
-//  public void setAppsToCleanup(List<ApplicationId> newList) {
-//    node.setAppsToCleanup(newList);
-//  }
+  @Override
+  public void setContainersToCleanUp(Set<ContainerId> newSet){
+    node.setContainersToCleanUp(newSet);
+  }
+  
+  @Override
+  public void setAppsToCleanup(List<ApplicationId> newList) {
+    node.setAppsToCleanup(newList);
+  }
   
   @Override
   public List<ApplicationId> getAppsToCleanup() {
     return node.getAppsToCleanup();
   }
 
-//  @Override
-//  public void setNextHeartBeat(boolean nextHeartBeat) {
-//    node.setNextHeartBeat(nextHeartBeat);
-//  }
+  @Override
+  public void setNextHeartBeat(boolean nextHeartBeat) {
+    node.setNextHeartBeat(nextHeartBeat);
+  }
       
   @Override
   public void updateNodeHeartbeatResponseForCleanup(
@@ -176,6 +174,17 @@ public class RMNodeWrapper implements RMNode {
     @Override
     public void recover(RMStateStore.RMState state) throws Exception {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public int getRMNodePendingEventId() {
+        LOG.info("distributed load simulator returning rmnode pending event id ");
+        return 0;
+    }
+
+    @Override
+    public void setRMNodePendingEventId(int pendingId) {
+        LOG.info("distributed load simulator returning rmnode set pending event id ");
     }
 
   

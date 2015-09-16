@@ -26,9 +26,7 @@ import io.hops.metadata.yarn.entity.RMContainer;
 import io.hops.metadata.yarn.entity.Resource;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -42,8 +40,8 @@ public class FiCaSchedulerNodeInfoAgregate {
           = new ArrayList<RMContainer>();
   ArrayList<LaunchedContainers> toAddLaunchedContainers
           = new ArrayList<LaunchedContainers>();
-  Set<LaunchedContainers> toRemoveLaunchedContainers
-          = new HashSet<LaunchedContainers>();
+  List<LaunchedContainers> toRemoveLaunchedContainers
+          = new ArrayList<LaunchedContainers>();
   List<Resource> toUpdateResources = new ArrayList<Resource>();
 
   public void addToUpdateFiCaSchedulerNode(FiCaSchedulerNode infoToUpdate) {
@@ -62,7 +60,7 @@ public class FiCaSchedulerNodeInfoAgregate {
 
   public void addAllLaunchedContainersToRemove(
           ArrayList<LaunchedContainers> toRemoveLaunchedContainers) {
-    this.toRemoveLaunchedContainers.addAll(toAddLaunchedContainers);
+      this.toRemoveLaunchedContainers.addAll(toRemoveLaunchedContainers);
   }
 
   public void addAllResourcesToUpdate(Collection<Resource> toUpdateResources) {

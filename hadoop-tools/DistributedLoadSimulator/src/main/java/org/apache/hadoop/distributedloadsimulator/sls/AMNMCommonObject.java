@@ -27,9 +27,11 @@ public interface AMNMCommonObject extends Remote {
  // all the unmanged application master will call this to update node manager's containers 
  // internal data strcutres
   void cleanupContainer(String containerId, String nodeId) throws RemoteException;
-  
+  boolean isNodeExist(String nodeId) throws RemoteException;
   void addNewContainer(String containerId, String nodeId, String httpAddress,
           int memory, int vcores, int priority,long lifeTimeMS) throws RemoteException;
-  void decreseApplicationCount() throws RemoteException;
+  void decreseApplicationCount(String applicationId) throws RemoteException;
+  int  finishedApplicationsCount() throws RemoteException;
+  void registerApplicationTimeStamp() throws RemoteException;
   
 }
