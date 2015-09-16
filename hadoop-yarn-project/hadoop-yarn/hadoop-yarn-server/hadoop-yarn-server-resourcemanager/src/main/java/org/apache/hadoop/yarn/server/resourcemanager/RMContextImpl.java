@@ -441,7 +441,7 @@ public class RMContextImpl implements RMContext {
   @Override
   public HAServiceState getHAServiceState() {
     synchronized (haServiceState) {
-      LOG.debug(
+      LOG.info(
           "getHAServiceState " + groupMembershipService.getHostname() + " " +
               haServiceState);
       return haServiceState;

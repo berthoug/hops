@@ -82,12 +82,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
-import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
-import org.apache.hadoop.yarn.api.records.impl.pb.NMTokenPBImpl;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.LOG;
 
@@ -174,7 +171,7 @@ public class TransactionStateImpl extends TransactionState {
 
   
   private static final ExecutorService executorService =
-      Executors.newFixedThreadPool(20);
+      Executors.newFixedThreadPool(1);
   
   @Override
   public void commit(boolean first) throws IOException {
@@ -258,7 +255,7 @@ public class TransactionStateImpl extends TransactionState {
     double avgt4=totalt4/nbFinish;
     double avgt5=totalt5/nbFinish;
     double avgt6=totalt6/nbFinish;
-    LOG.info("avg time commit transactionStateImpl: " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6);
+    LOG.debug("avg time commit transactionStateImpl: " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6);
     }
     if(t6>1000){
 	LOG.error("commit transactionStateImpl too long : " + t1 + ", " + t2 + ", " + t3 + ", " + t4 + ", " + t5 + ", " + t6);
@@ -608,9 +605,9 @@ public class TransactionStateImpl extends TransactionState {
   static double tt3=0;
   private void persistAllocateResponsesToAdd() throws IOException {
     int debugid = this.getId();
-      LOG.info("persist allocateResponse to persist for rpc: " + debugid + " size" + allocateResponsesToAdd.size());
+      LOG.debug("persist allocateResponse to persist for rpc: " + debugid + " size" + allocateResponsesToAdd.size());
     if (!allocateResponsesToAdd.isEmpty()) {
-      LOG.info("persist allocateResponse to persist for rpc: " + debugid);
+      LOG.debug("persist allocateResponse to persist for rpc: " + debugid);
       long start = System.currentTimeMillis();
       AllocateResponseDataAccess da =
           (AllocateResponseDataAccess) RMStorageFactory
@@ -709,6 +706,7 @@ public class TransactionStateImpl extends TransactionState {
     int reservedVCores = isReserved ? rmContainer.getReservedResource().
             getVirtualCores() : 0;
 
+    LOG.info("addRMContainerToUpdate : "+rmContainer.getContainer() + "rmContainersToUpdate : "+rmContainersToUpdate);
     rmContainersToUpdate
             .put(rmContainer.getContainer().getId().toString(), new RMContainer(
                             rmContainer.getContainer().getId().toString(),

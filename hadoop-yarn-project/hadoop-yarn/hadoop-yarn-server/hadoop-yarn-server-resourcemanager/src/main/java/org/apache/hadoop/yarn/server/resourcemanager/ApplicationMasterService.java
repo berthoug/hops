@@ -250,12 +250,10 @@ public class ApplicationMasterService extends AbstractService
           regAMRequestData, applicationAttemptId.toString());
       
     }
-//    TransactionState transactionState = 
-//            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
-//                    "registerApplicationMaster");
+    TransactionState transactionState = 
+            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+                    "registerApplicationMaster");
     
-        TransactionState transactionState = new TransactionStateImpl(TransactionType.APP,1,
-            false);
     ApplicationId appID = applicationAttemptId.getApplicationId();
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
     if (lock == null) {

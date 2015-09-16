@@ -528,11 +528,10 @@ public class ClientRMService extends AbstractService
           .persistAppMasterRPC(rpcID, RPC.Type.SubmitApplication, submitAppData,
               user);
     }
-//    TransactionState transactionState =
-//            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
-//                    "submitApplication");
+    TransactionState transactionState =
+            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+                    "submitApplication");
     
-    TransactionState transactionState = new TransactionStateImpl(TransactionState.TransactionType.APP,1, false);
     // Check whether app has already been put into rmContext,
     // If it is, simply return the response
     if (rmContext.getRMApps().get(applicationId) != null) {

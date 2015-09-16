@@ -159,8 +159,8 @@ public class ResourceTrackerService extends AbstractService
                 RMStorageFactory.kickTheNdbEventStreamingAPI();
                 rtStreamingProcessor = new NdbRtStreamingProcessor(rmContext);
                 new Thread(rtStreamingProcessor).start();
-                rmContext.getTransactionStateManager().start();
             }
+            rmContext.getTransactionStateManager().start();
 
         }
         super.serviceInit(conf);
@@ -369,7 +369,6 @@ public class ResourceTrackerService extends AbstractService
                         .getRMNodeInfo(nodeId)
                         .toAddNextHeartbeat(nodeId.toString(),
                                 ((RMNodeImpl) rmNode).getNextHeartbeat());
-                rmNode.setRMNodePendingEventId(pendingEventId);
                 this.rmContext.getDispatcher().getEventHandler().handle(
                         new RMNodeEvent(nodeId, RMNodeEventType.STARTED, transactionState));
             } else {

@@ -489,8 +489,8 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
     initMetricsCSVOutput();
 
     // start web app to provide real-time tracking
-    web = new SLSWebApp(this, metricsWebAddressPort);
-    web.start();
+//    web = new SLSWebApp(this, metricsWebAddressPort);
+//    web.start();
 
     // a thread to update histogram timer
     pool = new ScheduledThreadPoolExecutor(2);

@@ -99,7 +99,7 @@ public class RMProxy<T> {
       return (T) RetryProxy.create(protocol, provider, retryPolicy);
     } else {
       InetSocketAddress rmAddress = instance.getRMAddress(conf, protocol);
-      LOG.info("Connecting to ResourceManager at " + rmAddress);
+      LOG.debug("Connecting to ResourceManager at " + rmAddress);
       T proxy = RMProxy.<T>getProxy(conf, protocol, rmAddress);
       return (T) RetryProxy.create(protocol, proxy, retryPolicy);
     }

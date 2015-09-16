@@ -175,7 +175,6 @@ public class RMNodeInfoAgregate {
         persistPendingEventsToRemove(persistedEventsDA);
         totalt13 = totalt13 + System.currentTimeMillis() - start;
         nbFinish++;
-        nbFinish++;
         if (nbFinish % 100 == 0) {
             double avgt1 = totalt1 / nbFinish;
             double avgt2 = totalt2 / nbFinish;
@@ -190,7 +189,7 @@ public class RMNodeInfoAgregate {
             double avgt11 = totalt11 / nbFinish;
             double avgt12 = totalt12 / nbFinish;
             double avgt13 = totalt13 / nbFinish;
-            LOG.info("avg time commit node info agregate: " + avgt1 + ", " + avgt2
+            LOG.debug("avg time commit node info agregate: " + avgt1 + ", " + avgt2
                     + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", "
                     + avgt7 + ", " + avgt8 + ", " + avgt9 + ", " + avgt10 + ", "
                     + avgt11 + ", "
@@ -207,9 +206,7 @@ public class RMNodeInfoAgregate {
     public void persistJustLaunchedContainersToAdd(
             JustLaunchedContainersDataAccess justLaunchedContainersDA) throws
             StorageException {
-
         justLaunchedContainersDA.addAll(toAddJustLaunchedContainers);
-
     }
 
     public void persistJustLaunchedContainersToRemove(
@@ -230,7 +227,6 @@ public class RMNodeInfoAgregate {
 
     public void persistFinishedApplicationToAdd(
             FinishedApplicationsDataAccess faDA) throws StorageException {
-
         faDA.addAll(toAddFinishedApplications);
     }
 

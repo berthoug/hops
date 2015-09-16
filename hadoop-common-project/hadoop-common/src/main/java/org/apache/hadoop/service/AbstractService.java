@@ -194,7 +194,7 @@ public abstract class AbstractService implements Service {
           if (isInState(STATE.STARTED)) {
             //if the service started (and isn't now in a later state), notify
             if (LOG.isDebugEnabled()) {
-              LOG.debug("Service " + getName() + " is started");
+              LOG.info("Service " + getName() + " is started");
             }
             notifyListeners();
           }
