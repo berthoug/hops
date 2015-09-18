@@ -61,7 +61,7 @@ public class ContainerAllocationExpirer
   @Override
   protected void expire(ContainerId containerId) {
     try {
-      LOG.info("create transactionState container expirer");
+      LOG.info("create transactionState container expirer for container " + containerId);
       TransactionState ts =rmContext.getTransactionStateManager().
             getCurrentTransactionState(-1, "ContainerAllocationExpirer");
       dispatcher.handle(new ContainerExpiredSchedulerEvent(containerId, ts));

@@ -328,6 +328,7 @@ public class NDBRMStateStore extends RMStateStore {
       List<NMToken> allocatedNMTokens
               = new ArrayList<NMToken>();
       for(org.apache.hadoop.yarn.api.records.Container container: allocateResponses.get(applicationAttemptId).getAllocatedContainers()){
+        LOG.info("set allocated nm token for: " + applicationAttemptId);
         NMToken nmToken = rmContext.getNMTokenSecretManager()
             .createAndGetNMToken(rmState.appSchedulingInfos.get(applicationAttemptId.toString()).getUser(), applicationAttemptId,
                 container);

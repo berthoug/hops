@@ -277,14 +277,14 @@ public class SLSRunner implements AMNMCommonObject {
         Configuration rtConf = new YarnConfiguration();
         int rtPort = rtConf.getPort(YarnConfiguration.RM_RESOURCE_TRACKER_PORT, YarnConfiguration.DEFAULT_RM_RESOURCE_TRACKER_PORT);
 
-        for (int i = 0; i < numberOfRT; ++i) {
-            rtConf.setStrings(YarnConfiguration.RM_RESOURCE_TRACKER_ADDRESS, rtAddresses[i]);
-            resourceTrackers[i] = (ResourceTracker) RpcClientFactoryPBImpl.get().
-                    getClient(ResourceTracker.class, 1, rtConf.getSocketAddr(
-                                    YarnConfiguration.RM_RESOURCE_TRACKER_ADDRESS,
-                                    YarnConfiguration.DEFAULT_RM_RESOURCE_TRACKER_ADDRESS,
-                                    rtPort), rtConf);
-        }
+//        for (int i = 0; i < numberOfRT; ++i) {
+//            rtConf.setStrings(YarnConfiguration.RM_RESOURCE_TRACKER_ADDRESS, rtAddresses[i]);
+//            resourceTrackers[i] = (ResourceTracker) RpcClientFactoryPBImpl.get().
+//                    getClient(ResourceTracker.class, 1, rtConf.getSocketAddr(
+//                                    YarnConfiguration.RM_RESOURCE_TRACKER_ADDRESS,
+//                                    YarnConfiguration.DEFAULT_RM_RESOURCE_TRACKER_ADDRESS,
+//                                    rtPort), rtConf);
+//        }
         // create NM simulators
         int counter = 0;
         Random random = new Random();
@@ -301,7 +301,7 @@ public class SLSRunner implements AMNMCommonObject {
             NMSimulator nm = new NMSimulator();
             if (counter <= threshHoldLimit) {
                 nm.init(hostName, nmMemoryMB, nmVCores,
-                        random.nextInt(heartbeatInterval), heartbeatInterval, rm, resourceTrackers[rtOffSet]);
+                        random.nextInt(heartbeatInterval), heartbeatInterval, rm,rtConf);
 
             }
             if (counter == threshHoldLimit) {

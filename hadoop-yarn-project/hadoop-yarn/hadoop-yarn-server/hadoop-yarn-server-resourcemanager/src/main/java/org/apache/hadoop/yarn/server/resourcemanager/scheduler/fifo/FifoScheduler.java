@@ -929,8 +929,8 @@ public class FifoScheduler extends AbstractYarnScheduler
 
     // Update total usage
     Resources.subtractFrom(usedResource, container.getResource());
-    ((TransactionStateImpl) transactionState)
-        .updateUsedResource(clusterResource);
+//    ((TransactionStateImpl) transactionState)
+//        .updateUsedResource(clusterResource);
     LOG.info("Application attempt " + application.getApplicationAttemptId() +
         " released container " + container.getId() + " on node: " + node +
         " with event: " + event);

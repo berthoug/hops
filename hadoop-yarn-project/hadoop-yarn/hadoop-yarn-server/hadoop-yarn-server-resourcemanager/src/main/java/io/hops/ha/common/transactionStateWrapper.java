@@ -129,6 +129,10 @@ public class transactionStateWrapper extends TransactionStateImpl {
         result = result + ", " +  key;
       }
     }
+      result = result + " finished: ";
+    for(String key: handleStarts.keySet()){  
+      result = result + ", " + key;
+    }
     return result;
   }
   public int getCounter() {

@@ -606,10 +606,7 @@ public class TransactionStateImpl extends TransactionState {
   static double tt2=0;
   static double tt3=0;
   private void persistAllocateResponsesToAdd() throws IOException {
-    int debugid = this.getId();
-      LOG.info("persist allocateResponse to persist for rpc: " + debugid + " size" + allocateResponsesToAdd.size());
     if (!allocateResponsesToAdd.isEmpty()) {
-      LOG.info("persist allocateResponse to persist for rpc: " + debugid);
       long start = System.currentTimeMillis();
       AllocateResponseDataAccess da =
           (AllocateResponseDataAccess) RMStorageFactory

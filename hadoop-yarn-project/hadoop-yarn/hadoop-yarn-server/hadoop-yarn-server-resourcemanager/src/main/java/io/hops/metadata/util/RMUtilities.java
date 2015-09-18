@@ -2624,8 +2624,8 @@ public class RMUtilities {
       minCommitAndQueueDuration = commitAndQueueDuration;
     }
     nbFinish.addAndGet(1);
-    if(maxCommitAndQueueDuration>1000){
-      LOG.error("commit and queue duration too long: " + maxCommitAndQueueDuration + " (" + commitDuration + ") " + " nodes: " + ts.getRMNodesToUpdate().keySet() + 
+    if(commitAndQueueDuration>1000){
+      LOG.error("commit and queue duration too long: " + commitAndQueueDuration + " (" + commitDuration + ") " + " nodes: " + ts.getRMNodesToUpdate().keySet() + 
               " app: " + ts.getAppIds());
     }
     logs.add("finish (" + ts.getId() +"): " + commitDuration + ", " + commitAndQueueDuration );

@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.DelayQueue;
+import org.apache.hadoop.conf.Configuration;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -49,6 +50,8 @@ import org.apache.log4j.Logger;
 import org.apache.hadoop.distributedloadsimulator.sls.scheduler.ContainerSimulator;
 import org.apache.hadoop.distributedloadsimulator.sls.scheduler.TaskRunner;
 import org.apache.hadoop.distributedloadsimulator.sls.utils.SLSUtils;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.server.api.ServerRMProxy;
 
 public class NMSimulator extends TaskRunner.Task {
 
@@ -57,6 +60,7 @@ public class NMSimulator extends TaskRunner.Task {
   private RMNode node;
   // master key
   private MasterKey masterKey;
+  private MasterKey containerMasterKey;
   // containers with various STATE
   private List<ContainerId> completedContainerList;
   private List<ContainerId> releasedContainerList;
@@ -72,11 +76,13 @@ public class NMSimulator extends TaskRunner.Task {
   private final static Logger LOG = Logger.getLogger(NMSimulator.class);
 
   public void init(String nodeIdStr, int memory, int cores,
-          int dispatchTime, int heartBeatInterval, ResourceManager rm, ResourceTracker rt)
+          int dispatchTime, int heartBeatInterval, ResourceManager rm, Configuration conf)
           throws IOException, YarnException {
     super.init(dispatchTime, dispatchTime + 1000000L * heartBeatInterval,
             heartBeatInterval);
-    this.resourceTracker = rt;
+    this.resourceTracker = ServerRMProxy.createRMProxy(conf, ResourceTracker.class,
+        conf.getBoolean(YarnConfiguration.DISTRIBUTED_RM,
+            YarnConfiguration.DEFAULT_DISTRIBUTED_RM));
     // create resource
     String rackHostName[] = SLSUtils.getRackHostName(nodeIdStr);
     this.node = NodeInfo.newNodeInfo(rackHostName[0], rackHostName[1],
@@ -101,7 +107,7 @@ public class NMSimulator extends TaskRunner.Task {
     req.setHttpPort(80);
     RegisterNodeManagerResponse response = resourceTracker.registerNodeManager(req);
     masterKey = response.getNMTokenMasterKey();
-    
+    containerMasterKey = response.getContainerTokenMasterKey();
   }
 
   @Override
@@ -118,7 +124,7 @@ public class NMSimulator extends TaskRunner.Task {
   }
 
   @Override
-  public void middleStep() {
+  public void middleStep() throws YarnException, IOException {
     // we check the lifetime for each running containers
     ContainerSimulator cs = null;
     synchronized (completedContainerList) {
@@ -132,6 +138,7 @@ public class NMSimulator extends TaskRunner.Task {
     NodeHeartbeatRequest beatRequest
             = Records.newRecord(NodeHeartbeatRequest.class);
     beatRequest.setLastKnownNMTokenMasterKey(masterKey);
+    beatRequest.setLastKnownContainerTokenMasterKey(containerMasterKey);
     NodeStatus ns = Records.newRecord(NodeStatus.class);
 
     ns.setContainersStatuses(generateContainerStatusList());
@@ -140,7 +147,6 @@ public class NMSimulator extends TaskRunner.Task {
     ns.setResponseId(RESPONSE_ID++);
     ns.setNodeHealthStatus(NodeHealthStatus.newInstance(true, "", 0));
     beatRequest.setNodeStatus(ns);
-    try {
       LOG.info(" HOP::HB  Node : "+node.getNodeID()+ " Sending heart beat request");
       NodeHeartbeatResponse beatResponse = resourceTracker.nodeHeartbeat(beatRequest);
       ++totalHeartBeat;
@@ -158,6 +164,11 @@ public class NMSimulator extends TaskRunner.Task {
               }
             } else {
               cs = runningContainers.remove(containerId);
+              if(cs!=null){
+                LOG.error("in the simulated scenario the container should not be"
+                        + "freed until they have completed their task");
+                throw new YarnException("the failover should be transparent");
+              }
               containerQueue.remove(cs);
               releasedContainerList.add(containerId);
             }
@@ -166,12 +177,16 @@ public class NMSimulator extends TaskRunner.Task {
       }
       if (beatResponse.getNodeAction() == NodeAction.SHUTDOWN) {
         lastStep();
+      } else if(beatResponse.getNodeAction() == NodeAction.RESYNC){
+        LOG.error("the failover should be transparent");
+        throw new YarnException("the failover should be transparent");
       }
-    } catch (YarnException e) {
-      e.printStackTrace();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
+      if(beatResponse.getContainerTokenMasterKey()!=null){
+        masterKey = beatResponse.getContainerTokenMasterKey();
+      }
+      if(beatResponse.getContainerTokenMasterKey()!=null){
+        containerMasterKey = beatResponse.getContainerTokenMasterKey();
+      }
   }
 
   @Override
