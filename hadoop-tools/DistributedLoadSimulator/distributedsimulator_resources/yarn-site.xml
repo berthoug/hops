@@ -20,7 +20,7 @@
   </property>
   <property>
     <name>yarn.resourcemanager.address</name>
-    <value>0.0.0.0:25001</value>
+    <value>193.10.64.86:25001</value>
   </property>
     <property>
     <name>yarn.resourcemanager.port</name>
@@ -28,7 +28,7 @@
   </property>
   <property>
     <name>yarn.resourcemanager.scheduler.address</name>
-    <value>0.0.0.0:25003</value>
+    <value>193.10.64.86:25003</value>
   </property>
     <property>
     <name>yarn.resourcemanager.scheduler.port</name>
@@ -40,7 +40,7 @@
   </property>
   <property>
     <name>yarn.resourcemanager.resource-tracker.address</name>
-    <value>0.0.0.0:25005</value>
+    <value>193.10.64.20:25005</value>
   </property>
    <property>
     <name>yarn.resourcemanager.resource-tracker.port</name>

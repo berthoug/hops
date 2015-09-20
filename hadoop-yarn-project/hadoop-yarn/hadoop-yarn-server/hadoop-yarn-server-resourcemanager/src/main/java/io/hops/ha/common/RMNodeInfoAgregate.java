@@ -85,7 +85,7 @@ public class RMNodeInfoAgregate {
 
     public void addAllJustLaunchedContainersToRemove(
             List<JustLaunchedContainers> toRemoveJustLaunchedContainers) {
-        this.toRemoveJustLaunchedContainers.addAll(toAddJustLaunchedContainers);
+        this.toRemoveJustLaunchedContainers.addAll(toRemoveJustLaunchedContainers);
     }
 
     public void addAllContainersToCleanToAdd(

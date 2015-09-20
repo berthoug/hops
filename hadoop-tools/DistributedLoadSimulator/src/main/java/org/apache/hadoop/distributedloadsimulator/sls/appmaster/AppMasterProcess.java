@@ -52,16 +52,15 @@ public class AppMasterProcess {
   private int appSimulatorId;
   private ApplicationMasterProtocol appMasterProtocol;
   private static final TaskRunner runner = new TaskRunner();
-  private long maxRuntime;
-  private int numNMs, numRacks, numAMs, numTasks;
   private ApplicationId applicationId;
   private ApplicationAttemptId appAttemptId;
 
   public AppMasterProcess() throws ClassNotFoundException {
     conf = new Configuration(false);
     conf.addResource("sls-runner.xml");
-    int poolSize = conf.getInt(SLSConfiguration.RUNNER_POOL_SIZE,
-            SLSConfiguration.RUNNER_POOL_SIZE_DEFAULT);
+//    int poolSize = conf.getInt(SLSConfiguration.RUNNER_POOL_SIZE,
+//            SLSConfiguration.RUNNER_POOL_SIZE_DEFAULT);
+    int poolSize=5;
     AppMasterProcess.runner.setQueueSize(poolSize);
     amClassMap = new HashMap<String, Class>();
     for (Map.Entry e : conf) {
@@ -74,7 +73,7 @@ public class AppMasterProcess {
   }
   @SuppressWarnings("unchecked")
   private void startAMFromSLSTraces(Resource containerResource,
-          int heartbeatInterval, String inputTrace,String remoteSimIp) throws IOException {
+          int heartbeatInterval, String inputTrace,String[] listOfRemoteSimIp) throws IOException {
     // parse from sls traces
     int localAppSimulatorOffSet = 0;
     JsonFactory jsonF = new JsonFactory();
@@ -99,12 +98,6 @@ public class AppMasterProcess {
           String queue = jsonJob.get("job.queue.name").toString();
 
           String oldAppId = jsonJob.get("job.id").toString();
-          // boolean isTracked = trackedApps.contains(oldAppId);
-          //int queueSize = queueAppNumMap.containsKey(queue)
-          //? queueAppNumMap.get(queue) : 0;
-          // queueSize++;
-          // queueAppNumMap.put(queue, queueSize);
-          // tasks
           List tasks = (List) jsonJob.get("job.tasks");
           if (tasks == null || tasks.size() == 0) {
             continue;
@@ -136,11 +129,8 @@ public class AppMasterProcess {
           if (amSim != null) {
             amSim.init(appSimulatorId, heartbeatInterval, containerList, null,
                     null, 0, jobFinishTime-jobStartTime, user, queue,
-                    isTracked, oldAppId, appMasterProtocol, applicationId,remoteSimIp);
+                    isTracked, oldAppId, appMasterProtocol, applicationId,listOfRemoteSimIp);
             runner.schedule(amSim);
-            maxRuntime = Math.max(maxRuntime, jobFinishTime);
-            numTasks += containerList.size();
-            //amMap.put(oldAppId, amSim);
           }
         }
         ++localAppSimulatorOffSet;
@@ -157,7 +147,7 @@ public class AppMasterProcess {
             ApplicationMasterProtocol.class);
   }
 
-  public void startAM(String inputTraces, int appSimulatorIdOffSet, long clusterTimeStamp, int suffixId, int attemptId,String remoteSimIp) throws IOException {
+  public void startAM(String inputTraces, int appSimulatorIdOffSet, long clusterTimeStamp, int suffixId, int attemptId, String[] listOfRemoteSimIp) throws IOException {
 
     this.appSimulatorId = appSimulatorIdOffSet;
     this.applicationId = ApplicationId.newInstance(clusterTimeStamp, suffixId);
@@ -175,7 +165,7 @@ public class AppMasterProcess {
             = BuilderUtils.newResource(containerMemoryMB, containerVCores);
 
     // application workload
-    startAMFromSLSTraces(containerResource, heartbeatInterval, inputTraces,remoteSimIp);
+    startAMFromSLSTraces(containerResource, heartbeatInterval, inputTraces,listOfRemoteSimIp);
 
   }
 
@@ -184,15 +174,15 @@ public class AppMasterProcess {
     // arg[0] - inputTrace
     // arg[1] - applicationSimulatorId
     // arg[2] - resource manager address
-    // arg[3] - rmiaddress
+    // arg[3] - rmiaddress list seperated by comma
     // arg[4] - cluster time stamp
     // arg[5] - application suffix id
     // arg[6] - application attempt id
     AppMasterProcess appMasterProcess = new AppMasterProcess();
     int appSimulatorId = Integer.parseInt(args[1]);
-
     appMasterProcess.initAMProtocol(args[2]);
-    appMasterProcess.startAM(args[0], appSimulatorId, Long.parseLong(args[4]), Integer.parseInt(args[5]), Integer.parseInt(args[6]),args[3]);
+    String[] remoteIps = args[3].split(",");
+    appMasterProcess.startAM(args[0], appSimulatorId, Long.parseLong(args[4]), Integer.parseInt(args[5]), Integer.parseInt(args[6]),remoteIps);
 
     runner.start();
   }

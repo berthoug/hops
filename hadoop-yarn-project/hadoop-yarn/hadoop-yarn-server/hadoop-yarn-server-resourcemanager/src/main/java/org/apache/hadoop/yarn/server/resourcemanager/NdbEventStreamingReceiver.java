@@ -257,7 +257,7 @@ public class NdbEventStreamingReceiver {
     }
 
     public void AddJustLaunchedContainers() {
-        JustLaunchedContainers hopJustLaunchedContainers = new JustLaunchedContainers(hopJustLaunchedContainersRmnodeid, hopJustLaunchedContainersContainerid,hopJulstLaunchedContainersPendingId);
+        JustLaunchedContainers hopJustLaunchedContainers = new JustLaunchedContainers(hopJustLaunchedContainersRmnodeid, hopJustLaunchedContainersContainerid);
         hopJustLaunchedContainersList.add(hopJustLaunchedContainers);
     }
 

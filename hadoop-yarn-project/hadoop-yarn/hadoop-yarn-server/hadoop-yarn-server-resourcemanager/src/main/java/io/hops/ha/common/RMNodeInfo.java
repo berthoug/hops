@@ -274,7 +274,7 @@ public class RMNodeInfo {
 
                 toAddHopJustLaunchedContainers.add(
                         new JustLaunchedContainers(rmnodeId,
-                                value.getContainerid(), pendingId));
+                                value.getContainerid()));
                 toAddContainerStatus.add(value);
             }
             agregate.addAllContainersStatusToAdd(toAddContainerStatus);
@@ -291,7 +291,7 @@ public class RMNodeInfo {
                     = new ArrayList<JustLaunchedContainers>();
             for (org.apache.hadoop.yarn.api.records.ContainerId key : justLaunchedContainersToRemove) {
                 toRemoveHopJustLaunchedContainers
-                        .add(new JustLaunchedContainers(rmnodeId, key.toString(), pendingId));
+                        .add(new JustLaunchedContainers(rmnodeId, key.toString()));
             }
             agregate.addAllJustLaunchedContainersToRemove(toRemoveHopJustLaunchedContainers);
         }

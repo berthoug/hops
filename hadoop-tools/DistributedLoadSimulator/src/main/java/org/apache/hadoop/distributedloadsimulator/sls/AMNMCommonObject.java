@@ -33,5 +33,6 @@ public interface AMNMCommonObject extends Remote {
   void decreseApplicationCount(String applicationId) throws RemoteException;
   int  finishedApplicationsCount() throws RemoteException;
   void registerApplicationTimeStamp() throws RemoteException;
+  boolean isNMRegisterationDone() throws RemoteException;
   
 }

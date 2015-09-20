@@ -513,14 +513,14 @@ public class TransactionStateImpl extends TransactionState {
   private void persistAppAttempt() throws IOException {
     if (!appAttempts.isEmpty()) {
 
-      ApplicationAttemptStateDataAccess DA =
-          (ApplicationAttemptStateDataAccess) RMStorageFactory.
-              getDataAccess(ApplicationAttemptStateDataAccess.class);
-      DA.addAll(appAttempts.values());
-      
-      RanNodeDataAccess rDA= (RanNodeDataAccess) RMStorageFactory.
-              getDataAccess(RanNodeDataAccess.class);
-      rDA.addAll(ranNodeToAdd.values());
+//      ApplicationAttemptStateDataAccess DA =
+//          (ApplicationAttemptStateDataAccess) RMStorageFactory.
+//              getDataAccess(ApplicationAttemptStateDataAccess.class);
+//      DA.addAll(appAttempts.values());
+//      
+//      RanNodeDataAccess rDA= (RanNodeDataAccess) RMStorageFactory.
+//              getDataAccess(RanNodeDataAccess.class);
+//      rDA.addAll(ranNodeToAdd.values());
     }
   }
   

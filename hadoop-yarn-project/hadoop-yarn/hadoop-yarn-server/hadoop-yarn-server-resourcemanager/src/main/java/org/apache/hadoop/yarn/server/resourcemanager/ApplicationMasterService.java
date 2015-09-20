@@ -288,9 +288,10 @@ public class ApplicationMasterService extends AbstractService
       // Setting the response id to 0 to identify if the
       // application master is register for the respective attemptid
       lastResponse.setResponseId(0);
+      //lock.setAllocateResponse(lastResponse);
+//      ((TransactionStateImpl) transactionState)
+//          .addAllocateResponse(applicationAttemptId, lock);
       lock.setAllocateResponse(lastResponse);
-      ((TransactionStateImpl) transactionState)
-          .addAllocateResponse(applicationAttemptId, lock);
       LOG.info("AM registration " + applicationAttemptId);
       this.rmContext.getDispatcher().getEventHandler().handle(
           new RMAppAttemptRegistrationEvent(applicationAttemptId,
@@ -466,10 +467,9 @@ public class ApplicationMasterService extends AbstractService
               appAttemptId.toString());
       
     }
-    TransactionState transactionState = new TransactionStateImpl(
-                TransactionState.TransactionType.RM, 1, true);
-//            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
-//                    "allocate");
+//    TransactionState transactionState = new TransactionStateImpl(
+//                TransactionState.TransactionType.RM, 1, true);
+TransactionState transactionState= rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "allocate");
     this.amLivelinessMonitor.receivedPing(appAttemptId);
 
     /*
@@ -625,8 +625,8 @@ public class ApplicationMasterService extends AbstractService
        * removes the lock object).
        */
       lock.setAllocateResponse(allocateResponse);
-      ((TransactionStateImpl) transactionState).
-          addAllocateResponse(appAttemptId, lock);
+//      ((TransactionStateImpl) transactionState).
+//          addAllocateResponse(appAttemptId, lock);
       transactionState.decCounter(TransactionState.TransactionType.INIT);
       return allocateResponse;
     }
