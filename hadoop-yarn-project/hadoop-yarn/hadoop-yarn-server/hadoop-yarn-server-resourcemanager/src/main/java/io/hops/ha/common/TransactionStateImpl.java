@@ -150,7 +150,8 @@ public class TransactionStateImpl extends TransactionState {
   //for debug and evaluation
   String rpcType = null;
   NodeId nodeId = null;
-
+  private TransactionStateManager manager =null;
+  
    public TransactionStateImpl(TransactionType type) {
     super(1, false);
     this.type = type;
@@ -158,7 +159,8 @@ public class TransactionStateImpl extends TransactionState {
       new SchedulerApplicationInfo(this);
   }
    
-  public TransactionStateImpl(TransactionType type, int initialCounter, boolean batch) {
+  public TransactionStateImpl(TransactionType type, int initialCounter,
+          boolean batch, TransactionStateManager manager) {
     super(initialCounter, batch);
     this.type = type;
     this.schedulerApplicationInfo =
@@ -167,11 +169,12 @@ public class TransactionStateImpl extends TransactionState {
       printerRuning = true;
       (new Thread(new LogsPrinter())).start();
     }
+    this.manager = manager;
   }
 
   
   private static final ExecutorService executorService =
-      Executors.newFixedThreadPool(20);
+      Executors.newFixedThreadPool(50);
   
   @Override
   public void commit(boolean first) throws IOException {
@@ -210,7 +213,7 @@ public class TransactionStateImpl extends TransactionState {
   static double totalt4 =0;
   static double totalt5 =0;
   static double totalt6 =0;
-
+  static double totalt7=0;
     static long nbFinish =0;
     
   public static void resetLogs(){
@@ -224,7 +227,7 @@ public class TransactionStateImpl extends TransactionState {
   totalt4 =0;
   totalt5 =0;
   totalt6 =0;
-
+  totalt7=0;
   }
       
   public void persist() throws IOException {
@@ -245,9 +248,11 @@ public class TransactionStateImpl extends TransactionState {
     long t5 =System.currentTimeMillis() - start;
     totalt5=totalt5 + System.currentTimeMillis() - start;
     persistRMContainerToUpdate();
-    persistContainers();
-    long t6 =System.currentTimeMillis() - start;
+     long t6 =System.currentTimeMillis() - start;
     totalt6=totalt6 + System.currentTimeMillis() - start;
+    persistContainers();
+    long t7 =System.currentTimeMillis() - start;
+    totalt7=totalt7 + System.currentTimeMillis() - start;
     nbFinish++;
     if(nbFinish%100==0){
     double avgt1=totalt1/nbFinish;
@@ -256,10 +261,11 @@ public class TransactionStateImpl extends TransactionState {
     double avgt4=totalt4/nbFinish;
     double avgt5=totalt5/nbFinish;
     double avgt6=totalt6/nbFinish;
-    LOG.info("avg time commit transactionStateImpl: " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6);
+    double avgt7=totalt7/nbFinish;
+    LOG.info("avg time commit transactionStateImpl: " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", " + avgt7);
     }
-    if(t6>1000){
-	LOG.error("commit transactionStateImpl too long : " + t1 + ", " + t2 + ", " + t3 + ", " + t4 + ", " + t5 + ", " + t6);
+    if(t6>500){
+      LOG.error("commit transactionStateImpl too long : " + t1 + ", " + t2 + ", " + t3 + ", " + t4 + ", " + t5 + ", " + t6 + ", " + t7);
     }
     //TODO rebuild cluster resource from node resources
 //    persistClusterResourceToUpdate();
@@ -567,8 +573,6 @@ public class TransactionStateImpl extends TransactionState {
       toPersist.setResponseId(lastResponse.getResponseId());
       toPersist.setUpdatedNodes(lastResponse.getUpdatedNodes());
       
-      int debugid = this.getId();
-      LOG.info("add allocateResponse to persist for rpc: " + debugid);
       this.allocateResponsesToAdd.put(id, new AllocateResponse(id.toString(),
               toPersist.getProto().toByteArray(), allocatedContainers, 
       allocateResponse.getAllocateResponse().getResponseId()));
@@ -704,7 +708,7 @@ public class TransactionStateImpl extends TransactionState {
 
     int reservedVCores = isReserved ? rmContainer.getReservedResource().
             getVirtualCores() : 0;
-
+    
     rmContainersToUpdate
             .put(rmContainer.getContainer().getId().toString(), new RMContainer(
                             rmContainer.getContainer().getId().toString(),
@@ -997,5 +1001,9 @@ public class TransactionStateImpl extends TransactionState {
     dump = dump + dumpAppAttempt() + "\n";
     dump = dump + dumpAllocateResponsesToAdd() + "\n";
     dump = dump + dumpRMContainerToUpdate();
+  }
+  
+  public TransactionStateManager getManager(){
+    return manager;
   }
 }

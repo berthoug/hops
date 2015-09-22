@@ -250,8 +250,7 @@ public class ApplicationMasterService extends AbstractService
           regAMRequestData, applicationAttemptId.toString());
       
     }
-    TransactionState transactionState = 
-            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID,
                     "registerApplicationMaster");
     
     ApplicationId appID = applicationAttemptId.getApplicationId();
@@ -372,7 +371,7 @@ public class ApplicationMasterService extends AbstractService
       
     }
     TransactionState transactionState = 
-            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+          rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID,
                     "finishApplicationMaster");
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
     if (lock == null) {
@@ -467,7 +466,7 @@ public class ApplicationMasterService extends AbstractService
       
     }
     TransactionState transactionState = 
-            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+           rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID,
                     "allocate");
     this.amLivelinessMonitor.receivedPing(appAttemptId);
 

@@ -1331,6 +1331,8 @@ public class YarnConfiguration extends Configuration {
 
   public static int NDB_EVENT_STREAMING_QUEUE_CAPACITY = 100000;
 
+  public static final String MAX_ALLOCATED_CONTAINERS_PER_REQUEST= HOPS_RM_PREFIX + "max.allocated.containers.per.request";
+  public static int DEFAULT_MAX_ALLOCATED_CONTAINERS_PER_REQUEST = -1;
   static {
 
     Configuration.addDefaultResource(YARN_DEFAULT_CONFIGURATION_FILE);

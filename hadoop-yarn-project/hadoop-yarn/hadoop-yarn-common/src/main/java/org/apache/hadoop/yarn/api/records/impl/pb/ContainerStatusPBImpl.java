@@ -40,20 +40,24 @@ public class ContainerStatusPBImpl extends ContainerStatus {
     private static final Log LOG = LogFactory.getLog(ContainerStatusPBImpl.class);
   private ContainerId containerId = null;
   
-  
   public ContainerStatusPBImpl() {
     builder = ContainerStatusProto.newBuilder();
   }
 
   public ContainerStatusPBImpl(ContainerStatusProto proto) {
+    if(proto==null){
+      LOG.error("creating containerStatus with null proto");
+    }
     this.proto = proto;
     viaProto = true;
-    this.proto.getExitStatus();
   }
   
-  public ContainerStatusProto getProto() {
+  public synchronized ContainerStatusProto getProto() {
     mergeLocalToProto();
     proto = viaProto ? proto : builder.build();
+    if(proto==null){
+      LOG.error("creating containerStatus with null proto");
+    }
     viaProto = true;
     this.proto.getExitStatus();
     return proto;
@@ -99,7 +103,9 @@ public class ContainerStatusPBImpl extends ContainerStatus {
     }
     mergeLocalToBuilder();
     proto = builder.build();
-    this.proto.getExitStatus();
+    if(proto==null){
+      LOG.error("creating containerStatus with null proto");
+    }
     viaProto = true;
   }
 
@@ -112,10 +118,10 @@ public class ContainerStatusPBImpl extends ContainerStatus {
 
   
   @Override
-  public ContainerState getState() {
+  public synchronized ContainerState getState() {
     ContainerStatusProtoOrBuilder p = viaProto ? proto : builder;
     if(p==null){
-	LOG.error("p is null: " + viaProto);
+      LOG.error("p is null: " + viaProto + " " + proto);
     }
     
     if (!p.hasState()) {
@@ -135,7 +141,7 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   }
 
   @Override
-  public ContainerId getContainerId() {
+  public synchronized ContainerId getContainerId() {
     ContainerStatusProtoOrBuilder p = viaProto ? proto : builder;
     if (this.containerId != null) {
       return this.containerId;
@@ -157,10 +163,10 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   }
 
   @Override
-  public int getExitStatus() {
+  public synchronized int getExitStatus() {
     ContainerStatusProtoOrBuilder p = viaProto ? proto : builder;
     if(p==null){
-    LOG.error("p is null: " + viaProto);
+      LOG.error("p is null: " + viaProto + " " + proto);
     }
     return p.getExitStatus();
   }
@@ -172,7 +178,7 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   }
 
   @Override
-  public String getDiagnostics() {
+  public synchronized String getDiagnostics() {
     ContainerStatusProtoOrBuilder p = viaProto ? proto : builder;
     return (p.getDiagnostics());
   }

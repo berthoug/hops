@@ -21,7 +21,7 @@ rmiregistry &
 ###cleaning the output directory 
 rm -rf $basedir/hadoop-2.4.0/share/hadoop/tools/sls/output/
 #### cleaning the existing yarn-site.xml to replace exisinting one
-rm $basedir/hadoop-2.4.0/etc/hadoop/yarn-site.xml
+#rm $basedir/hadoop-2.4.0/etc/hadoop/yarn-site.xml
 
 ### lets delete all the previous yarn.log
 rm $basedir/hadoop-2.4.0/logs/*.log
@@ -34,7 +34,7 @@ cp       DistributedLoadSimulator-2.4.0.jar  $basedir/hadoop-2.4.0/share/hadoop/
 
 
 echo "Simulator mode is strating ...."
-cp yarn-site.xml $basedir/hadoop-2.4.0/etc/hadoop/yarn-site.xml
+cp $basedir/hadoop-2.4.0/etc/hadoop/yarn-site.xml ./
 cd $basedir/hadoop-2.4.0/share/hadoop/tools/sls;
 ##cloud 3 scheduler 193.10.64.86
-./bin/slsrun.sh --input-sls=output/sls-jobs.json --output-dir=output --nodes=output/sls-nodes.json --print-simulation --loadsimulator-mode --rt-address=193.10.64.20 --rm-address=193.10.64.86 --rmi-address=192.168.0.109 --parallelsimulator --yarn-directory=$basedir
+./bin/slsrun.sh --input-sls=$2 --output-dir=output --nodes=$3 --print-simulation --loadsimulator-mode --rt-address=$4 --rm-address=$4 --rmi-address=$5 --parallelsimulator --yarn-directory=$basedir

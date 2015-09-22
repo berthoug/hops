@@ -74,8 +74,9 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
 
   public FiCaSchedulerApp(ApplicationAttemptId applicationAttemptId,
       String user, Queue queue, ActiveUsersManager activeUsersManager,
-      RMContext rmContext) {
-    super(applicationAttemptId, user, queue, activeUsersManager, rmContext);
+      RMContext rmContext, int maxAllocatedContainersPerRequest) {
+    super(applicationAttemptId, user, queue, activeUsersManager, rmContext, 
+            maxAllocatedContainersPerRequest);
   }
 
   @Override

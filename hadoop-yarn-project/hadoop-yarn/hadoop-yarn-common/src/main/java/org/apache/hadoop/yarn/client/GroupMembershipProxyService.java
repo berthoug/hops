@@ -120,7 +120,7 @@ public class GroupMembershipProxyService implements Closeable {
       currentProxyIndex = (currentProxyIndex + 1) % rmServiceIds.length;
       conf.set(YarnConfiguration.RM_HA_ID, rmServiceIds[currentProxyIndex]);
       try {
-        LOG.info("connecting to " + rmServiceIds[currentProxyIndex]);
+        LOG.debug("connecting to " + rmServiceIds[currentProxyIndex]);
         final InetSocketAddress rmAddress =
             rmProxy.getRMAddress(conf, protocol);
         GroupMembership proxy = oldProxies.get(rmAddress);

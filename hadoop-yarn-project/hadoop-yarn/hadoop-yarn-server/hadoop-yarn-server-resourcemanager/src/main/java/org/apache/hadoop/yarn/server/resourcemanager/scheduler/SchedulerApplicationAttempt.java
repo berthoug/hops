@@ -107,15 +107,17 @@ public class SchedulerApplicationAttempt implements Recoverable{
   protected Queue queue;//recovered
   protected boolean isStopped = false;//recovered
   protected final RMContext rmContext;//recovered
-
+  protected final int maxAllocatedContainersPerRequest;
+  
   public SchedulerApplicationAttempt(ApplicationAttemptId applicationAttemptId,
       String user, Queue queue, ActiveUsersManager activeUsersManager,
-      RMContext rmContext) {
+      RMContext rmContext, int maxAllocatedContainersPerRequest) {
     this.rmContext = rmContext;
     this.appSchedulingInfo =
         new org.apache.hadoop.yarn.server.resourcemanager.scheduler.AppSchedulingInfo(
             applicationAttemptId, user, queue, activeUsersManager);
     this.queue = queue;
+    this.maxAllocatedContainersPerRequest = maxAllocatedContainersPerRequest;
   }
 
   /**
@@ -583,6 +585,7 @@ public class SchedulerApplicationAttempt implements Recoverable{
     List<Container> returnContainerList =
         new ArrayList<Container>(newlyAllocatedContainers.size());
     List<NMToken> nmTokens = new ArrayList<NMToken>();
+    int count = 0;
     for (Iterator<RMContainer> i = newlyAllocatedContainers.iterator();
          i.hasNext(); ) {
       RMContainer rmContainer = i.next();
@@ -608,6 +611,13 @@ public class SchedulerApplicationAttempt implements Recoverable{
       i.remove();
       rmContainer.handle(new RMContainerEvent(rmContainer.getContainerId(),
           RMContainerEventType.ACQUIRED, transactionState));
+      count++;
+      if (maxAllocatedContainersPerRequest > 0 && count
+              > maxAllocatedContainersPerRequest) {
+        LOG.info("Blocking the allocation of more than "
+                + maxAllocatedContainersPerRequest + " containers");
+        break;
+      }
     }
     return new ContainersAndNMTokensAllocation(returnContainerList, nmTokens);
   }

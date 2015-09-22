@@ -207,9 +207,10 @@ public abstract class PendingEventRetrieval implements Runnable {
         if (pendingEvent.getType() == PendingEventTableDef.NODE_ADDED) {
             LOG.debug("HOP :: PendingEventRetrieval event NodeAdded: "
                     + pendingEvent);
-            //Put pendingEvent to remove (for testing we update the status to COMPLETED
-             transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcId, "nodeHeartbeat");
-            ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
+           //Put pendingEvent to remove (for testing we update the status to COMPLETED
+          transactionState = rmContext.getTransactionStateManager().
+                  getCurrentTransactionStatePriority(rpcId, "nodeHeartbeat");
+          ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
                     pendingEvent.getId(),
                     rmNode.getNodeID().toString(),
                     PendingEventTableDef.NODE_ADDED,
@@ -221,9 +222,10 @@ public abstract class PendingEventRetrieval implements Runnable {
                 == PendingEventTableDef.NODE_REMOVED) {
             LOG.debug("HOP :: PendingEventRetrieval event NodeRemoved: "
                     + pendingEvent);
-            //Put pendingEvent to remove (for testing we update the status to COMPLETED
-             transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcId, "nodeHeartbeat");
-            ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
+          //Put pendingEvent to remove (for testing we update the status to COMPLETED
+          transactionState = rmContext.getTransactionStateManager().
+                  getCurrentTransactionStatePriority(rpcId, "nodeHeartbeat");
+          ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
                     pendingEvent.getId(),
                     rmNode.getNodeID().toString(),
                     PendingEventTableDef.NODE_REMOVED,
@@ -239,7 +241,7 @@ public abstract class PendingEventRetrieval implements Runnable {
             // once scheduler finished the event , nextheartbeat will be true and rt will notfiy
             // whether to process or not
             if (pendingEvent.getStatus() == PendingEventTableDef.SCHEDULER_FINISHED_PROCESSING) {
-                transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcId, "nodeHeartbeat");
+                transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStatePriority(rpcId, "nodeHeartbeat");
 //                 ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
 //                        pendingEvent.getId(),
 //                        rmNode.getNodeID().toString(),

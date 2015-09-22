@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -38,10 +39,11 @@ public class TransactionStateManager implements Runnable{
   List<transactionStateWrapper> curentRPCs = new CopyOnWriteArrayList<transactionStateWrapper>();
   int batchMaxSize = 50;
   int batchMaxDuration = 100;
+  AtomicBoolean blockNonHB = new AtomicBoolean(false);
   
   public TransactionStateManager(Configuration conf){
     currentTransactionState = new TransactionStateImpl(
-                TransactionState.TransactionType.RM, 0, true);
+                TransactionState.TransactionType.RM, 0, true, this);
     batchMaxSize = conf.getInt(YarnConfiguration.HOPS_BATCH_MAX_SIZE, YarnConfiguration.DEFAULT_HOPS_BATCH_MAX_SIZE);
     batchMaxDuration = conf.getInt(YarnConfiguration.HOPS_BATCH_MAX_DURATION, YarnConfiguration.DEFAULT_HOPS_BATCH_MAX_DURATION);
   }
@@ -64,7 +66,7 @@ public class TransactionStateManager implements Runnable{
       try {
         //create new transactionState
         currentTransactionState = new TransactionStateImpl(
-                TransactionState.TransactionType.RM, 0, true);
+                TransactionState.TransactionType.RM, 0, true, this);
         curentRPCs = new CopyOnWriteArrayList<transactionStateWrapper>();
         acceptedRPC.set(0);
         //accept RPCs
@@ -136,7 +138,26 @@ public class TransactionStateManager implements Runnable{
     }
   }
   
-  public TransactionState getCurrentTransactionState(int rpcId, String callingFuncition) {
+  public TransactionState getCurrentTransactionStateNonPriority(int rpcId,
+          String callingFuncition) {
+    while (blockNonHB.get()) {
+      try {
+        Thread.sleep(1);
+      } catch (InterruptedException e) {
+        LOG.warn(e, e);
+      }
+    }
+    return getCurrentTransactionState(rpcId, callingFuncition);
+
+  }
+
+  public TransactionState getCurrentTransactionStatePriority(int rpcId,
+          String callingFuncition) {
+    return getCurrentTransactionState(rpcId, callingFuncition);
+  }
+
+  private TransactionState getCurrentTransactionState(int rpcId,
+          String callingFuncition) {
     while (true) {
       if (acceptedRPC.incrementAndGet() < batchMaxSize) {
               lock.lock();
@@ -167,5 +188,17 @@ public class TransactionStateManager implements Runnable{
     Thread t = new Thread(this);
     t.setName("transactionStateManager Thread");
     t.start();
+  }
+  
+  public void blockNonHB(){
+    if(blockNonHB.compareAndSet(false, true)){
+      LOG.info("blocking non priority");
+    }
+  }
+  
+  public void unblockNonHB(){
+    if(blockNonHB.compareAndSet(true, false)){
+      LOG.info("unblocking non priority");
+    }    
   }
 }

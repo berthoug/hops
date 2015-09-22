@@ -508,7 +508,7 @@ public class TestApplicationLimits {
         TestUtils.getMockApplicationAttemptId(0, 0);
     FiCaSchedulerApp app_0_0 =
         spy(new FiCaSchedulerApp(appAttemptId_0_0, user_0, queue,
-            queue.getActiveUsersManager(), rmContext));
+            queue.getActiveUsersManager(), rmContext, -1));
     queue.submitApplicationAttempt(app_0_0, user_0, null);
 
     List<ResourceRequest> app_0_0_requests = new ArrayList<ResourceRequest>();
@@ -530,7 +530,7 @@ public class TestApplicationLimits {
         TestUtils.getMockApplicationAttemptId(1, 0);
     FiCaSchedulerApp app_0_1 =
         spy(new FiCaSchedulerApp(appAttemptId_0_1, user_0, queue,
-            queue.getActiveUsersManager(), rmContext));
+            queue.getActiveUsersManager(), rmContext, -1));
     queue.submitApplicationAttempt(app_0_1, user_0, null);
     
     List<ResourceRequest> app_0_1_requests = new ArrayList<ResourceRequest>();
@@ -554,7 +554,7 @@ public class TestApplicationLimits {
         TestUtils.getMockApplicationAttemptId(2, 0);
     FiCaSchedulerApp app_1_0 =
         spy(new FiCaSchedulerApp(appAttemptId_1_0, user_1, queue,
-            queue.getActiveUsersManager(), rmContext));
+            queue.getActiveUsersManager(), rmContext, -1));
     queue.submitApplicationAttempt(app_1_0, user_1, null);
 
     List<ResourceRequest> app_1_0_requests = new ArrayList<ResourceRequest>();

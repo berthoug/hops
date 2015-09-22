@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.distributedloadsimulator.sls.AMNMCommonObject;
 import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;
@@ -97,7 +99,7 @@ public abstract class AMSimulator extends TaskRunner.Task {
     private ApplicationMasterProtocol appMasterProtocol;
 
     private InitializeAppMaster appMaster;
-    protected final Logger LOG = Logger.getLogger(AMSimulator.class);
+    private static final Log LOG = LogFactory.getLog(AMSimulator.class);
     private int amId;
     protected AMNMCommonObject primaryRemoteConnection;
     protected AMNMCommonObject secondryRemoteConnection;

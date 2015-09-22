@@ -147,7 +147,7 @@ public class NMSimulator extends TaskRunner.Task {
     ns.setResponseId(RESPONSE_ID++);
     ns.setNodeHealthStatus(NodeHealthStatus.newInstance(true, "", 0));
     beatRequest.setNodeStatus(ns);
-      LOG.info(" HOP::HB  Node : "+node.getNodeID()+ " Sending heart beat request");
+      LOG.debug(" HOP::HB  Node : "+node.getNodeID()+ " Sending heart beat request");
       NodeHeartbeatResponse beatResponse = resourceTracker.nodeHeartbeat(beatRequest);
       ++totalHeartBeat;
       if (beatResponse.getNextheartbeat()) {

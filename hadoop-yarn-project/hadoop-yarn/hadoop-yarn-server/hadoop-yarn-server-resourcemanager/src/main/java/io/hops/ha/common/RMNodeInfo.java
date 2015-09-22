@@ -388,11 +388,19 @@ public void agregateFinishedApplicationToRemove(RMNodeInfoAgregate agregate){
 
   public void toAddLatestNodeHeartBeatResponse(NodeHeartbeatResponse resp) {
     if (resp instanceof NodeHeartbeatResponsePBImpl) {
+      try {
+        this.latestNodeHeartBeatResponse = new NodeHBResponse(rmnodeId,
+                ((NodeHeartbeatResponsePBImpl) resp)
+                .getProto().toByteArray());
+      } catch (RuntimeException e) {
+        //TODO find why we get this error that should never happen
+        LOG.error("this should never happen : " + e.getMessage(), e);
+        this.latestNodeHeartBeatResponse = new NodeHBResponse(rmnodeId,
+                new byte[1]);
+      }
+    } else {
       this.latestNodeHeartBeatResponse = new NodeHBResponse(rmnodeId,
-              ((NodeHeartbeatResponsePBImpl) resp)
-              .getProto().toByteArray());
-    }else{
-      this.latestNodeHeartBeatResponse =new NodeHBResponse(rmnodeId, null);
+              new byte[1]);
     }
   }
 

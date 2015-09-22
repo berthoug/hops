@@ -22,9 +22,13 @@ package org.apache.hadoop.distributedloadsimulator.sls.appmaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
@@ -110,7 +114,7 @@ public class MRAMSimulator extends AMSimulator {
     private final static int MR_AM_CONTAINER_RESOURCE_MEMORY_MB = 1024;
     private final static int MR_AM_CONTAINER_RESOURCE_VCORES = 1;
 
-    public static final Logger LOG = Logger.getLogger(MRAMSimulator.class);
+    private static final Log LOG = LogFactory.getLog(MRAMSimulator.class);
 
     public void init(int id, int heartbeatInterval,
             List<ContainerSimulator> containerList, ResourceManager rm, SLSRunner se,
@@ -254,8 +258,10 @@ public class MRAMSimulator extends AMSimulator {
                 isFinished = true;
             }
 
+            Set nodes = new HashSet();
             // check allocated containers
             for (Container container : response.getAllocatedContainers()) {
+              nodes.add(container.getNodeId().toString());
                 if (!scheduledMaps.isEmpty()) {
                     ContainerSimulator cs = scheduledMaps.remove();
                     assignedMaps.put(container.getId(), cs);
@@ -298,6 +304,11 @@ public class MRAMSimulator extends AMSimulator {
                     }
                 }
             }
+
+          if (!response.getAllocatedContainers().isEmpty()) {
+            LOG.info("app " + appId + " allocated containers: " + response.
+                    getAllocatedContainers().size() + " on " + nodes.size());
+          }
         }
     }
 

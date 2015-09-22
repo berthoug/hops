@@ -63,8 +63,9 @@ public class FSSchedulerApp extends SchedulerApplicationAttempt {
   
   public FSSchedulerApp(ApplicationAttemptId applicationAttemptId, String user,
       FSLeafQueue queue, ActiveUsersManager activeUsersManager,
-      RMContext rmContext) {
-    super(applicationAttemptId, user, queue, activeUsersManager, rmContext);
+      RMContext rmContext, int maxAllocatedContainersPerRequest) {
+    super(applicationAttemptId, user, queue, activeUsersManager, rmContext,
+            maxAllocatedContainersPerRequest);
   }
 
   public void setAppSchedulable(AppSchedulable appSchedulable) {
