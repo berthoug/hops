@@ -547,7 +547,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
           throw e;
         }
       }
-      //rmContext.getTransactionStateManager().start();
+      rmContext.getTransactionStateManager().start();
       super.serviceStart();
     }
 
