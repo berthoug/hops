@@ -2507,7 +2507,7 @@ public class RMUtilities {
     logs.add("finish (" + ts.getId() +"): " + commitDuration + ", " + commitAndQueueDuration );
     
     if(ts.getManager()!=null){
-      if(commitAndQueueDuration>500){
+      if(commitAndQueueDuration>500 || getQueueLength()>2){
         ts.getManager().blockNonHB();
       }else{
         ts.getManager().unblockNonHB();
