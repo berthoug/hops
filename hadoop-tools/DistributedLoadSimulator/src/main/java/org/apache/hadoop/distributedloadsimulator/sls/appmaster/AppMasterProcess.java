@@ -58,9 +58,8 @@ public class AppMasterProcess {
   public AppMasterProcess() throws ClassNotFoundException {
     conf = new Configuration(false);
     conf.addResource("sls-runner.xml");
-//    int poolSize = conf.getInt(SLSConfiguration.RUNNER_POOL_SIZE,
-//            SLSConfiguration.RUNNER_POOL_SIZE_DEFAULT);
-    int poolSize=5;
+    int poolSize = conf.getInt(SLSConfiguration.RUNNER_POOL_SIZE,
+            SLSConfiguration.RUNNER_POOL_SIZE_DEFAULT);
     AppMasterProcess.runner.setQueueSize(poolSize);
     amClassMap = new HashMap<String, Class>();
     for (Map.Entry e : conf) {

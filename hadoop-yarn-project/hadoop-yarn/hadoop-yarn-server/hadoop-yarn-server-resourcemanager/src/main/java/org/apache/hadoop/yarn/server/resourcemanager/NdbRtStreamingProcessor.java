@@ -40,7 +40,7 @@ public class NdbRtStreamingProcessor implements Runnable {
   public void printStreamingRTComps(StreamingRTComps streamingRTComps) {
     List<org.apache.hadoop.yarn.api.records.ApplicationId> applicationIdList = streamingRTComps.getFinishedApp();
     for (org.apache.hadoop.yarn.api.records.ApplicationId appId : applicationIdList) {
-      LOG.debug("<Processor> Finished application : appid : " + appId.toString());
+      LOG.info("<Processor> Finished application : appid : " + appId.toString()+ "node id : "+streamingRTComps.getNodeId());
     }
 
     Set<org.apache.hadoop.yarn.api.records.ContainerId> containerIdList = streamingRTComps.getContainersToClean();

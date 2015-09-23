@@ -103,7 +103,6 @@ import java.util.concurrent.ConcurrentMap;
 public class ApplicationMasterService extends AbstractService
     implements ApplicationMasterProtocol {
 
-  private int rpcId=0;
   private static final Log LOG =
       LogFactory.getLog(ApplicationMasterService.class);
   private final AMLivelinessMonitor amLivelinessMonitor;
@@ -251,11 +250,8 @@ public class ApplicationMasterService extends AbstractService
           regAMRequestData, applicationAttemptId.toString());
       
     }
-    TransactionState transactionState = 
-            rmContext.getTransactionStateManager().getCurrentTransactionState(++rpcId, 
+    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID,
                     "registerApplicationMaster");
-    
-     //TransactionState transactionState = new TransactionStateImpl(TransactionState.TransactionType.RM, 1, true);
     
     ApplicationId appID = applicationAttemptId.getApplicationId();
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
@@ -294,7 +290,6 @@ public class ApplicationMasterService extends AbstractService
       lock.setAllocateResponse(lastResponse);
       ((TransactionStateImpl) transactionState)
           .addAllocateResponse(applicationAttemptId, lock);
-      lock.setAllocateResponse(lastResponse);
       LOG.info("AM registration " + applicationAttemptId);
       this.rmContext.getDispatcher().getEventHandler().handle(
           new RMAppAttemptRegistrationEvent(applicationAttemptId,
@@ -376,9 +371,8 @@ public class ApplicationMasterService extends AbstractService
       
     }
     TransactionState transactionState = 
-            rmContext.getTransactionStateManager().getCurrentTransactionState(++rpcID, 
+          rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID,
                     "finishApplicationMaster");
-     //TransactionState transactionState = new TransactionStateImpl(TransactionState.TransactionType.RM, 1, true);
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
     if (lock == null) {
       transactionState.decCounter(TransactionState.TransactionType.INIT);
@@ -472,9 +466,8 @@ public class ApplicationMasterService extends AbstractService
       
     }
     TransactionState transactionState = 
-            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+           rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID,
                     "allocate");
-    //TransactionState transactionState = new TransactionStateImpl(TransactionState.TransactionType.RM, 1, true);
     this.amLivelinessMonitor.receivedPing(appAttemptId);
 
     /*

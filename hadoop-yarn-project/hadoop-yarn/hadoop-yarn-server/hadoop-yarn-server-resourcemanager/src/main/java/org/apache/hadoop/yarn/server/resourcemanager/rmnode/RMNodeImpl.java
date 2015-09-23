@@ -501,8 +501,12 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
           ).toRemoveFinishedApplications(appId);
         }
       }
+      if(!finishedApplications.isEmpty()){
+       LOG.info("RT_removing_fninshed_application: "+finishedApplications.toString());
+      }
       this.containersToClean.clear();
       this.finishedApplications.clear();
+      
 
     } finally {
       this.writeLock.unlock();
@@ -1110,7 +1114,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
                 toRemoveNodeUpdateQueue(uci);
       }
     }
-    LOG.debug("HOP :: rmNode.heartbeat-set to true:" + this.nodeId.toString());
+    LOG.info("HOP :: rmNode.heartbeat-set to true:" + this.nodeId.toString());
     this.nextHeartBeat = true;
 
     //HOP :: Update RMNode

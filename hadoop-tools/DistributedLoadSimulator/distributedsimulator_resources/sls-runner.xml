@@ -19,7 +19,7 @@
   <!-- SLSRunner configuration -->
   <property>
     <name>yarn.sls.runner.pool.size</name>
-    <value>500</value>
+    <value>10</value>
   </property>
   
   <!-- Nodes configuration -->

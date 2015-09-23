@@ -160,10 +160,7 @@ public class SLSRunner implements AMNMCommonObject {
     conf = new Configuration(false);
     conf.addResource("sls-runner.xml");
     // runner
-    int poolSize = 10;
-
-//            conf.getInt(SLSConfiguration.RUNNER_POOL_SIZE,
-//            SLSConfiguration.RUNNER_POOL_SIZE_DEFAULT);
+    int poolSize = conf.getInt(SLSConfiguration.RUNNER_POOL_SIZE,SLSConfiguration.RUNNER_POOL_SIZE_DEFAULT);
     SLSRunner.runner.setQueueSize(poolSize);
     // <AMType, Class> map
     for (Map.Entry e : conf) {
