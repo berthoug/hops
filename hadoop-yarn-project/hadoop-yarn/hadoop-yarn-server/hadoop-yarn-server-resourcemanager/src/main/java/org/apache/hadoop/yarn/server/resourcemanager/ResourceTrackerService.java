@@ -161,7 +161,6 @@ public class ResourceTrackerService extends AbstractService
         rtStreamingProcessor = new NdbRtStreamingProcessor(rmContext);
         new Thread(rtStreamingProcessor).start();
       }
-      rmContext.getTransactionStateManager().start();
 
     }
     super.serviceInit(conf);
