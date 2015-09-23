@@ -1333,6 +1333,11 @@ public class YarnConfiguration extends Configuration {
 
   public static final String MAX_ALLOCATED_CONTAINERS_PER_REQUEST= HOPS_RM_PREFIX + "max.allocated.containers.per.request";
   public static int DEFAULT_MAX_ALLOCATED_CONTAINERS_PER_REQUEST = -1;
+  public static final String COMMIT_AND_QUEUE_THRESHOLD = HOPS_RM_PREFIX + "commit.and.queue.threshold";
+  public static int DEFAULT_COMMIT_AND_QUEUE_THRESHOLD=500;
+  public static final String COMMIT_QUEUE_MAX_LENGTH = HOPS_RM_PREFIX + "commit.queue.max.length";
+  public static int DEFAULT_COMMIT_QUEUE_MAX_LENGTH=2;
+  
   static {
 
     Configuration.addDefaultResource(YARN_DEFAULT_CONFIGURATION_FILE);

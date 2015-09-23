@@ -2344,6 +2344,18 @@ public class RMUtilities {
   static AtomicDouble totalt9 =new AtomicDouble(0);
   static AtomicDouble totalt10 =new AtomicDouble(0);
 
+  static int commitAndQueueThreshold = 500;
+  static int commitQueueMaxLength = 2;
+
+  public static void setCommitAndQueueLimits(Configuration conf) {
+    commitAndQueueThreshold = conf.getInt(
+            YarnConfiguration.COMMIT_AND_QUEUE_THRESHOLD,
+            YarnConfiguration.DEFAULT_COMMIT_AND_QUEUE_THRESHOLD);
+    commitQueueMaxLength = conf.
+            getInt(YarnConfiguration.COMMIT_QUEUE_MAX_LENGTH,
+                    YarnConfiguration.DEFAULT_COMMIT_QUEUE_MAX_LENGTH);
+  }
+
   public static void finishRPC(final TransactionStateImpl ts) {
     logs.add("start commit");
     long start = System.currentTimeMillis();
@@ -2507,7 +2519,7 @@ public class RMUtilities {
     logs.add("finish (" + ts.getId() +"): " + commitDuration + ", " + commitAndQueueDuration );
     
     if(ts.getManager()!=null){
-      if(commitAndQueueDuration>500 || getQueueLength()>2){
+      if(commitAndQueueDuration>commitAndQueueThreshold || getQueueLength()>commitQueueMaxLength){
         ts.getManager().blockNonHB();
       }else{
         ts.getManager().unblockNonHB();

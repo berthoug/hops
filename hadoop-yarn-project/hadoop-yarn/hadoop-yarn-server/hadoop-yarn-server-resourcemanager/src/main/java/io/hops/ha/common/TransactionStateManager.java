@@ -16,6 +16,7 @@
 
 package io.hops.ha.common;
 
+import io.hops.metadata.util.RMUtilities;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +47,7 @@ public class TransactionStateManager implements Runnable{
                 TransactionState.TransactionType.RM, 0, true, this);
     batchMaxSize = conf.getInt(YarnConfiguration.HOPS_BATCH_MAX_SIZE, YarnConfiguration.DEFAULT_HOPS_BATCH_MAX_SIZE);
     batchMaxDuration = conf.getInt(YarnConfiguration.HOPS_BATCH_MAX_DURATION, YarnConfiguration.DEFAULT_HOPS_BATCH_MAX_DURATION);
+    RMUtilities.setCommitAndQueueLimits(conf);
   }
   
   @Override
