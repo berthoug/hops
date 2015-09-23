@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.DelayQueue;
+import org.apache.hadoop.distributedloadsimulator.sls.SLSRunner;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -70,6 +71,7 @@ public class NMSimulator extends TaskRunner.Task {
   // heart beat response id
   private int RESPONSE_ID = 1;
   private final static Logger LOG = Logger.getLogger(NMSimulator.class);
+  private boolean isFistBeat=false;
 
   public void init(String nodeIdStr, int memory, int cores,
           int dispatchTime, int heartBeatInterval, ResourceManager rm, ResourceTracker rt)
@@ -141,7 +143,11 @@ public class NMSimulator extends TaskRunner.Task {
     ns.setNodeHealthStatus(NodeHealthStatus.newInstance(true, "", 0));
     beatRequest.setNodeStatus(ns);
     try {
-      LOG.info(" HOP::HB  Node : "+node.getNodeID()+ " Sending heart beat request");
+      // only first time , this NM thread will update the beat start sec
+      if(!isFistBeat){
+        SLSRunner.measureFirstBeat();
+        isFistBeat=true;
+      }
       NodeHeartbeatResponse beatResponse = resourceTracker.nodeHeartbeat(beatRequest);
       ++totalHeartBeat;
       if (beatResponse.getNextheartbeat()) {

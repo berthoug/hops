@@ -2097,7 +2097,8 @@ public class RMUtilities {
             return hopFinishedApps;
           }
         };
-    return (Map<String, List<FinishedApplications>>) getFinishedApplicationsHandler.handle();
+    return (Map<String, List<FinishedApplications>>) 
+            getFinishedApplicationsHandler.handle();
   }
   
   public static Map<String, List<JustLaunchedContainers>> getAllJustLaunchedContainers()
@@ -2551,7 +2552,7 @@ public class RMUtilities {
                 RPC hop = new RPC(rpcId);
                 rpcToRemove.add(hop);
               }
-              DA.removeAll(rpcToRemove);
+             DA.removeAll(rpcToRemove);
             long t1 = System.currentTimeMillis()-start;
 //            
 //            //TODO put all of this in ts.persist
@@ -2574,13 +2575,12 @@ public class RMUtilities {
             long t8 = System.currentTimeMillis()-start;
             ts.persistSchedulerApplicationInfo(QMDA, connector);
             long t9 = System.currentTimeMillis()-start;
-            //ts.persistPendingEvents(persistedEventDA);
-            //long t10 = System.currentTimeMillis()-start;
             nbCommit.incrementAndGet(); connector.commit();
             long t10 = System.currentTimeMillis()-start;
-            if(t10>100){
-              LOG.error("commit too long: " + t10 + " dt: " + t1 + " "+ t2 + " "+ t3 + " "+ t4 + " "+ t5 + " "+ t6 + " "+ t7 + " "+ t8 + " "+ t9 + " "+ t10 + " ");
-//              ts.dump();
+            if (t10 > 100) {
+              LOG.error("commit too long: " + t10 + " dt: " + t1 + " " + t2
+                      + " " + t3 + " " + t4 + " " + t5 + " " + t6 + " " + t7
+                      + " " + t8 + " " + t9 + " " + t10 + " ");
             }
             totalt1.addAndGet(t1);
             totalt2.addAndGet(t2);
@@ -2601,9 +2601,6 @@ public class RMUtilities {
       setfinishRPCHandler.handle();
     } catch (IOException ex) {
       LOG.error("HOP :: Error commiting finishRPC ", ex);
-//      String yarnState = YarnAPIStorageFactory.printYarnState();
-//    
-//      LOG.error("commit failed: " + yarnState);
     }
     long commitDuration = System.currentTimeMillis() - start;
     long commitAndQueueDuration = commitDuration;
@@ -2611,9 +2608,9 @@ public class RMUtilities {
       commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(
               ts.getId());
     }
-    String yarnState = YarnAPIStorageFactory.printYarnState();
+//    String yarnState = YarnAPIStorageFactory.printYarnState();
     if (commitDuration > 1000) {
-      LOG.error("commit too long state: " + commitDuration + "\n" + yarnState);
+      LOG.error("commit too long state: " + commitDuration);
     }
     
     totalCommitDuration.addAndGet(commitDuration);
@@ -2702,7 +2699,9 @@ public class RMUtilities {
     double avgt10=totalt10.get()/nbFinish.get();
     int nbCommits = nbCommit.get()-oldNBCommit;
     oldNBCommit = nbCommit.get();
-    return "nb commits: " + nbCommits + "| " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", " + avgt7 + ", " + avgt8 + ", " + avgt9 + ", " + avgt1;
+    return "nb commits: " + nbCommits + "| " + avgt1 + ", " + avgt2 + ", "
+            + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", " + avgt7
+            + ", " + avgt8 + ", " + avgt9 + ", " + avgt1;
   }
   //for testing (todo: move in test class)
   public static Resource getResource(final String id, final int type,

@@ -63,10 +63,13 @@ public class RMStorageFactory {
     return dStorageFactory.getConnector();
   }
 
-  public static void kickTheNdbEventStreamingAPI() throws StorageInitializtionException{
-     dNdbEventStreaming = DalDriver.loadHopsNdbEventStreamingLib(YarnAPIStorageFactory.NDB_EVENT_STREAMING_FOR_DISTRIBUTED_SERVICE);
-     dNdbEventStreaming.startHopsNdbEvetAPISession();
+  public static void kickTheNdbEventStreamingAPI() throws
+          StorageInitializtionException {
+    dNdbEventStreaming = DalDriver.loadHopsNdbEventStreamingLib(
+            YarnAPIStorageFactory.NDB_EVENT_STREAMING_FOR_DISTRIBUTED_SERVICE);
+    dNdbEventStreaming.startHopsNdbEvetAPISession();
   }
+  
   public static void setConfiguration(Configuration conf)
       throws StorageInitializtionException, IOException {
     if (isInitialized) {

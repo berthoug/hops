@@ -367,6 +367,7 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
       }
     }
     // container allocated
+    LOG.info("Application master allocatoin : "+allocation);
     for (Container container : allocation.getContainers()) {
       Resources.addTo(allocatedResource, container.getResource());
       Resources.subtractFrom(pendingResource, container.getResource());

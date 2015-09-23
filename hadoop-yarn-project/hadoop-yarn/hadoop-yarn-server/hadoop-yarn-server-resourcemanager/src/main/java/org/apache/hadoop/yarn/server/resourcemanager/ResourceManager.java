@@ -170,7 +170,6 @@ public class ResourceManager extends CompositeService implements Recoverable {
   private AppReportFetcher fetcher = null;
   protected ResourceTrackerService resourceTracker;
 
-  
   private String webAppAddress;
   private ConfigurationProvider configurationProvider = null;
   PendingEventRetrieval retrievalThread;
@@ -216,7 +215,8 @@ public class ResourceManager extends CompositeService implements Recoverable {
     rmSecretManagerService = createRMSecretManagerService();
     service.addService(rmSecretManagerService);
 
-    containerAllocationExpirer = new ContainerAllocationExpirer(rmDispatcher);
+    containerAllocationExpirer = new ContainerAllocationExpirer(rmDispatcher,
+            rmContext);
     service.addService(containerAllocationExpirer);
     rmContext.setContainerAllocationExpirer(containerAllocationExpirer);
 
@@ -399,11 +399,11 @@ public class ResourceManager extends CompositeService implements Recoverable {
   }
 
   private NMLivelinessMonitor createNMLivelinessMonitor() {
-    return new NMLivelinessMonitor(this.rmContext.getDispatcher());
+    return new NMLivelinessMonitor(this.rmContext.getDispatcher(), rmContext);
   }
 
   protected AMLivelinessMonitor createAMLivelinessMonitor() {
-    return new AMLivelinessMonitor(this.rmDispatcher);
+    return new AMLivelinessMonitor(this.rmDispatcher, rmContext);
   }
 
   protected DelegationTokenRenewer createDelegationTokenRenewer() {
@@ -971,7 +971,6 @@ public class ResourceManager extends CompositeService implements Recoverable {
       } else {
         LOG.debug("HOP :: Starting PendingEvent retrieval thread");
         retrievalThread = new PendingEventRetrievalBatch(rmContext, conf);
-
       }
       GlobalThreadPool.getExecutorService().execute(retrievalThread);
     }

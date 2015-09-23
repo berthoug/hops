@@ -37,10 +37,12 @@ import org.apache.commons.logging.LogFactory;
 public class NMLivelinessMonitor extends AbstractLivelinessMonitor<NodeId> {
  private static final Log LOG = LogFactory.getLog(NMLivelinessMonitor.class);
   private final EventHandler dispatcher;
-
-  public NMLivelinessMonitor(Dispatcher d) {
+  private final RMContext rmContext;
+  
+  public NMLivelinessMonitor(Dispatcher d, RMContext rmContext) {
     super("NMLivelinessMonitor", new SystemClock());
     this.dispatcher = d.getEventHandler();
+    this.rmContext = rmContext;
   }
 
   @Override
@@ -56,8 +58,8 @@ public class NMLivelinessMonitor extends AbstractLivelinessMonitor<NodeId> {
   protected void expire(NodeId id) {
     try {
       LOG.info("create transactionState NMLiveliness");
-      TransactionState ts =
-          new TransactionStateImpl(TransactionState.TransactionType.RM);
+      TransactionState ts = rmContext.getTransactionStateManager().
+            getCurrentTransactionState(-1, "NMLivelinessMonitor");
       dispatcher.handle(new RMNodeEvent(id, RMNodeEventType.EXPIRE, ts));
       ts.decCounter(TransactionState.TransactionType.INIT);
     } catch (IOException ex) {

@@ -124,6 +124,8 @@ public class SLSRunner implements AMNMCommonObject {
   List<AMNMCommonObject> remoteConnections = new ArrayList<AMNMCommonObject>();
   private static final Map<String, Integer> applicationProcessMap = new HashMap<String, Integer>();
 
+  private static long firstHBTimeStamp =0;
+  private static boolean isFirstBeat=false;
   public SLSRunner(String inputTraces[], String nodeFile,
           String outputDir, Set<String> trackedApps,
           boolean printsimulation, boolean yarnNodeDeployment, boolean distributedMode, boolean loadSimMode, String resourceTrackerAddress, String resourceManagerAddress, String rmiAddress)
@@ -194,6 +196,12 @@ public class SLSRunner implements AMNMCommonObject {
     rmClient.start();
   }
 
+  public static void measureFirstBeat(){
+    if(!isFirstBeat){
+    firstHBTimeStamp= System.currentTimeMillis();
+    isFirstBeat=true;
+    }
+  }
   public void startHbMonitorThread() {
     Thread hbExperimentalMonitoring = new Thread() {
       @Override
@@ -211,8 +219,12 @@ public class SLSRunner implements AMNMCommonObject {
             trueTotalHb += nm.getTotalTrueHeartBeat();
           }
           if (totalHb != 0) {
-            float hbExperimentailResponsePercentage = (trueTotalHb * 100) / totalHb;
-            LOG.info("Experimental hb response : " + hbExperimentailResponsePercentage + " " + nmMap.size() + " " + numAMs + " " + totalHb + " " + trueTotalHb + " " + totalJobRunningTimeSec);
+            float hbExperimentailResponsePercentage = (float)(trueTotalHb * 100) / totalHb;
+            float runningTime = ((float)(System.currentTimeMillis()-firstHBTimeStamp))/1000;
+            float numberOfIdealHb = ((float)nmMap.size() /3)*runningTime;
+            float idealHbPer = (float)(totalHb*100)/numberOfIdealHb;
+            float trueHb = (float)(trueTotalHb*100)/numberOfIdealHb;
+            LOG.info("HeartBeat Monitor I :" +idealHbPer + "  Tr : " + trueHb +"  Ex : "+hbExperimentailResponsePercentage + "  TotHB : " + totalHb + "  TrHB : " + trueTotalHb + "  Nm : " + nmMap.size() + "  Am : " + numAMs  + "  JbTm : " + totalJobRunningTimeSec);
           }
         }
       }
@@ -484,20 +496,6 @@ public class SLSRunner implements AMNMCommonObject {
   public static void decreaseRemainingApps() {
     remainingApps--;
     LOG.info("SLS decrease finished application - application count : " + remainingApps);
-    if (remainingApps == 0) {
-      LOG.info("<SLSisShuttingDown>");
-      // if distributed mode enabled , then no point of calculating from rm
-      if (!distributedmode) {
-        while (!calculationDone) {
-          try {
-            Thread.sleep(100);
-          } catch (InterruptedException ex) {
-            java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
-          }
-        }
-      }
-      System.exit(0);
-    }
   }
 
   public static void main(String args[]) throws Exception {

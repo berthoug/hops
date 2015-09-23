@@ -103,6 +103,7 @@ import java.util.concurrent.ConcurrentMap;
 public class ApplicationMasterService extends AbstractService
     implements ApplicationMasterProtocol {
 
+  private int rpcId=0;
   private static final Log LOG =
       LogFactory.getLog(ApplicationMasterService.class);
   private final AMLivelinessMonitor amLivelinessMonitor;
@@ -251,8 +252,10 @@ public class ApplicationMasterService extends AbstractService
       
     }
     TransactionState transactionState = 
-            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+            rmContext.getTransactionStateManager().getCurrentTransactionState(++rpcId, 
                     "registerApplicationMaster");
+    
+     //TransactionState transactionState = new TransactionStateImpl(TransactionState.TransactionType.RM, 1, true);
     
     ApplicationId appID = applicationAttemptId.getApplicationId();
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
@@ -288,9 +291,9 @@ public class ApplicationMasterService extends AbstractService
       // Setting the response id to 0 to identify if the
       // application master is register for the respective attemptid
       lastResponse.setResponseId(0);
-      //lock.setAllocateResponse(lastResponse);
-//      ((TransactionStateImpl) transactionState)
-//          .addAllocateResponse(applicationAttemptId, lock);
+      lock.setAllocateResponse(lastResponse);
+      ((TransactionStateImpl) transactionState)
+          .addAllocateResponse(applicationAttemptId, lock);
       lock.setAllocateResponse(lastResponse);
       LOG.info("AM registration " + applicationAttemptId);
       this.rmContext.getDispatcher().getEventHandler().handle(
@@ -373,8 +376,9 @@ public class ApplicationMasterService extends AbstractService
       
     }
     TransactionState transactionState = 
-            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+            rmContext.getTransactionStateManager().getCurrentTransactionState(++rpcID, 
                     "finishApplicationMaster");
+     //TransactionState transactionState = new TransactionStateImpl(TransactionState.TransactionType.RM, 1, true);
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
     if (lock == null) {
       transactionState.decCounter(TransactionState.TransactionType.INIT);
@@ -467,9 +471,10 @@ public class ApplicationMasterService extends AbstractService
               appAttemptId.toString());
       
     }
-//    TransactionState transactionState = new TransactionStateImpl(
-//                TransactionState.TransactionType.RM, 1, true);
-TransactionState transactionState= rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "allocate");
+    TransactionState transactionState = 
+            rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, 
+                    "allocate");
+    //TransactionState transactionState = new TransactionStateImpl(TransactionState.TransactionType.RM, 1, true);
     this.amLivelinessMonitor.receivedPing(appAttemptId);
 
     /*
@@ -625,8 +630,8 @@ TransactionState transactionState= rmContext.getTransactionStateManager().getCur
        * removes the lock object).
        */
       lock.setAllocateResponse(allocateResponse);
-//      ((TransactionStateImpl) transactionState).
-//          addAllocateResponse(appAttemptId, lock);
+      ((TransactionStateImpl) transactionState).
+          addAllocateResponse(appAttemptId, lock);
       transactionState.decCounter(TransactionState.TransactionType.INIT);
       return allocateResponse;
     }

@@ -159,7 +159,9 @@ public interface RMNode extends Recoverable {
   public void setContainersToCleanUp(Set<ContainerId> newSet);
 
   public void setRMNodePendingEventId(int pendingId);
+
   public void setAppsToCleanup(List<ApplicationId> newList);
+
   /**
    * Update a {@link NodeHeartbeatResponse} with the list of containers and
    * applications to clean up for this node.

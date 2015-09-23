@@ -83,7 +83,6 @@ public class RMContextInfo {
             getTotalCapability().getMemory(), val.getTotalCapability().
             getVirtualCores(),val.getRMNodePendingEventId());
     toAdd.setResources(hopResource);
-    LOG.info("RMNODE resoruce persis - rmnode : "+val.getNodeID() + " pending id :"+val.getRMNodePendingEventId());
     //Persist Node
     if (val.getNode() != null) {
       if (val.getNode().getParent() != null) {

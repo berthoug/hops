@@ -83,7 +83,7 @@ public class TestUtils {
     
     // No op 
     ContainerAllocationExpirer cae =
-        new ContainerAllocationExpirer(nullDispatcher);
+        new ContainerAllocationExpirer(nullDispatcher, null);
     
     Configuration conf = new Configuration();
     RMApplicationHistoryWriter writer = mock(RMApplicationHistoryWriter.class);

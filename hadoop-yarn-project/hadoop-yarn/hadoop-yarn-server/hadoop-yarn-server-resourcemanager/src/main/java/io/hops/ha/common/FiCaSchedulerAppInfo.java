@@ -17,21 +17,7 @@ package io.hops.ha.common;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
-import io.hops.StorageConnector;
 import io.hops.exception.StorageException;
-import io.hops.metadata.util.RMStorageFactory;
-import io.hops.metadata.yarn.dal.AppSchedulingInfoBlacklistDataAccess;
-import io.hops.metadata.yarn.dal.AppSchedulingInfoDataAccess;
-import io.hops.metadata.yarn.dal.ContainerDataAccess;
-import io.hops.metadata.yarn.dal.FiCaSchedulerAppLastScheduledContainerDataAccess;
-import io.hops.metadata.yarn.dal.FiCaSchedulerAppLiveContainersDataAccess;
-import io.hops.metadata.yarn.dal.FiCaSchedulerAppNewlyAllocatedContainersDataAccess;
-import io.hops.metadata.yarn.dal.FiCaSchedulerAppReservationsDataAccess;
-import io.hops.metadata.yarn.dal.FiCaSchedulerAppSchedulingOpportunitiesDataAccess;
-import io.hops.metadata.yarn.dal.RMContainerDataAccess;
-import io.hops.metadata.yarn.dal.ResourceDataAccess;
-import io.hops.metadata.yarn.dal.ResourceRequestDataAccess;
-import io.hops.metadata.yarn.dal.capacity.FiCaSchedulerAppReservedContainersDataAccess;
 import io.hops.metadata.yarn.entity.AppSchedulingInfo;
 import io.hops.metadata.yarn.entity.AppSchedulingInfoBlacklist;
 import io.hops.metadata.yarn.entity.Container;
@@ -79,10 +65,10 @@ public class FiCaSchedulerAppInfo {
   private HashMap<ContainerId, ToPersistContainersInfo> newlyAllocatedContainersToAdd = new HashMap<ContainerId, ToPersistContainersInfo>();
   private HashMap< ContainerId, ToPersistContainersInfo> newlyAllocatedContainersToRemove = new HashMap<ContainerId, ToPersistContainersInfo>();
 
-  private Set<ResourceRequest>
-      requestsToAdd=new HashSet<ResourceRequest>();
-  private Set<ResourceRequest>
-      requestsToRemove=new HashSet<ResourceRequest>();
+  private Map<Integer, ResourceRequest>
+      requestsToAdd=new HashMap<Integer, ResourceRequest>();
+  private Map<Integer, ResourceRequest>
+      requestsToRemove=new HashMap<Integer, ResourceRequest>();
 
   private Map<Integer, Resource>
       toUpdateResources=new HashMap<Integer, Resource>(3);
@@ -208,7 +194,7 @@ public class FiCaSchedulerAppInfo {
               new ResourceRequest(applicationAttemptId.toString(),
                   val.getPriority().getPriority(), val.getResourceName(),
                   ((ResourceRequestPBImpl) val).getProto().toByteArray());
-    this.requestsToAdd.add(hopResourceRequest);
+    this.requestsToAdd.put(hopResourceRequest.hashCode(), hopResourceRequest);
     requestsToRemove.remove(hopResourceRequest);
   }
 
@@ -218,8 +204,9 @@ public class FiCaSchedulerAppInfo {
               new ResourceRequest(applicationAttemptId.toString(),
                   val.getPriority().getPriority(), val.getResourceName(),
                   ((ResourceRequestPBImpl) val).getProto().toByteArray());
-    if(!requestsToAdd.remove(hopResourceRequest)){
-      this.requestsToRemove.add(hopResourceRequest);
+    if (requestsToAdd.remove(hopResourceRequest.hashCode()) == null) {
+      this.requestsToRemove.put(hopResourceRequest.hashCode(),
+              hopResourceRequest);
     }
   }
 
@@ -317,13 +304,8 @@ public class FiCaSchedulerAppInfo {
       //Persist AppSchedulingInfo requests map and ResourceRequest
       List<ResourceRequest> toAddResourceRequests =
           new ArrayList<ResourceRequest>();
-      for (ResourceRequest key : requestsToAdd) {
-       
-          
-          LOG.debug(
-              "adding ha_resourcerequest " + applicationAttemptId.toString());
-          toAddResourceRequests.add(key);
-        
+      for (ResourceRequest key : requestsToAdd.values()) {
+        toAddResourceRequests.add(key);
       }
       agregate.addAllResourceRequest(toAddResourceRequests);
     }
@@ -334,10 +316,8 @@ public class FiCaSchedulerAppInfo {
       //Remove AppSchedulingInfo requests map and ResourceRequest
       List<ResourceRequest> toRemoveResourceRequests =
           new ArrayList<ResourceRequest>();
-      for (ResourceRequest key : requestsToRemove) {
-        
+      for (ResourceRequest key : requestsToRemove.values()) {
         toRemoveResourceRequests.add(key);
-
       }
       agregate.addAllResourceRequestsToRemove(toRemoveResourceRequests);
     }

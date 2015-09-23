@@ -145,7 +145,7 @@ public class TransactionStateManager implements Runnable{
                   TransactionState.TransactionType.RM, rpcId, callingFuncition);
           wrapper.incCounter(TransactionState.TransactionType.INIT);
           if(rpcId >= 0)
-          wrapper.addRPCId(rpcId);
+            wrapper.addRPCId(rpcId);
           curentRPCs.add(wrapper);
           return wrapper;
         } finally {

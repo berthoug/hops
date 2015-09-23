@@ -25,16 +25,16 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
+
+import java.lang.reflect.Field;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -218,8 +218,6 @@ public class UnmanagedAMLauncher {
     LOG.info("HOP :: Applicaton master process cmd: " + amCmd + "|Env variable: " + Arrays.toString(envAMList.toArray(envAM)));
 
     Process amProc = Runtime.getRuntime().exec(amCmd, envAMList.toArray(envAM));
-
-    LOG.info("HOP :: Application master process is started ");
 
     Field processField = null;
     try {

@@ -32,16 +32,19 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 
 public class AMLivelinessMonitor
     extends AbstractLivelinessMonitor<ApplicationAttemptId> {
 
   private final EventHandler dispatcher;
   private static final Log LOG = LogFactory.getLog(AMLivelinessMonitor.class);
-   
-  public AMLivelinessMonitor(Dispatcher d) {
+  private final RMContext rmContext;
+  
+  public AMLivelinessMonitor(Dispatcher d, RMContext rmContext) {
     super("AMLivelinessMonitor", new SystemClock());
     this.dispatcher = d.getEventHandler();
+    this.rmContext = rmContext;
   }
 
   @Override
@@ -57,8 +60,8 @@ public class AMLivelinessMonitor
   protected void expire(ApplicationAttemptId id) {
     try {
       LOG.info("create transactionState Liveliness");
-      TransactionState ts =
-          new TransactionStateImpl(TransactionState.TransactionType.RM);
+      TransactionState ts =rmContext.getTransactionStateManager().
+            getCurrentTransactionState(-1, "AMLivelinessMonitor");
       dispatcher
           .handle(new RMAppAttemptEvent(id, RMAppAttemptEventType.EXPIRE, ts));
       ts.decCounter(TransactionState.TransactionType.INIT);

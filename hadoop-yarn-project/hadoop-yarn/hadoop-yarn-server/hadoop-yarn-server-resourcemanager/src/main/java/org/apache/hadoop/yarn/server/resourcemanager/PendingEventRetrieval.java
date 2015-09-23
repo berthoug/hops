@@ -116,7 +116,6 @@ public abstract class PendingEventRetrieval implements Runnable {
                 InetSocketAddress addr
                         = NetUtils.createSocketAddrForHost(nodeId.getHost(), nodeId.getPort());
                 //This is for quick loop-up in scheduler container allocation
-                BuilderUtils.resolvedHost.put(nodeId.getHost(), addr);
             }
             // now we update the rmnode
 

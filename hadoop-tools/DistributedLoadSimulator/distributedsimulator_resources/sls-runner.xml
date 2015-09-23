@@ -25,7 +25,7 @@
   <!-- Nodes configuration -->
   <property>
     <name>yarn.sls.nm.memory.mb</name>
-    <value>389120</value>
+    <value>38912</value>
   </property>
   <property>
     <name>yarn.sls.nm.vcores</name>

@@ -64,7 +64,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Builder utilities to construct various objects.
@@ -73,7 +72,7 @@ public class BuilderUtils {
 
   private static final RecordFactory recordFactory =
       RecordFactoryProvider.getRecordFactory(null);
-  public static Map<String,InetSocketAddress> resolvedHost = new ConcurrentHashMap<String, InetSocketAddress>();
+
   public static class ApplicationIdComparator
       implements Comparator<ApplicationId>, Serializable {
     @Override
@@ -237,10 +236,8 @@ public class BuilderUtils {
   public static Token newContainerToken(NodeId nodeId, byte[] password,
       ContainerTokenIdentifier tokenIdentifier) {
     // RPC layer client expects ip:port as service for tokens
-//    InetSocketAddress addr =
-//        NetUtils.createSocketAddrForHost(nodeId.getHost(), nodeId.getPort());
-      // this is a temporary solution to distributed YARN for quick look up
-    InetSocketAddress addr =resolvedHost.get(nodeId.getHost());
+    InetSocketAddress addr =
+        NetUtils.createSocketAddrForHost(nodeId.getHost(), nodeId.getPort());
     // NOTE: use SecurityUtil.setTokenService if this becomes a "real" token
     Token containerToken = newToken(Token.class, tokenIdentifier.getBytes(),
         ContainerTokenIdentifier.KIND.toString(), password,

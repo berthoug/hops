@@ -74,7 +74,7 @@ public class SchedulerApplicationInfo {
     totalt1 = totalt1 +  System.currentTimeMillis()-start;
     persistFiCaSchedulerAppInfo(connector);
     totalt2 = totalt2 + System.currentTimeMillis()-start;
-     persistApplicationIdToRemove();
+    persistApplicationIdToRemove();
     totalt3 = totalt3 + System.currentTimeMillis()-start;
     nbFinish++;
     if (nbFinish % 100 == 0) {
