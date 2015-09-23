@@ -47,11 +47,10 @@ public class LogsPrinter implements Runnable {
           count = count/4;
           String toPrint = "commit logs " + count + "|| " +
                   RMUtilities.getCommitAvgDuration() + 
-                  "(min: " +  RMUtilities.getMinCommitDuration() + 
-                  ", max: " + RMUtilities.getMaxCommitDuration() + "), " + 
+                  "(max: " + RMUtilities.getMaxCommitDuration() + "), " + 
                   RMUtilities.getCommitAndQueueAvgDuration() + 
-                  "(min: " +  RMUtilities.getMinCommitAndQueueDuration() +
-                  ", max: " + RMUtilities.getMaxCommitAndQueueDuration() + ")" + 
+                  "(max: " + RMUtilities.getMaxCommitAndQueueDuration() + ")" + 
+                  " queue length: " + RMUtilities.getQueueLength() +
                   "\n avgt commit: " + RMUtilities.getavgt() + "\n";
           LOG.info(toPrint);
           toPrint = "add app id calls: " + TransactionStateImpl.callremoveAllocateResponse + ", " + TransactionStateImpl.callsAddApplicationStateToRemove + ", " + TransactionStateImpl.callsAddApplicationToAdd + ", " + TransactionStateImpl.callsGetSchedulerApplicationInfos + ", " + TransactionStateImpl.callsaddAllocateResponse + ", " + TransactionStateImpl.callsaddAppAttempt;

@@ -32,7 +32,7 @@ rmiregistry &
 
 rm  $basedir/hadoop-2.4.0/logs/*.log
 
-cp yarn-site.xml                        $basedir/hadoop-2.4.0/etc/hadoop/yarn-site.xml
+cp $basedir/hadoop-2.4.0/etc/hadoop/yarn-site.xml ./
 cp sls-runner.xml                       $basedir/hadoop-2.4.0/etc/hadoop/sls-runner.xml
 cp tracefiles/$numberofnodes/sls*       output/
 cp -rf output                           $basedir/hadoop-2.4.0/share/hadoop/tools/sls/

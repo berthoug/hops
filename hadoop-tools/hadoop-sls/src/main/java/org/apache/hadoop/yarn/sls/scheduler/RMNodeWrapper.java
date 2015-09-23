@@ -86,7 +86,12 @@ public class RMNodeWrapper implements RMNode {
   public long getLastHealthReportTime() {
     return node.getLastHealthReportTime();
   }
-
+  
+  @Override
+  public void setLastNodeHeartBeatResponseId(int id) {
+    node.setLastNodeHeartBeatResponseId(id);
+  }
+  
   @Override
   public Resource getTotalCapability() {
     return node.getTotalCapability();

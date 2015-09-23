@@ -59,7 +59,7 @@ public class NMLivelinessMonitor extends AbstractLivelinessMonitor<NodeId> {
     try {
       LOG.info("create transactionState NMLiveliness");
       TransactionState ts = rmContext.getTransactionStateManager().
-            getCurrentTransactionState(-1, "NMLivelinessMonitor");
+            getCurrentTransactionStatePriority(-1, "NMLivelinessMonitor");
       dispatcher.handle(new RMNodeEvent(id, RMNodeEventType.EXPIRE, ts));
       ts.decCounter(TransactionState.TransactionType.INIT);
     } catch (IOException ex) {

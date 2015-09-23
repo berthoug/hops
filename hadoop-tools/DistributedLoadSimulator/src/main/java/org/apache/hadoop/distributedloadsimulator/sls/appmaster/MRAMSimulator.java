@@ -22,10 +22,14 @@ package org.apache.hadoop.distributedloadsimulator.sls.appmaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import org.apache.hadoop.distributedloadsimulator.sls.AMNMCommonObject;
+import java.util.Set;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
@@ -108,10 +112,10 @@ public class MRAMSimulator extends AMSimulator {
   private boolean isFinished = false;
   private ApplicationMasterProtocol appMasterProtocol;
   // resource for AM container
-  private final static int MR_AM_CONTAINER_RESOURCE_MEMORY_MB = 1024;
+  private final static int MR_AM_CONTAINER_RESOURCE_MEMORY_MB = 2048;
   private final static int MR_AM_CONTAINER_RESOURCE_VCORES = 1;
 
-  public static final Logger LOG = Logger.getLogger(MRAMSimulator.class);
+  private static final Log LOG = LogFactory.getLog(MRAMSimulator.class);
 
   public void init(int id, int heartbeatInterval,
           List<ContainerSimulator> containerList, ResourceManager rm, SLSRunner se,

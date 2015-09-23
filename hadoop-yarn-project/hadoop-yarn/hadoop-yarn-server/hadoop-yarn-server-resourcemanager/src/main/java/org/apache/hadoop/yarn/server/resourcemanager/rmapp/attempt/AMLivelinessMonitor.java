@@ -61,7 +61,7 @@ public class AMLivelinessMonitor
     try {
       LOG.info("create transactionState Liveliness");
       TransactionState ts =rmContext.getTransactionStateManager().
-            getCurrentTransactionState(-1, "AMLivelinessMonitor");
+            getCurrentTransactionStatePriority(-1, "AMLivelinessMonitor");
       dispatcher
           .handle(new RMAppAttemptEvent(id, RMAppAttemptEventType.EXPIRE, ts));
       ts.decCounter(TransactionState.TransactionType.INIT);

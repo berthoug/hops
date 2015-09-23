@@ -228,7 +228,7 @@ public class TestRecoverLeafCSQueue {
 
     FiCaSchedulerApp app_0
             = new FiCaSchedulerApp(appAttemptId, user_0, a,
-                    mock(ActiveUsersManager.class), rmContext);
+                    mock(ActiveUsersManager.class), rmContext, -1);
 
     a.submitApplicationAttempt(app_0, user_0, leafQueueTranscation);
 

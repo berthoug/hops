@@ -130,6 +130,9 @@ public class FifoScheduler extends AbstractYarnScheduler
       metrics;//recovered
   private final ResourceCalculator resourceCalculator =
       new DefaultResourceCalculator();//recovered
+  
+  private int maxAllocatedContainersPerRequest = -1;
+  
   private final Queue DEFAULT_QUEUE = new Queue() {
     @Override
     public String getQueueName() {
@@ -258,6 +261,9 @@ public class FifoScheduler extends AbstractYarnScheduler
               .forQueue(DEFAULT_QUEUE_NAME, null, false, conf);
       this.activeUsersManager = new ActiveUsersManager(metrics);
       this.initialized = true;
+      this.maxAllocatedContainersPerRequest = this.conf.getInt(
+              YarnConfiguration.MAX_ALLOCATED_CONTAINERS_PER_REQUEST,
+              YarnConfiguration.DEFAULT_MAX_ALLOCATED_CONTAINERS_PER_REQUEST);
     }
   }
 
@@ -392,7 +398,7 @@ public class FifoScheduler extends AbstractYarnScheduler
     // TODO: Fix store
     FiCaSchedulerApp schedulerApp =
         new FiCaSchedulerApp(appAttemptId, user, DEFAULT_QUEUE,
-            activeUsersManager, this.rmContext);
+            activeUsersManager, this.rmContext, maxAllocatedContainersPerRequest);
     //Nikos: At this point AppSchedulingInfo is created in SchedulerApplicationAttempt constructor
     if (transferStateFromPreviousAttempt) {
       schedulerApp
@@ -929,8 +935,8 @@ public class FifoScheduler extends AbstractYarnScheduler
 
     // Update total usage
     Resources.subtractFrom(usedResource, container.getResource());
-    ((TransactionStateImpl) transactionState)
-        .updateUsedResource(clusterResource);
+//    ((TransactionStateImpl) transactionState)
+//        .updateUsedResource(clusterResource);
     LOG.info("Application attempt " + application.getApplicationAttemptId() +
         " released container " + container.getId() + " on node: " + node +
         " with event: " + event);
@@ -1048,8 +1054,10 @@ public class FifoScheduler extends AbstractYarnScheduler
 
 
           FiCaSchedulerApp appAttempt =
-              new FiCaSchedulerApp(appAttemptId, hopFiCaSchedulerApp.getUser(),
-                  DEFAULT_QUEUE, activeUsersManager, this.rmContext);
+            new FiCaSchedulerApp(appAttemptId,
+                  hopFiCaSchedulerApp.getUser(),
+                  DEFAULT_QUEUE, activeUsersManager, this.rmContext,
+                  maxAllocatedContainersPerRequest);
           appAttempt.recover(state);
           app.setCurrentAppAttempt(appAttempt, null);
         }

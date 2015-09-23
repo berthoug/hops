@@ -457,10 +457,13 @@ public class RMContainerImpl implements
     @Override
     public void transition(RMContainerImpl container, RMContainerEvent event) {
 
+      //the container is already unregistred when the contaier is killed by the expirer
+      //plus that cause a deadlock
+      if(event.getType()!=RMContainerEventType.EXPIRE){
       // Unregister from containerAllocationExpirer.
-      container.containerAllocationExpirer
-          .unregister(container.getContainerId());
-
+        container.containerAllocationExpirer
+                .unregister(container.getContainerId());
+      }
       // Inform node
       container.eventHandler.handle(
           new RMNodeCleanContainerEvent(container.nodeId, container.containerId,

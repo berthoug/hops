@@ -521,6 +521,18 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
     }
   }
 
+  @Override
+  public void setLastNodeHeartBeatResponseId(int id) {
+
+    this.writeLock.lock();
+
+    try {
+      this.latestNodeHeartBeatResponse.setResponseId(id);
+    } finally {
+      this.writeLock.unlock();
+    }
+  }
+  
   public void handle(RMNodeEvent event) {
     LOG.debug(
             "Processing " + event.getNodeId() + " of type " + event.getType());
@@ -685,7 +697,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       if (rmNode.getTotalCapability().equals(newNode.getTotalCapability())
               && rmNode.getHttpPort() == newNode.getHttpPort()) {
         // Reset heartbeat ID since node just restarted.
-        rmNode.getLastNodeHeartBeatResponse().setResponseId(0);
+        rmNode.setLastNodeHeartBeatResponseId(0);
         if (rmNode.getState() != NodeState.UNHEALTHY) {
           // Only add new node if old state is not UNHEALTHY
           if (isDistributedRTEnabled

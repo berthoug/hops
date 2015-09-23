@@ -193,6 +193,8 @@ public class FairScheduler extends AbstractYarnScheduler {
   // heartbeat
   protected int maxAssign; // Max containers to assign per heartbeat
 
+  private int maxAllocatedContainersPerRequest = -1;
+  
   @VisibleForTesting
   final MaxRunningAppsEnforcer maxRunningEnforcer;
 
@@ -680,7 +682,8 @@ public class FairScheduler extends AbstractYarnScheduler {
 
     FSSchedulerApp attempt =
         new FSSchedulerApp(applicationAttemptId, user, queue,
-            new ActiveUsersManager(getRootQueueMetrics()), rmContext);
+            new ActiveUsersManager(getRootQueueMetrics()), rmContext,
+            maxAllocatedContainersPerRequest);
     if (transferStateFromPreviousAttempt) {
       attempt
           .transferStateFromPreviousAttempt(application.getCurrentAppAttempt());
@@ -1321,6 +1324,10 @@ public class FairScheduler extends AbstractYarnScheduler {
       preemptionInterval = this.conf.getPreemptionInterval();
       waitTimeBeforeKill = this.conf.getWaitTimeBeforeKill();
       usePortForNodeName = this.conf.getUsePortForNodeName();
+      
+      this.maxAllocatedContainersPerRequest = this.conf.getInt(
+              YarnConfiguration.MAX_ALLOCATED_CONTAINERS_PER_REQUEST,
+              YarnConfiguration.DEFAULT_MAX_ALLOCATED_CONTAINERS_PER_REQUEST);
       
       rootMetrics = FSQueueMetrics.forQueue("root", null, true, conf);
       this.rmContext = rmContext;

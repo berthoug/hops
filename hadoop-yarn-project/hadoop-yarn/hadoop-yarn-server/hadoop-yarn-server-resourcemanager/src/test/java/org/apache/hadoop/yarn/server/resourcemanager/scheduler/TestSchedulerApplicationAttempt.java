@@ -79,7 +79,7 @@ public class TestSchedulerApplicationAttempt {
     ApplicationAttemptId appAttId = createAppAttemptId(0, 0);
     SchedulerApplicationAttempt app =
         new SchedulerApplicationAttempt(appAttId, user, oldQueue,
-            oldQueue.getActiveUsersManager(), null);
+            oldQueue.getActiveUsersManager(), null, -1);
     oldMetrics.submitApp(user);
     
     // Resource request

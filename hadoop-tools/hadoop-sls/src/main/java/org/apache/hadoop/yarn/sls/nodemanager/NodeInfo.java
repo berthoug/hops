@@ -143,6 +143,10 @@ public class NodeInfo {
       return null;
     }
 
+    @Override
+    public void setLastNodeHeartBeatResponseId(int id) {
+    }
+        
     public List<UpdatedContainerInfo> pullContainerUpdates() {
       ArrayList<UpdatedContainerInfo> list = new ArrayList<UpdatedContainerInfo>();
       

@@ -99,7 +99,7 @@ public class transactionStateWrapper extends TransactionStateImpl {
     if (val == 0) {
       long duration = System.currentTimeMillis() - startTime;
       
-      if (duration > 100) {
+      if (duration > 1000) {
         LOG.info("finishing rpc too long : " + rpcId + " "
                 + rpcType + " after " + duration + printDetailedDurations());
       }
@@ -128,6 +128,10 @@ public class transactionStateWrapper extends TransactionStateImpl {
       if(!handleDurations.containsKey(key)){
         result = result + ", " +  key;
       }
+    }
+      result = result + " finished: ";
+    for(String key: handleStarts.keySet()){  
+      result = result + ", " + key;
     }
     return result;
   }
@@ -216,11 +220,6 @@ public class transactionStateWrapper extends TransactionStateImpl {
     ts.addAppAttempt(appAttempt);
   }
 
-  public void addAllocateResponse(ApplicationAttemptId id,
-          ApplicationMasterService.AllocateResponseLock allocateResponse,
-          String user) {
-    ts.addAllocateResponse(id, allocateResponse);
-  }
 
   public void removeAllocateResponse(ApplicationAttemptId id, int responseId) {
     ts.removeAllocateResponse(id, responseId);

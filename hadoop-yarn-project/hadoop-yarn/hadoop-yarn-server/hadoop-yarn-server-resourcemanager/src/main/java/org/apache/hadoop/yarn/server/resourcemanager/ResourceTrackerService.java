@@ -291,8 +291,7 @@ public class ResourceTrackerService extends AbstractService
       RMUtilities
               .persistAppMasterRPC(rpcID, RPC.Type.RegisterNM, allNMRequestData);
     }
-    TransactionState transactionState = rmContext.getTransactionStateManager().
-            getCurrentTransactionState(rpcID, "registerNodeManager");
+    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID, "registerNodeManager");
     if (!request.getContainerStatuses().isEmpty()) {
       LOG.info("received container statuses on node manager register :" +
           request.getContainerStatuses());
@@ -491,7 +490,8 @@ public class ResourceTrackerService extends AbstractService
       RMUtilities
           .persistAppMasterRPC(rpcID, RPC.Type.NodeHeartbeat, allHBRequestData);
     }
-    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionState(rpcID, "nodeHeartbeat");
+    TransactionState transactionState = rmContext.getTransactionStateManager().
+            getCurrentTransactionStatePriority(rpcID, "nodeHeartbeat");
     ((transactionStateWrapper)transactionState).addTime(1);
    
     ((TransactionStateImpl) transactionState)

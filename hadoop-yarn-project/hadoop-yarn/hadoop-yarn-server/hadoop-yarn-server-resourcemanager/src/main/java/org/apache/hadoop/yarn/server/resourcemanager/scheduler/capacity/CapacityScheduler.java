@@ -218,6 +218,8 @@ public class CapacityScheduler extends AbstractYarnScheduler
           + ".scheduling-interval-ms";
   private static final long DEFAULT_ASYNC_SCHEDULER_INTERVAL = 5;
 
+  private int maxAllocatedContainersPerRequest = -1;
+  
   public CapacityScheduler() {
   }
 
@@ -295,7 +297,9 @@ public class CapacityScheduler extends AbstractYarnScheduler
       this.usePortForNodeName = this.conf.getUsePortForNodeName();
       this.applications
               = new ConcurrentHashMap<ApplicationId, org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication>();
-
+      this.maxAllocatedContainersPerRequest = this.conf.getInt(
+              YarnConfiguration.MAX_ALLOCATED_CONTAINERS_PER_REQUEST,
+              YarnConfiguration.DEFAULT_MAX_ALLOCATED_CONTAINERS_PER_REQUEST);
       initializeQueues(this.conf);
 
       scheduleAsynchronously = this.conf.getScheduleAynschronously();
@@ -587,7 +591,8 @@ public class CapacityScheduler extends AbstractYarnScheduler
 
     FiCaSchedulerApp attempt
             = new FiCaSchedulerApp(applicationAttemptId, application.getUser(),
-                    queue, queue.getActiveUsersManager(), rmContext);
+                    queue, queue.getActiveUsersManager(), rmContext, 
+                    maxAllocatedContainersPerRequest);
     if (transferStateFromPreviousAttempt) {
       attempt.transferStateFromPreviousAttempt(application
               .getCurrentAppAttempt());
@@ -1228,7 +1233,7 @@ public class CapacityScheduler extends AbstractYarnScheduler
                           getQueuename()),
                   queues.get(hopFiCaSchedulerApp.
                           getQueuename()).getActiveUsersManager(),
-                  this.rmContext);
+                  this.rmContext, maxAllocatedContainersPerRequest);
           appAttempt.recover(state);
           app.setCurrentAppAttempt(appAttempt, null);
           LeafQueue queue = (LeafQueue) getQueue(hopFiCaSchedulerApp.

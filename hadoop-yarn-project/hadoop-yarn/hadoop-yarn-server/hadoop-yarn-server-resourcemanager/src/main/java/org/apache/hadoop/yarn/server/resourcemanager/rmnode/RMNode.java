@@ -174,6 +174,8 @@ public interface RMNode extends Recoverable {
 
   public NodeHeartbeatResponse getLastNodeHeartBeatResponse();
   
+  public void setLastNodeHeartBeatResponseId(int id);
+  
   /**
    * Get and clear the list of containerUpdates accumulated across NM
    * heartbeats.

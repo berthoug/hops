@@ -334,12 +334,12 @@ public class RMNodeInfo {
       ArrayList<FinishedApplications> toAddHopFinishedApplications
               = new ArrayList<FinishedApplications>();
       for (ApplicationId appId : finishedApplicationsToAdd) {
-
         FinishedApplications hopFinishedApplications
                 = new FinishedApplications(rmnodeId, appId.toString(), pendingId);
         toAddHopFinishedApplications.add(hopFinishedApplications);
 
       }
+      LOG.info("Finished_applicatons_by_scheduler: "+toAddHopFinishedApplications.toString());
       agregate.addAllFinishedAppToAdd(toAddHopFinishedApplications);
     }
   }
@@ -360,11 +360,19 @@ public class RMNodeInfo {
 
   public void toAddLatestNodeHeartBeatResponse(NodeHeartbeatResponse resp) {
     if (resp instanceof NodeHeartbeatResponsePBImpl) {
-      this.latestNodeHeartBeatResponse = new NodeHBResponse(rmnodeId,
-              ((NodeHeartbeatResponsePBImpl) resp)
-              .getProto().toByteArray());
+      try {
+        this.latestNodeHeartBeatResponse = new NodeHBResponse(rmnodeId,
+                ((NodeHeartbeatResponsePBImpl) resp)
+                .getProto().toByteArray());
+      } catch (RuntimeException e) {
+        //TODO find why we get this error that should never happen
+        LOG.error("this should never happen : " + e.getMessage(), e);
+        this.latestNodeHeartBeatResponse = new NodeHBResponse(rmnodeId,
+                new byte[1]);
+      }
     } else {
-      this.latestNodeHeartBeatResponse = new NodeHBResponse(rmnodeId, null);
+      this.latestNodeHeartBeatResponse = new NodeHBResponse(rmnodeId,
+              new byte[1]);
     }
   }
 

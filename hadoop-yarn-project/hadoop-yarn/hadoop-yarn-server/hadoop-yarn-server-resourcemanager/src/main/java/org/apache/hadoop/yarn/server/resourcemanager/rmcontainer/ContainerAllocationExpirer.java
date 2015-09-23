@@ -61,9 +61,10 @@ public class ContainerAllocationExpirer
   @Override
   protected void expire(ContainerId containerId) {
     try {
-      LOG.info("create transactionState container expirer");
-      TransactionState ts =rmContext.getTransactionStateManager().
-            getCurrentTransactionState(-1, "ContainerAllocationExpirer");
+      LOG.info("create transactionState container expirer for container " + containerId);
+      TransactionState ts = rmContext.getTransactionStateManager().
+              getCurrentTransactionStatePriority(-1,
+                      "ContainerAllocationExpirer");
       dispatcher.handle(new ContainerExpiredSchedulerEvent(containerId, ts));
       ts.decCounter(TransactionState.TransactionType.INIT);
     } catch (IOException ex) {

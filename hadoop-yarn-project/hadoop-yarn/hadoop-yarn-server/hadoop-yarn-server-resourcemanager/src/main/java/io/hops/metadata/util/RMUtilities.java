@@ -20,6 +20,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.hops.exception.StorageException;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
+import io.hops.ha.common.TransactionStateManager;
 import io.hops.metadata.yarn.TablesDef;
 import io.hops.metadata.yarn.dal.AppSchedulingInfoBlacklistDataAccess;
 import io.hops.metadata.yarn.dal.AppSchedulingInfoDataAccess;
@@ -2210,39 +2211,86 @@ public class RMUtilities {
     }
   }
   
-  public static synchronized void putTransactionStateInQueues(TransactionState ts, Set<String> nodeIds, Set<ApplicationId> appIds){
+  public static void putTransactionStateInQueues(TransactionState ts, Set<String> nodeIds, Set<ApplicationId> appIds){
+    nextRPCLock.lock();
     putTransactionStateInNodeQueue(ts, nodeIds);
     putTransactionStateInAppQueue(ts, appIds);
+    nextRPCLock.unlock();
   }
   
   static int nextRPC = 0;
-  static Map<Integer, TransactionStateImpl> finishedRPCs =
-      new HashMap<Integer, TransactionStateImpl>();
+  static Map<Integer, TransactionStateImpl> finishedRPCs
+          = new HashMap<Integer, TransactionStateImpl>();
   static Lock nextRPCLock = new ReentrantLock(true);
   static Map<Integer, Long> startCommit = new ConcurrentHashMap<Integer, Long>();
-  
-  public static void logPutInCommitingQueue(TransactionState ts){
+  static Map<Integer, Long> startHandling
+          = new ConcurrentHashMap<Integer, Long>();
+
+  public static void logPutInCommitingQueue(TransactionState ts) {
     startCommit.put(ts.getId(), System.currentTimeMillis());
   }
-  
-  
+
   public static void finishRPCs(TransactionState ts) throws IOException {
+    if (startHandling.get(ts.getId()) == null) {
+      startHandling.put(ts.getId(), System.currentTimeMillis());
+    }
     nextRPCLock.lock();
-    if (ts.getAppIds().isEmpty() && ((TransactionStateImpl) ts).
-            getRMNodesToUpdate().isEmpty()) {
+    if (!canCommitApp(ts) || !canCommitNode((TransactionStateImpl) ts)) {
+      finishedTs.put(ts.getId(), ts);
       nextRPCLock.unlock();
-      LOG.debug("finished rpc " + ts.getId());
-      finishRPC((TransactionStateImpl) ts);
     } else {
-      if (ts.getAppIds().isEmpty()) {
-        commitRMNodeTransaction((TransactionStateImpl) ts);
-      } else if (((TransactionStateImpl) ts).getRMNodesToUpdate().isEmpty()) {
-        commitApplicationTransaction(ts);
-      } else {
-        commitAppAndNodeTransaction(ts);
+      nextRPCLock.unlock();
+      finishRPC((TransactionStateImpl) ts);
+      LOG.info("finished rpc " + ts.getId());
+      nextRPCLock.lock();
+      int oldid = ts.getId();
+      for (String nodeId : ((TransactionStateImpl) ts).getRMNodesToUpdate().
+              keySet()) {
+        transactionStateForRMNode.get(nodeId).poll();
+      }
+      for (ApplicationId appId : ts.getAppIds()) {
+        transactionStateForApp.get(appId).poll();
+      }
+      Map<Integer, TransactionState> toCommit
+              = new HashMap<Integer, TransactionState>();
+      Iterator<ApplicationId> it = ts.getAppIds().iterator();
+      while (it.hasNext()) {
+        ApplicationId appId = it.next();
+        TransactionState transactionState = transactionStateForApp.get(appId).
+                peek();
+        if (transactionState != null && isFinished(
+                transactionState)) {
+          toCommit.put(transactionState.getId(), transactionState);
+        }
+      }
+      Iterator<String> itNodes = ((TransactionStateImpl) ts).
+              getRMNodesToUpdate().keySet().iterator();
+      while (it.hasNext()) {
+        String nodeId = itNodes.next();
+        TransactionState transactionState
+                = (TransactionStateImpl) transactionStateForRMNode.get(nodeId).
+                peek();
+        if (transactionState != null && isFinished(
+                transactionState)) {
+          toCommit.put(transactionState.getId(), transactionState);
+        }
       }
       nextRPCLock.unlock();
+      for (TransactionState state : toCommit.values()) {
+        LOG.info("recommiting " + state.getId() + " after " + oldid);
+        state.commit(false);
+      }
     }
+  }
+    
+  private static Map<Integer, TransactionState> finishedTs
+          = new HashMap<Integer, TransactionState>();
+
+  private static boolean isFinished(TransactionState ts) {
+    nextRPCLock.lock();
+    TransactionState transactionState = finishedTs.remove(ts.getId());
+    nextRPCLock.unlock();
+    return transactionState != null;
   }
 
   private static boolean canCommitApp(TransactionState ts) {
@@ -2275,182 +2323,6 @@ public class RMUtilities {
     }
     nextRPCLock.unlock();
     return true;
-  }
-
-  private static boolean purgeFinishedTransactionMap(TransactionState ts) {
-  nextRPCLock.lock();
-  LOG.info("purging of transaction failed " + ts.getId());
-    for (ApplicationId appId : ts.getAppIds()) {
-      if (finishedTransactionStateForApp.get(appId) == null ||
-               finishedTransactionStateForApp.get(appId).remove(ts.getId())
-              == null) {
-        LOG.error("purging of transaction failed " + ts.getId() + " " + appId);
-        nextRPCLock.unlock();
-        return false;
-      }
-    }
-    for (String nodeId : ((TransactionStateImpl) ts).getRMNodesToUpdate().
-            keySet()) {
-
-      if (finishedTransactionStateForRMNode.get(nodeId) == null ||
-              finishedTransactionStateForRMNode.get(nodeId).
-              remove(ts.getId()) == null) {
-        LOG.error("purging of transaction failed " + ts.getId() + " " + nodeId + "(" + finishedTransactionStateForRMNode.get(nodeId) + ")");
-        nextRPCLock.unlock();
-        return false;
-      }
-    }
-    nextRPCLock.unlock();
-    return true;
-  }
-
-  private static void commitApplicationTransaction(TransactionState ts) throws
-          IOException {
-    nextRPCLock.lock();
-    if (!canCommitApp(ts)) {
-      populateFinishedAppMap(ts);
-      nextRPCLock.unlock();
-    } else {
-      LOG.info("finished app rpc " + ts.getId());
-      nextRPCLock.unlock();
-      finishRPC((TransactionStateImpl) ts);
-      nextRPCLock.lock();
-      for (ApplicationId appId : ts.getAppIds()) {
-        transactionStateForApp.get(appId).poll();
-      }
-      int oldid = ts.getId();
-      Iterator<ApplicationId> it = ts.getAppIds().iterator();
-      Map<Integer, TransactionState> toCommit
-              = new HashMap<Integer, TransactionState>();
-      while (it.hasNext()) {
-        ApplicationId appId = it.next();
-        ts = transactionStateForApp.get(appId).peek();
-        if (ts != null && purgeFinishedTransactionMap(ts)) {
-          toCommit.put(ts.getId(), ts);
-        }
-      }
-      nextRPCLock.unlock();
-      for (TransactionState state : toCommit.values()) {
-        LOG.info("recommiting " + state.getId() + " after " + oldid);
-        state.commit(false);
-      }
-    }
-
-  }
-
-  private static void populateFinishedAppMap(TransactionState ts) {
-    for (ApplicationId appId : ts.getAppIds()) {
-      Map<Integer, TransactionState> appMap
-              = finishedTransactionStateForApp.get(
-                      appId);
-      if (appMap == null) {
-        appMap = new HashMap<Integer, TransactionState>();
-        finishedTransactionStateForApp.put(appId, appMap);
-      }
-      LOG.info("populate map with " + ts.getId() + " for app " + appId);
-      appMap.put(ts.getId(), ts);
-    }
-  }
-
-  private static void commitRMNodeTransaction(TransactionStateImpl ts) throws
-          IOException {
-    nextRPCLock.lock();
-    if (!canCommitNode(ts)) {
-      populateFinishedRMNodeMap(ts);
-      nextRPCLock.unlock();
-    } else {
-      LOG.info("finished rmnode rpc " + ts.getId());
-      nextRPCLock.unlock();
-      finishRPC((TransactionStateImpl) ts);
-      nextRPCLock.lock();
-      for (String nodeId : ts.getRMNodesToUpdate().keySet()) {
-        transactionStateForRMNode.get(nodeId).poll();
-      }
-      int oldid = ts.getId();
-      Iterator<String> it = ts.getRMNodesToUpdate().keySet().iterator();
-      Map<Integer, TransactionState> toCommit
-              = new HashMap<Integer, TransactionState>();
-      while (it.hasNext()) {
-        String nodeId = it.next();
-        ts = (TransactionStateImpl) transactionStateForRMNode.get(nodeId).peek();
-        if (ts != null && purgeFinishedTransactionMap(ts)) {
-          toCommit.put(ts.getId(), ts);
-        }
-      }
-      nextRPCLock.unlock();
-      for (TransactionState state : toCommit.values()) {
-        LOG.info("recommiting " + state.getId() + " after " + oldid);
-        state.commit(false);
-      }
-    }
-  }
-
-  private static void populateFinishedRMNodeMap(TransactionStateImpl ts) {
-    for (String nodeId : ts.getRMNodesToUpdate().keySet()) {
-      Map<Integer, TransactionState> tsMap = finishedTransactionStateForRMNode.
-              get(nodeId);
-      if (tsMap == null) {
-        tsMap = new HashMap<Integer, TransactionState>();
-        finishedTransactionStateForRMNode.put(nodeId, tsMap);
-      }
-      tsMap.put(ts.getId(), ts);
-      LOG.info("populate map with " + ts.getId() + " for node " + nodeId);
-    }
-  }
-
-  private static void commitAppAndNodeTransaction(TransactionState ts) throws
-          IOException {
-    nextRPCLock.lock();
-    if (!canCommitApp(ts) || !canCommitNode((TransactionStateImpl) ts)) {
-      populateFinishedAppMap(ts);
-      populateFinishedRMNodeMap((TransactionStateImpl) ts);
-      nextRPCLock.unlock();
-    } else {
-      LOG.info("finished app and rmnode rpc " + ts.getId());
-      nextRPCLock.unlock();
-      finishRPC((TransactionStateImpl) ts);
-      nextRPCLock.lock();
-      int oldid = ts.getId();
-      for (String nodeId : ((TransactionStateImpl) ts).getRMNodesToUpdate().
-              keySet()) {
-        transactionStateForRMNode.get(nodeId).poll();
-      }
-      for (ApplicationId appId : ts.getAppIds()) {
-        LOG.
-                debug("poll ts for ap " + appId.toString() + " for ts: " + ts.
-                        getId());
-        transactionStateForApp.get(appId).poll();
-      }
-      Map<Integer, TransactionState> toCommit
-              = new HashMap<Integer, TransactionState>();
-      Iterator<ApplicationId> it = ts.getAppIds().iterator();
-      while (it.hasNext()) {
-        ApplicationId appId = it.next();
-        TransactionState transactionState = transactionStateForApp.get(appId).
-                peek();
-        if (transactionState != null && purgeFinishedTransactionMap(
-                transactionState)) {
-          toCommit.put(transactionState.getId(), transactionState);
-        }
-      }
-      Iterator<String> itNodes = ((TransactionStateImpl) ts).
-              getRMNodesToUpdate().keySet().iterator();
-      while (it.hasNext()) {
-        String nodeId = itNodes.next();
-        TransactionState transactionState
-                = (TransactionStateImpl) transactionStateForRMNode.get(nodeId).
-                peek();
-        if (transactionState != null && purgeFinishedTransactionMap(
-                transactionState)) {
-          toCommit.put(transactionState.getId(), transactionState);
-        }
-      }
-      nextRPCLock.unlock();
-      for (TransactionState state : toCommit.values()) {
-        LOG.info("recommiting " + state.getId() + " after " + oldid);
-        state.commit(false);
-      }
-    }
   }
 
   static LinkedBlockingQueue<String> logs = new LinkedBlockingQueue<String>();
@@ -2577,8 +2449,8 @@ public class RMUtilities {
             long t9 = System.currentTimeMillis()-start;
             nbCommit.incrementAndGet(); connector.commit();
             long t10 = System.currentTimeMillis()-start;
-            if (t10 > 100) {
-              LOG.error("commit too long: " + t10 + " dt: " + t1 + " " + t2
+            if (t10 > 1000) {
+              LOG.error("commit too long: " + ts.getId() + " dt: " + t1 + " " + t2
                       + " " + t3 + " " + t4 + " " + t5 + " " + t6 + " " + t7
                       + " " + t8 + " " + t9 + " " + t10 + " ");
             }
@@ -2599,13 +2471,17 @@ public class RMUtilities {
         };
     try {
       setfinishRPCHandler.handle();
-    } catch (IOException ex) {
+    } catch (Exception ex) {
+      //TODO properly handle different kind of exceptions
       LOG.error("HOP :: Error commiting finishRPC ", ex);
     }
     long commitDuration = System.currentTimeMillis() - start;
     long commitAndQueueDuration = commitDuration;
+    long beforeHandling = 0;
     if (ts.getId() > 0) {
       commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(
+              ts.getId());
+      beforeHandling = startHandling.get(ts.getId()) - startCommit.get(
               ts.getId());
     }
 //    String yarnState = YarnAPIStorageFactory.printYarnState();
@@ -2628,11 +2504,19 @@ public class RMUtilities {
       minCommitAndQueueDuration = commitAndQueueDuration;
     }
     nbFinish.addAndGet(1);
-    if(maxCommitAndQueueDuration>1000){
-      LOG.error("commit and queue duration too long: " + maxCommitAndQueueDuration + " (" + commitDuration + ") " + " nodes: " + ts.getRMNodesToUpdate().keySet() + 
-              " app: " + ts.getAppIds());
+    if(commitAndQueueDuration>1000){
+      LOG.error("commit and queue duration too long: " + commitAndQueueDuration + " (" + commitDuration + ", " + beforeHandling + ") ts: " + ts.getId() + " nodes: " + ts.getRMNodesToUpdate().keySet().size() + " (" + ts.getRMNodesToUpdate().keySet() + ") " +
+              " app: " + ts.getAppIds().size() + " (" + ts.getAppIds() + ")");
     }
     logs.add("finish (" + ts.getId() +"): " + commitDuration + ", " + commitAndQueueDuration );
+    
+    if(ts.getManager()!=null){
+      if(commitAndQueueDuration>500 || getQueueLength()>2){
+        ts.getManager().blockNonHB();
+      }else{
+        ts.getManager().unblockNonHB();
+      }
+    }
   }
 
   public static LinkedBlockingQueue<String>getLogs(){
@@ -2678,6 +2562,10 @@ public class RMUtilities {
   
   public static double getMaxCommitAndQueueDuration(){
     return maxCommitAndQueueDuration;
+  }
+  
+  public static int getQueueLength(){
+    return finishedTs.size();
   }
   
   public static double getCommitAndQueueAvgDuration(){

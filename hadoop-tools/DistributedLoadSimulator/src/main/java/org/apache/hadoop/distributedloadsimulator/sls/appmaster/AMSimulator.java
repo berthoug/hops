@@ -150,7 +150,7 @@ public abstract class AMSimulator extends TaskRunner.Task {
           AMNMCommonObject secondryConnections = (AMNMCommonObject) secondryRegistry.lookup("AMNMCommonObject");
           RemoteConnections.add(secondryConnections);
         } catch (RemoteException ex) {
-          LOG.error("Remote exception:", ex);
+          LOG.error("Remote exception at AMSimulator :", ex);
         } catch (NotBoundException ex) {
           LOG.error("Unable to bind exception:", ex);
         }

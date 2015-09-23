@@ -58,6 +58,7 @@ public class NMSimulator extends TaskRunner.Task {
   private RMNode node;
   // master key
   private MasterKey masterKey;
+  private MasterKey containerMasterKey;
   // containers with various STATE
   private List<ContainerId> completedContainerList;
   private List<ContainerId> releasedContainerList;
@@ -71,15 +72,18 @@ public class NMSimulator extends TaskRunner.Task {
   // heart beat response id
   private int RESPONSE_ID = 1;
   private final static Logger LOG = Logger.getLogger(NMSimulator.class);
-  private boolean isFistBeat=false;
+  private boolean isFistBeat = false;
 
   public void init(String nodeIdStr, int memory, int cores,
-          int dispatchTime, int heartBeatInterval, ResourceManager rm, ResourceTracker rt)
+          int dispatchTime, int heartBeatInterval, ResourceManager rm,ResourceTracker rt)
           throws IOException, YarnException {
     super.init(dispatchTime, dispatchTime + 1000000L * heartBeatInterval,
             heartBeatInterval);
-    this.resourceTracker = rt;
+//    this.resourceTracker = ServerRMProxy.createRMProxy(conf, ResourceTracker.class,
+//            conf.getBoolean(YarnConfiguration.DISTRIBUTED_RM,
+//                    YarnConfiguration.DEFAULT_DISTRIBUTED_RM));
     // create resource
+    this.resourceTracker=rt;
     String rackHostName[] = SLSUtils.getRackHostName(nodeIdStr);
     this.node = NodeInfo.newNodeInfo(rackHostName[0], rackHostName[1],
             BuilderUtils.newResource(memory, cores));
@@ -103,7 +107,7 @@ public class NMSimulator extends TaskRunner.Task {
     req.setHttpPort(80);
     RegisterNodeManagerResponse response = resourceTracker.registerNodeManager(req);
     masterKey = response.getNMTokenMasterKey();
-    
+    containerMasterKey = response.getContainerTokenMasterKey();
   }
 
   @Override
@@ -120,7 +124,7 @@ public class NMSimulator extends TaskRunner.Task {
   }
 
   @Override
-  public void middleStep() {
+  public void middleStep() throws YarnException, IOException {
     // we check the lifetime for each running containers
     ContainerSimulator cs = null;
     synchronized (completedContainerList) {
@@ -134,6 +138,7 @@ public class NMSimulator extends TaskRunner.Task {
     NodeHeartbeatRequest beatRequest
             = Records.newRecord(NodeHeartbeatRequest.class);
     beatRequest.setLastKnownNMTokenMasterKey(masterKey);
+    beatRequest.setLastKnownContainerTokenMasterKey(containerMasterKey);
     NodeStatus ns = Records.newRecord(NodeStatus.class);
 
     ns.setContainersStatuses(generateContainerStatusList());
@@ -142,41 +147,49 @@ public class NMSimulator extends TaskRunner.Task {
     ns.setResponseId(RESPONSE_ID++);
     ns.setNodeHealthStatus(NodeHealthStatus.newInstance(true, "", 0));
     beatRequest.setNodeStatus(ns);
-    try {
-      // only first time , this NM thread will update the beat start sec
-      if(!isFistBeat){
-        SLSRunner.measureFirstBeat();
-        isFistBeat=true;
-      }
-      NodeHeartbeatResponse beatResponse = resourceTracker.nodeHeartbeat(beatRequest);
-      ++totalHeartBeat;
-      if (beatResponse.getNextheartbeat()) {
-        ++trueHeartBeat;
-      }
-      if (!beatResponse.getContainersToCleanup().isEmpty()) {
-        // remove from queue
-        synchronized (releasedContainerList) {
-          for (ContainerId containerId : beatResponse.getContainersToCleanup()) {
-            if (amContainerList.contains(containerId)) {
-              // AM container (not killed?, only release)
-              synchronized (amContainerList) {
-                amContainerList.remove(containerId);
-              }
-            } else {
-              cs = runningContainers.remove(containerId);
-              containerQueue.remove(cs);
-              releasedContainerList.add(containerId);
+    // only first time , this NM thread will update the beat start sec
+    if (!isFistBeat) {
+      SLSRunner.measureFirstBeat();
+      isFistBeat = true;
+    }
+    NodeHeartbeatResponse beatResponse = resourceTracker.nodeHeartbeat(beatRequest);
+    ++totalHeartBeat;
+    if (beatResponse.getNextheartbeat()) {
+      ++trueHeartBeat;
+    }
+    if (!beatResponse.getContainersToCleanup().isEmpty()) {
+      // remove from queue
+      synchronized (releasedContainerList) {
+        for (ContainerId containerId : beatResponse.getContainersToCleanup()) {
+          if (amContainerList.contains(containerId)) {
+            // AM container (not killed?, only release)
+            synchronized (amContainerList) {
+              amContainerList.remove(containerId);
             }
+          } else {
+            cs = runningContainers.remove(containerId);
+            if (cs != null) {
+              LOG.error("in the simulated scenario the container should not be"
+                      + "freed until they have completed their task");
+              throw new YarnException("the failover should be transparent");
+            }
+            containerQueue.remove(cs);
+            releasedContainerList.add(containerId);
           }
         }
       }
-      if (beatResponse.getNodeAction() == NodeAction.SHUTDOWN) {
-        lastStep();
-      }
-    } catch (YarnException e) {
-      e.printStackTrace();
-    } catch (IOException e) {
-      e.printStackTrace();
+    }
+    if (beatResponse.getNodeAction() == NodeAction.SHUTDOWN) {
+      lastStep();
+    } else if (beatResponse.getNodeAction() == NodeAction.RESYNC) {
+      LOG.error("the failover should be transparent");
+      throw new YarnException("the failover should be transparent");
+    }
+    if (beatResponse.getContainerTokenMasterKey() != null) {
+      masterKey = beatResponse.getContainerTokenMasterKey();
+    }
+    if (beatResponse.getContainerTokenMasterKey() != null) {
+      containerMasterKey = beatResponse.getContainerTokenMasterKey();
     }
   }
 

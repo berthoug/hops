@@ -78,7 +78,7 @@ public class TestFSSchedulerApp {
 
     ApplicationAttemptId applicationAttemptId = createAppAttemptId(1, 1);
     FSSchedulerApp schedulerApp =
-        new FSSchedulerApp(applicationAttemptId, "user1", queue, null, null);
+        new FSSchedulerApp(applicationAttemptId, "user1", queue, null, null, -1);
 
     // Default level should be node-local
     assertEquals(NodeType.NODE_LOCAL, schedulerApp
@@ -161,7 +161,7 @@ public class TestFSSchedulerApp {
 
     ApplicationAttemptId applicationAttemptId = createAppAttemptId(1, 1);
     FSSchedulerApp schedulerApp =
-        new FSSchedulerApp(applicationAttemptId, "user1", queue, null, null);
+        new FSSchedulerApp(applicationAttemptId, "user1", queue, null, null, -1);
     AppSchedulable appSchedulable = Mockito.mock(AppSchedulable.class);
     long startTime = clock.getTime();
     Mockito.when(appSchedulable.getStartTime()).thenReturn(startTime);
@@ -227,7 +227,7 @@ public class TestFSSchedulerApp {
 
     ApplicationAttemptId applicationAttemptId = createAppAttemptId(1, 1);
     FSSchedulerApp schedulerApp =
-        new FSSchedulerApp(applicationAttemptId, "user1", queue, null, null);
+        new FSSchedulerApp(applicationAttemptId, "user1", queue, null, null, -1);
     assertEquals(NodeType.OFF_SWITCH,
             schedulerApp.getAllowedLocalityLevel(prio, 10, -1.0, -1.0,
                     new TransactionStateImpl(

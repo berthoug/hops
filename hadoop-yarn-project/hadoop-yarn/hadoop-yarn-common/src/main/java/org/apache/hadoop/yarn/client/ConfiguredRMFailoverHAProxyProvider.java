@@ -102,6 +102,7 @@ public abstract class ConfiguredRMFailoverHAProxyProvider<T>
   @Override
   public synchronized ProxyInfo<T> getProxy() {
     if (currentProxy == null) {
+      LOG.info("getProxy for the first time");
       performFailover(currentProxy);
     }
     return new ProxyInfo<T>(currentProxy, currentRMId);
@@ -109,7 +110,7 @@ public abstract class ConfiguredRMFailoverHAProxyProvider<T>
 
   @Override
   public synchronized void performFailover(T currentProxy) {
-    LOG.info("performing failover");
+    LOG.debug("performing failover");
     if (currentProxy != null) {
       oldProxies.put(currentRMId, this.currentProxy);
     }

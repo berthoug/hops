@@ -7,7 +7,8 @@ if [ -z "${basedir}" ]; then
     echo "Hadoop HOP distro dirctory can not be empty. <Ex : ./distributedsls.sh /home/sri/batchmode/hop_distro>"
     exit
 fi
-remoteSimIp=$2
+thisSimIp=$2
+remoteSimIp=$3
 if [ -z "${remoteSimIp}" ]; then
     echo "Remote simulator ip is not set or empty ."
     exit
@@ -81,7 +82,7 @@ for nm in {2000..2000..1000}
 
                 ssh $user@$4 "cd $basedir/distributedsimulator_resources; ./initsimulator.sh $basedir" &
                  ### start the simulator on this host 
-                ./initsimulator.sh $basedir
+                ./initsimulator.sh $basedir output/sls-jobs_0.json output/sls-nodes_0.json $4 $remoteSimIp
 
                  ### once this host experiments is done , kill the remote one too
                 ssh $user@$remoteSimIp "cd $basedir/distributedsimulator_resources; ./killsimulator.sh"
