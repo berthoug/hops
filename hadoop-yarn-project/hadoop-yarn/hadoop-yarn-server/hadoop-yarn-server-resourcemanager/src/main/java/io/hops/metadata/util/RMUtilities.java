@@ -154,6 +154,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -2236,7 +2237,7 @@ public class RMUtilities {
     }
     nextRPCLock.lock();
     if (!canCommitApp(ts) || !canCommitNode((TransactionStateImpl) ts)) {
-      finishedTs.put(ts.getId(), ts);
+      finishedTs.add(ts);
       nextRPCLock.unlock();
     } else {
       nextRPCLock.unlock();
@@ -2283,14 +2284,14 @@ public class RMUtilities {
     }
   }
     
-  private static Map<Integer, TransactionState> finishedTs
-          = new HashMap<Integer, TransactionState>();
+  private static Set<TransactionState> finishedTs
+          = new HashSet<TransactionState>();
 
   private static boolean isFinished(TransactionState ts) {
     nextRPCLock.lock();
-    TransactionState transactionState = finishedTs.remove(ts.getId());
+    boolean result = finishedTs.remove(ts);
     nextRPCLock.unlock();
-    return transactionState != null;
+    return result;
   }
 
   private static boolean canCommitApp(TransactionState ts) {
