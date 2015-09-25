@@ -282,7 +282,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
 
     DefaultMetricsSystem.initialize("ResourceManager");
     JvmMetrics.initSingleton("ResourceManager", null);
-    
+    rmContext.getTransactionStateManager().start();
   }
 
   @Override
@@ -547,7 +547,6 @@ public class ResourceManager extends CompositeService implements Recoverable {
           throw e;
         }
       }
-      rmContext.getTransactionStateManager().start();
       super.serviceStart();
     }
 

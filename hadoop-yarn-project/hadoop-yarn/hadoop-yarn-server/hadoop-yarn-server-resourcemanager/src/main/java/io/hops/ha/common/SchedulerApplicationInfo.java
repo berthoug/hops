@@ -74,14 +74,14 @@ public class SchedulerApplicationInfo {
     totalt1 = totalt1 +  System.currentTimeMillis()-start;
     persistFiCaSchedulerAppInfo(connector);
     totalt2 = totalt2 + System.currentTimeMillis()-start;
-     persistApplicationIdToRemove();
+    persistApplicationIdToRemove();
     totalt3 = totalt3 + System.currentTimeMillis()-start;
     nbFinish++;
     if (nbFinish % 100 == 0) {
       double avgt1 = totalt1 / nbFinish;
       double avgt2 = totalt2 / nbFinish;
       double avgt3 = totalt3 / nbFinish;
-      LOG.info("avg time commit scheduler app info: " + avgt1 + ", " + avgt2
+      LOG.debug("avg time commit scheduler app info: " + avgt1 + ", " + avgt2
               + ", " + avgt3);
     }
   }

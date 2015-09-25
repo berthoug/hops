@@ -88,7 +88,7 @@ public class TaskRunner {
           }
         } else if (nextRun < endTime) {
           middleStep();
-          nextRun += repeatInterval;
+          nextRun = System.currentTimeMillis() + repeatInterval;
           queue.add(this);
         } else {
           lastStep();

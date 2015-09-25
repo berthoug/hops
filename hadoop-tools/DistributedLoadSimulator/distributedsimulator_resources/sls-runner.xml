@@ -18,10 +18,15 @@
 
   <!-- SLSRunner configuration -->
   <property>
-    <name>yarn.sls.runner.pool.size</name>
+    <name>yarn.sls.runner.nm.pool.size</name>
     <value>500</value>
   </property>
-  
+
+    <property>
+    <name>yarn.sls.runner.am.pool.size</name>
+    <value>10</value>
+  </property>
+
   <!-- Nodes configuration -->
   <property>
     <name>yarn.sls.nm.memory.mb</name>

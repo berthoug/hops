@@ -17,15 +17,7 @@ package io.hops.ha.common;
 
 import io.hops.exception.StorageException;
 import static io.hops.ha.common.TransactionState.pendingEventId;
-import io.hops.metadata.util.RMStorageFactory;
-import io.hops.metadata.yarn.dal.ContainerIdToCleanDataAccess;
-import io.hops.metadata.yarn.dal.ContainerStatusDataAccess;
-import io.hops.metadata.yarn.dal.FinishedApplicationsDataAccess;
-import io.hops.metadata.yarn.dal.JustLaunchedContainersDataAccess;
-import io.hops.metadata.yarn.dal.NextHeartbeatDataAccess;
-import io.hops.metadata.yarn.dal.NodeHBResponseDataAccess;
 import io.hops.metadata.yarn.dal.PendingEventDataAccess;
-import io.hops.metadata.yarn.dal.UpdatedContainerInfoDataAccess;
 import io.hops.metadata.yarn.entity.ContainerId;
 import io.hops.metadata.yarn.entity.ContainerStatus;
 import io.hops.metadata.yarn.entity.FinishedApplications;
@@ -51,13 +43,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
-import static org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.LOG;
 
 public class RMNodeInfo {
 
   private static final Log LOG = LogFactory.getLog(RMNodeInfo.class);
   private String rmnodeId = null;
-      //PersistedEvent to persist for distributed RT
+  //PersistedEvent to persist for distributed RT
   private final ArrayList<PendingEvent> persistedEventsToAdd
           = new ArrayList<PendingEvent>();
   private final ArrayList<PendingEvent> persistedEventsToRemove
@@ -70,7 +61,7 @@ public class RMNodeInfo {
       justLaunchedContainersToAdd =
           new HashMap<org.apache.hadoop.yarn.api.records.ContainerId, ContainerStatus>();
   private Set<org.apache.hadoop.yarn.api.records.ContainerId> justLaunchedContainersToRemove = new TreeSet<org.apache.hadoop.yarn.api.records.ContainerId>();
-   private Map<Integer, UpdatedContainerInfoToAdd> nodeUpdateQueueToAdd
+  private Map<Integer, UpdatedContainerInfoToAdd> nodeUpdateQueueToAdd
           = new ConcurrentHashMap<Integer, UpdatedContainerInfoToAdd>();
   private Map<Integer, UpdatedContainerInfoToAdd> nodeUpdateQueueToRemove
           = new ConcurrentHashMap<Integer, UpdatedContainerInfoToAdd>();
@@ -292,7 +283,7 @@ public class RMNodeInfo {
 
         toAddHopJustLaunchedContainers.add(
                 new JustLaunchedContainers(rmnodeId,
-                        value.getContainerid(), pendingId));
+                        value.getContainerid()));
         toAddContainerStatus.add(value);
       }
       agregate.addAllContainersStatusToAdd(toAddContainerStatus);
@@ -312,8 +303,7 @@ public class RMNodeInfo {
           new ArrayList<JustLaunchedContainers>();
       for (org.apache.hadoop.yarn.api.records.ContainerId key : justLaunchedContainersToRemove) {
         toRemoveHopJustLaunchedContainers
-                .add(new JustLaunchedContainers(rmnodeId, key.toString(),
-                                pendingId));
+                .add(new JustLaunchedContainers(rmnodeId, key.toString()));
       }
       agregate.addAllJustLaunchedContainersToRemove(toRemoveHopJustLaunchedContainers);
     }
@@ -364,6 +354,7 @@ public class RMNodeInfo {
         toAddHopFinishedApplications.add(hopFinishedApplications);
 
       }
+      LOG.info("Finished_applicatons_by_scheduler: "+toAddHopFinishedApplications.toString());
       agregate.addAllFinishedAppToAdd(toAddHopFinishedApplications);
     }
   }
@@ -451,6 +442,7 @@ public void agregateFinishedApplicationToRemove(RMNodeInfoAgregate agregate){
   public void agregatePendingEventsToAdd(RMNodeInfoAgregate agregate) {
     if (persistedEventsToAdd != null
             && !persistedEventsToAdd.isEmpty()) {
+      LOG.info("agregating pending event to add: " + persistedEventsToAdd.size());
       agregate.addAllPendingEventsToAdd(persistedEventsToAdd);
     }
   }

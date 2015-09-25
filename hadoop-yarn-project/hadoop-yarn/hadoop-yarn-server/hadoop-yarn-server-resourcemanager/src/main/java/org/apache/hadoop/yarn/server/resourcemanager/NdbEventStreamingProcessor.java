@@ -58,10 +58,6 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
         if (hopRMNodeNDBCompObject.getPendingEvent() != null) {
             LOG.info("<EvtProcessor> [pendingevent] id : "+hopRMNodeNDBCompObject.getPendingEvent().getRmnodeId() +"| peinding id : "+hopRMNodeNDBCompObject.getPendingEvent().getId());
         }
-        List<JustLaunchedContainers> hopJustLaunchedContainers = hopRMNodeNDBCompObject.getHopJustLaunchedContainers();
-        for (JustLaunchedContainers hopjl : hopJustLaunchedContainers) {
-            LOG.info("<EvtProcessor> [justlaunchedcontainer] id : "+hopjl.getRmnodeid() +"| container id : "+hopjl.getContainerId());
-        }
         List<UpdatedContainerInfo> hopUpdatedContainerInfo = hopRMNodeNDBCompObject.getHopUpdatedContainerInfo();
         for (UpdatedContainerInfo hopuc : hopUpdatedContainerInfo) {
             LOG.info("<EvtProcessor> [updatedcontainerinfo] id : "+hopuc.getRmnodeid() +"| container id : "+hopuc.getContainerId());

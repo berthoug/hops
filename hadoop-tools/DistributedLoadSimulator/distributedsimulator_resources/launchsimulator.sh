@@ -26,10 +26,10 @@ for nm in {1000..1000..1000}
                 cp tracefiles/$nm/sls-*.json  output
 
                 ## start the remote resource manager        
-                 ssh $user@$remoteSimIp "cd $basedir/distributedsimulator_resources; ./initsimulator.sh $basedir output/sls-jobs_1.json output/sls-nodes_1.json $4 $thisSimIp" &
+                 ssh $user@$remoteSimIp "cd $basedir/distributedsimulator_resources; ./initsimulator.sh $basedir output/sls-jobs_1.json output/sls-nodes_1.json $4 $5 $thisSimIp" &
 
                  ### start the simulator on this host 
-                ./initsimulator.sh $basedir output/sls-jobs_0.json output/sls-nodes_0.json $4 $remoteSimIp
+                ./initsimulator.sh $basedir output/sls-jobs_0.json output/sls-nodes_0.json $4 $5 $remoteSimIp
 
                  ### once this host experiments is done , kill the remote one too
                  ssh $user@$remoteSimIp "cd $basedir/distributedsimulator_resources; ./killsimulator.sh"
@@ -47,7 +47,7 @@ for nm in {1000..1000..1000}
                  remoteendtime=$(echo $remoteendtimetmp | awk '{print $11}')
 
                  finalstarttime=$(( hoststarttime < remotestartime ? hoststarttime : remotestartime ))
-                 finalendtime=$(( hostendtime > remotendtime ? hostendtime : remoteendtime ))
+                 finalendtime=$(( hostendtime > remoteendtime ? hostendtime : remoteendtime ))
 
                  totalexetime=$((finalendtime-finalstarttime))
                  echo "################  Total execution time #######################"

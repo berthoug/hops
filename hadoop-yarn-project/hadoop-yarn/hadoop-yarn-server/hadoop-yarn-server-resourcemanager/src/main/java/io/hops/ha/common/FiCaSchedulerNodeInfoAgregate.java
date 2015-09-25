@@ -97,7 +97,7 @@ public class FiCaSchedulerNodeInfoAgregate {
       double avgt3 = totalt3 / nbFinish;
       double avgt4 = totalt4 / nbFinish;
       double avgt5 = totalt5 / nbFinish;
-      LOG.info("avg time commit FiCASchedulerNodeInfo: " + avgt1 + ", " + avgt2
+      LOG.debug("avg time commit FiCASchedulerNodeInfo: " + avgt1 + ", " + avgt2
               + ", " + avgt3 + ", " + avgt4 + ", " + avgt5);
     }
   }

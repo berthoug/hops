@@ -20,7 +20,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.hops.exception.StorageException;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
-import io.hops.ha.common.TransactionStateManager;
 import io.hops.metadata.yarn.TablesDef;
 import io.hops.metadata.yarn.dal.AppSchedulingInfoBlacklistDataAccess;
 import io.hops.metadata.yarn.dal.AppSchedulingInfoDataAccess;
@@ -2223,17 +2222,17 @@ public class RMUtilities {
   static Map<Integer, TransactionStateImpl> finishedRPCs
           = new HashMap<Integer, TransactionStateImpl>();
   static Lock nextRPCLock = new ReentrantLock(true);
-  static Map<Integer, Long> startCommit = new ConcurrentHashMap<Integer, Long>();
-  static Map<Integer, Long> startHandling
-          = new ConcurrentHashMap<Integer, Long>();
+  static Map<TransactionState, Long> startCommit = new ConcurrentHashMap<TransactionState, Long>();
+  static Map<TransactionState, Long> startHandling
+          = new ConcurrentHashMap<TransactionState, Long>();
 
   public static void logPutInCommitingQueue(TransactionState ts) {
-    startCommit.put(ts.getId(), System.currentTimeMillis());
+    startCommit.put(ts, System.currentTimeMillis());
   }
 
   public static void finishRPCs(TransactionState ts) throws IOException {
-    if (startHandling.get(ts.getId()) == null) {
-      startHandling.put(ts.getId(), System.currentTimeMillis());
+    if (startHandling.get(ts) == null) {
+      startHandling.put(ts, System.currentTimeMillis());
     }
     nextRPCLock.lock();
     if (!canCommitApp(ts) || !canCommitNode((TransactionStateImpl) ts)) {
@@ -2241,6 +2240,7 @@ public class RMUtilities {
       nextRPCLock.unlock();
     } else {
       nextRPCLock.unlock();
+      LOG.info("finishing rpc " + ts.getId());
       finishRPC((TransactionStateImpl) ts);
       LOG.info("finished rpc " + ts.getId());
       nextRPCLock.lock();
@@ -2252,8 +2252,8 @@ public class RMUtilities {
       for (ApplicationId appId : ts.getAppIds()) {
         transactionStateForApp.get(appId).poll();
       }
-      Map<Integer, TransactionState> toCommit
-              = new HashMap<Integer, TransactionState>();
+      Set<TransactionState> toCommit
+              = new HashSet<TransactionState>();
       Iterator<ApplicationId> it = ts.getAppIds().iterator();
       while (it.hasNext()) {
         ApplicationId appId = it.next();
@@ -2261,23 +2261,23 @@ public class RMUtilities {
                 peek();
         if (transactionState != null && isFinished(
                 transactionState)) {
-          toCommit.put(transactionState.getId(), transactionState);
+          toCommit.add(transactionState);
         }
       }
       Iterator<String> itNodes = ((TransactionStateImpl) ts).
               getRMNodesToUpdate().keySet().iterator();
-      while (it.hasNext()) {
+      while (itNodes.hasNext()) {
         String nodeId = itNodes.next();
         TransactionState transactionState
                 = (TransactionStateImpl) transactionStateForRMNode.get(nodeId).
                 peek();
         if (transactionState != null && isFinished(
                 transactionState)) {
-          toCommit.put(transactionState.getId(), transactionState);
+          toCommit.add(transactionState);
         }
       }
       nextRPCLock.unlock();
-      for (TransactionState state : toCommit.values()) {
+      for (TransactionState state : toCommit) {
         LOG.info("recommiting " + state.getId() + " after " + oldid);
         state.commit(false);
       }
@@ -2298,7 +2298,7 @@ public class RMUtilities {
     nextRPCLock.lock();
     for (ApplicationId appId : ts.getAppIds()) {
       LOG.debug("peek ts for ap " + appId.toString() + " for ts: " + ts.getId());
-      if (transactionStateForApp.get(appId).peek().getId() != ts.getId()) {
+      if (transactionStateForApp.get(appId).peek() != ts) {
         LOG.info("cannot commit rpc " + ts.getId() + " head for " + appId
                 + " is " + transactionStateForApp.get(appId).peek().getId());
         nextRPCLock.unlock();
@@ -2312,8 +2312,7 @@ public class RMUtilities {
   private static boolean canCommitNode(TransactionStateImpl ts) {
     nextRPCLock.lock();
     for (String nodeId : ts.getRMNodesToUpdate().keySet()) {
-      if (transactionStateForRMNode.get(nodeId).peek().
-              getId() != ts.getId()) {
+      if (transactionStateForRMNode.get(nodeId).peek() != ts) {
         LOG.info("cannot commit rpc " + ts.getId() + " head for " + nodeId
                 + " is "
                 + transactionStateForRMNode.get(nodeId).peek().
@@ -2437,14 +2436,15 @@ public class RMUtilities {
                 RPC hop = new RPC(rpcId);
                 rpcToRemove.add(hop);
               }
-              DA.removeAll(rpcToRemove);
+             DA.removeAll(rpcToRemove);
             long t1 = System.currentTimeMillis()-start;
-//            
 //            //TODO put all of this in ts.persist
             ts.persistCSQueueInfo(csQDA, csLQDA);
             long t2 = System.currentTimeMillis()-start;
+            connector.flush();
             ts.persistRMNodeToUpdate(rmnodeDA);
             long t3 = System.currentTimeMillis()-start;
+            connector.flush();
             ts.persistRmcontextInfo(rmnodeDA, resourceDA, nodeDA,
                 rmctxInactiveNodesDA);
             long t4 = System.currentTimeMillis()-start;
@@ -2491,12 +2491,8 @@ public class RMUtilities {
     long commitDuration = System.currentTimeMillis() - start;
     long commitAndQueueDuration = commitDuration;
     long beforeHandling = 0;
-    if (ts.getId() > 0) {
-      commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(
-              ts.getId());
-      beforeHandling = startHandling.get(ts.getId()) - startCommit.get(
-              ts.getId());
-    }
+    commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(ts);
+    beforeHandling = startHandling.get(ts) - startCommit.get(ts);
     
     totalCommitDuration.addAndGet(commitDuration);
     if(commitDuration> maxCommitDuration){

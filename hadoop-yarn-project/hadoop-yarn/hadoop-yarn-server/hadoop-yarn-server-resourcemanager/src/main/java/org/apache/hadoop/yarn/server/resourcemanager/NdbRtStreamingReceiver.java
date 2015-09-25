@@ -96,6 +96,7 @@ public class NdbRtStreamingReceiver {
     public void AddFinishedApplications() {
         ApplicationId appId = ConverterUtils.toApplicationId(applicationId);
         finishedAppList.add(appId);
+        LOG.info("finishedapplications appid : "+appId + " pending id : "+finishedAppPendingId + " rmnode node : "+finishedApplicationrmnodeid);
 
     }
 

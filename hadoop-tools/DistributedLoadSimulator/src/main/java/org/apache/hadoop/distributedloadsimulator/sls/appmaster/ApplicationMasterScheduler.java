@@ -25,6 +25,7 @@ import static org.apache.hadoop.distributedloadsimulator.sls.SLSRunner.LOG;
 import org.apache.hadoop.distributedloadsimulator.sls.scheduler.TaskRunner;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationAttemptState;
+import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
@@ -40,14 +41,16 @@ public class ApplicationMasterScheduler extends TaskRunner.Task {
     private final String inputLoadTraces;
     private final int appSimOffSet;
     private final String rmAddress;
-    private String rmiAddress;
+    private final String rmiAddress;
+    private YarnClient  yarnClientForAM;
 
-    public ApplicationMasterScheduler(String queueName, String inputLoadTraces, int appSimOffSet, String rmAddress, String rmiAddress) {
+    public ApplicationMasterScheduler(String queueName, String inputLoadTraces, int appSimOffSet, String rmAddress, String rmiAddress,YarnClient client) {
         this.queueName = queueName;
         this.inputLoadTraces = inputLoadTraces;
         this.appSimOffSet = appSimOffSet;
         this.rmAddress = rmAddress;
         this.rmiAddress = rmiAddress;
+        this.yarnClientForAM=client;
     }
 
     public void init(long appStartTime, long appEndTime, int beatInterval) {
@@ -99,12 +102,12 @@ public class ApplicationMasterScheduler extends TaskRunner.Task {
                     public void launchAM(ApplicationAttemptId attemptId)
                     throws IOException, YarnException {
                         YarnApplicationAttemptState attemptState
-                        = rmClient.getApplicationAttemptReport(attemptId)
+                        = yarnClientForAM.getApplicationAttemptReport(attemptId)
                         .getYarnApplicationAttemptState();
                         super.launchAM(attemptId);
                     }
                 };
-        boolean initSuccess = launcher.init(args);
+        boolean initSuccess = launcher.init(args,yarnClientForAM);
         LOG.info("HOP :: Launcher initialized , result : " + initSuccess);
         boolean result = launcher.run();
         LOG.info("Launcher run completed. Result=" + result);

@@ -23,8 +23,11 @@ public class SLSConfiguration {
   public static final String PREFIX = "yarn.sls.";
   // runner
   public static final String RUNNER_PREFIX = PREFIX + "runner.";
-  public static final String RUNNER_POOL_SIZE = RUNNER_PREFIX + "pool.size";
-  public static final int RUNNER_POOL_SIZE_DEFAULT = 10;
+  public static final String NM_RUNNER_POOL_SIZE = RUNNER_PREFIX + "nm.pool.size";
+  public static final int NM_RUNNER_POOL_SIZE_DEFAULT = 500;
+  
+  public static final String AM_RUNNER_POOL_SIZE = RUNNER_PREFIX + "am.pool.size";
+  public static final int AM_RUNNER_POOL_SIZE_DEFAULT = 10;
   // scheduler
   public static final String SCHEDULER_PREFIX = PREFIX + "scheduler.";
   public static final String RM_SCHEDULER = SCHEDULER_PREFIX + "class";

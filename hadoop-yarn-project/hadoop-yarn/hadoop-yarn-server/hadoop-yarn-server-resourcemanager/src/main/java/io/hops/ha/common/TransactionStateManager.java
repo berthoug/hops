@@ -92,9 +92,9 @@ public class TransactionStateManager implements Runnable{
         accumulatedRPCCount+=acceptedRPC.get();
         if(duration.size()>39){
           double avgCycleDuration=accumulatedCycleDuration/nbCycles;
-          LOG.info("cycle duration: " + avgCycleDuration + " " + duration.toString());
+          LOG.debug("cycle duration: " + avgCycleDuration + " " + duration.toString());
           double avgRPCCount = accumulatedRPCCount/nbCycles;
-          LOG.info("rpc count: " + avgRPCCount + " " + rpcCount.toString());
+          LOG.debug("rpc count: " + avgRPCCount + " " + rpcCount.toString());
           duration = new ArrayList<Long>();
           rpcCount = new ArrayList<Integer>();
         }

@@ -247,12 +247,12 @@ public abstract class PendingEventRetrieval implements Runnable {
 //                        rmNode.getNodeID().toString(),
 //                        PendingEventTableDef.NODE_UPDATED,
 //                        PendingEventTableDef.COMPLETED);
-                LOG.info("Nodeupdate event_Scheduler_finished_processing rmnode : "+rmNode.getNodeID());
+                LOG.debug("Nodeupdate event_Scheduler_finished_processing rmnode : "+rmNode.getNodeID());
                 ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).setPendingEventId(rmNode.getRMNodePendingEventId());
                 rmContext.getDispatcher().getEventHandler().handle(new NodeUpdateSchedulerEvent(rmNode, transactionState));
 
             } else if (pendingEvent.getStatus() == PendingEventTableDef.SCHEDULER_NOT_FINISHED_PROCESSING) {
-                LOG.info("Nodeupdate event_Scheduler_not_finished_processing rmnode : "+rmNode.getNodeID());
+                LOG.debug("Nodeupdate event_Scheduler_not_finished_processing rmnode : "+rmNode.getNodeID());
             }
         }
 

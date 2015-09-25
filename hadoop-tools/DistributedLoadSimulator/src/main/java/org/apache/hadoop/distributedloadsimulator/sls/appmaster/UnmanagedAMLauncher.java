@@ -60,7 +60,6 @@ import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.YarnApplicationAttemptState;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.Records;
@@ -79,10 +78,10 @@ import org.apache.hadoop.yarn.util.Records;
  * report app completion.
  */
 public class UnmanagedAMLauncher {
+
   private static final Log LOG = LogFactory.getLog(UnmanagedAMLauncher.class);
 
   private Configuration conf;
-  
 
   // Handle to talk to the Resource Manager/Applications Manager
   protected YarnClient rmClient;
@@ -98,34 +97,13 @@ public class UnmanagedAMLauncher {
   // set the classpath explicitly
   private String classpath = null;
   private ApplicationId appId;
-  
+
   private ApplicationAttemptId attemptId;
   private volatile boolean amCompleted = false;
 
-  private static final long AM_STATE_WAIT_TIMEOUT_MS = 10000;
-  /**
-   * @param args
-   *          Command line arguments
-   */
-  public static void main(String[] args) {
-    try {
-      UnmanagedAMLauncher client = new UnmanagedAMLauncher();
-      LOG.info("Initializing Client");
-      boolean doRun = client.init(args);
-      if (!doRun) {
-        System.exit(0);
-      }
-      client.run();
-    } catch (Throwable t) {
-      LOG.fatal("Error running Client", t);
-      System.exit(1);
-    }
-  }
+  private static final long AM_STATE_WAIT_TIMEOUT_MS = 20000;
 
-  /**
-   */
   public UnmanagedAMLauncher(Configuration conf) throws Exception {
-    // Set up RPC
     this.conf = conf;
   }
 
@@ -137,16 +115,16 @@ public class UnmanagedAMLauncher {
     new HelpFormatter().printHelp("Client", opts);
   }
 
-  public boolean init(String[] args) throws ParseException {
+  public boolean init(String[] args, YarnClient client) throws ParseException {
 
     Options opts = new Options();
     opts.addOption("appname", true,
-        "Application Name. Default value - UnmanagedAM");
+            "Application Name. Default value - UnmanagedAM");
     opts.addOption("priority", true, "Application Priority. Default 0");
     opts.addOption("queue", true,
-        "RM Queue in which this application is to be submitted");
+            "RM Queue in which this application is to be submitted");
     opts.addOption("master_memory", true,
-        "Amount of memory in MB to be requested to run the application master");
+            "Amount of memory in MB to be requested to run the application master");
     opts.addOption("cmd", true, "command to start unmanaged AM (required)");
     opts.addOption("classpath", true, "additional classpath");
     opts.addOption("help", false, "Print usage");
@@ -155,7 +133,7 @@ public class UnmanagedAMLauncher {
     if (args.length == 0) {
       printUsage(opts);
       throw new IllegalArgumentException(
-          "No args specified for client to initialize");
+              "No args specified for client to initialize");
     }
 
     if (cliParser.hasOption("help")) {
@@ -172,58 +150,52 @@ public class UnmanagedAMLauncher {
     if (amCmd == null) {
       printUsage(opts);
       throw new IllegalArgumentException(
-          "No cmd specified for application master");
+              "No cmd specified for application master");
     }
 
-    YarnConfiguration yarnConf = new YarnConfiguration(conf);
-    File f = new File(YarnConfiguration.YARN_SITE_CONFIGURATION_FILE);
-    LOG.info("configuration file at: " + f.getAbsolutePath());
-    LOG.info("rm address: " + yarnConf.get(YarnConfiguration.RM_ADDRESS));
-    rmClient = YarnClient.createYarnClient();
-    rmClient.init(yarnConf);
-
+    rmClient = client;
     return true;
   }
 
-  public void launchAM(ApplicationAttemptId attemptId) 
-    throws IOException, YarnException {
+  public void launchAM(ApplicationAttemptId attemptId)
+          throws IOException, YarnException {
     Credentials credentials = new Credentials();
-    Token<AMRMTokenIdentifier> token = 
-        rmClient.getAMRMToken(attemptId.getApplicationId());
+    Token<AMRMTokenIdentifier> token
+            = rmClient.getAMRMToken(attemptId.getApplicationId());
     // Service will be empty but that's okay, we are just passing down only
     // AMRMToken down to the real AM which eventually sets the correct
     // service-address.
     credentials.addToken(token.getService(), token);
-    File tokenFile = File.createTempFile("unmanagedAMRMToken","", 
-        new File(System.getProperty("user.dir")));
+    File tokenFile = File.createTempFile("unmanagedAMRMToken", "",
+            new File(System.getProperty("user.dir")));
     try {
       FileUtil.chmod(tokenFile.getAbsolutePath(), "600");
     } catch (InterruptedException ex) {
       throw new RuntimeException(ex);
     }
     tokenFile.deleteOnExit();
-    DataOutputStream os = new DataOutputStream(new FileOutputStream(tokenFile, 
-        true));
+    DataOutputStream os = new DataOutputStream(new FileOutputStream(tokenFile,
+            true));
     credentials.writeTokenStorageToStream(os);
     os.close();
-    
+
     Map<String, String> env = System.getenv();
     ArrayList<String> envAMList = new ArrayList<String>();
     boolean setClasspath = false;
     for (Map.Entry<String, String> entry : env.entrySet()) {
       String key = entry.getKey();
       String value = entry.getValue();
-      if(key.equals("CLASSPATH")) {
+      if (key.equals("CLASSPATH")) {
         setClasspath = true;
-        if(classpath != null) {
+        if (classpath != null) {
           value = value + File.pathSeparator + classpath;
         }
       }
       envAMList.add(key + "=" + value);
     }
-    
-    if(!setClasspath && classpath!=null) {
-      envAMList.add("CLASSPATH="+classpath);
+
+    if (!setClasspath && classpath != null) {
+      envAMList.add("CLASSPATH=" + classpath);
     }
     ContainerId containerId = ContainerId.newInstance(attemptId, 0);
 
@@ -234,18 +206,18 @@ public class UnmanagedAMLauncher {
     envAMList.add(Environment.NM_PORT.name() + "=0");
     envAMList.add(Environment.LOCAL_DIRS.name() + "= /tmp");
     envAMList.add(ApplicationConstants.APP_SUBMIT_TIME_ENV + "="
-        + System.currentTimeMillis());
+            + System.currentTimeMillis());
 
-    envAMList.add(ApplicationConstants.CONTAINER_TOKEN_FILE_ENV_NAME + "=" + 
-      tokenFile.getAbsolutePath());
-    
+    envAMList.add(ApplicationConstants.CONTAINER_TOKEN_FILE_ENV_NAME + "="
+            + tokenFile.getAbsolutePath());
+
     String[] envAM = new String[envAMList.size()];
-    
+
     //lets add application id cluster timestamp and attempt id to each application master process
-    amCmd += " "+appId.getClusterTimestamp() + " "+ appId.getId()+ " "+attemptId.getAttemptId();
-    LOG.info("HOP :: Applicatoin master  Container id : "+(Environment.CONTAINER_ID.name() + "=" + containerId));
-    LOG.info("HOP :: Applicaton master process cmd: "+amCmd + "|Env variable: "+Arrays.toString(envAMList.toArray(envAM)));
-    
+    amCmd += " " + appId.getClusterTimestamp() + " " + appId.getId() + " " + attemptId.getAttemptId();
+    LOG.info("HOP :: Applicatoin master  Container id : " + (Environment.CONTAINER_ID.name() + "=" + containerId));
+    LOG.info("HOP :: Applicaton master process cmd: " + amCmd + "|Env variable: " + Arrays.toString(envAMList.toArray(envAM)));
+
     Process amProc = Runtime.getRuntime().exec(amCmd, envAMList.toArray(envAM));
 
     Field processField = null;
@@ -253,31 +225,27 @@ public class UnmanagedAMLauncher {
       processField = amProc.getClass().getDeclaredField("pid");
       processField.setAccessible(true);
       Object pid = processField.get(amProc);
-      LOG.info(
-              "HOP :: Application master process is started with process id :  "
-              + pid);
+      LOG.info("HOP :: Application master process is started with process id :  " + pid);
       SLSRunner.addProcessId(appId.toString(), (Integer) pid);
     } catch (NoSuchFieldException ex) {
       LOG.error(ex);
     } catch (SecurityException ex) {
       LOG.error(ex);
     } catch (IllegalArgumentException ex) {
-      Logger.getLogger(UnmanagedAMLauncher.class.getName()).
-              log(Level.SEVERE, null, ex);
+      Logger.getLogger(UnmanagedAMLauncher.class.getName()).log(Level.SEVERE, null, ex);
     } catch (IllegalAccessException ex) {
-      Logger.getLogger(UnmanagedAMLauncher.class.getName()).
-              log(Level.SEVERE, null, ex);
+      Logger.getLogger(UnmanagedAMLauncher.class.getName()).log(Level.SEVERE, null, ex);
     }
+
     LOG.info("HOP :: Application master process is started ");
-   
-  
-    final BufferedReader errReader = 
-        new BufferedReader(new InputStreamReader(amProc
-                                                 .getErrorStream()));
-    final BufferedReader inReader = 
-        new BufferedReader(new InputStreamReader(amProc
-                                                 .getInputStream()));
-    
+
+    final BufferedReader errReader
+            = new BufferedReader(new InputStreamReader(amProc
+                            .getErrorStream()));
+    final BufferedReader inReader
+            = new BufferedReader(new InputStreamReader(amProc
+                            .getInputStream()));
+
     // read error and input streams as this would free up the buffers
     // free the error stream buffer
     Thread errThread = new Thread() {
@@ -285,11 +253,11 @@ public class UnmanagedAMLauncher {
       public void run() {
         try {
           String line = errReader.readLine();
-          while((line != null) && !isInterrupted()) {
+          while ((line != null) && !isInterrupted()) {
             System.err.println(line);
             line = errReader.readLine();
           }
-        } catch(IOException ioe) {
+        } catch (IOException ioe) {
           LOG.warn("Error reading the error stream", ioe);
         }
       }
@@ -299,11 +267,11 @@ public class UnmanagedAMLauncher {
       public void run() {
         try {
           String line = inReader.readLine();
-          while((line != null) && !isInterrupted()) {
+          while ((line != null) && !isInterrupted()) {
             System.out.println(line);
             line = inReader.readLine();
           }
-        } catch(IOException ioe) {
+        } catch (IOException ioe) {
           LOG.warn("Error reading the out stream", ioe);
         }
       }
@@ -311,7 +279,8 @@ public class UnmanagedAMLauncher {
     try {
       errThread.start();
       outThread.start();
-    } catch (IllegalStateException ise) { }
+    } catch (IllegalStateException ise) {
+    }
 
     // wait for the process to finish and check the exit code
     try {
@@ -322,7 +291,7 @@ public class UnmanagedAMLauncher {
     } finally {
       amCompleted = true;
     }
-    
+
     try {
       // make sure that the error thread exits
       // on Windows these threads sometimes get stuck and hang the execution
@@ -333,81 +302,85 @@ public class UnmanagedAMLauncher {
       inReader.close();
     } catch (InterruptedException ie) {
       LOG.info("ShellExecutor: Interrupted while reading the error/out stream",
-          ie);
+              ie);
     } catch (IOException ioe) {
       LOG.warn("Error while closing the error/out stream", ioe);
     }
 //    amProc.destroy();
   }
+
   public boolean run() throws IOException, YarnException {
-    LOG.info("HOP :: Starting the client by submiting new app");
-    
-    // Connect to ResourceManager
-    rmClient.start();
-    try {  
+    LOG.info("HOP :: Starting the client by submiting new app " + rmClient);
+
+    try {
       // Create launch context for app master
-      LOG.info("HOP :: Setting up application submission context for ASM");
       ApplicationSubmissionContext appContext = rmClient.createApplication()
-          .getApplicationSubmissionContext();
+              .getApplicationSubmissionContext();
       appId = appContext.getApplicationId();
-      
-      LOG.info("HOP :: Application is sucessfully submitted and got app id - "+appId);
+
+      LOG.info("HOP :: Application is sucessfully submitted and got app id - " + appId);
 
       // set the application name
       appContext.setApplicationName(appName);
-  
+
       // Set the priority for the application master
       Priority pri = Records.newRecord(Priority.class);
       pri.setPriority(amPriority);
       appContext.setPriority(pri);
-  
+
       // Set the queue to which this application is to be submitted in the RM
       appContext.setQueue(amQueue);
-  
+
       // Set up the container launch context for the application master
       ContainerLaunchContext amContainer = Records
-          .newRecord(ContainerLaunchContext.class);
+              .newRecord(ContainerLaunchContext.class);
       appContext.setAMContainerSpec(amContainer);
-  
+
       // unmanaged AM
       appContext.setUnmanagedAM(true);
       // Submit the application to the applications manager
       LOG.info("HOP :: Submitting application to ASM");
       rmClient.submitApplication(appContext);
 
-      ApplicationReport appReport =
-          monitorApplication(appId, EnumSet.of(YarnApplicationState.ACCEPTED,
-            YarnApplicationState.KILLED, YarnApplicationState.FAILED,
-            YarnApplicationState.FINISHED));
+      ApplicationReport appReport
+              = monitorApplication(appId, EnumSet.of(YarnApplicationState.ACCEPTED,
+                              YarnApplicationState.KILLED, YarnApplicationState.FAILED,
+                              YarnApplicationState.FINISHED));
 
       if (appReport.getYarnApplicationState() == YarnApplicationState.ACCEPTED) {
         // Monitor the application attempt to wait for launch state
-        ApplicationAttemptReport attemptReport =
-            monitorCurrentAppAttempt(appId,
-              YarnApplicationAttemptState.LAUNCHED);
-        attemptId =
-            attemptReport.getApplicationAttemptId();
-        LOG.info("HOP ::  Launched application master appAttempId : " + attemptId);
-        // launch AM
-        launchAM(attemptId);
+        ApplicationAttemptReport attemptReport
+                = monitorCurrentAppAttempt(appId,
+                        YarnApplicationAttemptState.LAUNCHED);
+        if (attemptReport == null) {
+          //kicked the application out
+          LOG.info("applications is kicked out : "+appId);
+          SLSRunner.reduceFailApplications();
+        } else {
+          attemptId
+                  = attemptReport.getApplicationAttemptId();
+          LOG.info("HOP ::  Launched application master appAttempId : " + attemptId.getApplicationId());
+          // launch AM
+          launchAM(attemptId);
+        }
+
       }
 
     } finally {
-      rmClient.stop();
     }
     return true;
   }
 
   private ApplicationAttemptReport monitorCurrentAppAttempt(
-      ApplicationId appId, YarnApplicationAttemptState attemptState)
-      throws YarnException, IOException {
+          ApplicationId appId, YarnApplicationAttemptState attemptState)
+          throws YarnException, IOException {
     long startTime = System.currentTimeMillis();
     ApplicationAttemptId attemptId = null;
     while (true) {
       if (attemptId == null) {
-        attemptId =
-            rmClient.getApplicationReport(appId)
-              .getCurrentApplicationAttemptId();
+        attemptId
+                = rmClient.getApplicationReport(appId)
+                .getCurrentApplicationAttemptId();
       }
       ApplicationAttemptReport attemptReport = null;
       if (attemptId != null) {
@@ -417,20 +390,21 @@ public class UnmanagedAMLauncher {
         }
       }
       LOG.info("Current attempt state of " + appId + " is " + (attemptReport == null
-            ? " N/A " : attemptReport.getYarnApplicationAttemptState())
-                + ", waiting for current attempt to reach " + attemptState);
+              ? " N/A " : attemptReport.getYarnApplicationAttemptState())
+              + ", waiting for current attempt to reach " + attemptState);
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
         LOG.warn("Interrupted while waiting for current attempt of " + appId
-            + " to reach " + attemptState);
+                + " to reach " + attemptState);
       }
       if (System.currentTimeMillis() - startTime > AM_STATE_WAIT_TIMEOUT_MS) {
-        String errmsg =
-            "Timeout for waiting current attempt of " + appId + " to reach "
+        String errmsg
+                = "Timeout for waiting current attempt of " + appId + " to reach "
                 + attemptState;
         LOG.error(errmsg);
-        throw new RuntimeException(errmsg);
+        return null;
+        //throw new RuntimeException(errmsg);
       }
     }
   }
@@ -438,16 +412,15 @@ public class UnmanagedAMLauncher {
   /**
    * Monitor the submitted application for completion. Kill application if time
    * expires.
-   * 
-   * @param appId
-   *          Application Id of application to be monitored
+   *
+   * @param appId Application Id of application to be monitored
    * @return true if application completed successfully
    * @throws YarnException
    * @throws IOException
    */
   private ApplicationReport monitorApplication(ApplicationId appId,
-      Set<YarnApplicationState> finalState) throws YarnException,
-      IOException {
+          Set<YarnApplicationState> finalState) throws YarnException,
+          IOException {
 
     long foundAMCompletedTime = 0;
     StringBuilder expectedFinalState = new StringBuilder();
@@ -473,17 +446,17 @@ public class UnmanagedAMLauncher {
       // Get application report for the appId we are interested in
       ApplicationReport report = rmClient.getApplicationReport(appId);
 
-        LOG.info("Got application report from ASM for" + ", appId="
-          + appId.getId() + ", appAttemptId="
-          + report.getCurrentApplicationAttemptId() + ", clientToAMToken="
-          + report.getClientToAMToken() + ", appDiagnostics="
-          + report.getDiagnostics() + ", appMasterHost=" + report.getHost()
-          + ", appQueue=" + report.getQueue() + ", appMasterRpcPort="
-          + report.getRpcPort() + ", appStartTime=" + report.getStartTime()
-          + ", yarnAppState=" + report.getYarnApplicationState().toString()
-          + ", distributedFinalState="
-          + report.getFinalApplicationStatus().toString() + ", appTrackingUrl="
-          + report.getTrackingUrl() + ", appUser=" + report.getUser());
+      LOG.info("Got application report from ASM for" + ", appId="
+              + appId.getId() + ", appAttemptId="
+              + report.getCurrentApplicationAttemptId() + ", clientToAMToken="
+              + report.getClientToAMToken() + ", appDiagnostics="
+              + report.getDiagnostics() + ", appMasterHost=" + report.getHost()
+              + ", appQueue=" + report.getQueue() + ", appMasterRpcPort="
+              + report.getRpcPort() + ", appStartTime=" + report.getStartTime()
+              + ", yarnAppState=" + report.getYarnApplicationState().toString()
+              + ", distributedFinalState="
+              + report.getFinalApplicationStatus().toString() + ", appTrackingUrl="
+              + report.getTrackingUrl() + ", appUser=" + report.getUser());
 
       YarnApplicationState state = report.getYarnApplicationState();
       if (finalState.contains(state)) {
@@ -496,16 +469,16 @@ public class UnmanagedAMLauncher {
         if (foundAMCompletedTime == 0) {
           foundAMCompletedTime = System.currentTimeMillis();
         } else if ((System.currentTimeMillis() - foundAMCompletedTime)
-            > AM_STATE_WAIT_TIMEOUT_MS) {
-          LOG.warn("Waited " + AM_STATE_WAIT_TIMEOUT_MS/1000
-              + " seconds after process completed for AppReport"
-              + " to reach desired final state. Not waiting anymore."
-              + "CurrentState = " + state
-              + ", ExpectedStates = " + expectedFinalState.toString());
+                > AM_STATE_WAIT_TIMEOUT_MS) {
+          LOG.warn("Waited " + AM_STATE_WAIT_TIMEOUT_MS / 1000
+                  + " seconds after process completed for AppReport"
+                  + " to reach desired final state. Not waiting anymore."
+                  + "CurrentState = " + state
+                  + ", ExpectedStates = " + expectedFinalState.toString());
           throw new RuntimeException("Failed to receive final expected state"
-              + " in ApplicationReport"
-              + ", CurrentState=" + state
-              + ", ExpectedStates=" + expectedFinalState.toString());
+                  + " in ApplicationReport"
+                  + ", CurrentState=" + state
+                  + ", ExpectedStates=" + expectedFinalState.toString());
         }
       }
     }

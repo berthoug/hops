@@ -293,15 +293,6 @@ public class transactionStateWrapper extends TransactionStateImpl {
             launchedContainersDA);
   }
 
-  public void addPendingEventToAdd(String rmnodeId, byte type, byte status) {
-    ts.addPendingEventToAdd(rmnodeId, type, status);
-  }
-
-  public void addPendingEventToAdd(String rmnodeId, byte type, byte status,
-          RMNodeImpl rmNode) {
-    ts.addPendingEventToAdd(rmnodeId, type, status, rmNode);
-  }
-
   public RMNodeImpl getRMNode() {
     return ts.getRMNode();
   }
@@ -319,11 +310,6 @@ public class transactionStateWrapper extends TransactionStateImpl {
   public void addPendingEventToRemove(int id, String rmnodeId, byte type,
           byte status) {
     ts.addPendingEventToRemove(id, rmnodeId, type, status);
-  }
-
-  public void persistPendingEvents(PendingEventDataAccess persistedEventsDA)
-          throws StorageException {
-    ts.persistPendingEvents(persistedEventsDA);
   }
   
    public int getId(){

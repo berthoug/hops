@@ -141,7 +141,7 @@ public class TransactionStateImpl extends TransactionState {
   
 
   //PersistedEvent to persist for distributed RT
-  private final List<PendingEvent> persistedEventsToAdd =
+  private final List<PendingEvent> pendingEventsToAdd =
       new ArrayList<PendingEvent>();
   private RMNodeImpl rmNode = null;
   private final List<PendingEvent> persistedEventsToRemove =
@@ -916,20 +916,6 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
-  public void addPendingEventToAdd(String rmnodeId, int type, int status) {
-    LOG.debug("HOP :: updatePendingEventToAdd");
-    PendingEvent pendingEvent = new PendingEvent(rmnodeId, type, status,
-        pendingEventId.getAndIncrement());
-    this.persistedEventsToAdd.add(pendingEvent);
-    LOG.debug("HOP :: updatePendingEventToAdd, pendingEvent:" + pendingEvent);
-  }
-
-  public void addPendingEventToAdd(String rmnodeId, int type, int status,
-      RMNodeImpl rmNode) {
-    addPendingEventToAdd(rmnodeId, type, status);
-    this.rmNode = rmNode;
-  }
-
   public RMNodeImpl getRMNode() {
     return this.rmNode;
   }
@@ -950,28 +936,6 @@ public class TransactionStateImpl extends TransactionState {
         .add(new PendingEvent(rmnodeId, type, status, id));
   }
 
-  public void persistPendingEvents(PendingEventDataAccess persistedEventsDA)
-          throws StorageException {
-    LOG.info("HOP_PENDING persit pending event : size : "
-            + this.persistedEventsToAdd.size());
-    List<PendingEvent> toPersist = new ArrayList<PendingEvent>();
-    for(PendingEvent event : this.persistedEventsToAdd){
-      if(!this.persistedEventsToRemove.remove(event)){
-        toPersist.add(event);
-      }
-       LOG.info("HOP_PENDING persit pending event " + rpcType + " node " + nodeId);
-    }
-    if (rpcType != null && !this.persistedEventsToAdd.isEmpty()) {
-      LOG.info("persisting " + rpcType + " node " + nodeId);
-    }
-    if (!this.persistedEventsToRemove.isEmpty()) {
-      LOG.info("hb handled " + persistedEventsToRemove.size());
-    }
-    if (!toPersist.isEmpty() || !persistedEventsToRemove.isEmpty()) {
-      persistedEventsDA
-              .prepare(toPersist, this.persistedEventsToRemove);
-    }
-  }
 
   static List<Long> durations = new ArrayList<Long>();
   static boolean printerRuning = false;
