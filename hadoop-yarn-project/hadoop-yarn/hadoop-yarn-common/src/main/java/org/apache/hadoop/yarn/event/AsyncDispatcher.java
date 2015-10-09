@@ -233,7 +233,7 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
     return handlerInstance;
   }
 
-  class GenericEventHandler implements EventHandler<Event> {
+  public class GenericEventHandler implements EventHandler<Event> {
     public void handle(Event event) {
       if (blockNewEvents) {
         return;
@@ -264,9 +264,45 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
         }
         throw new YarnRuntimeException(e);
       }
-    }
+    };
+    
+        public void handle(Event event, Queue<Long> times) {
+      long start = System.currentTimeMillis();
+      if (blockNewEvents) {
+        return;
+      }
+      drained = false;
 
-    ;
+      /* all this method does is enqueue all the events onto the queue */
+      int qSize = eventQueue.size();
+      if (qSize != 0 && qSize % 1000 == 0) {
+        LOG.info("Size of event-queue is " + qSize);
+      }
+      int remCapacity = eventQueue.remainingCapacity();
+      if (remCapacity < 1000) {
+        LOG.warn(
+            "Very low remaining capacity in the event-queue: " + remCapacity);
+      }
+      long t1 = System.currentTimeMillis()-start;
+      start = System.currentTimeMillis();
+      try{
+            ((AbstractEventTransaction) event).getTransactionState().incCounter(event.getType());
+        long t2 = System.currentTimeMillis()-start;
+      start = System.currentTimeMillis();
+        eventQueue.put(event);
+        long t3 = System.currentTimeMillis() - start;
+        times.add(t1);
+        times.add(new Long(0));
+        times.add(t2);
+        times.add(new Long(0));
+        times.add(t3);
+      } catch (InterruptedException e) {
+        if (!stopped) {
+          LOG.warn("AsyncDispatcher thread interrupted", e);
+        }
+        throw new YarnRuntimeException(e);
+      }
+    };
   }
 
   /**

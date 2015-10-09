@@ -152,7 +152,7 @@ public class AppMasterProcess {
     this.applicationId = ApplicationId.newInstance(clusterTimeStamp, suffixId);
     this.appAttemptId = ApplicationAttemptId.newInstance(applicationId, attemptId);
 
-    LOG.debug("HOP :: Application id is constructed : " + applicationId.toString() + "| AppAttempID : " + appAttemptId);
+    LOG.info("HOP :: Application id is constructed : " + applicationId.toString() + "| AppAttempID : " + appAttemptId);
     int heartbeatInterval = conf.getInt(
             SLSConfiguration.AM_HEARTBEAT_INTERVAL_MS,
             SLSConfiguration.AM_HEARTBEAT_INTERVAL_MS_DEFAULT);

@@ -17,6 +17,7 @@ package org.apache.hadoop.distributedloadsimulator.sls;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.List;
 
 /**
  *
@@ -34,5 +35,19 @@ public interface AMNMCommonObject extends Remote {
   int  finishedApplicationsCount() throws RemoteException;
   void registerApplicationTimeStamp() throws RemoteException;
   boolean isNMRegisterationDone() throws RemoteException;
+  void simulationFinished() throws RemoteException;
+  int getResourceTrackerHandledHeartBeats() throws RemoteException;
+  int getSchedulerHandledHeartBeats() throws RemoteException;
+  int getNumberNodeManager() throws RemoteException;
   
+  public void addApplicationMasterWaitTime(long applicationMasterWaitTime)throws RemoteException;
+  public void addContainerAllocationWaitTime(long containerAllocationWaitTime)throws RemoteException;
+  public void addContainerStartWaitTime(long containerStartWaitTime)throws RemoteException;
+  public Long getApplicationMasterWaitTime()throws RemoteException;
+  public Long getContainerAllocationWaitTime()throws RemoteException;
+  public Long getContainerStartWaitTime()throws RemoteException;
+  public int getNBContainers() throws RemoteException;
+  public int getNBApplicationMasterWaitTime() throws RemoteException;
+  
+  public void kill() throws RemoteException;
 }

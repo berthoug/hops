@@ -115,7 +115,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
           ConcurrentLinkedQueue<UpdatedContainerInfo> nodeUpdateQueue) {
     this.nodeUpdateQueue.addAll(nodeUpdateQueue);
   }
-
+        
   public void setUpdatedContainerInfoId(int updatedContainerInfoId) {
     this.updatedContainerInfoId = updatedContainerInfoId;
   }
@@ -124,13 +124,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
     return this.updatedContainerInfoId;
   }
 
-  public void setRMNodePendingEventId(int pendingId) {
-    this.pendingEventId = pendingId;
-  }
-
-  public int getRMNodePendingEventId() {
-    return this.pendingEventId;
-  }
 
   /**
    * Recovers state from NDB into RMNode impl.
@@ -193,7 +186,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
   private long lastHealthReportTime; //recovered
   private final String nodeManagerVersion; //recovered
   private static boolean isDistributedRTEnabled = false;
-  private int pendingEventId = 0;
 
 
   /*
@@ -296,7 +288,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
     this.nodeUpdateQueue = new ConcurrentLinkedQueue<UpdatedContainerInfo>();
 
     this.isDistributedRTEnabled = isDistributedRTEnabled;
-    this.pendingEventId = 0;
     updatedContainerInfoId = 0;
   }
 
@@ -733,8 +724,10 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
             break;
         }
         //HOP :: This will update the current rows in NDB
+        int pendingEventId = ((TransactionStateImpl) event.getTransactionState())
+                .getRMNodeInfo(rmNode.nodeId).getPendingId();
         ((TransactionStateImpl) event.getTransactionState()).getRMContextInfo().
-                toAddActiveRMNode(newNode.getNodeID(), newNode);
+                toAddActiveRMNode(newNode.getNodeID(), newNode, pendingEventId);
         ((TransactionStateImpl) event.getTransactionState())
                 .getRMNodeInfo(newNode.getNodeID())
                 .toAddNextHeartbeat(newNode.
@@ -765,16 +758,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       ((TransactionStateImpl) event.getTransactionState())
               .getRMNodeInfo(rmNode.nodeId)
               .toAddFinishedApplications(((RMNodeCleanAppEvent) event).getAppId());
-      int pendingEvnetId = ((TransactionStateImpl) event.getTransactionState())
-              .getRMNodeInfo(rmNode.nodeId).getPendingId();
-      if (pendingEvnetId == 0) {
-        ((TransactionStateImpl) event.getTransactionState())
-                .getRMNodeInfo(rmNode.nodeId).generatePendingEventId();
-        int pendingEventId = ((TransactionStateImpl) event.getTransactionState())
-                .getRMNodeInfo(rmNode.nodeId).getPendingId();
-        rmNode.setRMNodePendingEventId(pendingEventId);
 
-      }
     }
   }
 
@@ -878,8 +862,8 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       rmNode.setLastHealthReportTime(remoteNodeHealthStatus.
               getLastHealthReportTime());
       //HOP :: Update TransactionState
-      ((TransactionStateImpl) event.getTransactionState()).
-              toUpdateRMNode(rmNode);
+//      ((TransactionStateImpl) event.getTransactionState()).
+//              toUpdateRMNode(rmNode);
 
       if (!remoteNodeHealthStatus.getIsNodeHealthy()) {
         LOG.info(
@@ -970,12 +954,19 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       }
       if (!newlyLaunchedContainers.isEmpty()
               || !completedContainers.isEmpty()) {
+        if(!completedContainers.isEmpty()){
+          String containers="";
+          for(ContainerStatus s : completedContainers){
+            containers = containers + ", " + s.getContainerId();
+          }
+          LOG.info("adding completed Containers to node " + rmNode.getNodeID() + " " + containers);
+        }
         UpdatedContainerInfo uci
                 = new UpdatedContainerInfo(newlyLaunchedContainers,
                         completedContainers, rmNode.updatedContainerInfoId++);
         LOG.debug("HOP :: nodeUpdateQueue.add-" + uci);
-        ((TransactionStateImpl) event.getTransactionState()).toUpdateRMNode(
-                rmNode);
+//        ((TransactionStateImpl) event.getTransactionState()).toUpdateRMNode(
+//                rmNode);
         ((TransactionStateImpl) event.getTransactionState())
                 .getRMNodeInfo(rmNode.nodeId).toAddNodeUpdateQueue(uci);
         rmNode.nodeUpdateQueue.add(uci);
@@ -1000,14 +991,15 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
                 .getRMNodeInfo(rmNode.nodeId)
                 .toAddNextHeartbeat(rmNode.nodeId.
                         toString(), rmNode.nextHeartBeat);
-
+        ((TransactionStateImpl) event.getTransactionState()).
+              toUpdateRMNode(rmNode);
         if (isDTEnabledRT) {
           //Add NodeUpdatedSchedulerEvent to TransactionState
-          LOG.info(
+          LOG.debug(
                   "HOP_pending RT adding pending event<SCHEDULER_FINISHED_PROCESSING>"
-                  + rmNode.nodeId.toString() + " pending id : " + rmNode.
-                  getRMNodePendingEventId());
-
+                  + rmNode.nodeId.toString() + " pending id : " + ((TransactionStateImpl) event.getTransactionState())
+                .getRMNodeInfo(rmNode.nodeId).getPendingId());
+          
           ((TransactionStateImpl) event.getTransactionState())
                   .getRMNodeInfo(rmNode.nodeId).addPendingEventToAdd(rmNode.
                           getNodeID().toString(),
@@ -1021,10 +1013,10 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       } else if (isDTEnabledRT) {
         //Add NodeUpdatedSchedulerEvent to TransactionState
 
-        LOG.info(
+        LOG.debug(
                 "HOP_pending RT adding pending event<SCHEDULER_NOT_FINISHED_PROCESSING>"
-                + rmNode.nodeId.toString() + " pending id : " + rmNode.
-                getRMNodePendingEventId());
+                + rmNode.nodeId.toString() + " pending id : " + ((TransactionStateImpl) event.getTransactionState())
+                .getRMNodeInfo(rmNode.nodeId).getPendingId());
         ((TransactionStateImpl) event.getTransactionState())
                 .getRMNodeInfo(rmNode.nodeId).addPendingEventToAdd(rmNode.
                         getNodeID().toString(),
@@ -1069,11 +1061,8 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
               .getRMNodeInfo(rmNode.nodeId)
               .toAddLatestNodeHeartBeatResponse(
                       rmNode.latestNodeHeartBeatResponse);
-      int pendingEventId = ((TransactionStateImpl) event.getTransactionState())
-              .getRMNodeInfo(rmNode.nodeId).getPendingId();
       NodeHealthStatus remoteNodeHealthStatus = statusEvent.
               getNodeHealthStatus();
-      rmNode.setRMNodePendingEventId(pendingEventId);
       rmNode.setHealthReport(remoteNodeHealthStatus.getHealthReport());
       rmNode.setLastHealthReportTime(remoteNodeHealthStatus.
               getLastHealthReportTime());
@@ -1117,17 +1106,15 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
     List<UpdatedContainerInfo> latestContainerInfoList =
         new ArrayList<UpdatedContainerInfo>();
     while (nodeUpdateQueue.peek() != null) {
-      LOG.debug("HOP :: pullContainerUpdates:" + nodeUpdateQueue);
       //HOP :: Update TransactionState
 
       UpdatedContainerInfo uci = nodeUpdateQueue.poll();
       latestContainerInfoList.add(uci);
+    }
       if (ts != null) {
         ((TransactionStateImpl) ts).getRMNodeInfo(this.nodeId).
-                toRemoveNodeUpdateQueue(uci);
+                toRemoveNodeUpdateQueue(latestContainerInfoList);
       }
-    }
-    LOG.debug("HOP :: rmNode.heartbeat-set to true:" + this.nodeId.toString());
     this.nextHeartBeat = true;
 
     //HOP :: Update RMNode
@@ -1137,7 +1124,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
                       toString(), this.nextHeartBeat);
       //((TransactionStateImpl) ts).toUpdateRMNode(this);
     }
-    LOG.debug("HOP :: latestContainerInfoList:" + latestContainerInfoList);
     return latestContainerInfoList;
   }
 

@@ -127,6 +127,8 @@ public abstract class AMSimulator extends TaskRunner.Task {
     this.traceStartTimeMS = traceStartTime;
     this.traceFinishTimeMS = traceFinishTime;
     this.appId = applicationId;
+    
+    LOG.info("initialize amSimulator, simulated app: " + amId + " appId " + oldAppId);
     Registry primaryRegistry;
     Registry secondryRegistry;
     try {

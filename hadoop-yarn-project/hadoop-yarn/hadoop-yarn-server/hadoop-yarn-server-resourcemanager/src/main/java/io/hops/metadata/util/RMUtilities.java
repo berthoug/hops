@@ -2240,9 +2240,13 @@ public class RMUtilities {
       nextRPCLock.unlock();
     } else {
       nextRPCLock.unlock();
-      LOG.info("finishing rpc " + ts.getId());
+      if(ts.getId()> 0){
+        LOG.info("finishing rpc: " + ts.getId());
+      }
       finishRPC((TransactionStateImpl) ts);
-      LOG.info("finished rpc " + ts.getId());
+      if(ts.getId()> 0){
+        LOG.info("finished rpc " + ts.getId());
+      }
       nextRPCLock.lock();
       int oldid = ts.getId();
       for (String nodeId : ((TransactionStateImpl) ts).getRMNodesToUpdate().
@@ -2357,13 +2361,13 @@ public class RMUtilities {
   }
 
   public static void finishRPC(final TransactionStateImpl ts) {
-    logs.add("start commit");
+    logs.add("start commit " + ts.getId());
     long start = System.currentTimeMillis();
     LightWeightRequestHandler setfinishRPCHandler =
         new LightWeightRequestHandler(YARNOperationType.TEST) {
           @Override
           public Object performTask() throws IOException {
-            logs.add("start handle");
+            logs.add("start handle " + ts.getId());
             connector.beginTransaction();
             connector.writeLock();
             LOG.debug("HOP :: finishRPC() - handler for rpc: " );
@@ -2441,6 +2445,7 @@ public class RMUtilities {
 //            //TODO put all of this in ts.persist
             ts.persistCSQueueInfo(csQDA, csLQDA);
             long t2 = System.currentTimeMillis()-start;
+            logs.add("handle 1 " + ts.getId());
             connector.flush();
             ts.persistRMNodeToUpdate(rmnodeDA);
             long t3 = System.currentTimeMillis()-start;
@@ -2448,18 +2453,28 @@ public class RMUtilities {
             ts.persistRmcontextInfo(rmnodeDA, resourceDA, nodeDA,
                 rmctxInactiveNodesDA);
             long t4 = System.currentTimeMillis()-start;
+            connector.flush();
+            logs.add("handle 2 " + ts.getId());
             ts.persistRMNodeInfo(hbDA, cidToCleanDA, justLaunchedContainersDA,
-                updatedContainerInfoDA, faDA, csDA,persistedEventDA);
+                updatedContainerInfoDA, faDA, csDA,persistedEventDA, connector);
             long t5 = System.currentTimeMillis()-start;
-            ts.persist();
+            connector.flush();
+            logs.add("handle 3 " + ts.getId());
+            ts.persist(logs);
             long t6 = System.currentTimeMillis()-start;
+            connector.flush();
+            logs.add("handle 4 " + ts.getId());
             ts.persistFicaSchedulerNodeInfo(resourceDA, ficaNodeDA,
                 rmcontainerDA, launchedContainersDA);
             long t7 = System.currentTimeMillis()-start;
+            connector.flush();
             ts.persistFairSchedulerNodeInfo(FSSNodeDA);
             long t8 = System.currentTimeMillis()-start;
+            connector.flush();
+            logs.add("handle 5 " + ts.getId());
             ts.persistSchedulerApplicationInfo(QMDA, connector);
             long t9 = System.currentTimeMillis()-start;
+            connector.flush();
             nbCommit.incrementAndGet(); connector.commit();
             long t10 = System.currentTimeMillis()-start;
             if (t10 > 1000) {
@@ -2478,7 +2493,7 @@ public class RMUtilities {
             totalt9.addAndGet(t9);
             totalt10.addAndGet(t10);
             //totalt11.addAndGet(t11);
-            logs.add("finish handle");
+            logs.add("finish handle " + ts.getId());
             return null;
           }
         };
@@ -2517,7 +2532,9 @@ public class RMUtilities {
     
     if(ts.getManager()!=null){
       if(commitAndQueueDuration>commitAndQueueThreshold || getQueueLength()>commitQueueMaxLength){
-        ts.getManager().blockNonHB();
+        if(ts.getManager().blockNonHB()){
+          LOG.info("blocking non priority duration: " + commitAndQueueDuration + " length: " + commitQueueMaxLength);
+        }
       }else{
         ts.getManager().unblockNonHB();
       }

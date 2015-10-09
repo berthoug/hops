@@ -82,9 +82,9 @@ public class TransactionStateManager implements Runnable{
         lock.lock();
         
         long cycleDuration = System.currentTimeMillis() - startTime;
-        if(cycleDuration> batchMaxDuration + 10){
-          LOG.error("Cycle too long: " + cycleDuration + "| " + t1 + ", " + t2 + ", " + t3 + ", " + t4);
-        }
+//        if(cycleDuration> batchMaxDuration + 10){
+//          LOG.error("Cycle too long: " + cycleDuration + "| " + t1 + ", " + t2 + ", " + t3 + ", " + t4);
+//        }
         nbCycles++;
         accumulatedCycleDuration+=cycleDuration;
         duration.add(cycleDuration);
@@ -142,26 +142,30 @@ public class TransactionStateManager implements Runnable{
   
   public TransactionState getCurrentTransactionStateNonPriority(int rpcId,
           String callingFuncition) {
+    synchronized(blockNonHB){
     while (blockNonHB.get()) {
       try {
-        Thread.sleep(1);
+        blockNonHB.wait();
+//        Thread.sleep(1);
       } catch (InterruptedException e) {
         LOG.warn(e, e);
       }
     }
-    return getCurrentTransactionState(rpcId, callingFuncition);
+    }
+    return getCurrentTransactionState(rpcId, callingFuncition, false);
 
   }
 
   public TransactionState getCurrentTransactionStatePriority(int rpcId,
           String callingFuncition) {
-    return getCurrentTransactionState(rpcId, callingFuncition);
+    return getCurrentTransactionState(rpcId, callingFuncition, true);
   }
 
   private TransactionState getCurrentTransactionState(int rpcId,
-          String callingFuncition) {
+          String callingFuncition, boolean priority) {
     while (true) {
-      if (acceptedRPC.incrementAndGet() < batchMaxSize) {
+      int accepted = acceptedRPC.incrementAndGet();
+      if (priority || accepted < batchMaxSize) {
               lock.lock();
         try {
           transactionStateWrapper wrapper = new transactionStateWrapper((TransactionStateImpl)currentTransactionState,
@@ -192,15 +196,18 @@ public class TransactionStateManager implements Runnable{
     t.start();
   }
   
-  public void blockNonHB(){
-    if(blockNonHB.compareAndSet(false, true)){
-      LOG.info("blocking non priority");
+  public boolean blockNonHB(){
+    synchronized(blockNonHB){
+    return blockNonHB.compareAndSet(false, true);
     }
   }
   
   public void unblockNonHB(){
+    synchronized(blockNonHB){
     if(blockNonHB.compareAndSet(true, false)){
       LOG.info("unblocking non priority");
-    }    
+    }
+    blockNonHB.notify();
+    }
   }
 }

@@ -20,6 +20,7 @@ package org.apache.hadoop.distributedloadsimulator.sls.appmaster;
  * @author sri
  */
 import java.io.IOException;
+import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -119,6 +120,13 @@ public class MRAMSimulator extends AMSimulator {
 
   private static final Log LOG = LogFactory.getLog(MRAMSimulator.class);
 
+  private long applicationStartTime;
+  private long applicationMasterWaitTime;
+  private List<Long> containerAllocationWaitTime = new ArrayList<Long>();
+  private List<Long> containerStartWaitTime = new ArrayList<Long>();
+  private long startRequestingContainers;
+  private boolean firstRequest = true;
+  
   public void init(int id, int heartbeatInterval,
           List<ContainerSimulator> containerList, ResourceManager rm, SLSRunner se,
           long traceStartTime, long traceFinishTime, String user, String queue,
@@ -179,7 +187,7 @@ public class MRAMSimulator extends AMSimulator {
             ResourceRequest.ANY, 1, 1);
     ask.add(amRequest);
     final AllocateRequest request = this.createAllocateRequest(ask);
-
+    applicationStartTime = System.currentTimeMillis();
     AllocateResponse response = appMasterProtocol.allocate(request);
 
     // waiting until the AM container is allocated
@@ -202,6 +210,14 @@ public class MRAMSimulator extends AMSimulator {
         // start AM container
         amContainer = container;
         isAMContainerRunning = true;
+        applicationMasterWaitTime = System.currentTimeMillis()
+                - applicationStartTime;
+        try {
+          primaryRemoteConnection.addApplicationMasterWaitTime(
+                  applicationMasterWaitTime);
+        } catch (RemoteException e) {
+          LOG.error(e, e);
+        }
         break;
       }
       // this sleep time is different from HeartBeat
@@ -271,7 +287,18 @@ public class MRAMSimulator extends AMSimulator {
         if (!scheduledMaps.isEmpty()) {
           ContainerSimulator cs = scheduledMaps.remove();
           assignedMaps.put(container.getId(), cs);
-
+          containerAllocationWaitTime.add(System.currentTimeMillis()
+                  - startRequestingContainers);
+          containerStartWaitTime.add(System.currentTimeMillis()
+                  - applicationStartTime);
+          try {
+            primaryRemoteConnection.addContainerAllocationWaitTime(System.
+                    currentTimeMillis() - startRequestingContainers);
+            primaryRemoteConnection.addContainerStartWaitTime(System.
+                    currentTimeMillis() - applicationStartTime);
+          } catch (RemoteException e) {
+            LOG.error(e, e);
+          }
           for (AMNMCommonObject remoteConnection : RemoteConnections) {
             if (remoteConnection.isNodeExist(container.getNodeId().toString())) {
               remoteConnection.addNewContainer(
@@ -361,6 +388,10 @@ public class MRAMSimulator extends AMSimulator {
           pendingFailedReduces.clear();
         }
       }
+          if(firstRequest){
+            firstRequest = false;
+      startRequestingContainers = System.currentTimeMillis();
+    }
     }
     if (ask == null) {
       ask = new ArrayList<ResourceRequest>();
@@ -409,6 +440,8 @@ public class MRAMSimulator extends AMSimulator {
     scheduledMaps.clear();
     scheduledReduces.clear();
     responseQueue.clear();
+  
+
   }
 
 }

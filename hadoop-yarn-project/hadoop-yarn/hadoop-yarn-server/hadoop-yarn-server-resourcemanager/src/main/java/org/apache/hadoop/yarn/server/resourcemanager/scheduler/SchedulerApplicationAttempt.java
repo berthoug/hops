@@ -58,6 +58,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -582,10 +583,24 @@ public class SchedulerApplicationAttempt implements Recoverable{
   // in the newlyAllocatedContainers waiting to be refetched.
   public synchronized ContainersAndNMTokensAllocation pullNewlyAllocatedContainersAndNMTokens(
       TransactionState transactionState) {
+    long start = System.currentTimeMillis();
     List<Container> returnContainerList =
         new ArrayList<Container>(newlyAllocatedContainers.size());
+    int size = newlyAllocatedContainers.size();
     List<NMToken> nmTokens = new ArrayList<NMToken>();
     int count = 0;
+    long startInt = System.currentTimeMillis();
+          long total1=0;
+      long total2=0;
+      long total3=0;
+      long total4=0;
+      long total41=0;
+      long total411=0;
+      long total412=0;
+      long total413=0;
+      long total42=0;
+      long totaltest1=0;
+      long totaltest2=0;
     for (Iterator<RMContainer> i = newlyAllocatedContainers.iterator();
          i.hasNext(); ) {
       RMContainer rmContainer = i.next();
@@ -595,12 +610,16 @@ public class SchedulerApplicationAttempt implements Recoverable{
         container.setContainerToken(rmContext.getContainerTokenSecretManager()
             .createContainerToken(container.getId(), container.getNodeId(),
                 getUser(), container.getResource()));
+        total1+=System.currentTimeMillis() - startInt;
+        startInt=System.currentTimeMillis();
         NMToken nmToken = rmContext.getNMTokenSecretManager()
             .createAndGetNMToken(getUser(), getApplicationAttemptId(),
                 container);
         if (nmToken != null) {
           nmTokens.add(nmToken);
         }
+        total2+=System.currentTimeMillis() - startInt;
+        startInt=System.currentTimeMillis();
       } catch (IllegalArgumentException e) {
         // DNS might be down, skip returning this container.
         LOG.error("Error trying to assign container token and NM token to" +
@@ -609,15 +628,31 @@ public class SchedulerApplicationAttempt implements Recoverable{
       }
       returnContainerList.add(container);
       i.remove();
+      total3+=System.currentTimeMillis() - startInt;
+        startInt=System.currentTimeMillis();
+        java.util.Queue<Long> times = new LinkedBlockingQueue<Long>();
       rmContainer.handle(new RMContainerEvent(rmContainer.getContainerId(),
-          RMContainerEventType.ACQUIRED, transactionState));
+          RMContainerEventType.ACQUIRED, transactionState, times));
       count++;
+      total41+=times.poll();
+      total411+=times.poll();
+      totaltest1 += times.poll();
+      total412+=times.poll();
+      totaltest2+= times.poll();
+      total413+= times.poll();
+      total42+=times.poll();
+      total4+=System.currentTimeMillis() - startInt;
+        startInt=System.currentTimeMillis();
       if (maxAllocatedContainersPerRequest > 0 && count
               > maxAllocatedContainersPerRequest) {
         LOG.info("Blocking the allocation of more than "
                 + maxAllocatedContainersPerRequest + " containers");
         break;
       }
+    }
+    long total = System.currentTimeMillis() - start;
+    if(total>1000){
+      LOG.info("pullNewlyAllocatedContainersAndNMTokens too long " + total + " size = " + size + " detail: " + total1 + ", " + total2 + ", " + total3 + ", "+ total41 + ", "+ total411 + ", " + totaltest1 + ", "+ total412+ ", " + totaltest2 + ", "+ total413 + ", " + total42 +", " + total4);
     }
     return new ContainersAndNMTokensAllocation(returnContainerList, nmTokens);
   }

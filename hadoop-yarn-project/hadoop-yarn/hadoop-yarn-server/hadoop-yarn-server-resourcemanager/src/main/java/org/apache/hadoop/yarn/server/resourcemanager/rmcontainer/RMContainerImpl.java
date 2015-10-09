@@ -47,6 +47,7 @@ import java.util.EnumSet;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
+import org.apache.hadoop.yarn.event.AsyncDispatcher;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class RMContainerImpl implements
@@ -397,12 +398,15 @@ public class RMContainerImpl implements
     @Override
     public void transition(RMContainerImpl container, RMContainerEvent event) {
       // Register with containerAllocationExpirer.
+      long start = System.currentTimeMillis();
       container.containerAllocationExpirer.register(container.getContainerId());
-
+      event.getTimes().add(System.currentTimeMillis()-start);
+      start=System.currentTimeMillis();
       // Tell the appAttempt
-      container.eventHandler.handle(new RMAppAttemptContainerAcquiredEvent(
+      ((AsyncDispatcher.GenericEventHandler) container.eventHandler).handle(new RMAppAttemptContainerAcquiredEvent(
           container.getApplicationAttemptId(), container.getContainer(),
-          event.getTransactionState()));
+          event.getTransactionState()), event.getTimes());
+      event.getTimes().add(System.currentTimeMillis()-start);
     }
   }
 

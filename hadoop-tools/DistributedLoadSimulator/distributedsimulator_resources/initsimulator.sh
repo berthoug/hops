@@ -39,4 +39,5 @@ cp $basedir/hadoop-2.4.0/etc/hadoop/yarn-site.xml ./
 cd $basedir/hadoop-2.4.0/share/hadoop/tools/sls;
 cp $basedir/hadoop-2.4.0/etc/hadoop/yarn-site.xml ./
 ##cloud 3 scheduler 193.10.64.86
-./bin/slsrun.sh --input-sls=$2 --output-dir=output --nodes=$3 --print-simulation --loadsimulator-mode --rt-address=$4 --rm-address=$5 --rmi-address=$6 --parallelsimulator --yarn-directory=$basedir
+echo "./bin/slsrun.sh --input-sls=$2 --output-dir=output --nodes=$3 --print-simulation --loadsimulator-mode --rt-address=$4 --rm-address=$5 --rmi-address=$6 --parallelsimulator --yarn-directory=$basedir $7 $8"
+./bin/slsrun.sh --input-sls=$2 --output-dir=output --nodes=$3 --print-simulation --loadsimulator-mode --rt-address=$4 --rm-address=$5 --rmi-address=$6 --parallelsimulator --yarn-directory=$basedir $7 $8

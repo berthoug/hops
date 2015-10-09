@@ -40,7 +40,7 @@ public class LogsPrinter implements Runnable {
           String logout = "";
           int count = 0;
           LinkedBlockingQueue<String> logs = RMUtilities.getLogs();
-          while(!logs.isEmpty()){
+          while(!logs.isEmpty() && count<1000){
             logout = logout + logs.poll()+ ", ";
             count++;
           }
@@ -53,6 +53,7 @@ public class LogsPrinter implements Runnable {
                   " queue length: " + RMUtilities.getQueueLength() +
                   "\n avgt commit: " + RMUtilities.getavgt() + "\n";
           LOG.info(toPrint);
+          LOG.info(logout);
           toPrint = "add app id calls: " + TransactionStateImpl.callremoveAllocateResponse + ", " + TransactionStateImpl.callsAddApplicationStateToRemove + ", " + TransactionStateImpl.callsAddApplicationToAdd + ", " + TransactionStateImpl.callsGetSchedulerApplicationInfos + ", " + TransactionStateImpl.callsaddAllocateResponse + ", " + TransactionStateImpl.callsaddAppAttempt;
           LOG.info(toPrint);
           TransactionStateImpl.callremoveAllocateResponse =0;

@@ -71,14 +71,20 @@ parseArgs() {
     --parallelsimulator)
       parallelsimulator="true"
       ;;
-     --stopappsimulation)
+    --stopappsimulation)
       stopappsimulation="true"
       ;;
       --rmi-address=*)
       rmiaddress=${i#*=}
       ;;
-      --yarn-directory=*)
+    --yarn-directory=*)
       YARN_DIRECTORY=${i#*=}
+      ;;
+    --isLeader)
+      ISLEADER="true"
+      ;;
+    --simulation-duration=*)
+      SIMULATIONDURATION=${i#*=}
       ;;
     *)
       echo "Invalid option"
@@ -157,7 +163,14 @@ runSimulation() {
   if [[ "${rmiaddress}" != "" ]] ; then
     args="${args} -rmiaddress ${rmiaddress}"
   fi
-  
+
+  if [[ "$ISLEADER" != "" ]] ; then
+      args="${args} -isLeader true"
+  fi
+
+  if [[ "$SIMULATIONDURATION" != "" ]] ; then
+      args="${args} -simulationDuration ${SIMULATIONDURATION}"
+  fi
  $YARN_DIRECTORY/hadoop-2.4.0/bin/yarn org.apache.hadoop.distributedloadsimulator.sls.SLSRunner ${args}
 }
 ###############################################################################

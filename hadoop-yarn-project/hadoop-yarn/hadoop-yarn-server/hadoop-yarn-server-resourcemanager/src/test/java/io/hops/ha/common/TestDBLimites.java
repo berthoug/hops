@@ -45,6 +45,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -101,7 +102,7 @@ public class TestDBLimites {
                   RMContainerDataAccess rmcontainerDA
                   = (RMContainerDataAccess) RMStorageFactory
                   .getDataAccess(RMContainerDataAccess.class);
-                  rmcontainerDA.addAll(toAdd);
+                  rmcontainerDA.addAll(toAdd, new  LinkedBlockingQueue<String>(), 0);
                   connector.commit();
                   return null;
                 }
@@ -283,7 +284,7 @@ public class TestDBLimites {
                   RMContainerDataAccess rmcontainerDA
                   = (RMContainerDataAccess) RMStorageFactory
                   .getDataAccess(RMContainerDataAccess.class);
-                  rmcontainerDA.addAll(toAddRMContainers);
+                  rmcontainerDA.addAll(toAddRMContainers, new  LinkedBlockingQueue<String>(), 0);
                   }
                   if(random.nextBoolean()){
                   ContainerDataAccess containerDA

@@ -247,16 +247,6 @@ public class MockNodes {
     public void setNextHeartBeat(boolean nextHeartbeat) {
     }
 
-    @Override
-    public int getRMNodePendingEventId() {
-      return 0;
-    }
-
-    @Override
-    public void setRMNodePendingEventId(int pendingId) {
-
-    }
-
   };
 
   private static RMNode buildRMNode(int rack, final Resource perNode,

@@ -15,6 +15,7 @@
  */
 package io.hops.ha.common;
 
+import io.hops.StorageConnector;
 import io.hops.exception.StorageException;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.yarn.dal.ContainerIdToCleanDataAccess;
@@ -150,35 +151,48 @@ public class RMNodeInfoAgregate {
           JustLaunchedContainersDataAccess justLaunchedContainersDA,
           UpdatedContainerInfoDataAccess updatedContainerInfoDA,
           FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA,
-          PendingEventDataAccess persistedEventsDA)
+          PendingEventDataAccess persistedEventsDA, StorageConnector connector)
           throws StorageException {
     Long start = System.currentTimeMillis();
     persistContainerStatusToAdd(csDA);
     totalt1 = totalt1 + System.currentTimeMillis() - start;
+    connector.flush();
     persistJustLaunchedContainersToAdd(justLaunchedContainersDA);
     totalt2 = totalt2 + System.currentTimeMillis() - start;
+    connector.flush();
     persistJustLaunchedContainersToRemove(justLaunchedContainersDA);
     totalt3 = totalt3 + System.currentTimeMillis() - start;
+    connector.flush();
     persistContainerToCleanToAdd(cidToCleanDA);
     totalt4 = totalt4 + System.currentTimeMillis() - start;
+    connector.flush();
     persistContainerToCleanToRemove(cidToCleanDA);
     totalt5 = totalt5 + System.currentTimeMillis() - start;
+    connector.flush();
     persistFinishedApplicationToAdd(faDA);
     totalt6 = totalt6 + System.currentTimeMillis() - start;
+    connector.flush();
     persistFinishedApplicationToRemove(faDA);
     totalt7 = totalt7 + System.currentTimeMillis() - start;
+    connector.flush();
     persistNodeUpdateQueueToAdd(updatedContainerInfoDA);
     totalt8 = totalt8 + System.currentTimeMillis() - start;
+    connector.flush();
     persistNodeUpdateQueueToRemove(updatedContainerInfoDA);
     totalt9 = totalt9 + System.currentTimeMillis() - start;
+    connector.flush();
     persistLatestHeartBeatResponseToAdd(hbDA);
     totalt10 = totalt10 + System.currentTimeMillis() - start;
+    connector.flush();
     persistNextHeartbeat();
     totalt11 = totalt11 + System.currentTimeMillis() - start;
+    connector.flush();
     persistPendingEventsToAdd(persistedEventsDA);
     totalt12 = totalt12 + System.currentTimeMillis() - start;
+    connector.flush();
     persistPendingEventsToRemove(persistedEventsDA);
     totalt13 = totalt13 + System.currentTimeMillis() - start;
+    connector.flush();
     nbFinish++;
     if (nbFinish % 100 == 0) {
       double avgt1 = totalt1 / nbFinish;

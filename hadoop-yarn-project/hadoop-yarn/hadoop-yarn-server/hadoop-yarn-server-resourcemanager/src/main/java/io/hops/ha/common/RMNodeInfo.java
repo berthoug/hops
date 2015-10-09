@@ -33,6 +33,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.server.api.protocolrecords.impl.pb.NodeHeartbeatResponsePBImpl;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -40,7 +41,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
 
@@ -69,7 +69,7 @@ public class RMNodeInfo {
   private Set<ApplicationId> finishedApplicationsToRemove = new ConcurrentSkipListSet<ApplicationId>();;
   private NodeHBResponse latestNodeHeartBeatResponse;
   private NextHeartbeat nextHeartbeat;
-  private int pendingId;
+  private int pendingId = -1;
 
   public RMNodeInfo(String rmnodeId) {
     this.rmnodeId = rmnodeId;
@@ -99,7 +99,7 @@ public class RMNodeInfo {
           org.apache.hadoop.yarn.api.records.ContainerStatus val) {
     ContainerStatus toAdd = new ContainerStatus(val.getContainerId().toString(),
             val.getState().toString(), val.getDiagnostics(),
-            val.getExitStatus(), rmnodeId, pendingId);
+            val.getExitStatus(), rmnodeId, getPendingId());
     this.justLaunchedContainersToAdd.put(key, toAdd);
     justLaunchedContainersToRemove.remove(key);
   }
@@ -135,13 +135,13 @@ public class RMNodeInfo {
         UpdatedContainerInfo hopUCI = new UpdatedContainerInfo(rmnodeId,
                 containerStatus.getContainerId().
                 toString(), uci.
-                getUpdatedContainerInfoId(), pendingId);
+                getUpdatedContainerInfoId(), getPendingId());
 
             ContainerStatus hopConStatus =
                 new ContainerStatus(containerStatus.getContainerId().toString(),
                         containerStatus.getState().toString(),
                         containerStatus.getDiagnostics(),
-                        containerStatus.getExitStatus(), rmnodeId, pendingId);
+                        containerStatus.getExitStatus(), rmnodeId, getPendingId());
 
         UpdatedContainerInfoToAdd uciToAdd = new UpdatedContainerInfoToAdd(
                 hopUCI, hopConStatus);
@@ -157,13 +157,13 @@ public class RMNodeInfo {
         UpdatedContainerInfo hopUCI = new UpdatedContainerInfo(rmnodeId,
                 containerStatus.getContainerId().
                 toString(), uci.
-                getUpdatedContainerInfoId(), pendingId);
+                getUpdatedContainerInfoId(), getPendingId());
 
             ContainerStatus hopConStatus =
                 new ContainerStatus(containerStatus.getContainerId().toString(),
                         containerStatus.getState().toString(),
                         containerStatus.getDiagnostics(),
-                        containerStatus.getExitStatus(), rmnodeId, pendingId);
+                        containerStatus.getExitStatus(), rmnodeId, getPendingId());
 
         UpdatedContainerInfoToAdd uciToAdd = new UpdatedContainerInfoToAdd(
                 hopUCI, hopConStatus);
@@ -187,13 +187,13 @@ public class RMNodeInfo {
         UpdatedContainerInfo hopUCI = new UpdatedContainerInfo(rmnodeId,
                 containerStatus.getContainerId().
                 toString(), uci.
-                getUpdatedContainerInfoId(), pendingId);
+                getUpdatedContainerInfoId(), getPendingId());
 
         UpdatedContainerInfoToAdd uciToRemove = new UpdatedContainerInfoToAdd(
                 hopUCI, null);
         UpdatedContainerInfoToAdd flag = this.nodeUpdateQueueToAdd.remove(
                 uciToRemove.hashCode());
-        if (flag == null & alreadyRemoved.add(containerStatus.getContainerId())) {
+        if (flag == null && alreadyRemoved.add(containerStatus.getContainerId())) {
           this.nodeUpdateQueueToRemove.put(uciToRemove.hashCode(), uciToRemove);
         }
       }
@@ -206,13 +206,13 @@ public class RMNodeInfo {
         UpdatedContainerInfo hopUCI = new UpdatedContainerInfo(rmnodeId,
                 containerStatus.getContainerId().
                 toString(), uci.
-                getUpdatedContainerInfoId(), pendingId);
+                getUpdatedContainerInfoId(), getPendingId());
 
         UpdatedContainerInfoToAdd uciToRemove = new UpdatedContainerInfoToAdd(
                 hopUCI, null);
         UpdatedContainerInfoToAdd flag = this.nodeUpdateQueueToAdd.remove(
                 uciToRemove.hashCode());
-        if (flag == null & alreadyRemoved.add(containerStatus.getContainerId())) {
+        if (flag == null && alreadyRemoved.add(containerStatus.getContainerId())) {
           this.nodeUpdateQueueToRemove.put(uciToRemove.hashCode(), uciToRemove);
         }
       }
@@ -220,7 +220,7 @@ public class RMNodeInfo {
   }
 
   public void toRemoveNodeUpdateQueue(
-          ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo> uci) {
+          Collection<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo> uci) {
 
     for (org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo c
             : uci) {
@@ -247,7 +247,7 @@ public class RMNodeInfo {
       for (org.apache.hadoop.yarn.api.records.ContainerId cid : containerToCleanToAdd) {
         if(!containerToCleanToRemove.remove(cid)){
           toAddHopContainerIdToClean
-                  .add(new ContainerId(rmnodeId, cid.toString(), pendingId));
+                  .add(new ContainerId(rmnodeId, cid.toString(), getPendingId()));
         }
       }
       agregate.addAllContainersToCleanToAdd(toAddHopContainerIdToClean);
@@ -263,7 +263,7 @@ public class RMNodeInfo {
       for (org.apache.hadoop.yarn.api.records.ContainerId cid
               : containerToCleanToRemove) {
         toRemoveHopContainerIdToClean.add(new ContainerId(rmnodeId, cid.
-                toString(), pendingId));
+                toString(), getPendingId()));
       }
       agregate.addAllContainerToCleanToRemove(toRemoveHopContainerIdToClean);
     }
@@ -350,7 +350,7 @@ public class RMNodeInfo {
       for (ApplicationId appId : finishedApplicationsToAdd) {
 
         FinishedApplications hopFinishedApplications
-                = new FinishedApplications(rmnodeId, appId.toString(), pendingId);
+                = new FinishedApplications(rmnodeId, appId.toString(), getPendingId());
         toAddHopFinishedApplications.add(hopFinishedApplications);
 
       }
@@ -368,7 +368,7 @@ public void agregateFinishedApplicationToRemove(RMNodeInfoAgregate agregate){
           new ArrayList<FinishedApplications>();
       for (ApplicationId appId : finishedApplicationsToRemove) {
         FinishedApplications hopFinishedApplications
-                = new FinishedApplications(rmnodeId, appId.toString(), pendingId);
+                = new FinishedApplications(rmnodeId, appId.toString(), getPendingId());
         toRemoveHopFinishedApplications.add(hopFinishedApplications);
       }
       agregate.addAllFinishedAppToRemove(toRemoveHopFinishedApplications);
@@ -404,7 +404,7 @@ public void agregateFinishedApplicationToRemove(RMNodeInfoAgregate agregate){
  
 
   public void toAddNextHeartbeat(String rmnodeid, boolean nextHeartbeat) {
-    this.nextHeartbeat = new NextHeartbeat(rmnodeid, nextHeartbeat, pendingId);
+    this.nextHeartbeat = new NextHeartbeat(rmnodeid, nextHeartbeat, getPendingId());
   }
 
   public void agregateNextHeartbeat(RMNodeInfoAgregate agregate) {
@@ -414,9 +414,11 @@ public void agregateFinishedApplicationToRemove(RMNodeInfoAgregate agregate){
     LOG.debug("HOP :: persistNextHeartbeat-FINISH:" + nextHeartbeat);
   }
 
-  public void generatePendingEventId() {
+  private void generatePendingEventId() {
     //lets start the pending event id from 1
-    this.pendingId = pendingEventId.getAndIncrement() + 1;
+    if(pendingId == -1){
+      this.pendingId = pendingEventId.getAndIncrement() + 1;
+    }
   }
 
   public void setPendingEventId(int pendingEventId) {
@@ -424,12 +426,13 @@ public void agregateFinishedApplicationToRemove(RMNodeInfoAgregate agregate){
   }
 
   public int getPendingId() {
+    generatePendingEventId();
     return pendingId;
   }
 
   public void addPendingEventToAdd(String rmnodeId, int type, int status) {
     PendingEvent pendingEvent = new PendingEvent(rmnodeId, type, status,
-            pendingId);
+            getPendingId());
     this.persistedEventsToAdd.add(pendingEvent);
   }
 
@@ -442,7 +445,7 @@ public void agregateFinishedApplicationToRemove(RMNodeInfoAgregate agregate){
   public void agregatePendingEventsToAdd(RMNodeInfoAgregate agregate) {
     if (persistedEventsToAdd != null
             && !persistedEventsToAdd.isEmpty()) {
-      LOG.info("agregating pending event to add: " + persistedEventsToAdd.size());
+      LOG.debug("agregating pending event to add: " + persistedEventsToAdd.size());
       agregate.addAllPendingEventsToAdd(persistedEventsToAdd);
     }
   }
@@ -454,22 +457,4 @@ public void agregateFinishedApplicationToRemove(RMNodeInfoAgregate agregate){
     }
   }
 
-  public void persistPendingEvents(PendingEventDataAccess persistedEventsDA)
-          throws StorageException {
-    List<PendingEvent> toPersist = new ArrayList<PendingEvent>();
-    for (PendingEvent event : this.persistedEventsToAdd) {
-      if (!this.persistedEventsToRemove.remove(event)) {
-        toPersist.add(event);
-      }
-    }
-    if (!this.persistedEventsToRemove.isEmpty()) {
-      LOG.info("hb handled " + persistedEventsToRemove.size());
-    }
-    if (!toPersist.isEmpty() || !persistedEventsToRemove.isEmpty()) {
-      LOG.debug("to persit - " + toPersist.size() + " persit event to remove : "
-              + this.persistedEventsToRemove.size());
-      persistedEventsDA
-              .prepare(toPersist, this.persistedEventsToRemove);
-    }
-  }
 }

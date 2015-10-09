@@ -61,11 +61,11 @@ public abstract class TransactionState {
 
   abstract boolean addAppId(ApplicationId appId);
 
-  public synchronized void incCounter(Enum type) {
+  public void incCounter(Enum type) {
     counter.incrementAndGet();
   }
 
-  public synchronized void decCounter(Enum type) throws IOException {
+  public void decCounter(Enum type) throws IOException {
     int value = counter.decrementAndGet();
     if(!batch && value==0){
       commit(true);

@@ -358,17 +358,14 @@ public class ResourceTrackerService extends AbstractService
             conf.getBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
                             YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED));
 
-    ((TransactionStateImpl) transactionState)
-            .getRMNodeInfo(nodeId).generatePendingEventId();
     int pendingEventId = ((TransactionStateImpl) transactionState)
             .getRMNodeInfo(nodeId).getPendingId();
-    rmNode.setRMNodePendingEventId(pendingEventId);
     if (isDistributedRTEnabled) {
       if (!oldNodeExists) {
         LOG.info("HOP :: Registering new node at: " + host);
         this.rmContext.getActiveRMNodes().put(nodeId, rmNode);
         ((TransactionStateImpl) transactionState).getRMContextInfo().
-                toAddActiveRMNode(nodeId, rmNode);
+                toAddActiveRMNode(nodeId, rmNode, pendingEventId);
         ((TransactionStateImpl) transactionState)
                 .getRMNodeInfo(nodeId)
                 .toAddNextHeartbeat(nodeId.toString(),
@@ -394,7 +391,7 @@ public class ResourceTrackerService extends AbstractService
       if (oldNode == null) {
         LOG.info("HOP :: Registering new node at: " + host);
         ((TransactionStateImpl) transactionState).getRMContextInfo().
-                toAddActiveRMNode(nodeId, rmNode);
+                toAddActiveRMNode(nodeId, rmNode, pendingEventId);
         ((TransactionStateImpl) transactionState)
                 .getRMNodeInfo(nodeId)
                 .toAddNextHeartbeat(nodeId.toString(),
@@ -495,11 +492,8 @@ public class ResourceTrackerService extends AbstractService
             getCurrentTransactionStatePriority(rpcID, "nodeHeartbeat");
     ((transactionStateWrapper)transactionState).addTime(1);
    
-    ((TransactionStateImpl) transactionState)
-            .getRMNodeInfo(nodeId).generatePendingEventId();
     int pendingEventId = ((TransactionStateImpl) transactionState)
             .getRMNodeInfo(nodeId).getPendingId();
-    rmNode.setRMNodePendingEventId(pendingEventId);
 
     // 2. Check if it's a valid (i.e. not excluded) node
     if (!isValid) {
