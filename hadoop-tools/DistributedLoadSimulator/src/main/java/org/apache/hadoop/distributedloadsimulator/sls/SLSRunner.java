@@ -21,8 +21,10 @@ package org.apache.hadoop.distributedloadsimulator.sls;
  */
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.util.YarnAPIStorageFactory;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
 import static java.lang.Thread.sleep;
@@ -41,6 +43,12 @@ import java.util.Iterator;
 import java.util.Random;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
 import java.util.logging.Level;
 
 import org.apache.commons.cli.CommandLine;
@@ -48,7 +56,8 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.distributedloadsimulator.sls.appmaster.ApplicationMasterScheduler;
+import org.apache.hadoop.distributedloadsimulator.sls.appmaster.AMSimulator;
+import org.apache.hadoop.distributedloadsimulator.sls.appmaster.MRAMSimulator;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
@@ -65,6 +74,8 @@ import org.apache.hadoop.distributedloadsimulator.sls.nodemanager.NMSimulator;
 import org.apache.hadoop.distributedloadsimulator.sls.scheduler.ContainerSimulator;
 import org.apache.hadoop.distributedloadsimulator.sls.scheduler.ResourceSchedulerWrapper;
 import org.apache.hadoop.distributedloadsimulator.sls.scheduler.TaskRunner;
+import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.Priority;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
@@ -74,7 +85,8 @@ import org.apache.hadoop.yarn.util.resource.Resources;
 public class SLSRunner implements AMNMCommonObject {
 
   private ResourceManager rm;
-  private static final TaskRunner runner = new TaskRunner();
+  private static final TaskRunner nodeRunner = new TaskRunner();
+  private static final TaskRunner applicationRunner = new TaskRunner();
   private final String[] inputTraces;
   private final Configuration conf;
   private final Map<String, Integer> queueAppNumMap;
@@ -82,20 +94,21 @@ public class SLSRunner implements AMNMCommonObject {
   // NM simulator
   private static HashMap<NodeId, NMSimulator> nmMap;
   private int nmMemoryMB, nmVCores;
+  private int containerMemoryMB;
   private final String nodeFile;
 
   // AM simulator
   private int AM_ID;
-  private final Map<String, List<String>> amMap;
+  private Map<String, AMSimulator> amMap;
   private final Set<String> trackedApps;
   private final Map<String, Class> amClassMap;
-  private static int remainingApps = 0;
+  private static AtomicInteger remainingApps = new AtomicInteger(0);
 
   // metrics
   private final String metricsOutputDir;
   private final boolean printSimulation;
   private boolean yarnNode = false;
-  private boolean firstAMRegistration = false;
+  private AtomicBoolean firstAMRegistration = new AtomicBoolean(false);
   private static boolean distributedmode;
   private final boolean loadsimulatormode;
   private static boolean stopAppSimulation = false;
@@ -121,16 +134,25 @@ public class SLSRunner implements AMNMCommonObject {
 
   private static float hbResponsePercentage;
   private String listOfRMIIpAddress = null;
-  List<AMNMCommonObject> remoteConnections = new ArrayList<AMNMCommonObject>();
-  private static final Map<String, Integer> applicationProcessMap = new HashMap<String, Integer>();
+  Map<String, AMNMCommonObject> remoteConnections
+          = new HashMap<String, AMNMCommonObject>();
 
-  private static long firstHBTimeStamp =0;
-  private static boolean isFirstBeat=false;
+  private static long firstHBTimeStamp = 0;
+  private static boolean isFirstBeat = true;
+  private boolean isLeader = false;
+  private long simulationDuration;
+
   public SLSRunner(String inputTraces[], String nodeFile,
           String outputDir, Set<String> trackedApps,
-          boolean printsimulation, boolean yarnNodeDeployment, boolean distributedMode, boolean loadSimMode, String resourceTrackerAddress, String resourceManagerAddress, String rmiAddress)
+          boolean printsimulation, boolean yarnNodeDeployment,
+          boolean distributedMode,
+          boolean loadSimMode, String resourceTrackerAddress,
+          String resourceManagerAddress,
+          String rmiAddress, boolean isLeader, long simulationDuration)
           throws IOException, ClassNotFoundException {
     this.rm = null;
+    this.isLeader = isLeader;
+    this.simulationDuration = simulationDuration;
     this.yarnNode = yarnNodeDeployment;
     distributedmode = distributedMode;
     this.loadsimulatormode = loadSimMode;
@@ -153,15 +175,17 @@ public class SLSRunner implements AMNMCommonObject {
 
     nmMap = new HashMap<NodeId, NMSimulator>();
     queueAppNumMap = new HashMap<String, Integer>();
-    amMap = new HashMap<String, List<String>>();
+    amMap = new HashMap<String, AMSimulator>();
     amClassMap = new HashMap<String, Class>();
 
     // runner configuration
-    conf = new Configuration(false);
+    conf = new Configuration();
     conf.addResource("sls-runner.xml");
     // runner
-    int poolSize = conf.getInt(SLSConfiguration.NM_RUNNER_POOL_SIZE,SLSConfiguration.NM_RUNNER_POOL_SIZE_DEFAULT);
-    SLSRunner.runner.setQueueSize(poolSize);
+    int poolSize = conf.getInt(SLSConfiguration.NM_RUNNER_POOL_SIZE,
+            SLSConfiguration.NM_RUNNER_POOL_SIZE_DEFAULT);
+    SLSRunner.nodeRunner.setQueueSize(poolSize);
+    SLSRunner.applicationRunner.setQueueSize(poolSize);
     // <AMType, Class> map
     for (Map.Entry e : conf) {
       String key = e.getKey().toString();
@@ -170,15 +194,9 @@ public class SLSRunner implements AMNMCommonObject {
         amClassMap.put(amType, Class.forName(conf.get(key)));
       }
     }
-  }
 
-  public static void reduceFailApplications() {
-    --remainingApps;
-  }
-
-  public static void addProcessId(String appId, int processId) {
-    LOG.info(MessageFormat.format("Adding the process id in to map {0}  - {1}", appId, processId));
-    applicationProcessMap.put(appId, processId);
+    containerMemoryMB = conf.getInt(SLSConfiguration.CONTAINER_MEMORY_MB,
+            SLSConfiguration.CONTAINER_MEMORY_MB_DEFAULT);
   }
 
   private String[] getRMIAddress() {
@@ -193,13 +211,16 @@ public class SLSRunner implements AMNMCommonObject {
     rmClient.start();
   }
 
-  public static void measureFirstBeat(){
-    if(!isFirstBeat){
-    firstHBTimeStamp= System.currentTimeMillis();
-    isFirstBeat=true;
+  public static void measureFirstBeat() {
+    if (isFirstBeat) {
+      firstHBTimeStamp = System.currentTimeMillis();
+      isFirstBeat = false;
     }
   }
+  long lastMonitoring = 0;
+
   public void startHbMonitorThread() {
+    LOG.info("start Heartbeat monitor");
     Thread hbExperimentalMonitoring = new Thread() {
       @Override
       public void run() {
@@ -207,7 +228,8 @@ public class SLSRunner implements AMNMCommonObject {
           try {
             sleep(5000);
           } catch (InterruptedException ex) {
-            java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(
+                    Level.SEVERE, null, ex);
           }
           int totalHb = 0;
           int trueTotalHb = 0;
@@ -216,13 +238,24 @@ public class SLSRunner implements AMNMCommonObject {
             trueTotalHb += nm.getTotalTrueHeartBeat();
           }
           if (totalHb != 0) {
-            float hbExperimentailResponsePercentage = (float)(trueTotalHb * 100) / totalHb;
-            float runningTime = ((float)(System.currentTimeMillis()-firstHBTimeStamp))/1000;
-            float numberOfIdealHb = ((float)nmMap.size() /3)*runningTime;
-            float idealHbPer = (float)(totalHb*100)/numberOfIdealHb;
-            float trueHb = (float)(trueTotalHb*100)/numberOfIdealHb;
-            LOG.info("HeartBeat Monitor I :" +idealHbPer + "  Tr : " + trueHb +"  Ex : "+hbExperimentailResponsePercentage + "  TotHB : " + totalHb + "  TrHB : " + trueTotalHb + "  Nm : " + nmMap.size() + "  Am : " + numAMs  + "  JbTm : " + totalJobRunningTimeSec);
+            float hbExperimentailResponsePercentage = (float) ((trueTotalHb
+                    - lastLocalSCHB) * 100) / (totalHb - lastLocalRTHB);
+            float runningTime = ((float) (System.currentTimeMillis()
+                    - lastMonitoring)) / 1000;
+            float numberOfIdealHb = ((float) nmMap.size() / 3) * runningTime;
+            float idealHbPer = (float) ((totalHb - lastLocalRTHB) * 100)
+                    / numberOfIdealHb;
+            float trueHb = (float) ((trueTotalHb - lastLocalSCHB) * 100)
+                    / numberOfIdealHb;
+            LOG.info("HeartBeat Monitor I :" + idealHbPer + " \t Tr : " + trueHb
+                    + "\t Ex : " + hbExperimentailResponsePercentage
+                    + "\t TotHB : " + (totalHb - lastLocalRTHB) + "\t TrHB : "
+                    + (trueTotalHb - lastLocalSCHB) + "\t clusterUsage : "
+                    + lastClusterUsage);
           }
+          lastMonitoring = System.currentTimeMillis();
+          lastLocalRTHB = totalHb;
+          lastLocalSCHB = trueTotalHb;
         }
       }
     };
@@ -230,6 +263,7 @@ public class SLSRunner implements AMNMCommonObject {
   }
 
   public void start() throws Exception {
+
     if (loadsimulatormode) {
       // here we only need to start the load and send rt and scheduler
       startNM();
@@ -238,24 +272,26 @@ public class SLSRunner implements AMNMCommonObject {
       Thread.sleep(3000);
       getAllRemoteConnections();
       initializeYarnClientForAMSimulation();
-      for (AMNMCommonObject remoteCon : remoteConnections) {
+      for (AMNMCommonObject remoteCon : remoteConnections.values()) {
         while (!remoteCon.isNMRegisterationDone()) {
           Thread.sleep(1000);
         }
       }
+
       // start application masters
       if (!stopAppSimulation) {
-        LOG.info("Starting the applicatoin simulator from ApplicationMaster traces");
-        startAMFromSLSTraces(rmClient);
+        LOG.info(
+                "Starting the applicatoin simulator from ApplicationMaster traces");
+        startAMFromSLSTraces();
       }
       numAMs = amMap.size();
-      remainingApps = numAMs;
+      remainingApps.set(numAMs);
       // this method will be used for only experimental purpose. Every 5 sec , it will print the hb handled percentage
       //just to get some idea about the experiment.
       startHbMonitorThread();
     } else if (distributedmode) {
       // before start the rm , let rm to read and get to know about number of applications
-      startAMFromSLSTraces(rmClient);
+      startAMFromSLSTraces();
       startRM();
       ((ResourceSchedulerWrapper) rm.getResourceScheduler())
               .setQueueSet(this.queueAppNumMap.keySet());
@@ -263,7 +299,8 @@ public class SLSRunner implements AMNMCommonObject {
               .setTrackedAppSet(this.trackedApps);
     }
     printSimulationInfo();
-    runner.start();
+    nodeRunner.start();
+    applicationRunner.start();
   }
 
   private void startRM() throws IOException, ClassNotFoundException {
@@ -272,9 +309,11 @@ public class SLSRunner implements AMNMCommonObject {
     rmConf.setBoolean(YarnConfiguration.RM_HA_ENABLED, true);
     rmConf.setBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED, true);
     rmConf.setBoolean(YarnConfiguration.HOPS_NDB_EVENT_STREAMING_ENABLED, true);
-    rmConf.setBoolean(YarnConfiguration.HOPS_NDB_RT_EVENT_STREAMING_ENABLED, true);
+    rmConf.setBoolean(YarnConfiguration.HOPS_NDB_RT_EVENT_STREAMING_ENABLED,
+            true);
     rmConf.setBoolean(YarnConfiguration.AUTO_FAILOVER_ENABLED, true);
-    LOG.info("HOP :: Load simulator is starting resource manager in distributed mode ######################### ");
+    LOG.info(
+            "HOP :: Load simulator is starting resource manager in distributed mode ######################### ");
 
     YarnAPIStorageFactory.setConfiguration(rmConf);
     RMStorageFactory.setConfiguration(rmConf);
@@ -293,14 +332,18 @@ public class SLSRunner implements AMNMCommonObject {
     String[] listOfIp = getRMIAddress();
     Registry remoteRegistry = null;
     for (String rmiIp : listOfIp) {
-      try {
-        remoteRegistry = LocateRegistry.getRegistry(rmiIp);
-        AMNMCommonObject remoteConnection = (AMNMCommonObject) remoteRegistry.lookup("AMNMCommonObject");
-        remoteConnections.add(remoteConnection);
-      } catch (RemoteException ex) {
-        java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
-      } catch (NotBoundException ex) {
-        java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
+      while (true) {
+        try {
+          remoteRegistry = LocateRegistry.getRegistry(rmiIp);
+          AMNMCommonObject remoteConnection = (AMNMCommonObject) remoteRegistry.
+                  lookup("AMNMCommonObject");
+          remoteConnections.put(rmiIp, remoteConnection);
+          break;
+        } catch (RemoteException ex) {
+          LOG.error(ex, ex);
+        } catch (NotBoundException ex) {
+          LOG.error(ex, ex);
+        }
       }
     }
 
@@ -328,10 +371,12 @@ public class SLSRunner implements AMNMCommonObject {
     }
 
     Configuration rtConf = new YarnConfiguration();
-    int rtPort = rtConf.getPort(YarnConfiguration.RM_RESOURCE_TRACKER_PORT, YarnConfiguration.DEFAULT_RM_RESOURCE_TRACKER_PORT);
+    int rtPort = rtConf.getPort(YarnConfiguration.RM_RESOURCE_TRACKER_PORT,
+            YarnConfiguration.DEFAULT_RM_RESOURCE_TRACKER_PORT);
 
     for (int i = 0; i < numberOfRT; ++i) {
-      rtConf.setStrings(YarnConfiguration.RM_RESOURCE_TRACKER_ADDRESS, rtAddresses[i]);
+      rtConf.setStrings(YarnConfiguration.RM_RESOURCE_TRACKER_ADDRESS,
+              rtAddresses[i]);
       resourceTrackers[i] = (ResourceTracker) RpcClientFactoryPBImpl.get().
               getClient(ResourceTracker.class, 1, rtConf.getSocketAddr(
                               YarnConfiguration.RM_RESOURCE_TRACKER_ADDRESS,
@@ -342,27 +387,17 @@ public class SLSRunner implements AMNMCommonObject {
     int counter = 0;
     Random random = new Random();
     Set<String> rackSet = new HashSet<String>();
-    int totalNodes = nodeSet.size();
-    int threshHoldLimit = totalNodes / numberOfRT;
-    int rtOffSet = 0;
-    int i = 0;
     for (String hostName : nodeSet) {
       ++counter;
       // we randomize the heartbeat start time from zero to 1 interval
-      i++;
-      LOG.info("Init nm: " + hostName + " (" + i + ")");
+      LOG.info("Init nm: " + hostName + " (" + counter + ")");
       NMSimulator nm = new NMSimulator();
-      if (counter <= threshHoldLimit) {
-        nm.init(hostName, nmMemoryMB, nmVCores,
-                random.nextInt(heartbeatInterval), heartbeatInterval, rm, resourceTrackers[rtOffSet]);
+      nm.init(hostName, nmMemoryMB, nmVCores,
+              random.nextInt(heartbeatInterval), heartbeatInterval, rm,
+              resourceTrackers[counter % numberOfRT]);
 
-      }
-      if (counter == threshHoldLimit) {
-        threshHoldLimit *= 2;
-        ++rtOffSet;
-      }
       nmMap.put(nm.getNode().getNodeID(), nm);
-      runner.schedule(nm);
+      nodeRunner.schedule(nm);
       rackSet.add(nm.getNode().getRackName());
 
     }
@@ -375,7 +410,7 @@ public class SLSRunner implements AMNMCommonObject {
    * parse workload information from sls trace files
    */
   @SuppressWarnings("unchecked")
-  private void startAMFromSLSTraces(YarnClient yarnClient) throws IOException, Exception {
+  private void startAMFromSLSTraces() throws IOException, Exception {
     // parse from sls traces
     int heartbeatInterval = conf.getInt(
             SLSConfiguration.AM_HEARTBEAT_INTERVAL_MS,
@@ -395,6 +430,10 @@ public class SLSRunner implements AMNMCommonObject {
           long jobFinishTime = Long.parseLong(
                   jsonJob.get("job.end.ms").toString());
 
+          String user = (String) jsonJob.get("job.user");
+          if (user == null) {
+            user = "default";
+          }
           String queue = jsonJob.get("job.queue.name").toString();
 
           String oldAppId = jsonJob.get("job.id").toString();
@@ -408,33 +447,30 @@ public class SLSRunner implements AMNMCommonObject {
           if (tasks == null || tasks.isEmpty()) {
             continue;
           }
-          List<ContainerSimulator> containerList
-                  = new ArrayList<ContainerSimulator>();
+
           // create a new AM
           // appMastersList.add(new AppMasterParameter(queue, inputTrace, AM_ID++, rmAddress, rmiAddress));
           // if it is yarn node, don't execute applications
-          if (!yarnNode) {
-            LOG.info("Application simulation is starting now .");
-            ApplicationMasterScheduler appMasterExecutors = new ApplicationMasterScheduler(queue, inputTrace, AM_ID++, rmAddress, listOfRMIIpAddress, yarnClient);
-            appMasterExecutors.init(jobStartTime, jobFinishTime, heartbeatInterval);
-            runner.schedule(appMasterExecutors);
-          }
           String amType = jsonJob.get("am.type").toString();
-          maxRuntime = Math.max(maxRuntime, jobFinishTime);
-          numTasks += tasks.size();
-          List<String> amList = new ArrayList<String>();
-          amList.add(queue);
-          amList.add(amType);
-          amList.add(Long.toString(jobFinishTime - jobStartTime));
-          amList.add(Integer.toString(containerList.size()));
-          amMap.put(oldAppId, amList);
+          AMSimulator amSim = (AMSimulator) ReflectionUtils.newInstance(
+                  amClassMap.get(amType), new Configuration(conf));
+          if (amSim != null) {
+            amSim.init(AM_ID++, heartbeatInterval, tasks, rm, this,
+                    jobStartTime, jobFinishTime, user, queue, false, oldAppId,
+                    getRMIAddress(), rmClient, new Configuration(conf));
+
+            applicationRunner.schedule(amSim);
+            maxRuntime = Math.max(maxRuntime, jobFinishTime);
+            amMap.put(oldAppId, amSim);
+            LOG.info("scheduled " + amMap.size());
+          }
         }
       } finally {
         input.close();
       }
     }
     numAMs = amMap.size();
-    remainingApps = numAMs;
+    remainingApps.set(numAMs);
   }
 
   private void printSimulationInfo() {
@@ -450,10 +486,10 @@ public class SLSRunner implements AMNMCommonObject {
               + "tasks = {1}, average # tasks per application = {2}",
               numAMs, numTasks, (int) (Math.ceil((numTasks + 0.0) / numAMs))));
       LOG.info("JobId\tQueue\tAMType\tDuration\t#Tasks");
-      for (Map.Entry<String, List<String>> entry : amMap.entrySet()) {
-        List<String> amDetail = entry.getValue();
-        LOG.info(entry.getKey() + "\t" + amDetail.get(0) + "\t" + amDetail.get(1)
-                + "\t" + amDetail.get(2) + "\t" + amDetail.get(3));
+      for (Map.Entry<String, AMSimulator> entry : amMap.entrySet()) {
+        AMSimulator am = entry.getValue();
+        LOG.info(entry.getKey() + "\t" + am.getQueue() + "\t" + am.getAMType()
+                + "\t" + am.getDuration() + "\t" + am.getNumTasks());
       }
       LOG.info("------------------------------------");
       // queue
@@ -486,13 +522,12 @@ public class SLSRunner implements AMNMCommonObject {
     return nmMap;
   }
 
-  public static TaskRunner getRunner() {
-    return runner;
+  public static TaskRunner getApplicationRunner() {
+    return applicationRunner;
   }
 
-  public static void decreaseRemainingApps() {
-    remainingApps--;
-    LOG.info("SLS decrease finished application - application count : " + remainingApps);
+  public static TaskRunner getNodeRunner() {
+    return nodeRunner;
   }
 
   public static void main(String args[]) throws Exception {
@@ -505,13 +540,22 @@ public class SLSRunner implements AMNMCommonObject {
     options.addOption("printsimulation", false,
             "print out simulation information");
     options.addOption("yarnnode", false, "taking boolean to enable rt mode");
-    options.addOption("distributedmode", false, "taking boolean to enable scheduler mode");
-    options.addOption("loadsimulatormode", false, "taking boolean to enable load simulator mode");
+    options.addOption("distributedmode", false,
+            "taking boolean to enable scheduler mode");
+    options.addOption("loadsimulatormode", false,
+            "taking boolean to enable load simulator mode");
     options.addOption("rtaddress", true, "Resourcetracker address");
-    options.addOption("rmaddress", true, "Resourcemanager  address for appmaster");
-    options.addOption("parallelsimulator", false, "this is a boolean value to check whether to enable parallel simulator or not");
-    options.addOption("rmiaddress", true, "Run a simulator on distributed mode, so we need rmi address");
-    options.addOption("stopappsimulation", false, "we can stop the application simulation");
+    options.addOption("rmaddress", true,
+            "Resourcemanager  address for appmaster");
+    options.addOption("parallelsimulator", false,
+            "this is a boolean value to check whether to enable parallel simulator or not");
+    options.addOption("rmiaddress", true,
+            "Run a simulator on distributed mode, so we need rmi address");
+    options.addOption("stopappsimulation", false,
+            "we can stop the application simulation");
+    options.addOption("isLeader", false, "leading slsRunner for the measurer");
+    options.addOption("simulationDuration", true,
+            "duration of the simulation only needed by the leader");
 
     CommandLineParser parser = new GnuParser();
     CommandLine cmd = parser.parse(options, args);
@@ -521,7 +565,14 @@ public class SLSRunner implements AMNMCommonObject {
     String rtAddress = cmd.getOptionValue("rtaddress"); // we are expecting the multiple rt, so input should be comma seperated
     String rmAddress = cmd.getOptionValue("rmaddress");
     String rmiAddress = "127.0.0.1";
-
+    boolean isLeader = cmd.hasOption("isLeader");
+    System.out.println(isLeader);
+    long simulationDuration = 0;
+    if (isLeader) {
+      System.out.println(cmd.getOptionValue("simulationDuration"));
+      simulationDuration = Long.parseLong(cmd.getOptionValue(
+              "simulationDuration")) * 1000;
+    }
     if ((inputSLS == null) || output == null) {
       System.err.println();
       System.err.println("ERROR: Missing input or output file");
@@ -560,11 +611,15 @@ public class SLSRunner implements AMNMCommonObject {
       rmiAddress = cmd.getOptionValue("rmiaddress"); // currently we support only two simulator in parallel
     }
     SLSRunner sls = new SLSRunner(inputFiles, nodeFile, output,
-            trackedJobSet, cmd.hasOption("printsimulation"), cmd.hasOption("yarnnode"), cmd.hasOption("distributedmode"), cmd.hasOption("loadsimulatormode"), rtAddress, rmAddress, rmiAddress
+            trackedJobSet, cmd.hasOption("printsimulation"), cmd.hasOption(
+                    "yarnnode"), cmd.hasOption("distributedmode"), cmd.
+            hasOption("loadsimulatormode"), rtAddress, rmAddress, rmiAddress,
+            isLeader, simulationDuration
     );
     if (!cmd.hasOption("distributedmode")) {
       try {
-        AMNMCommonObject stub = (AMNMCommonObject) UnicastRemoteObject.exportObject(sls, 0);
+        AMNMCommonObject stub = (AMNMCommonObject) UnicastRemoteObject.
+                exportObject(sls, 0);
         // Bind the remote object's stub in the registry
         Registry registry = LocateRegistry.getRegistry();
         registry.bind("AMNMCommonObject", stub);
@@ -590,10 +645,13 @@ public class SLSRunner implements AMNMCommonObject {
   }
 
   @Override
-  public void addNewContainer(String containerId, String nodeId, String httpAddress,
-          int memory, int vcores, int priority, long lifeTimeMS) throws RemoteException {
+  public void addNewContainer(String containerId, String nodeId,
+          String httpAddress,
+          int memory, int vcores, int priority, long lifeTimeMS) throws
+          RemoteException {
     Container container
-            = BuilderUtils.newContainer(ConverterUtils.toContainerId(containerId),
+            = BuilderUtils.newContainer(ConverterUtils.
+                    toContainerId(containerId),
                     ConverterUtils.toNodeId(nodeId), httpAddress,
                     Resources.createResource(memory, vcores),
                     Priority.create(priority), null);
@@ -604,21 +662,28 @@ public class SLSRunner implements AMNMCommonObject {
   }
 
   @Override
-  public void cleanupContainer(String containerId, String nodeId) throws RemoteException {
+  public void cleanupContainer(String containerId, String nodeId) throws
+          RemoteException {
     nmMap.get(ConverterUtils.toNodeId(nodeId))
             .cleanupContainer(ConverterUtils.toContainerId(containerId));
   }
 
   @Override
   public int finishedApplicationsCount() {
-    return remainingApps;
+    return remainingApps.get();
   }
+
+  long simulationStart = 0;
 
   @Override
   public void registerApplicationTimeStamp() {
-    if (!firstAMRegistration) {
-      LOG.info("Application_initial_registeration_time : " + System.currentTimeMillis());
-      firstAMRegistration = true;
+    if (!firstAMRegistration.getAndSet(true)) {
+      simulationStart = System.currentTimeMillis();
+      startMeasures = simulationStart;
+      if (isLeader) {
+        new Thread(new Measurer(simulationDuration, this)).start();
+      }
+      LOG.info("Application_initial_registeration_time : " + simulationStart);
     }
   }
 
@@ -628,56 +693,307 @@ public class SLSRunner implements AMNMCommonObject {
   }
 
   @Override
-  public void decreseApplicationCount(String applicationId) {
+  public void decreseApplicationCount(String applicationId, boolean failed)
+          throws RemoteException {
 
     if (!yarnNode) {
-      remainingApps--;
-      LOG.info("SLS decrease finished application - application count : " + remainingApps);
+      int val = remainingApps.decrementAndGet();
+      LOG.info("SLS decrease finished application - application count : " + val
+              + " " + applicationId);
 
-      int processId = applicationProcessMap.get(applicationId);
-      String killProcess = "kill -9 " + processId;
-      LOG.info(MessageFormat.format("Application {0} is killing now , kill process string : {1} ", applicationId, killProcess));
-      try {
-        Runtime.getRuntime().exec(killProcess);
-      } catch (IOException ex) {
-        java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
+      if (failed) {
+        appNotAllocated.incrementAndGet();
       }
 
-      if (remainingApps == 0) {
-        LOG.info("Distributed_Simulator_shutting_down_time : " + System.currentTimeMillis());
-        //now check whether other simulator is finished 
+      if (remainingApps.get() == 0) {
+        this.simulationFinished();
+        for (AMNMCommonObject remoteCon : remoteConnections.values()) {
+          remoteCon.simulationFinished();
+        }
+        LOG.info("Distributed_Simulator_shutting_down_time : " + System.
+                currentTimeMillis());
 
-        //I am done with my simulation, so just wait here until everybody is finished. otherwise , we will loose RMI server connection.
-        // AM containers are not killed :) 
-        for (AMNMCommonObject remoteCon : remoteConnections) {
-          try {
-            while (remoteCon.finishedApplicationsCount() != 0) {
-              Thread.sleep(1000);
-            }
-          } catch (RemoteException ex) {
-            java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
-          } catch (InterruptedException ex) {
-            java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
-          }
-        }
-
-        // just sleep here, without this sleep , it is sometime possible, other side requestion rmi
-        //function which this exit
-        try {
-          Thread.sleep(3000);
-        } catch (InterruptedException ex) {
-          java.util.logging.Logger.getLogger(SLSRunner.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        int totalHb = 0;
-        int trueTotalHb = 0;
-        for (NMSimulator nm : nmMap.values()) {
-          totalHb += nm.getTotalHeartBeat();
-          trueTotalHb += nm.getTotalTrueHeartBeat();
-        }
-        hbResponsePercentage = (trueTotalHb * 100) / totalHb;
-        LOG.info("================== Result format:hpresponsepercentage,nmsize,amsize,totalhb,truetotalhb,totaljobrunningtieminsec ==================");
-        LOG.info("Simulation: " + hbResponsePercentage + " " + nmMap.size() + " " + numAMs + " " + totalHb + " " + trueTotalHb + " " + totalJobRunningTimeSec);
         System.exit(0);
+      }
+    }
+  }
+
+  @Override
+  public int[] getHandledHeartBeats() {
+    int hb[] = {0, 0};
+    for (NMSimulator nm : nmMap.values()) {
+      hb[0] += nm.getTotalHeartBeat();
+      hb[1] += nm.getTotalTrueHeartBeat();
+
+    }
+    return hb;
+  }
+
+  @Override
+  public int getNumberNodeManager() {
+    return nmMap.size();
+  }
+
+  AtomicInteger nbFinished = new AtomicInteger(0);
+
+  @Override
+  public void simulationFinished() throws RemoteException {
+    int finished = nbFinished.incrementAndGet();
+    LOG.info("finish simulation " + finished);
+    if (finished == getRMIAddress().length + 1) {
+      computAndPrintStats();
+      System.exit(0);
+    }
+  }
+
+  private synchronized void computAndPrintStats() throws RemoteException {
+    LOG.info("comput and print stats");
+    long simulationDuration = System.currentTimeMillis() - startMeasures;
+    int hb[] = this.getHandledHeartBeats();
+    String rtHbDetail = "this: " + hb[0] + ", ";
+    String scHbDetail = "this: " + hb[1] + ", ";
+    hb[0] -= initialHB[0];
+    hb[1] -= initialHB[1];
+    int nbNM = this.getNumberNodeManager();
+    int nbApplicationWaitTime = this.getNBApplicationMasterWaitTime();
+    long totalApplicationWaitTime = this.getApplicationMasterWaitTime();
+    int nbContainers = this.getNBContainers();
+    long totalContainerAllocationWaitTime = this.
+            getContainerAllocationWaitTime();
+    long totalContainerStartTime = this.getContainerStartWaitTime();
+
+    for (String conId : remoteConnections.keySet()) {
+      AMNMCommonObject remoteCon = remoteConnections.get(conId);
+      int remoteHb[] = remoteCon.getHandledHeartBeats();
+      hb[0] += remoteHb[0];
+      hb[1] += remoteHb[1];
+      rtHbDetail = rtHbDetail + conId + ": " + remoteHb[0] + ", ";
+      scHbDetail = scHbDetail + conId + ": " + remoteHb[1] + ", ";
+      nbNM += remoteCon.getNumberNodeManager();
+      nbApplicationWaitTime += remoteCon.getNBApplicationMasterWaitTime();
+      totalApplicationWaitTime += remoteCon.getApplicationMasterWaitTime();
+      nbContainers += remoteCon.getNBContainers();
+      totalContainerAllocationWaitTime += remoteCon.
+              getContainerAllocationWaitTime();
+      totalContainerStartTime += remoteCon.getContainerStartWaitTime();
+    }
+
+    float numberOfIdealHb = ((float) nbNM / 3) * simulationDuration
+            / 1000;
+    float rtHBRatio = (float) (hb[0] * 100) / numberOfIdealHb;
+    float scHBRatio = (float) (hb[1] * 100) / numberOfIdealHb;
+
+    float avgApplicationWaitTime = (float) totalApplicationWaitTime
+            / nbApplicationWaitTime;
+    float avgContainerAllocationWaitTime
+            = (float) totalContainerAllocationWaitTime / nbContainers;
+    float avgContainerStartTime = (float) totalContainerStartTime / nbContainers;
+
+    Integer clusterCapacity = nmMap.size() * nmMemoryMB / containerMemoryMB;
+    Integer usage = clusterUsages.poll();
+    float usagePercent = (float) usage / clusterCapacity;
+    float totalClusterUsage = usagePercent;
+    String clusterUsageDetail = "" + usagePercent;
+    int counter = 1;
+    usage = clusterUsages.poll();
+    while (usage != null) {
+      usagePercent = (float) usage / clusterCapacity;
+      totalClusterUsage += usagePercent;
+      clusterUsageDetail = clusterUsageDetail + ", " + usagePercent;
+      counter++;
+      usage = clusterUsages.poll();
+    }
+
+    float avgClusterUsage = totalClusterUsage / counter;
+
+    try {
+      File file = new File("simulationsDuration");
+      if (!file.exists()) {
+        file.createNewFile();
+      }
+      FileWriter fileWritter = new FileWriter(file.getName(), true);
+      BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
+      bufferWritter.write(simulationDuration + " \t" + rtHBRatio + " ("
+              + rtHbDetail + ")" + " \t"
+              + scHBRatio + " (" + scHbDetail + ")" + " \t"
+              + avgApplicationWaitTime + " \t"
+              + avgContainerAllocationWaitTime + " \t" + avgContainerStartTime
+              + " \t" + nbContainers + " \t" + avgClusterUsage + " \t"
+              + appNotAllocated.get() + " \n");
+      bufferWritter.close();
+
+      file = new File("clusterUsageDetail");
+      if (!file.exists()) {
+        file.createNewFile();
+      }
+      fileWritter = new FileWriter(file.getName(), true);
+      bufferWritter = new BufferedWriter(fileWritter);
+      bufferWritter.write(clusterUsageDetail + "\n");
+      bufferWritter.close();
+
+    } catch (IOException e) {
+      LOG.error(e);
+    }
+
+    LOG.info(
+            "================== Result format:hpresponsepercentage,nmsize,amsize,totalhb,truetotalhb,totaljobrunningtieminsec ==================");
+    LOG.info("Simulation: " + simulationDuration + " " + rtHBRatio + " "
+            + scHBRatio);
+  }
+
+  public void finishSimulation() {
+    try {
+      computAndPrintStats();
+    } catch (RemoteException e) {
+      LOG.error(e, e);
+    }
+    for (AMNMCommonObject remoteCon : remoteConnections.values()) {
+      try {
+        remoteCon.kill();
+      } catch (RemoteException e) {
+        LOG.error(e, e);
+      }
+    }
+    try {
+      Thread.sleep(5000);
+    } catch (InterruptedException ex) {
+      java.util.logging.Logger.getLogger(SLSRunner.class.getName()).
+              log(Level.SEVERE, null, ex);
+    }
+    System.exit(0);
+  }
+
+  public void kill() {
+    new Thread(new Runnable() {
+
+      @Override
+      public void run() {
+        try {
+          Thread.sleep(5000);
+        } catch (InterruptedException ex) {
+          java.util.logging.Logger.getLogger(SLSRunner.class.getName()).
+                  log(Level.SEVERE, null, ex);
+        }
+        System.exit(0);
+      }
+    }).start();
+    return;
+  }
+
+  AtomicLong totalApplicationWaitTime = new AtomicLong(0);
+  AtomicInteger nbApplicationWaitTime = new AtomicInteger(0);
+  AtomicLong totalContainerAllocationWaitTime = new AtomicLong(0);
+  AtomicLong totalContainerStartWaitTime = new AtomicLong(0);
+  AtomicInteger nbContainers = new AtomicInteger(0);
+  AtomicInteger appNotAllocated = new AtomicInteger(0);
+  private long startMeasures;
+  int initialHB[] = {0, 0};
+  int lastLocalRTHB = 0;
+  int lastLocalSCHB = 0;
+
+  public void startMeasures() {
+    totalApplicationWaitTime.set(0);
+    nbApplicationWaitTime.set(0);
+    totalContainerAllocationWaitTime.set(0);
+    totalContainerStartWaitTime.set(0);
+    nbContainers.set(0);
+    appNotAllocated.set(0);
+
+    startMeasures = System.currentTimeMillis();
+
+    LOG.info("HeartBeat Monitor reset");
+    initialHB = this.getHandledHeartBeats();
+
+    for (AMNMCommonObject remoteCon : remoteConnections.values()) {
+      while (true) {
+        try {
+          int remoteInitialHB[] = remoteCon.getHandledHeartBeats();
+          initialHB[0] += remoteInitialHB[0];
+          initialHB[1] += remoteInitialHB[1];
+          break;
+        } catch (RemoteException e) {
+          LOG.error(e, e);
+        }
+      }
+    }
+  }
+
+  @Override
+  public void addApplicationMasterWaitTime(long applicationMasterWaitTime)
+          throws RemoteException {
+    this.totalApplicationWaitTime.addAndGet(applicationMasterWaitTime);
+    this.nbApplicationWaitTime.incrementAndGet();
+  }
+
+  public Long getApplicationMasterWaitTime() {
+    return totalApplicationWaitTime.get();
+  }
+
+  public int getNBApplicationMasterWaitTime() {
+    return nbApplicationWaitTime.get();
+  }
+
+  @Override
+  public void addContainerAllocationWaitTime(long containerAllocationWaitTime)
+          throws RemoteException {
+    this.totalContainerAllocationWaitTime.addAndGet(containerAllocationWaitTime);
+    this.nbContainers.incrementAndGet();
+  }
+
+  public Long getContainerAllocationWaitTime() {
+    return totalContainerAllocationWaitTime.get();
+  }
+
+  public int getNBContainers() {
+    return nbContainers.get();
+  }
+
+  @Override
+  public void addContainerStartWaitTime(long containerStartWaitTime) throws
+          RemoteException {
+    this.totalContainerStartWaitTime.addAndGet(containerStartWaitTime);
+  }
+
+  public Long getContainerStartWaitTime() {
+    return totalContainerStartWaitTime.get();
+  }
+
+  Queue<Integer> clusterUsages = new LinkedBlockingQueue<Integer>();
+  float lastClusterUsage = 0;
+
+  private class Measurer implements Runnable {
+
+    final long xpDuration;
+    final SLSRunner runner;
+
+    public Measurer(long xpDuration, SLSRunner runner) {
+      this.xpDuration = xpDuration;
+      this.runner = runner;
+    }
+
+    public void run() {
+      try {
+        LOG.info("Measurer sleep for warmup: " + xpDuration / 4);
+        Thread.sleep(xpDuration / 4);
+        LOG.info("Measurer start measures for " + xpDuration / 2);
+        runner.startMeasures();
+        long start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start < xpDuration / 2) {
+          long startLoop = System.currentTimeMillis();
+          int clusterUsage = 0;
+          for (NMSimulator nm : nmMap.values()) {
+            clusterUsage += nm.getUsedResources();
+          }
+          clusterUsages.add(clusterUsage);
+          Integer clusterCapacity = nmMap.size() * nmMemoryMB
+                  / containerMemoryMB;
+          lastClusterUsage = (float) clusterUsage / clusterCapacity;
+          Thread.sleep(5000 - (System.currentTimeMillis() - startLoop));
+        }
+        LOG.info("Measurer finish measures");
+        runner.finishSimulation();
+      } catch (InterruptedException e) {
+        LOG.error(e, e);
       }
     }
   }

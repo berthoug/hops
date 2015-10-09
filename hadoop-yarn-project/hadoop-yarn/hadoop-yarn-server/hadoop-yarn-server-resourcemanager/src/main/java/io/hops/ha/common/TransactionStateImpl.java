@@ -42,6 +42,7 @@ import io.hops.metadata.yarn.dal.rmstatestore.AllocateResponseDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocatedContainersDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationAttemptStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationStateDataAccess;
+import io.hops.metadata.yarn.dal.rmstatestore.CompletedContainersStatusDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.RanNodeDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.UpdatedNodeDataAccess;
 import io.hops.metadata.yarn.entity.FiCaSchedulerNode;
@@ -77,14 +78,19 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
+import org.apache.hadoop.yarn.api.records.impl.pb.ContainerStatusPBImpl;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.LOG;
 
@@ -100,36 +106,41 @@ public class TransactionStateImpl extends TransactionState {
       new ConcurrentSkipListMap<NodeId, RMNodeInfo>();
   private final Map<String, FiCaSchedulerNodeInfoToUpdate>
       ficaSchedulerNodeInfoToUpdate =
-      new HashMap<String, FiCaSchedulerNodeInfoToUpdate>();
+      new ConcurrentHashMap<String, FiCaSchedulerNodeInfoToUpdate>();
   private final Map<String, FiCaSchedulerNodeInfos>
       ficaSchedulerNodeInfoToAdd =
-      new HashMap<String, FiCaSchedulerNodeInfos>();
+      new ConcurrentHashMap<String, FiCaSchedulerNodeInfos>();
   private final Map<String, FiCaSchedulerNodeInfos>
       ficaSchedulerNodeInfoToRemove =
-      new HashMap<String, FiCaSchedulerNodeInfos>();
+      new ConcurrentHashMap<String, FiCaSchedulerNodeInfos>();
   private final FairSchedulerNodeInfo fairschedulerNodeInfo =
       new FairSchedulerNodeInfo();
-  private final HashMap<String, RMContainer> rmContainersToUpdate =
-      new HashMap<String, RMContainer>();
-  private final List<io.hops.metadata.yarn.entity.Container> toAddContainers =
-          new ArrayList<io.hops.metadata.yarn.entity.Container>();
+  private final Map<String, RMContainer> rmContainersToUpdate =
+      new ConcurrentHashMap<String, RMContainer>();
+  private final Queue<io.hops.metadata.yarn.entity.Container> toAddContainers =
+          new ConcurrentLinkedQueue<io.hops.metadata.yarn.entity.Container>();
   private final CSQueueInfo csQueueInfo = new CSQueueInfo();
   
   //APP
   private final SchedulerApplicationInfo schedulerApplicationInfo;
-  private final Map<ApplicationId, ApplicationState> applicationsToAdd = new HashMap<ApplicationId, ApplicationState>();
-  private final Map<ApplicationId, List<UpdatedNode>> updatedNodeIdToAdd = new HashMap<ApplicationId, List<UpdatedNode>>();
-  private final List<ApplicationId> applicationsStateToRemove =
-      new ArrayList<ApplicationId>();
-  private final HashMap<String, ApplicationAttemptState> appAttempts =
-      new HashMap<String, ApplicationAttemptState>();
-  private final HashMap<ApplicationAttemptId, Map<Integer, RanNode>>ranNodeToAdd =
-          new HashMap<ApplicationAttemptId, Map<Integer, RanNode>>();
-  private final HashMap<ApplicationAttemptId, AllocateResponse>
+  private final Map<ApplicationId, ApplicationState> applicationsToAdd = new ConcurrentHashMap<ApplicationId, ApplicationState>();
+  private final Map<ApplicationId, List<UpdatedNode>> updatedNodeIdToAdd = new ConcurrentHashMap<ApplicationId, List<UpdatedNode>>();
+  private final Queue<ApplicationId> applicationsStateToRemove =
+      new ConcurrentLinkedQueue<ApplicationId>();
+  private final Map<String, ApplicationAttemptState> appAttempts =
+      new ConcurrentHashMap<String, ApplicationAttemptState>();
+  private final Map<ApplicationAttemptId, Map<Integer, RanNode>>ranNodeToAdd =
+          new ConcurrentHashMap<ApplicationAttemptId, Map<Integer, RanNode>>();
+  private final Map<ApplicationAttemptId, AllocateResponse>
       allocateResponsesToAdd =
-      new HashMap<ApplicationAttemptId, AllocateResponse>();
-  private final Set<AllocateResponse> allocateResponsesToRemove =
-      new HashSet<AllocateResponse>();
+      new ConcurrentHashMap<ApplicationAttemptId, AllocateResponse>();
+  private final Map<ApplicationAttemptId, AllocateResponse> allocateResponsesToRemove =
+      new ConcurrentHashMap<ApplicationAttemptId, AllocateResponse>();
+  
+  private final Map<String, Queue<byte[]>> justFinishedContainerToAdd = 
+          new ConcurrentHashMap<String, Queue<byte[]>>();
+  private final Map<String, Queue<byte[]>> justFinishedContainerToRemove = 
+          new ConcurrentHashMap<String, Queue<byte[]>>();
   
   
   //COMTEXT
@@ -141,11 +152,10 @@ public class TransactionStateImpl extends TransactionState {
   
 
   //PersistedEvent to persist for distributed RT
-  private final List<PendingEvent> pendingEventsToAdd =
-      new ArrayList<PendingEvent>();
-  private RMNodeImpl rmNode = null;
-  private final List<PendingEvent> persistedEventsToRemove =
-      new ArrayList<PendingEvent>();
+  private final Queue<PendingEvent> pendingEventsToAdd =
+      new ConcurrentLinkedQueue<PendingEvent>();
+  private final Queue<PendingEvent> persistedEventsToRemove =
+      new ConcurrentLinkedQueue<PendingEvent>();
 
   //for debug and evaluation
   String rpcType = null;
@@ -174,7 +184,7 @@ public class TransactionStateImpl extends TransactionState {
 
   
   private static final ExecutorService executorService =
-      Executors.newFixedThreadPool(50);
+      Executors.newFixedThreadPool(32);
   
   @Override
   public void commit(boolean first) throws IOException {
@@ -230,27 +240,35 @@ public class TransactionStateImpl extends TransactionState {
   totalt7=0;
   }
       
-  public void persist() throws IOException {
+  public void persist(LinkedBlockingQueue<String> logs) throws IOException {
     Long start = System.currentTimeMillis();
-    persitApplicationToAdd();
+    try{
+    persitApplicationToAdd(logs);
+    logs.add("handle 3 1 " + getId());
     long t1 =System.currentTimeMillis() - start;
     totalt1=totalt1 + t1;
     persistApplicationStateToRemove();
+    logs.add("handle 3 2 " + getId());
     long t2 =System.currentTimeMillis() - start;
     totalt2=totalt2 + System.currentTimeMillis() - start;
     persistAppAttempt();
+    logs.add("handle 3 3 " + getId());
     long t3 =System.currentTimeMillis() - start;
     totalt3=totalt3 + System.currentTimeMillis() - start;
-    persistAllocateResponsesToAdd();
+//    persistAllocateResponsesToAdd();
+    logs.add("handle 3 4 " + getId());
     long t4 =System.currentTimeMillis() - start;
     totalt4=totalt4 + System.currentTimeMillis() - start;
     persistAllocateResponsesToRemove();
+    logs.add("handle 3 5 " + getId());
     long t5 =System.currentTimeMillis() - start;
     totalt5=totalt5 + System.currentTimeMillis() - start;
-    persistRMContainerToUpdate();
+    persistRMContainerToUpdate(logs);
+    logs.add("handle 3 6 " + getId());
      long t6 =System.currentTimeMillis() - start;
     totalt6=totalt6 + System.currentTimeMillis() - start;
     persistContainers();
+    logs.add("handle 3 7 " + getId());
     long t7 =System.currentTimeMillis() - start;
     totalt7=totalt7 + System.currentTimeMillis() - start;
     nbFinish++;
@@ -270,6 +288,12 @@ public class TransactionStateImpl extends TransactionState {
     //TODO rebuild cluster resource from node resources
 //    persistClusterResourceToUpdate();
 //    persistUsedResourceToUpdate();
+    }catch (IOException e){
+      LOG.error("exception " + e, e);
+      throw e;
+    }catch (Exception e){
+      LOG.error("exception " + e, e);
+    }
   }
 
   public void persistSchedulerApplicationInfo(QueueMetricsDataAccess QMDA, StorageConnector connector)
@@ -394,16 +418,17 @@ public class TransactionStateImpl extends TransactionState {
     addAppId(app.getApplicationId());
   }
   
-  private void persitApplicationToAdd() throws IOException {
+  private void persitApplicationToAdd(LinkedBlockingQueue<String> logs) throws IOException {
     if (!applicationsToAdd.isEmpty()) {
       ApplicationStateDataAccess DA =
           (ApplicationStateDataAccess) RMStorageFactory
               .getDataAccess(ApplicationStateDataAccess.class);
       DA.addAll(applicationsToAdd.values());
-      
+       logs.add("handle 3 0 1 " + getId());
       UpdatedNodeDataAccess uNDA = (UpdatedNodeDataAccess)RMStorageFactory
               .getDataAccess(UpdatedNodeDataAccess.class);
       uNDA.addAll(updatedNodeIdToAdd.values());
+      logs.add("handle 3 0 2 " + getId());
     }
   }
 
@@ -439,7 +464,7 @@ public class TransactionStateImpl extends TransactionState {
       ApplicationStateDataAccess DA =
           (ApplicationStateDataAccess) RMStorageFactory
               .getDataAccess(ApplicationStateDataAccess.class);
-      List<ApplicationState> appToRemove = new ArrayList<ApplicationState>();
+      Queue<ApplicationState> appToRemove = new ConcurrentLinkedQueue<ApplicationState>();
       for (ApplicationId appId : applicationsStateToRemove) {
         appToRemove.add(new ApplicationState(appId.toString()));
       }
@@ -465,8 +490,9 @@ public class TransactionStateImpl extends TransactionState {
       }
       appAttemptTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
     }
-    List<ContainerStatus> justFinishedContainers = 
-            new ArrayList<ContainerStatus>(appAttempt.getJustFinishedContainers());
+    Queue<ContainerStatus> justFinishedContainers = 
+            new ConcurrentLinkedQueue<ContainerStatus>(appAttempt.getJustFinishedContainers());
+    
     ApplicationAttemptStateDataPBImpl attemptStateData
             = (ApplicationAttemptStateDataPBImpl) ApplicationAttemptStateDataPBImpl.
             newApplicationAttemptStateData(appAttempt.getAppAttemptId(),
@@ -476,7 +502,7 @@ public class TransactionStateImpl extends TransactionState {
                     appAttempt.getDiagnostics(),
                     appAttempt.getFinalApplicationStatus(),
                     new HashSet<NodeId>(),
-                    justFinishedContainers,
+                    new ArrayList<ContainerStatus>(),
                     appAttempt.getProgress(), appAttempt.getHost(),
                     appAttempt.getRpcPort());
 
@@ -497,9 +523,42 @@ public class TransactionStateImpl extends TransactionState {
     addAppId(appAttempt.getAppAttemptId().getApplicationId());
   }
   
+  
+  public void addAllJustFinishedContainersToAdd(List<ContainerStatus> status, ApplicationAttemptId appAttemptId){
+    Queue<byte[]> toAdd = justFinishedContainerToAdd.get(appAttemptId.toString());
+    if(toAdd == null){
+      toAdd = new ConcurrentLinkedQueue<byte[]>();
+      justFinishedContainerToAdd.put(appAttemptId.toString(), toAdd);
+    }
+    for(ContainerStatus container: status){
+      toAdd.add(((ContainerStatusPBImpl)container).getProto().toByteArray());
+    }
+  }
+  
+  public void addJustFinishedContainerToAdd(ContainerStatus status, ApplicationAttemptId appAttemptId){
+    Queue<byte[]> toAdd = justFinishedContainerToAdd.get(appAttemptId.toString());
+    if(toAdd == null){
+      toAdd = new ConcurrentLinkedQueue<byte[]>();
+      justFinishedContainerToAdd.put(appAttemptId.toString(), toAdd);
+    }
+    toAdd.add(((ContainerStatusPBImpl)status).getProto().toByteArray());
+  }
+  
+    public void addAllJustFinishedContainersToRemove(List<ContainerStatus> status, ApplicationAttemptId appAttemptId){
+    Queue<byte[]> toRemove = justFinishedContainerToRemove.get(appAttemptId.toString());
+    if(toRemove == null){
+      toRemove = new ConcurrentLinkedQueue<byte[]>();
+      justFinishedContainerToRemove.put(appAttemptId.toString(), toRemove);
+    }
+    for(ContainerStatus container: status){
+      toRemove.add(((ContainerStatusPBImpl)container).getProto().toByteArray());
+    }
+  }
+  
+//  private void persist
   public void addAllRanNodes(RMAppAttempt appAttempt) {
     Map<Integer, RanNode> ranNodeToPersist = new HashMap<Integer, RanNode>();
-    List<NodeId> ranNodes = new ArrayList<NodeId>(appAttempt.getRanNodes());
+    Queue<NodeId> ranNodes = new ConcurrentLinkedQueue<NodeId>(appAttempt.getRanNodes());
     for (NodeId nid : ranNodes) {
       RanNode node = new RanNode(appAttempt.getAppAttemptId().toString(),
                       nid.toString());
@@ -525,7 +584,7 @@ public class TransactionStateImpl extends TransactionState {
           (ApplicationAttemptStateDataAccess) RMStorageFactory.
               getDataAccess(ApplicationAttemptStateDataAccess.class);
       DA.addAll(appAttempts.values());
-      
+      //TODO put in its own persist
       RanNodeDataAccess rDA= (RanNodeDataAccess) RMStorageFactory.
               getDataAccess(RanNodeDataAccess.class);
       rDA.addAll(ranNodeToAdd.values());
@@ -561,10 +620,15 @@ public class TransactionStateImpl extends TransactionState {
         allocatedContainers.add(container.getId().toString());
       }
       
+      Map<String, byte[]> completedContainersStatuses = new HashMap<String, byte[]>();
+      for(ContainerStatus status: lastResponse.getCompletedContainersStatuses()){
+        completedContainersStatuses.put(status.getContainerId().toString(), ((ContainerStatusPBImpl)status).getProto().toByteArray());
+      }
+      
       AllocateResponsePBImpl toPersist = new AllocateResponsePBImpl();
       toPersist.setAMCommand(lastResponse.getAMCommand());
       toPersist.setAvailableResources(lastResponse.getAvailableResources());
-      toPersist.setCompletedContainersStatuses(lastResponse.getCompletedContainersStatuses());
+//      toPersist.setCompletedContainersStatuses(lastResponse.getCompletedContainersStatuses());
       toPersist.setDecreasedContainers(lastResponse.getDecreasedContainers());
       toPersist.setIncreasedContainers(lastResponse.getIncreasedContainers());
 //      toPersist.setNMTokens(lastResponse.getNMTokens());
@@ -575,7 +639,7 @@ public class TransactionStateImpl extends TransactionState {
       
       this.allocateResponsesToAdd.put(id, new AllocateResponse(id.toString(),
               toPersist.getProto().toByteArray(), allocatedContainers, 
-      allocateResponse.getAllocateResponse().getResponseId()));
+      allocateResponse.getAllocateResponse().getResponseId(), completedContainersStatuses));
       if(toPersist.getProto().toByteArray().length>1000){
         LOG.info("add allocateResponse of size " + toPersist.getProto().toByteArray().length + 
                 " for " + id + " content: " + print(toPersist));
@@ -621,6 +685,10 @@ public class TransactionStateImpl extends TransactionState {
       tt1 = tt1 + System.currentTimeMillis() - start;
       containersDA.update(allocateResponsesToAdd.values());
       tt2 = tt2 + System.currentTimeMillis() - start;
+      CompletedContainersStatusDataAccess completedContainersDA =
+              (CompletedContainersStatusDataAccess) 
+              RMStorageFactory.getDataAccess(CompletedContainersStatusDataAccess.class);
+//      completedContainersDA.update(allocateResponsesToAdd.values());
       tt3 = tt3 + System.currentTimeMillis() - start;
       nbPersist++;
       if(nbPersist%100 == 0){
@@ -652,7 +720,7 @@ public class TransactionStateImpl extends TransactionState {
   public static int callremoveAllocateResponse=0;
   public void removeAllocateResponse(ApplicationAttemptId id, int responseId) {
     if(allocateResponsesToAdd.remove(id)==null){
-    this.allocateResponsesToRemove.add(new AllocateResponse(id.toString(), responseId));
+    this.allocateResponsesToRemove.put(id,new AllocateResponse(id.toString(), responseId));
     }
     callremoveAllocateResponse++;
     addAppId(id.getApplicationId());
@@ -664,7 +732,7 @@ public class TransactionStateImpl extends TransactionState {
           (AllocateResponseDataAccess) RMStorageFactory
               .getDataAccess(AllocateResponseDataAccess.class);
 
-      da.removeAll(allocateResponsesToRemove);
+      da.removeAll(allocateResponsesToRemove.values());
     }
   }
   
@@ -726,12 +794,14 @@ public class TransactionStateImpl extends TransactionState {
                             rmContainer.getContainerExitStatus()));
   }
 
-  private void persistRMContainerToUpdate() throws StorageException {
+  private void persistRMContainerToUpdate(LinkedBlockingQueue<String> logs) throws StorageException {
     if (!rmContainersToUpdate.isEmpty()) {
       RMContainerDataAccess rmcontainerDA =
           (RMContainerDataAccess) RMStorageFactory
               .getDataAccess(RMContainerDataAccess.class);      
-      rmcontainerDA.addAll(rmContainersToUpdate.values());
+      logs.add("handle 3 5 1 " + getId());
+      rmcontainerDA.addAll(rmContainersToUpdate.values(), logs, getId());
+      logs.add("handle 3 5 2 " + getId());
     }
   }
 
@@ -770,21 +840,22 @@ public class TransactionStateImpl extends TransactionState {
   public void persistRMNodeToUpdate(RMNodeDataAccess rmnodeDA)
       throws StorageException {
     if (!rmNodesToUpdate.isEmpty()) {
-      rmnodeDA.addAll(rmNodesToUpdate.values());
+      rmnodeDA.addAll(new ArrayList(rmNodesToUpdate.values()));
     }
   }
 
   public void toUpdateRMNode(
-      org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode rmnodeToAdd) {
-      RMNode hopRMNode = new RMNode(rmnodeToAdd.getNodeID().toString(),
-          rmnodeToAdd.getHostName(), rmnodeToAdd.getCommandPort(),
-          rmnodeToAdd.getHttpPort(), rmnodeToAdd.getNodeAddress(),
-          rmnodeToAdd.getHttpAddress(), rmnodeToAdd.getHealthReport(),
-          rmnodeToAdd.getLastHealthReportTime(),
-          ((RMNodeImpl) rmnodeToAdd).getCurrentState(),
-          rmnodeToAdd.getNodeManagerVersion(), -1,
-            ((RMNodeImpl) rmnodeToAdd).getUpdatedContainerInfoId(), rmnodeToAdd.
-            getRMNodePendingEventId());
+          org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode rmnodeToAdd) {
+    int pendingEventId = getRMNodeInfo(rmnodeToAdd.getNodeID()).getPendingId();
+    RMNode hopRMNode = new RMNode(rmnodeToAdd.getNodeID().toString(),
+            rmnodeToAdd.getHostName(), rmnodeToAdd.getCommandPort(),
+            rmnodeToAdd.getHttpPort(), rmnodeToAdd.getNodeAddress(),
+            rmnodeToAdd.getHttpAddress(), rmnodeToAdd.getHealthReport(),
+            rmnodeToAdd.getLastHealthReportTime(),
+            ((RMNodeImpl) rmnodeToAdd).getCurrentState(),
+            rmnodeToAdd.getNodeManagerVersion(), -1,
+            ((RMNodeImpl) rmnodeToAdd).getUpdatedContainerInfoId(),
+            pendingEventId);
     this.rmNodesToUpdate.put(rmnodeToAdd.getNodeID().toString(), hopRMNode);
   }
 
@@ -806,7 +877,7 @@ public class TransactionStateImpl extends TransactionState {
       JustLaunchedContainersDataAccess justLaunchedContainersDA,
           UpdatedContainerInfoDataAccess updatedContainerInfoDA,
           FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA,
-          PendingEventDataAccess persistedEventsDA)
+          PendingEventDataAccess persistedEventsDA, StorageConnector connector)
           throws StorageException {
     if (rmNodeInfos != null) {
       RMNodeInfoAgregate agregate = new RMNodeInfoAgregate();
@@ -814,7 +885,7 @@ public class TransactionStateImpl extends TransactionState {
         rmNodeInfo.agregate(agregate);
       }
       agregate.persist(hbDA, cidToCleanDA, justLaunchedContainersDA,
-              updatedContainerInfoDA, faDA, csDA,persistedEventsDA);
+              updatedContainerInfoDA, faDA, csDA,persistedEventsDA, connector);
     }
   }
   
@@ -850,10 +921,10 @@ public class TransactionStateImpl extends TransactionState {
 
   private void persistFiCaSchedulerNodeToRemove(ResourceDataAccess resourceDA, FiCaSchedulerNodeDataAccess ficaNodeDA, RMContainerDataAccess rmcontainerDA, LaunchedContainersDataAccess launchedContainersDA) throws StorageException {
     if (!ficaSchedulerNodeInfoToRemove.isEmpty()) {
-      ArrayList<FiCaSchedulerNode> toRemoveFiCaSchedulerNodes =
-          new ArrayList<FiCaSchedulerNode>();
+      Queue<FiCaSchedulerNode> toRemoveFiCaSchedulerNodes =
+          new ConcurrentLinkedQueue<FiCaSchedulerNode>();
 //      ArrayList<Resource> toRemoveResources = new ArrayList<Resource>();
-      ArrayList<RMContainer> rmcontainerToRemove = new ArrayList<RMContainer>();
+      Queue<RMContainer> rmcontainerToRemove = new ConcurrentLinkedQueue<RMContainer>();
       for (String nodeId : ficaSchedulerNodeInfoToRemove.keySet()) {
         toRemoveFiCaSchedulerNodes.add(new FiCaSchedulerNode(nodeId));
         //Remove Resources
@@ -889,7 +960,6 @@ public class TransactionStateImpl extends TransactionState {
       ArrayList<FiCaSchedulerNode> toAddFiCaSchedulerNodes
               = new ArrayList<FiCaSchedulerNode>();
       ArrayList<Resource> toAddResources = new ArrayList<Resource>();
-      ArrayList<RMContainer> rmcontainerToAdd = new ArrayList<RMContainer>();
       ArrayList<LaunchedContainers> toAddLaunchedContainers
               = new ArrayList<LaunchedContainers>();
       for (FiCaSchedulerNodeInfos nodeInfo : ficaSchedulerNodeInfoToAdd.values()) {
@@ -916,10 +986,6 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
-  public RMNodeImpl getRMNode() {
-    return this.rmNode;
-  }
-
   /**
    * Remove pending event from DB. In this case, the event id is not needed,
    * hence set to MIN.
@@ -937,7 +1003,7 @@ public class TransactionStateImpl extends TransactionState {
   }
 
 
-  static List<Long> durations = new ArrayList<Long>();
+  static Queue<Long> durations = new ConcurrentLinkedQueue<Long>();
   static boolean printerRuning = false;
   
   private class RPCFinisher implements Runnable {
@@ -950,6 +1016,7 @@ public class TransactionStateImpl extends TransactionState {
 
     public void run() {
       try{
+        Thread.currentThread().setPriority(Thread.MAX_PRIORITY-1);
         RMUtilities.finishRPCs(ts);
       }catch(IOException ex){
         LOG.error("did not commit state properly", ex);

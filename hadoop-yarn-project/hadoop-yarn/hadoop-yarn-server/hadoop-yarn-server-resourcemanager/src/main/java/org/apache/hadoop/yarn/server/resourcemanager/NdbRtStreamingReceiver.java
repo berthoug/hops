@@ -32,95 +32,105 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
  * @author sri
  */
 public class NdbRtStreamingReceiver {
-    
- public static BlockingQueue<StreamingRTComps> blockingRTQueue = new ArrayBlockingQueue<StreamingRTComps>(YarnConfiguration.NDB_EVENT_STREAMING_QUEUE_CAPACITY);
-    
-    private static final Log LOG = LogFactory.getLog(NdbRtStreamingReceiver.class);
-    private Set<org.apache.hadoop.yarn.api.records.ContainerId> containersToCleanSet = null;
-    private List<org.apache.hadoop.yarn.api.records.ApplicationId> finishedAppList = null;
-    private String containerId = null;
-    private String applicationId = null;
-    private String nodeId = null;
-    private boolean nextHeartbeat = false;
-    private  int finishedAppPendingId=0;
-    private  int cidToCleanPendingId=0;
-    private  int nextHBPendingId=0;
-    private String containerIdToCleanrmnodeid = null;
-    private String finishedApplicationrmnodeid = null;
 
-    NdbRtStreamingReceiver() {
-    }
+  public static BlockingQueue<StreamingRTComps> blockingRTQueue
+          = new ArrayBlockingQueue<StreamingRTComps>(
+                  YarnConfiguration.NDB_EVENT_STREAMING_QUEUE_CAPACITY);
 
-    public void setContainerId(String containerId) {
-        this.containerId = containerId;
-    }
+  private static final Log LOG = LogFactory.getLog(NdbRtStreamingReceiver.class);
+  private Set<org.apache.hadoop.yarn.api.records.ContainerId> containersToCleanSet
+          = null;
+  private List<org.apache.hadoop.yarn.api.records.ApplicationId> finishedAppList
+          = null;
+  private String containerId = null;
+  private String applicationId = null;
+  private String nodeId = null;
+  private boolean nextHeartbeat = false;
+  private int finishedAppPendingId = 0;
+  private int cidToCleanPendingId = 0;
+  private int nextHBPendingId = 0;
+  private String containerIdToCleanrmnodeid = null;
+  private String finishedApplicationrmnodeid = null;
 
-    public void setFinishedAppPendingId(int finishedAppPendingId) {
-        this.finishedAppPendingId = finishedAppPendingId;
-    }
+  NdbRtStreamingReceiver() {
+  }
 
-    public void setCidToCleanPendingId(int cidToCleanPendingId) {
-        this.cidToCleanPendingId = cidToCleanPendingId;
-    }
+  public void setContainerId(String containerId) {
+    this.containerId = containerId;
+  }
 
-    public void setNextHBPendingId(int nextHBPendingId) {
-        this.nextHBPendingId = nextHBPendingId;
-        
-    }
+  public void setFinishedAppPendingId(int finishedAppPendingId) {
+    this.finishedAppPendingId = finishedAppPendingId;
+  }
 
-    public void setContainerIdToClenrmnodeid(String rmnodeid) {
-        this.containerIdToCleanrmnodeid = rmnodeid;
-    }
+  public void setCidToCleanPendingId(int cidToCleanPendingId) {
+    this.cidToCleanPendingId = cidToCleanPendingId;
+  }
 
-    public void buildContainersToClean() {
-        containersToCleanSet = new TreeSet<org.apache.hadoop.yarn.api.records.ContainerId>();
-    }
+  public void setNextHBPendingId(int nextHBPendingId) {
+    this.nextHBPendingId = nextHBPendingId;
 
-    public void AddContainersToClean() {
-        org.apache.hadoop.yarn.api.records.ContainerId addContainerId = ConverterUtils.toContainerId(containerId);
-        containersToCleanSet.add(addContainerId);
-    }
+  }
 
-    public void buildFinishedApplications() {
-        finishedAppList = new ArrayList<ApplicationId>();
-    }
+  public void setContainerIdToClenrmnodeid(String rmnodeid) {
+    this.containerIdToCleanrmnodeid = rmnodeid;
+  }
 
-    public void setApplicationIdrmnodeid(String rmnodeid) {
-        this.finishedApplicationrmnodeid = rmnodeid;
-    }
+  public void buildContainersToClean() {
+    containersToCleanSet
+            = new TreeSet<org.apache.hadoop.yarn.api.records.ContainerId>();
+  }
 
-    public void setApplicationId(String applicationId) {
-        this.applicationId = applicationId;
-    }
+  public void AddContainersToClean() {
+    org.apache.hadoop.yarn.api.records.ContainerId addContainerId
+            = ConverterUtils.toContainerId(containerId);
+    containersToCleanSet.add(addContainerId);
+  }
 
-    public void AddFinishedApplications() {
-        ApplicationId appId = ConverterUtils.toApplicationId(applicationId);
-        finishedAppList.add(appId);
-        LOG.info("finishedapplications appid : "+appId + " pending id : "+finishedAppPendingId + " rmnode node : "+finishedApplicationrmnodeid);
+  public void buildFinishedApplications() {
+    finishedAppList = new ArrayList<ApplicationId>();
+  }
 
-    }
+  public void setApplicationIdrmnodeid(String rmnodeid) {
+    this.finishedApplicationrmnodeid = rmnodeid;
+  }
 
-    public void setNodeId(String nodeId) {
-        this.nodeId = nodeId;
-    }
+  public void setApplicationId(String applicationId) {
+    this.applicationId = applicationId;
+  }
 
-    public void setNextHeartbeat(boolean nextHeartbeat) {
-        this.nextHeartbeat = nextHeartbeat;
-    }
+  public void AddFinishedApplications() {
+    ApplicationId appId = ConverterUtils.toApplicationId(applicationId);
+    finishedAppList.add(appId);
+    LOG.debug("finishedapplications appid : " + appId + " pending id : "
+            + finishedAppPendingId + " rmnode node : "
+            + finishedApplicationrmnodeid);
 
-    //This will be called by c++ shared library, libhopsndbevent.so
-    public void onEventMethod() throws InterruptedException {
-        StreamingRTComps streamingRTComps = new StreamingRTComps(containersToCleanSet, finishedAppList, nodeId, nextHeartbeat);
-        blockingRTQueue.put(streamingRTComps);
-    }
+  }
 
-    // this two methods are using for multi-thread version from c++ library
-    StreamingRTComps buildStreamingRTComps() {
-        return new StreamingRTComps(containersToCleanSet, finishedAppList, nodeId, nextHeartbeat);
-    }
+  public void setNodeId(String nodeId) {
+    this.nodeId = nodeId;
+  }
 
-    public void onEventMethodMultiThread(StreamingRTComps streamingRTComps) throws InterruptedException {
-        blockingRTQueue.put(streamingRTComps);
-    }
+  public void setNextHeartbeat(boolean nextHeartbeat) {
+    this.nextHeartbeat = nextHeartbeat;
+  }
+
+  //This will be called by c++ shared library, libhopsndbevent.so
+  public void onEventMethod() throws InterruptedException {
+    StreamingRTComps streamingRTComps = new StreamingRTComps(
+            containersToCleanSet, finishedAppList, nodeId, nextHeartbeat);
+    blockingRTQueue.put(streamingRTComps);
+  }
+
+  // this two methods are using for multi-thread version from c++ library
+  StreamingRTComps buildStreamingRTComps() {
+    return new StreamingRTComps(containersToCleanSet, finishedAppList, nodeId,
+            nextHeartbeat);
+  }
+
+  public void onEventMethodMultiThread(StreamingRTComps streamingRTComps) throws
+          InterruptedException {
+    blockingRTQueue.put(streamingRTComps);
+  }
 }
-

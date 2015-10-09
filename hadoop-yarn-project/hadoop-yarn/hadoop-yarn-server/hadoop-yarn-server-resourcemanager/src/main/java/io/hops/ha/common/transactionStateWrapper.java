@@ -38,11 +38,16 @@ import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
 import io.hops.metadata.yarn.entity.RMNode;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.server.resourcemanager.ApplicationMasterService;
 import static org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.LOG;
@@ -58,9 +63,9 @@ public class transactionStateWrapper extends TransactionStateImpl {
   int rpcId;
   long startTime = System.currentTimeMillis();
   String rpcType;
-  Map<String, Long> handleStarts = new HashMap<String, Long>();
-  Map<String, Long> handleDurations = new HashMap<String, Long>();
-  Map<Integer, Long> timeInit = new HashMap<Integer, Long>();
+  Map<String, Queue<Long>> handleStarts = new ConcurrentHashMap<String, Queue<Long>>();
+  Map<String, Queue<Long>> handleDurations = new ConcurrentHashMap<String, Queue<Long>>();
+  Map<Integer, Long> timeInit = new ConcurrentHashMap<Integer, Long>();
   
   public transactionStateWrapper(TransactionStateImpl ts, 
           TransactionType type, int rpcId, String rpcType) {
@@ -73,9 +78,17 @@ public class transactionStateWrapper extends TransactionStateImpl {
   public void addTime(int i){
     timeInit.put(i, System.currentTimeMillis()-startTime);
   }
-  public synchronized void incCounter(Enum type) {
+  public void incCounter(Enum type) {
     String key = type.getDeclaringClass().getName()+ "." + type.name();
-    handleStarts.put(key, System.currentTimeMillis());
+
+    Queue<Long> queue = handleStarts.get(key);
+    if(queue==null){
+      queue = new LinkedBlockingQueue<Long>();
+      queue.add(System.currentTimeMillis());
+      handleStarts.put(key, queue);
+    }else{
+      queue.add(System.currentTimeMillis());
+    }
     ts.incCounter(type);
     rpcCounter.incrementAndGet();
   }
@@ -83,7 +96,11 @@ public class transactionStateWrapper extends TransactionStateImpl {
   private String printDetailedDurations(){
     String durations = " (";
       for(String types: handleDurations.keySet()){
-        durations= durations + types + ": " + handleDurations.get(types).toString() + ",";
+        String vals = "";
+        for(long val: handleDurations.get(types)){
+          vals = vals + val + ", ";
+        }
+        durations= durations + types + ": " + vals;
       }
       durations = durations + ") ";
       
@@ -92,10 +109,21 @@ public class transactionStateWrapper extends TransactionStateImpl {
       }
       return durations;
   }
-  public synchronized void decCounter(Enum type) throws IOException {
+  public void decCounter(Enum type) throws IOException {
+    ts.decCounter(type);
     int val = rpcCounter.decrementAndGet();
     String key = type.getDeclaringClass().getName()+ "." + type.name();
-    handleDurations.put(key, System.currentTimeMillis() - handleStarts.get(key));
+//    while(handleDurations.containsKey(key)){
+//      key = key+ "I";
+//    }
+    Queue<Long> queue = handleDurations.get(key);
+    if(queue==null){
+      queue = new LinkedBlockingQueue<Long>();
+      queue.add(System.currentTimeMillis()-handleStarts.get(key).poll());
+      handleDurations.put(key, queue);
+    }else{
+      queue.add(System.currentTimeMillis()-handleStarts.get(key).poll());
+    }
     if (val == 0) {
       long duration = System.currentTimeMillis() - startTime;
       
@@ -111,7 +139,6 @@ public class transactionStateWrapper extends TransactionStateImpl {
 //                + " after " + duration + printDetailedDurations());
 //      }
     }
-    ts.decCounter(type);
   }
 
   public int getRPCCounter(){
@@ -123,13 +150,25 @@ public class transactionStateWrapper extends TransactionStateImpl {
   }
   
   public String getRunningEvents(){
-    String result = "nb started events: " + handleStarts.size() + " nb finished events " + handleDurations.size() + " still running: ";
+    int nbStart =0;
+    int nbFinished =0;
+    for(String key: handleStarts.keySet()){
+      for(long val: handleStarts.get(key)){
+        nbStart++;
+      }
+    }
+    for(String key: handleDurations.keySet()){
+      for(long val: handleDurations.get(key)){
+        nbStart++;
+      }
+    }
+    String result = "nb started events: " + nbStart + " nb finished events " + nbFinished + " still running: ";
     for(String key: handleStarts.keySet()){
       if(!handleDurations.containsKey(key)){
         result = result + ", " +  key;
       }
     }
-      result = result + " finished: ";
+      result = result + " all: ";
     for(String key: handleStarts.keySet()){  
       result = result + ", " + key;
     }
@@ -172,8 +211,8 @@ public class transactionStateWrapper extends TransactionStateImpl {
     return ts.getSchedulerApplicationInfos(appId);
   }
 
-  public void persist() throws IOException {
-    ts.persist();
+  public void persist(LinkedBlockingQueue<String> logs) throws IOException {
+    ts.persist(logs);
   }
 
   public void persistSchedulerApplicationInfo(QueueMetricsDataAccess QMDA,
@@ -268,10 +307,10 @@ public class transactionStateWrapper extends TransactionStateImpl {
           JustLaunchedContainersDataAccess justLaunchedContainersDA,
           UpdatedContainerInfoDataAccess updatedContainerInfoDA,
           FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA,
-          PendingEventDataAccess persistedEventsDA)
+          PendingEventDataAccess persistedEventsDA, StorageConnector connector)
           throws StorageException {
     ts.persistRMNodeInfo(hbDA, cidToCleanDA, justLaunchedContainersDA,
-            updatedContainerInfoDA, faDA, csDA,persistedEventsDA);
+            updatedContainerInfoDA, faDA, csDA,persistedEventsDA, connector);
   }
 
   public void updateUsedResource(
@@ -291,10 +330,6 @@ public class transactionStateWrapper extends TransactionStateImpl {
           throws StorageException {
     ts.persistFiCaSchedulerNodeToAdd(resourceDA, ficaNodeDA, rmcontainerDA,
             launchedContainersDA);
-  }
-
-  public RMNodeImpl getRMNode() {
-    return ts.getRMNode();
   }
 
   /**
@@ -340,7 +375,20 @@ public class transactionStateWrapper extends TransactionStateImpl {
   public Map<String, RMNode> getRMNodesToUpdate(){
     return ts.getRMNodesToUpdate();
   }
-
-
-
+  
+  public void addAllJustFinishedContainersToAdd(List<ContainerStatus> status,
+          ApplicationAttemptId appAttemptId) {
+    ts.addAllJustFinishedContainersToAdd(status, appAttemptId);
+  }
+  
+  public void addJustFinishedContainerToAdd(ContainerStatus status,
+          ApplicationAttemptId appAttemptId) {
+    ts.addJustFinishedContainerToAdd(status, appAttemptId);
+  }
+  
+  public void addAllJustFinishedContainersToRemove(List<ContainerStatus> status,
+          ApplicationAttemptId appAttemptId) {
+    ts.addAllJustFinishedContainersToRemove(status, appAttemptId);
+  }
+  
 }

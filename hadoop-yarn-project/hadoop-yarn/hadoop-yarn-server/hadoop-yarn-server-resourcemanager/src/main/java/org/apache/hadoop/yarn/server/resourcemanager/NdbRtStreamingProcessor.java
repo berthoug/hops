@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package org.apache.hadoop.yarn.server.resourcemanager;
+
 import java.util.List;
 import java.util.Set;
 import org.apache.commons.logging.Log;
@@ -33,21 +34,28 @@ public class NdbRtStreamingProcessor implements Runnable {
   private boolean running = false;
   private final RMContext context;
   private RMNode rmNode;
+
   public NdbRtStreamingProcessor(RMContext context) {
     this.context = context;
   }
 
   public void printStreamingRTComps(StreamingRTComps streamingRTComps) {
-    List<org.apache.hadoop.yarn.api.records.ApplicationId> applicationIdList = streamingRTComps.getFinishedApp();
-    for (org.apache.hadoop.yarn.api.records.ApplicationId appId : applicationIdList) {
-      LOG.info("<Processor> Finished application : appid : " + appId.toString()+ "node id : "+streamingRTComps.getNodeId());
+    List<org.apache.hadoop.yarn.api.records.ApplicationId> applicationIdList
+            = streamingRTComps.getFinishedApp();
+    for (org.apache.hadoop.yarn.api.records.ApplicationId appId
+            : applicationIdList) {
+      LOG.debug("<Processor> Finished application : appid : " + appId.toString()
+              + "node id : " + streamingRTComps.getNodeId());
     }
 
-    Set<org.apache.hadoop.yarn.api.records.ContainerId> containerIdList = streamingRTComps.getContainersToClean();
+    Set<org.apache.hadoop.yarn.api.records.ContainerId> containerIdList
+            = streamingRTComps.getContainersToClean();
     for (org.apache.hadoop.yarn.api.records.ContainerId conId : containerIdList) {
-      LOG.info("<Processor> Containers to clean  containerid: " + conId.toString());
+      LOG.debug("<Processor> Containers to clean  containerid: " + conId.
+              toString());
     }
-    LOG.info("RTReceived: " + streamingRTComps.getNodeId() + " nexthb: "+streamingRTComps.isNextHeartbeat());
+    LOG.debug("RTReceived: " + streamingRTComps.getNodeId() + " nexthb: "
+            + streamingRTComps.isNextHeartbeat());
 
   }
 
@@ -59,14 +67,20 @@ public class NdbRtStreamingProcessor implements Runnable {
         try {
 
           StreamingRTComps streamingRTComps = null;
-          streamingRTComps = (StreamingRTComps) NdbRtStreamingReceiver.blockingRTQueue.take();
+          streamingRTComps
+                  = (StreamingRTComps) NdbRtStreamingReceiver.blockingRTQueue.
+                  take();
           if (streamingRTComps != null) {
-            printStreamingRTComps(streamingRTComps);
+            if (LOG.isDebugEnabled()) {
+              printStreamingRTComps(streamingRTComps);
+            }
 
-            NodeId nodeId = ConverterUtils.toNodeId(streamingRTComps.getNodeId());
+            NodeId nodeId = ConverterUtils.
+                    toNodeId(streamingRTComps.getNodeId());
             rmNode = context.getActiveRMNodes().get(nodeId);
             if (rmNode != null) {
-              rmNode.setContainersToCleanUp(streamingRTComps.getContainersToClean());
+              rmNode.setContainersToCleanUp(streamingRTComps.
+                      getContainersToClean());
               rmNode.setAppsToCleanup(streamingRTComps.getFinishedApp());
               rmNode.setNextHeartBeat(streamingRTComps.isNextHeartbeat());
             }

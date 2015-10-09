@@ -191,9 +191,10 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
 
   @Override
   public Allocation allocate(ApplicationAttemptId attemptId,
-                             List<ResourceRequest> resourceRequests,
-                             List<ContainerId> containerIds,
-                             List<String> strings, List<String> strings2, TransactionState transactionState) {
+          List<ResourceRequest> resourceRequests,
+          List<ContainerId> containerIds,
+          List<String> strings, List<String> strings2,
+          TransactionState transactionState) {
     if (metricsON) {
       final Timer.Context context = schedulerAllocateTimer.time();
       Allocation allocation = null;

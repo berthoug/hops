@@ -477,10 +477,10 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     try {
       List<ContainerStatus> returnList =
           new ArrayList<ContainerStatus>(this.justFinishedContainers.size());
-      returnList.addAll(this.justFinishedContainers);
-      this.justFinishedContainers.clear();
+        returnList.addAll(this.justFinishedContainers);
+        this.justFinishedContainers.clear();
       if (ts != null) {
-        ((TransactionStateImpl) ts).addAppAttempt(this);
+        ((TransactionStateImpl) ts).addAllJustFinishedContainersToRemove(returnList, this.applicationAttemptId);
       }
       return returnList;
     } finally {
@@ -618,6 +618,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     this.ranNodes = attempt.getRanNodes();
     ((TransactionStateImpl) ts).addAppAttempt(this);
     ((TransactionStateImpl) ts).addAllRanNodes(this);
+    ((TransactionStateImpl) ts).addAllJustFinishedContainersToAdd(this.justFinishedContainers, this.applicationAttemptId);
   }
 
   private void recoverAppAttemptCredentials(Credentials appAttemptTokens)
@@ -1200,6 +1201,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
 
       // Normal container.Put it in completedcontainers list
       appAttempt.justFinishedContainers.add(containerStatus);
+      ((TransactionStateImpl) event.getTransactionState()).addJustFinishedContainerToAdd(containerStatus, appAttempt.getAppAttemptId());
       long t2 = System.currentTimeMillis() - start;
       if(t2>100){
           LOG.error("container Finish too long " + t2 + ": " + t1 + " " + t2);
@@ -1220,6 +1222,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
           containerFinishedEvent.getContainerStatus();
       // Normal container. Add it in completed containers list
       appAttempt.justFinishedContainers.add(containerStatus);
+      ((TransactionStateImpl) event.getTransactionState()).addJustFinishedContainerToAdd(containerStatus, appAttempt.getAppAttemptId());
     }
   }
 
@@ -1268,6 +1271,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
       }
       // Normal container.
       appAttempt.justFinishedContainers.add(containerStatus);
+      ((TransactionStateImpl) event.getTransactionState()).addJustFinishedContainerToAdd(containerStatus, appAttempt.getAppAttemptId());
       long t2 = System.currentTimeMillis() - start;
       if(t2>100){
           LOG.error("container Allocated too long " + t2 + ": " + t1 + " " + t2);

@@ -337,7 +337,9 @@ public class NdbEventStreamingReceiver {
 
     //This will be called by c++ shared library, libhopsndbevent.so
     public void onEventMethod() throws InterruptedException {
-        
+//        if(!hopPendingEvent.getRmnodeId().equals(hopRMNode.getNodeId())){
+//          LOG.error("creating a RMNodeComps with rmnode different from pending event: " + hopRMNode.getNodeId() + " " + hopPendingEvent.getRmnodeId());
+//        }
         RMNodeComps hopRMNodeBDBObject = new RMNodeComps(hopRMNode, hopNextHeartbeat, hopNode, hopNodeHBResponse, hopResource,
                 hopPendingEvent, hopJustLaunchedContainersList, hopUpdatedContainerInfoList, hopContainerIdsToCleanList, hopFinishedApplicationsList, hopContainersStatusList);
         blockingQueue.put(hopRMNodeBDBObject);

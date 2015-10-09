@@ -179,17 +179,5 @@ public class RMNodeWrapper implements RMNode {
     @Override
     public void setNextHeartBeat(boolean nextHeartbeat) {
     }
-
-    @Override
-    public int getRMNodePendingEventId() {
-        LOG.info("distributed load simulator returning rmnode pending event id ");
-        return 0;
-    }
-
-    @Override
-    public void setRMNodePendingEventId(int pendingId) {
-        LOG.info("distributed load simulator returning rmnode set pending event id ");
-    }
-
   
 }

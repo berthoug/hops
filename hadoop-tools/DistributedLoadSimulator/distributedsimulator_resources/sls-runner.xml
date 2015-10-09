@@ -24,7 +24,7 @@
 
     <property>
     <name>yarn.sls.runner.am.pool.size</name>
-    <value>10</value>
+    <value>2</value>
   </property>
 
   <!-- Nodes configuration -->

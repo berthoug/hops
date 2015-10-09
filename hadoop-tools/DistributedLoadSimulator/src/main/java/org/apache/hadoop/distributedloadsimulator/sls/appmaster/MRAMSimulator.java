@@ -20,6 +20,10 @@ package org.apache.hadoop.distributedloadsimulator.sls.appmaster;
  * @author sri
  */
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.rmi.RemoteException;
+import java.security.PrivilegedExceptionAction;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,19 +50,27 @@ import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.hadoop.distributedloadsimulator.sls.scheduler.ContainerSimulator;
 import org.apache.hadoop.distributedloadsimulator.sls.SLSRunner;
 import org.apache.hadoop.distributedloadsimulator.sls.conf.SLSConfiguration;
+import org.apache.hadoop.security.SaslRpcServer;
+import org.apache.hadoop.security.SecurityUtil;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.client.ClientRMProxy;
+import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.log4j.Logger;
 
 public class MRAMSimulator extends AMSimulator {
   /*
-   Vocabulary Used: 
-   pending -> requests which are NOT yet sent to RM
-   scheduled -> requests which are sent to RM but not yet assigned
-   assigned -> requests which are assigned to a container
-   completed -> request corresponding to which container has completed
-  
-   Maps are scheduled as soon as their requests are received. Reduces are
-   scheduled when all maps have finished (not support slow-start currently).
+   * Vocabulary Used:
+   * pending -> requests which are NOT yet sent to RM
+   * scheduled -> requests which are sent to RM but not yet assigned
+   * assigned -> requests which are assigned to a container
+   * completed -> request corresponding to which container has completed
+   *
+   * Maps are scheduled as soon as their requests are received. Reduces are
+   * scheduled when all maps have finished (not support slow-start currently).
    */
 
   private static final int PRIORITY_REDUCE = 10;
@@ -112,26 +124,69 @@ public class MRAMSimulator extends AMSimulator {
   private Container amContainer;
   // finished
   private boolean isFinished = false;
-  private ApplicationMasterProtocol appMasterProtocol;
   // resource for AM container
   private static int MR_AM_CONTAINER_RESOURCE_MEMORY_MB;
   private static int MR_AM_CONTAINER_RESOURCE_VCORES;
 
   private static final Log LOG = LogFactory.getLog(MRAMSimulator.class);
 
+  private long applicationMasterWaitTime;
+  private List<Long> containerAllocationWaitTime = new ArrayList<Long>();
+  private List<Long> containerStartWaitTime = new ArrayList<Long>();
+  private long startRequestingContainers;
+  private boolean firstRequest = true;
+  private List tasks;
+
   public void init(int id, int heartbeatInterval,
-          List<ContainerSimulator> containerList, ResourceManager rm, SLSRunner se,
+          List tasks, ResourceManager rm, SLSRunner se,
           long traceStartTime, long traceFinishTime, String user, String queue,
           boolean isTracked, String oldAppId,
-          ApplicationMasterProtocol applicatonMasterProtocol, 
-          ApplicationId applicationId, String[] remoteSimIp) {
-    super.init(id, heartbeatInterval, containerList, rm, se,
+          String[] remoteSimIp, YarnClient rmClient, Configuration conf) throws
+          IOException {
+    super.init(id, heartbeatInterval, tasks, rm, se,
             traceStartTime, traceFinishTime, user, queue,
-            isTracked, oldAppId, applicatonMasterProtocol, applicationId, remoteSimIp);
+            isTracked, oldAppId, remoteSimIp,
+            rmClient, conf);
     amtype = "mapreduce";
-    this.appMasterProtocol = applicatonMasterProtocol;
 
-    LOG.info("creating request for " + containerList.size() + " containers");
+    this.tasks = tasks;
+
+    conf.addResource("sls-runner.xml");
+    MR_AM_CONTAINER_RESOURCE_MEMORY_MB = conf.getInt(
+            SLSConfiguration.CONTAINER_MEMORY_MB,
+            SLSConfiguration.CONTAINER_MEMORY_MB_DEFAULT);
+    MR_AM_CONTAINER_RESOURCE_VCORES = conf.getInt(
+            SLSConfiguration.CONTAINER_VCORES,
+            SLSConfiguration.CONTAINER_VCORES_DEFAULT);
+  }
+
+  @Override
+  public void firstStep()
+          throws YarnException, IOException, InterruptedException {
+    int containerVCores = conf.getInt(SLSConfiguration.CONTAINER_VCORES,
+            SLSConfiguration.CONTAINER_VCORES_DEFAULT);
+    int containerMemoryMB = conf.getInt(SLSConfiguration.CONTAINER_MEMORY_MB,
+            SLSConfiguration.CONTAINER_MEMORY_MB_DEFAULT);
+    Resource containerResource = BuilderUtils.newResource(containerMemoryMB,
+            containerVCores);
+
+    List<ContainerSimulator> containerList
+            = new ArrayList<ContainerSimulator>();
+    for (Object o : tasks) {
+      Map jsonTask = (Map) o;
+      String hostname = jsonTask.get("container.host").toString();
+      long taskStart = Long.parseLong(
+              jsonTask.get("container.start.ms").toString());
+      long taskFinish = Long.parseLong(
+              jsonTask.get("container.end.ms").toString());
+      long lifeTime = taskFinish - taskStart;
+      int priority = Integer.parseInt(
+              jsonTask.get("container.priority").toString());
+      String type = jsonTask.get("container.type").toString();
+      containerList.add(new ContainerSimulator(containerResource,
+              lifeTime, hostname, priority, type));
+    }
+
     // get map/reduce tasks
     for (ContainerSimulator cs : containerList) {
       if (cs.getType().equals("map")) {
@@ -147,20 +202,11 @@ public class MRAMSimulator extends AMSimulator {
     mapTotal = pendingMaps.size();
     reduceTotal = pendingReduces.size();
     totalContainers = mapTotal + reduceTotal;
-    
-    Configuration conf = new Configuration(false);
-    conf.addResource("sls-runner.xml");
-    MR_AM_CONTAINER_RESOURCE_MEMORY_MB = conf.getInt(SLSConfiguration.CONTAINER_MEMORY_MB,
-            SLSConfiguration.CONTAINER_MEMORY_MB_DEFAULT);
-    MR_AM_CONTAINER_RESOURCE_VCORES = conf.getInt(SLSConfiguration.CONTAINER_VCORES,
-            SLSConfiguration.CONTAINER_VCORES_DEFAULT);
-  }
 
-  @Override
-  public void firstStep()
-          throws YarnException, IOException, InterruptedException {
     super.firstStep();
-    requestAMContainer();
+    if (submited) {
+      requestAMContainer();
+    }
   }
 
   /**
@@ -170,7 +216,7 @@ public class MRAMSimulator extends AMSimulator {
    * @throws java.io.IOException
    * @throws java.lang.InterruptedException
    */
-  public void requestAMContainer()
+  protected void requestAMContainer()
           throws YarnException, IOException, InterruptedException {
     List<ResourceRequest> ask = new ArrayList<ResourceRequest>();
     ResourceRequest amRequest = createResourceRequest(
@@ -180,7 +226,29 @@ public class MRAMSimulator extends AMSimulator {
     ask.add(amRequest);
     final AllocateRequest request = this.createAllocateRequest(ask);
 
-    AllocateResponse response = appMasterProtocol.allocate(request);
+    AllocateResponse response = null;
+    UserGroupInformation ugi = UserGroupInformation.createProxyUser(
+            appAttemptId.toString(), UserGroupInformation.getCurrentUser());
+    ugi.setAuthenticationMethod(SaslRpcServer.AuthMethod.TOKEN);
+    ugi.addCredentials(credentials);
+    ugi.addToken(amRMToken);
+    ugi.addTokenIdentifier(amRMToken.decodeIdentifier());
+    response = ugi.doAs(new PrivilegedExceptionAction<AllocateResponse>() {
+
+      @Override
+      public AllocateResponse run() throws Exception {
+        UserGroupInformation.getCurrentUser().addToken(amRMToken);
+        InetSocketAddress resourceManagerAddress = conf.getSocketAddr(
+                YarnConfiguration.RM_SCHEDULER_ADDRESS,
+                YarnConfiguration.DEFAULT_RM_SCHEDULER_ADDRESS,
+                YarnConfiguration.DEFAULT_RM_SCHEDULER_PORT);
+        SecurityUtil.setTokenService(amRMToken, resourceManagerAddress);
+        ApplicationMasterProtocol appMasterProtocol = ClientRMProxy.
+                createRMProxy(conf, ApplicationMasterProtocol.class);
+        AllocateResponse response = appMasterProtocol.allocate(request);
+        return response;
+      }
+    });
 
     // waiting until the AM container is allocated
     while (true) {
@@ -202,6 +270,14 @@ public class MRAMSimulator extends AMSimulator {
         // start AM container
         amContainer = container;
         isAMContainerRunning = true;
+        applicationMasterWaitTime = System.currentTimeMillis()
+                - applicationStartTime;
+        try {
+          primaryRemoteConnection.addApplicationMasterWaitTime(
+                  applicationMasterWaitTime);
+        } catch (RemoteException e) {
+          LOG.error(e, e);
+        }
         break;
       }
       // this sleep time is different from HeartBeat
@@ -258,7 +334,8 @@ public class MRAMSimulator extends AMSimulator {
         // to release the AM container
         for (AMNMCommonObject remoteConnection : RemoteConnections) {
           if (remoteConnection.isNodeExist(amContainer.getNodeId().toString())) {
-            remoteConnection.cleanupContainer(amContainer.getId().toString(), amContainer.getNodeId().toString());
+            remoteConnection.cleanupContainer(amContainer.getId().toString(),
+                    amContainer.getNodeId().toString());
 
           }
         }
@@ -271,7 +348,18 @@ public class MRAMSimulator extends AMSimulator {
         if (!scheduledMaps.isEmpty()) {
           ContainerSimulator cs = scheduledMaps.remove();
           assignedMaps.put(container.getId(), cs);
-
+          containerAllocationWaitTime.add(System.currentTimeMillis()
+                  - startRequestingContainers);
+          containerStartWaitTime.add(System.currentTimeMillis()
+                  - applicationStartTime);
+          try {
+            primaryRemoteConnection.addContainerAllocationWaitTime(System.
+                    currentTimeMillis() - startRequestingContainers);
+            primaryRemoteConnection.addContainerStartWaitTime(System.
+                    currentTimeMillis() - applicationStartTime);
+          } catch (RemoteException e) {
+            LOG.error(e, e);
+          }
           for (AMNMCommonObject remoteConnection : RemoteConnections) {
             if (remoteConnection.isNodeExist(container.getNodeId().toString())) {
               remoteConnection.addNewContainer(
@@ -361,6 +449,10 @@ public class MRAMSimulator extends AMSimulator {
           pendingFailedReduces.clear();
         }
       }
+      if (firstRequest) {
+        firstRequest = false;
+        startRequestingContainers = System.currentTimeMillis();
+      }
     }
     if (ask == null) {
       ask = new ArrayList<ResourceRequest>();
@@ -372,14 +464,40 @@ public class MRAMSimulator extends AMSimulator {
     } else {
       request.setProgress((float) finishedContainers / totalContainers);
     }
-    if(ask.size()>0){
+    if (ask.size() > 0) {
       int nbContainers = 0;
-      for(ResourceRequest r : ask){
-        nbContainers+=r.getNumContainers();
+      for (ResourceRequest r : ask) {
+        nbContainers += r.getNumContainers();
       }
-      LOG.info("application " + appId + " requesting containers " + nbContainers);
+      LOG.
+              info("application " + appId + " requesting containers "
+                      + nbContainers);
     }
-    AllocateResponse response = appMasterProtocol.allocate(request);
+
+    AllocateResponse response = null;
+    UserGroupInformation ugi = UserGroupInformation.createProxyUser(
+            appAttemptId.toString(), UserGroupInformation.getCurrentUser());
+    ugi.setAuthenticationMethod(SaslRpcServer.AuthMethod.TOKEN);
+    ugi.addCredentials(credentials);
+    ugi.addToken(amRMToken);
+    ugi.addTokenIdentifier(amRMToken.decodeIdentifier());
+    response = ugi.doAs(new PrivilegedExceptionAction<AllocateResponse>() {
+
+      @Override
+      public AllocateResponse run() throws Exception {
+        UserGroupInformation.getCurrentUser().addToken(amRMToken);
+        InetSocketAddress resourceManagerAddress = conf.getSocketAddr(
+                YarnConfiguration.RM_SCHEDULER_ADDRESS,
+                YarnConfiguration.DEFAULT_RM_SCHEDULER_ADDRESS,
+                YarnConfiguration.DEFAULT_RM_SCHEDULER_PORT);
+        SecurityUtil.setTokenService(amRMToken, resourceManagerAddress);
+        ApplicationMasterProtocol appMasterProtocol = ClientRMProxy.
+                createRMProxy(conf, ApplicationMasterProtocol.class);
+        AllocateResponse response = appMasterProtocol.allocate(request);
+        return response;
+      }
+    });
+
     if (response != null) {
       responseQueue.put(response);
     }
@@ -409,6 +527,7 @@ public class MRAMSimulator extends AMSimulator {
     scheduledMaps.clear();
     scheduledReduces.clear();
     responseQueue.clear();
+
   }
 
 }

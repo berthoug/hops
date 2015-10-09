@@ -82,8 +82,9 @@ public class TransactionStateManager implements Runnable{
         lock.lock();
         
         long cycleDuration = System.currentTimeMillis() - startTime;
-        if(cycleDuration> batchMaxDuration + 10){
-          LOG.error("Cycle too long: " + cycleDuration + "| " + t1 + ", " + t2 + ", " + t3 + ", " + t4);
+        if (cycleDuration > 500) {
+          LOG.error("Cycle too long: " + cycleDuration + "| " + t1 + ", " + t2
+                  + ", " + t3 + ", " + t4);
         }
         nbCycles++;
         accumulatedCycleDuration+=cycleDuration;
@@ -142,34 +143,55 @@ public class TransactionStateManager implements Runnable{
   
   public TransactionState getCurrentTransactionStateNonPriority(int rpcId,
           String callingFuncition) {
+    synchronized(blockNonHB){
     while (blockNonHB.get()) {
       try {
-        Thread.sleep(1);
+        blockNonHB.wait();
+//        Thread.sleep(1);
       } catch (InterruptedException e) {
         LOG.warn(e, e);
       }
     }
-    return getCurrentTransactionState(rpcId, callingFuncition);
+    }
+    return getCurrentTransactionState(rpcId, callingFuncition, false);
 
   }
 
   public TransactionState getCurrentTransactionStatePriority(int rpcId,
           String callingFuncition) {
-    return getCurrentTransactionState(rpcId, callingFuncition);
+    long start = System.currentTimeMillis();
+    TransactionState ts = getCurrentTransactionState(rpcId, callingFuncition,
+            true);
+    long duration = System.currentTimeMillis() - start;
+    if (duration > 400) {
+      LOG.error("getCurrentTransactionStatePriority too long: " + duration);
+    }
+    return ts;
   }
 
   private TransactionState getCurrentTransactionState(int rpcId,
-          String callingFuncition) {
+          String callingFuncition, boolean priority) {
     while (true) {
-      if (acceptedRPC.incrementAndGet() < batchMaxSize) {
+      int accepted = acceptedRPC.incrementAndGet();
+      if (priority || accepted < batchMaxSize) {
+        long start = System.currentTimeMillis();
               lock.lock();
+              long t1 = System.currentTimeMillis()-start;
         try {
           transactionStateWrapper wrapper = new transactionStateWrapper((TransactionStateImpl)currentTransactionState,
                   TransactionState.TransactionType.RM, rpcId, callingFuncition);
+          long t2 = System.currentTimeMillis()-start;
           wrapper.incCounter(TransactionState.TransactionType.INIT);
+          long t3 = System.currentTimeMillis()-start;
           if(rpcId >= 0)
             wrapper.addRPCId(rpcId);
+          long t4 = System.currentTimeMillis()-start;
           curentRPCs.add(wrapper);
+          long t5 = System.currentTimeMillis() - start;
+          if (t5 > 400) {
+            LOG.error("getCurrentTransactionState too long " + t1 + ", " + t2
+                    + ", " + t3 + ", " + t4 + ", " + t5);
+          }
           return wrapper;
         } finally {
           lock.unlock();
@@ -192,15 +214,18 @@ public class TransactionStateManager implements Runnable{
     t.start();
   }
   
-  public void blockNonHB(){
-    if(blockNonHB.compareAndSet(false, true)){
-      LOG.info("blocking non priority");
+  public boolean blockNonHB(){
+    synchronized(blockNonHB){
+    return blockNonHB.compareAndSet(false, true);
     }
   }
   
   public void unblockNonHB(){
+    synchronized(blockNonHB){
     if(blockNonHB.compareAndSet(true, false)){
       LOG.info("unblocking non priority");
-    }    
+    }
+    blockNonHB.notify();
+    }
   }
 }

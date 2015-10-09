@@ -75,13 +75,14 @@ public class RMContextInfo {
   }
 
   public void toAddActiveRMNode(NodeId key,
-          org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode val) {
+          org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode val,
+          int pendingEventId) {
     RMNodeToAdd toAdd = new RMNodeToAdd();
 
     Resource hopResource = new Resource(val.getNodeID().toString(),
             Resource.TOTAL_CAPABILITY, Resource.RMNODE, val.
             getTotalCapability().getMemory(), val.getTotalCapability().
-            getVirtualCores(),val.getRMNodePendingEventId());
+            getVirtualCores(),pendingEventId);
     toAdd.setResources(hopResource);
     //Persist Node
     if (val.getNode() != null) {
@@ -89,11 +90,11 @@ public class RMContextInfo {
         toAdd.setNodeToAdd(new Node(val.getNodeID().toString(), val.
                 getNode().getName(), val.getNode().getNetworkLocation(),
                 val.getNode().getLevel(), val.getNode().getParent().
-                toString(),val.getRMNodePendingEventId()));
+                toString(),pendingEventId));
       } else {
         toAdd.setNodeToAdd(new Node(val.getNodeID().toString(), val.
                 getNode().getName(), val.getNode().getNetworkLocation(),
-                val.getNode().getLevel(), null,val.getRMNodePendingEventId()));
+                val.getNode().getLevel(), null,pendingEventId));
       }
     }
     //Persist RMNode
@@ -103,7 +104,7 @@ public class RMContextInfo {
             val.getLastHealthReportTime(),
             ((RMNodeImpl) val).getCurrentState(), val.
             getNodeManagerVersion(), 0, ((RMNodeImpl) val).
-            getUpdatedContainerInfoId(),val.getRMNodePendingEventId());
+            getUpdatedContainerInfoId(),pendingEventId);
     toAdd.setRMNode(hopRMNode);
     //Persist RMCoxtentNodesMap
     RMContextActiveNodes hopCtxNode = new RMContextActiveNodes(val.
@@ -180,7 +181,7 @@ public class RMContextInfo {
   public void persistActiveNodesToAdd(RMNodeDataAccess rmnodeDA,
       ResourceDataAccess resourceDA, NodeDataAccess nodeDA)
       throws StorageException {
-    if (activeNodesToAdd != null) {
+    if (!activeNodesToAdd.isEmpty()) {
       ArrayList<Resource> toAddResources = new ArrayList<Resource>();
       ArrayList<Node> nodesToAdd = new ArrayList<Node>();
       ArrayList<RMNode> toAddRMNodes = new ArrayList<RMNode>();

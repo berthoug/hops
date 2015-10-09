@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.DelayQueue;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.hadoop.distributedloadsimulator.sls.SLSRunner;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -67,15 +69,17 @@ public class NMSimulator extends TaskRunner.Task {
   private List<ContainerId> amContainerList;
   // resource manager
   private ResourceManager rm;
-  private int totalHeartBeat = 0;
-  private int trueHeartBeat = 0;
+  private AtomicInteger totalHeartBeat = new AtomicInteger(0);
+  private AtomicInteger trueHeartBeat = new AtomicInteger(0);
   // heart beat response id
   private int RESPONSE_ID = 1;
   private final static Logger LOG = Logger.getLogger(NMSimulator.class);
-  private boolean isFistBeat = false;
+  private boolean isFirstBeat = true;
+  private AtomicInteger usedResources = new AtomicInteger(0);
 
   public void init(String nodeIdStr, int memory, int cores,
-          int dispatchTime, int heartBeatInterval, ResourceManager rm,ResourceTracker rt)
+          int dispatchTime, int heartBeatInterval, ResourceManager rm,
+          ResourceTracker rt)
           throws IOException, YarnException {
     super.init(dispatchTime, dispatchTime + 1000000L * heartBeatInterval,
             heartBeatInterval);
@@ -83,7 +87,7 @@ public class NMSimulator extends TaskRunner.Task {
 //            conf.getBoolean(YarnConfiguration.DISTRIBUTED_RM,
 //                    YarnConfiguration.DEFAULT_DISTRIBUTED_RM));
     // create resource
-    this.resourceTracker=rt;
+    this.resourceTracker = rt;
     String rackHostName[] = SLSUtils.getRackHostName(nodeIdStr);
     this.node = NodeInfo.newNodeInfo(rackHostName[0], rackHostName[1],
             BuilderUtils.newResource(memory, cores));
@@ -105,7 +109,8 @@ public class NMSimulator extends TaskRunner.Task {
     req.setNodeId(node.getNodeID());
     req.setResource(node.getTotalCapability());
     req.setHttpPort(80);
-    RegisterNodeManagerResponse response = resourceTracker.registerNodeManager(req);
+    RegisterNodeManagerResponse response = resourceTracker.registerNodeManager(
+            req);
     masterKey = response.getNMTokenMasterKey();
     containerMasterKey = response.getContainerTokenMasterKey();
   }
@@ -116,12 +121,15 @@ public class NMSimulator extends TaskRunner.Task {
   }
 
   public int getTotalHeartBeat() {
-    return totalHeartBeat;
+    return totalHeartBeat.get();
   }
 
   public int getTotalTrueHeartBeat() {
-    return trueHeartBeat;
+    return trueHeartBeat.get();
   }
+
+  static AtomicLong hbduration = new AtomicLong(0);
+  static AtomicInteger nbhb = new AtomicInteger(0);
 
   @Override
   public void middleStep() throws YarnException, IOException {
@@ -131,6 +139,7 @@ public class NMSimulator extends TaskRunner.Task {
       while ((cs = containerQueue.poll()) != null) {
         runningContainers.remove(cs.getId());
         completedContainerList.add(cs.getId());
+        usedResources.decrementAndGet();
       }
     }
 
@@ -148,14 +157,23 @@ public class NMSimulator extends TaskRunner.Task {
     ns.setNodeHealthStatus(NodeHealthStatus.newInstance(true, "", 0));
     beatRequest.setNodeStatus(ns);
     // only first time , this NM thread will update the beat start sec
-    if (!isFistBeat) {
+    if (isFirstBeat) {
       SLSRunner.measureFirstBeat();
-      isFistBeat = true;
+      isFirstBeat = false;
     }
-    NodeHeartbeatResponse beatResponse = resourceTracker.nodeHeartbeat(beatRequest);
-    ++totalHeartBeat;
+    long start = System.currentTimeMillis();
+    NodeHeartbeatResponse beatResponse = resourceTracker.nodeHeartbeat(
+            beatRequest);
+    long duration = System.currentTimeMillis() - start;
+    long totalDuration = hbduration.addAndGet(duration);
+    int totalNbHb = nbhb.incrementAndGet();
+    long avg = totalDuration / totalNbHb;
+    if (duration > 500) {
+      LOG.info(node.getNodeID() + " hb duration: " + duration + " avg: " + avg);
+    }
+    totalHeartBeat.incrementAndGet();
     if (beatResponse.getNextheartbeat()) {
-      ++trueHeartBeat;
+      trueHeartBeat.incrementAndGet();
     }
     if (!beatResponse.getContainersToCleanup().isEmpty()) {
       // remove from queue
@@ -168,6 +186,7 @@ public class NMSimulator extends TaskRunner.Task {
             }
           } else {
             cs = runningContainers.remove(containerId);
+            usedResources.decrementAndGet();
             if (cs != null) {
               LOG.error("in the simulated scenario the container should not be"
                       + "freed until they have completed their task");
@@ -182,8 +201,10 @@ public class NMSimulator extends TaskRunner.Task {
     if (beatResponse.getNodeAction() == NodeAction.SHUTDOWN) {
       lastStep();
     } else if (beatResponse.getNodeAction() == NodeAction.RESYNC) {
-      LOG.error("the failover should be transparent");
-      throw new YarnException("the failover should be transparent");
+      LOG.error("the failover should be transparent, node:" + node.getNodeID()
+              + " message: " + beatResponse.getDiagnosticsMessage());
+      throw new YarnException("the failover should be transparent "
+              + beatResponse.getDiagnosticsMessage());
     }
     if (beatResponse.getContainerTokenMasterKey() != null) {
       masterKey = beatResponse.getContainerTokenMasterKey();
@@ -261,6 +282,7 @@ public class NMSimulator extends TaskRunner.Task {
               lifeTimeMS);
       containerQueue.add(cs);
       runningContainers.put(cs.getId(), cs);
+      usedResources.incrementAndGet();
     } else {
       // AM container
       // -1 means AMContainer
@@ -282,5 +304,9 @@ public class NMSimulator extends TaskRunner.Task {
     synchronized (completedContainerList) {
       completedContainerList.add(containerId);
     }
+  }
+
+  public int getUsedResources() {
+    return usedResources.get();
   }
 }

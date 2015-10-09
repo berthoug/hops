@@ -97,6 +97,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.apache.hadoop.yarn.api.records.ContainerResourceIncreaseRequest;
 
 @SuppressWarnings("unchecked")
 @Private
@@ -240,20 +241,7 @@ public class ApplicationMasterService extends AbstractService
     ApplicationAttemptId applicationAttemptId = authorizeRequest();
 
 
-    if (rpcID == null) {
-      rpcID = HopYarnAPIUtilities.getRPCID();
-      byte[] regAMRequestData =
-          ((RegisterApplicationMasterRequestPBImpl) request).getProto().
-              toByteArray();
-
-      RMUtilities.persistAppMasterRPC(rpcID, RPC.Type.RegisterApplicationMaster,
-          regAMRequestData, applicationAttemptId.toString());
-      
-    }
-    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID,
-                    "registerApplicationMaster");
-    
-    ApplicationId appID = applicationAttemptId.getApplicationId();
+     ApplicationId appID = applicationAttemptId.getApplicationId();
     AllocateResponseLock lock = responseMap.get(applicationAttemptId);
     if (lock == null) {
       RMAuditLogger.logFailure(this.rmContext.getRMApps().get(appID).getUser(),
@@ -261,7 +249,6 @@ public class ApplicationMasterService extends AbstractService
           "Application doesn't exist in cache " + applicationAttemptId,
           "ApplicationMasterService", "Error in registering application master",
           appID, applicationAttemptId);
-      transactionState.decCounter(TransactionState.TransactionType.INIT);
       throwApplicationDoesNotExistInCacheException(applicationAttemptId);
     }
 
@@ -276,10 +263,24 @@ public class ApplicationMasterService extends AbstractService
                 .get(applicationAttemptId.getApplicationId()).getUser(),
             AuditConstants.REGISTER_AM, "", "ApplicationMasterService", message,
             applicationAttemptId.getApplicationId(), applicationAttemptId);
-        transactionState.decCounter(TransactionState.TransactionType.INIT);
         throw new InvalidApplicationMasterRequestException(message);
         //TORECOVER OPT save request response and resend it if the request is received again after a recover
       }
+      
+    
+    if (rpcID == null) {
+      rpcID = HopYarnAPIUtilities.getRPCID();
+      byte[] regAMRequestData =
+          ((RegisterApplicationMasterRequestPBImpl) request).getProto().
+              toByteArray();
+
+      RMUtilities.persistAppMasterRPC(rpcID, RPC.Type.RegisterApplicationMaster,
+          regAMRequestData, applicationAttemptId.toString());
+      
+    }
+    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID,
+                    "registerApplicationMaster");
+    
 
       this.amLivelinessMonitor.receivedPing(applicationAttemptId);
       RMApp app = this.rmContext.getRMApps().get(appID);
@@ -290,7 +291,7 @@ public class ApplicationMasterService extends AbstractService
       lock.setAllocateResponse(lastResponse);
       ((TransactionStateImpl) transactionState)
           .addAllocateResponse(applicationAttemptId, lock);
-      LOG.info("AM registration " + applicationAttemptId);
+      LOG.debug("AM registration " + applicationAttemptId);
       this.rmContext.getDispatcher().getEventHandler().handle(
           new RMAppAttemptRegistrationEvent(applicationAttemptId,
               request.getHost(), request.getRpcPort(), request.
@@ -460,6 +461,13 @@ public class ApplicationMasterService extends AbstractService
       rpcID = HopYarnAPIUtilities.getRPCID();
       byte[] allAMRequestData = ((AllocateRequestPBImpl) request).getProto().
           toByteArray();
+      if(allAMRequestData.length>13000){
+        //TORECOVER persist in a prorper way
+        LOG.error("RPC Too big: " + request.getReleaseList().size() + ", " + request.getAskList().size() + ", " + request.getIncreaseRequests().size());
+        AllocateRequest substitut = AllocateRequest.newInstance(request.getResponseId(),
+                request.getProgress(), new ArrayList<ResourceRequest>(), new ArrayList<ContainerId>(), request.getResourceBlacklistRequest(), new ArrayList<ContainerResourceIncreaseRequest>());
+        allAMRequestData = ((AllocateRequestPBImpl)substitut).getProto().toByteArray();
+      }
       RMUtilities
           .persistAppMasterRPC(rpcID, RPC.Type.Allocate, allAMRequestData,
               appAttemptId.toString());
@@ -515,7 +523,7 @@ public class ApplicationMasterService extends AbstractService
       this.rmContext.getDispatcher().getEventHandler().handle(
           new RMAppAttemptStatusupdateEvent(appAttemptId, request.getProgress(),
               transactionState));
-
+      
       List<ResourceRequest> ask = request.getAskList();
       List<ContainerId> release = request.getReleaseList();
 

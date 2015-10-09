@@ -558,6 +558,9 @@ public class NetUtils {
    */
   public static String normalizeHostName(String name) {
     try {
+      if (name.contains(".smile.com")) {
+        return "72.52.4.119";
+      }
       return InetAddress.getByName(name).getHostAddress();
     } catch (UnknownHostException e) {
       return name;

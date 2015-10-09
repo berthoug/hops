@@ -198,15 +198,6 @@ public class NodeInfo {
         @Override
         public void setNextHeartBeat(boolean nextHeartbeat) {
         }
-
-        @Override
-        public int getRMNodePendingEventId() {
-            return 0;
-        }
-
-        @Override
-        public void setRMNodePendingEventId(int pendingId) {
-        }
   }
   
   public static RMNode newNodeInfo(String rackName, String hostName,

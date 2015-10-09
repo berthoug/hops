@@ -88,7 +88,8 @@ import io.hops.ha.common.TransactionState;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.AbstractYarnScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication;
 
-public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements ResourceScheduler,
+public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements
+        ResourceScheduler,
         Configurable {
 
   private static final String EOL = System.getProperty("line.separator");
@@ -205,7 +206,8 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
   public Allocation allocate(ApplicationAttemptId attemptId,
           List<ResourceRequest> resourceRequests,
           List<ContainerId> containerIds,
-          List<String> strings, List<String> strings2, TransactionState transactionState) {
+          List<String> strings, List<String> strings2,
+          TransactionState transactionState) {
     if (metricsON) {
       final Timer.Context context = schedulerAllocateTimer.time();
       Allocation allocation = null;
@@ -225,7 +227,8 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
       }
     } else {
       return scheduler.allocate(attemptId,
-              resourceRequests, containerIds, strings, strings2, transactionState);
+              resourceRequests, containerIds, strings, strings2,
+              transactionState);
     }
   }
 
@@ -254,8 +257,9 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
                 (NodeUpdateSchedulerEvent) schedulerEvent);
         schedulerEvent = eventWrapper;
         updateQueueWithNodeUpdate(eventWrapper);
-      //  LOG.info("HOP :: ResourceSchedulerWrapper  updateQueueWithNodeUpdate is finished ");
-      } else if (schedulerEvent.getType() == SchedulerEventType.APP_ATTEMPT_REMOVED
+        //  LOG.info("HOP :: ResourceSchedulerWrapper  updateQueueWithNodeUpdate is finished ");
+      } else if (schedulerEvent.getType()
+              == SchedulerEventType.APP_ATTEMPT_REMOVED
               && schedulerEvent instanceof AppAttemptRemovedSchedulerEvent) {
         // check if having AM Container, update resource usage information
         AppAttemptRemovedSchedulerEvent appRemoveEvent
@@ -291,7 +295,7 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
 
       if (schedulerEvent.getType() == SchedulerEventType.APP_REMOVED
               && schedulerEvent instanceof AppRemovedSchedulerEvent) {
-        SLSRunner.decreaseRemainingApps();
+//        SLSRunner.decreaseRemainingApps();
         AppRemovedSchedulerEvent appRemoveEvent
                 = (AppRemovedSchedulerEvent) schedulerEvent;
         appQueueMap.remove(appRemoveEvent.getApplicationID());
@@ -302,7 +306,7 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
         String queueName = appAddEvent.getQueue();
         appQueueMap.put(appAddEvent.getApplicationId(), queueName);
       }
-      
+
     }
   }
 
@@ -491,7 +495,6 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
     // start web app to provide real-time tracking
 //    web = new SLSWebApp(this, metricsWebAddressPort);
 //    web.start();
-
     // a thread to update histogram timer
     pool = new ScheduledThreadPoolExecutor(2);
     pool.scheduleAtFixedRate(new HistogramsRunnable(), 0, 1000,
@@ -557,7 +560,8 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
                 if (scheduler == null || scheduler.getRootQueueMetrics() == null) {
                   return 0;
                 } else {
-                  return scheduler.getRootQueueMetrics().getAllocatedVirtualCores();
+                  return scheduler.getRootQueueMetrics().
+                  getAllocatedVirtualCores();
                 }
               }
             }
@@ -581,7 +585,8 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
                 if (scheduler == null || scheduler.getRootQueueMetrics() == null) {
                   return 0;
                 } else {
-                  return scheduler.getRootQueueMetrics().getAvailableVirtualCores();
+                  return scheduler.getRootQueueMetrics().
+                  getAvailableVirtualCores();
                 }
               }
             }
@@ -608,7 +613,8 @@ public class ResourceSchedulerWrapper extends AbstractYarnScheduler implements R
                 if (scheduler == null || scheduler.getRootQueueMetrics() == null) {
                   return 0;
                 } else {
-                  return scheduler.getRootQueueMetrics().getAllocatedContainers();
+                  return scheduler.getRootQueueMetrics().
+                  getAllocatedContainers();
                 }
               }
             }

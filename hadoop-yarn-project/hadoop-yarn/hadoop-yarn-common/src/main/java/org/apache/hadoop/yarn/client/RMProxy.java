@@ -92,7 +92,7 @@ public class RMProxy<T> {
         (YarnConfiguration) configuration :
         new YarnConfiguration(configuration);
     RetryPolicy retryPolicy = createRetryPolicy(conf);
-    LOG.info("HAEnabled " + HAUtil.isHAEnabled(conf));
+    LOG.debug("HAEnabled " + HAUtil.isHAEnabled(conf));
     if (HAUtil.isHAEnabled(conf)) {
       RMFailoverProxyProvider<T> provider =
           instance.createRMFailoverProxyProvider(conf, protocol, leader);

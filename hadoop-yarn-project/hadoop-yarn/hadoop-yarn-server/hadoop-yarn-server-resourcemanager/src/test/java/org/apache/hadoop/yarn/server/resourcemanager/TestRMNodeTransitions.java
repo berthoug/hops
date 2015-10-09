@@ -607,7 +607,7 @@ public class TestRMNodeTransitions {
             ResourceOption.newInstance(capability,
                 RMNode.OVER_COMMIT_TIMEOUT_MILLIS_DEFAULT), null, false);
     ((TransactionStateImpl) ts).getRMContextInfo()
-        .toAddActiveRMNode(nodeId, node);
+        .toAddActiveRMNode(nodeId, node, 1);
     node.handle(new RMNodeEvent(node.getNodeID(), RMNodeEventType.STARTED, ts));
     Assert.assertEquals(NodeState.RUNNING, node.getState());
     return node;

@@ -181,16 +181,5 @@ public class RMNodeWrapper implements RMNode {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    @Override
-    public int getRMNodePendingEventId() {
-        LOG.info("distributed load simulator returning rmnode pending event id ");
-        return 0;
-    }
-
-    @Override
-    public void setRMNodePendingEventId(int pendingId) {
-        LOG.info("distributed load simulator returning rmnode set pending event id ");
-    }
-
   
 }
