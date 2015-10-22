@@ -389,7 +389,6 @@ public class FifoScheduler extends AbstractYarnScheduler
     rmContext.getDispatcher().getEventHandler().handle(
         new RMAppEvent(applicationId, RMAppEventType.APP_ACCEPTED,
             transactionState));
-    }
   }
 
   private synchronized void addApplicationAttempt(

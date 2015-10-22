@@ -596,6 +596,7 @@ public class SchedulerApplicationAttempt implements Recoverable{
     List<Container> returnContainerList =
         new ArrayList<Container>(newlyAllocatedContainers.size());
     List<NMToken> nmTokens = new ArrayList<NMToken>();
+    int count = 0;
     for (Iterator<RMContainer> i = newlyAllocatedContainers.iterator();
          i.hasNext(); ) {
       RMContainer rmContainer = i.next();
@@ -621,6 +622,7 @@ public class SchedulerApplicationAttempt implements Recoverable{
       i.remove();
       rmContainer.handle(new RMContainerEvent(rmContainer.getContainerId(),
           RMContainerEventType.ACQUIRED, transactionState));
+      count++;
       if (maxAllocatedContainersPerRequest > 0 && count
               > maxAllocatedContainersPerRequest) {
         LOG.info("Blocking the allocation of more than "

@@ -62,7 +62,6 @@ public class LogsPrinter implements Runnable {
           TransactionStateImpl.callsGetSchedulerApplicationInfos=0;
           TransactionStateImpl.callsaddAllocateResponse=0;
           TransactionStateImpl.callsaddAppAttempt=0;
-          LOG.info(YarnAPIStorageFactory.printYarnState());
         }catch(InterruptedException e){
           LOG.error(e, e);
         }

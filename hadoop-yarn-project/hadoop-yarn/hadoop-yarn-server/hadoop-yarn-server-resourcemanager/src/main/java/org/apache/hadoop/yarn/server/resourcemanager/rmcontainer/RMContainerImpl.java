@@ -396,8 +396,7 @@ public class RMContainerImpl implements
       container.containerAllocationExpirer.register(container.getContainerId());
 
       // Tell the appAttempt
-      ((AsyncDispatcher.GenericEventHandler) container.eventHandler).
-              handle(new RMAppAttemptContainerAcquiredEvent(
+      container.eventHandler.handle(new RMAppAttemptContainerAcquiredEvent(
           container.getApplicationAttemptId(), container.getContainer(),
           event.getTransactionState()));
     }
