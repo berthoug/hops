@@ -34,20 +34,20 @@ import org.apache.commons.logging.LogFactory;
 @Private
 @Unstable
 public class ContainerStatusPBImpl extends ContainerStatus {
+  private static final Log LOG = LogFactory.getLog(ContainerStatusPBImpl.class);
+  
   ContainerStatusProto proto = ContainerStatusProto.getDefaultInstance();
   ContainerStatusProto.Builder builder = null;
   boolean viaProto = false;
-    private static final Log LOG = LogFactory.getLog(ContainerStatusPBImpl.class);
+    
   private ContainerId containerId = null;
+  
   
   public ContainerStatusPBImpl() {
     builder = ContainerStatusProto.newBuilder();
   }
 
   public ContainerStatusPBImpl(ContainerStatusProto proto) {
-    if(proto==null){
-      LOG.error("creating containerStatus with null proto");
-    }
     this.proto = proto;
     viaProto = true;
   }
@@ -55,11 +55,7 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   public synchronized ContainerStatusProto getProto() {
     mergeLocalToProto();
     proto = viaProto ? proto : builder.build();
-    if(proto==null){
-      LOG.error("creating containerStatus with null proto");
-    }
     viaProto = true;
-    this.proto.getExitStatus();
     return proto;
   }
 
@@ -103,9 +99,6 @@ public class ContainerStatusPBImpl extends ContainerStatus {
     }
     mergeLocalToBuilder();
     proto = builder.build();
-    if(proto==null){
-      LOG.error("creating containerStatus with null proto");
-    }
     viaProto = true;
   }
 
@@ -120,10 +113,6 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   @Override
   public synchronized ContainerState getState() {
     ContainerStatusProtoOrBuilder p = viaProto ? proto : builder;
-    if(p==null){
-      LOG.error("p is null: " + viaProto + " " + proto);
-    }
-    
     if (!p.hasState()) {
       return null;
     }
@@ -165,9 +154,6 @@ public class ContainerStatusPBImpl extends ContainerStatus {
   @Override
   public synchronized int getExitStatus() {
     ContainerStatusProtoOrBuilder p = viaProto ? proto : builder;
-    if(p==null){
-      LOG.error("p is null: " + viaProto + " " + proto);
-    }
     return p.getExitStatus();
   }
 

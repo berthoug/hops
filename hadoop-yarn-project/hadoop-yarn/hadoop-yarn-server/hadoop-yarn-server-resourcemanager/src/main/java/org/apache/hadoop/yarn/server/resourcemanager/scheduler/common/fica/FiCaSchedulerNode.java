@@ -235,14 +235,6 @@ public class FiCaSchedulerNode extends SchedulerNode implements Recoverable{
     Resources.addTo(availableResource, resource);
     Resources.subtractFrom(usedResource, resource);
     //HOP :: Update resources
-//    if (transactionState != null) {
-//      ((TransactionStateImpl) transactionState)
-//          .getFicaSchedulerNodeInfoToUpdate(rmNode.getNodeID().toString())
-//          .toUpdateResource(Resource.AVAILABLE, availableResource);
-//      ((TransactionStateImpl) transactionState)
-//          .getFicaSchedulerNodeInfoToUpdate(rmNode.getNodeID().toString())
-//          .toUpdateResource(Resource.USED, usedResource);
-//    }
 
   }
 
@@ -257,14 +249,6 @@ public class FiCaSchedulerNode extends SchedulerNode implements Recoverable{
     Resources.subtractFrom(availableResource, resource);
     Resources.addTo(usedResource, resource);
     //HOP :: Update resources
-//    if (transactionState != null) {
-//      ((TransactionStateImpl) transactionState)
-//          .getFicaSchedulerNodeInfoToUpdate(rmNode.getNodeID().toString())
-//          .toUpdateResource(Resource.AVAILABLE, availableResource);
-//      ((TransactionStateImpl) transactionState)
-//          .getFicaSchedulerNodeInfoToUpdate(rmNode.getNodeID().toString())
-//          .toUpdateResource(Resource.USED, usedResource);
-//    }
   }
 
   @Override
@@ -350,7 +334,8 @@ public class FiCaSchedulerNode extends SchedulerNode implements Recoverable{
       }
     }
     reservedContainer = null;
-    ((TransactionStateImpl) transactionState).getFicaSchedulerNodeInfoToUpdate(this.getNodeID().toString())
+    ((TransactionStateImpl) transactionState).
+            getFicaSchedulerNodeInfoToUpdate(this.getNodeID().toString())
         .infoToUpdate(this);
 
   }
@@ -364,7 +349,6 @@ public class FiCaSchedulerNode extends SchedulerNode implements Recoverable{
       org.apache.hadoop.yarn.api.records.Resource deltaResource, TransactionState ts) {
     // we can only adjust available resource if total resource is changed.
     Resources.addTo(this.availableResource, deltaResource);
-//    ((TransactionStateImpl) ts).getFicaSchedulerNodeInfoToUpdate(nodeName).toUpdateResource(io.hops.metadata.yarn.entity.Resource.AVAILABLE, availableResource);
   }
 
   private void recoverLaunchedContainers(

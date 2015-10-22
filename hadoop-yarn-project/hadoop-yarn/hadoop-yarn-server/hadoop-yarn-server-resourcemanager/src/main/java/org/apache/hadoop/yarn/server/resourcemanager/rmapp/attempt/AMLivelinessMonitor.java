@@ -38,7 +38,6 @@ public class AMLivelinessMonitor
     extends AbstractLivelinessMonitor<ApplicationAttemptId> {
 
   private final EventHandler dispatcher;
-  private static final Log LOG = LogFactory.getLog(AMLivelinessMonitor.class);
   private final RMContext rmContext;
   
   public AMLivelinessMonitor(Dispatcher d, RMContext rmContext) {
@@ -59,7 +58,6 @@ public class AMLivelinessMonitor
   @Override
   protected void expire(ApplicationAttemptId id) {
     try {
-      LOG.info("create transactionState Liveliness");
       TransactionState ts =rmContext.getTransactionStateManager().
             getCurrentTransactionStatePriority(-1, "AMLivelinessMonitor");
       dispatcher

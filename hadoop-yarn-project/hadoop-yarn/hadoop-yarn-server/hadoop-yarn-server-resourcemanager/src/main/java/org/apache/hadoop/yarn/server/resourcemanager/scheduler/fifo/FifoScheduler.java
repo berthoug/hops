@@ -241,7 +241,6 @@ public class FifoScheduler extends AbstractYarnScheduler
   @Override
   public synchronized void reinitialize(Configuration conf, RMContext rmContext)
       throws IOException {
-    long start = System.currentTimeMillis();
     setConf(conf);
     if (!this.initialized) {
       validateConf(conf);
@@ -267,10 +266,6 @@ public class FifoScheduler extends AbstractYarnScheduler
               YarnConfiguration.MAX_ALLOCATED_CONTAINERS_PER_REQUEST,
               YarnConfiguration.DEFAULT_MAX_ALLOCATED_CONTAINERS_PER_REQUEST);
     }
-        long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
   }
 
   @Override
@@ -278,7 +273,6 @@ public class FifoScheduler extends AbstractYarnScheduler
       List<ResourceRequest> ask, List<ContainerId> release,
       List<String> blacklistAdditions, List<String> blacklistRemovals,
       TransactionState transactionState) {
-    long start = System.currentTimeMillis();
     FiCaSchedulerApp application = getApplicationAttempt(applicationAttemptId);
     if (application == null) {
       LOG.error(
@@ -306,10 +300,9 @@ public class FifoScheduler extends AbstractYarnScheduler
                   SchedulerUtils.RELEASED_CONTAINER),
           RMContainerEventType.RELEASED, transactionState);
     }
-    long t1 = System.currentTimeMillis() - start;
-//    LOG.info("synchronizing on app: " + application.getApplicationAttemptId());
+
     synchronized (application) {
-      long t2 = System.currentTimeMillis() - start;
+
       // make sure we aren't stopping/removing the application
       // when the allocate comes in
       if (application.isStopped()) {
@@ -336,16 +329,11 @@ public class FifoScheduler extends AbstractYarnScheduler
             "allocate:" + " applicationId=" + applicationAttemptId + " #ask=" +
                 ask.size());
       }
-      long t3 = System.currentTimeMillis() - start;
+
       application.updateBlacklist(blacklistAdditions, blacklistRemovals,
           transactionState);
-      long t4 = System.currentTimeMillis() - start;
       ContainersAndNMTokensAllocation allocation =
           application.pullNewlyAllocatedContainersAndNMTokens(transactionState);
-      long t5 = System.currentTimeMillis() - start;
-      if(t5>1000){
-        LOG.info("allocate too long " + t1 + ", "+ t2 + ", "+ t3 + ", "+ t4 + ", "+ t5);
-      }
       return new Allocation(allocation.getContainerList(),
           application.getHeadroom(), null, null, null,
           allocation.getNMTokenList());
@@ -384,25 +372,23 @@ public class FifoScheduler extends AbstractYarnScheduler
 
   private synchronized void addApplication(ApplicationId applicationId,
       String queue, String user, TransactionState transactionState) {
-    long start = System.currentTimeMillis();
     org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication
         application =
         new org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication(
             DEFAULT_QUEUE, user);
     applications.put(applicationId, application);
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(applicationId)
+      ((TransactionStateImpl) transactionState).
+              getSchedulerApplicationInfos(applicationId)
           .setSchedulerApplicationtoAdd(application, applicationId);
     }
     metrics.submitApp(user);
     LOG.info("Accepted application " + applicationId + " from user: " + user +
-        ", currently num of applications: " + applications.size() + " (" + transactionState.getId() + ")");
+        ", currently num of applications: " + applications.size() + " (" 
+            + transactionState.getId() + ")");
     rmContext.getDispatcher().getEventHandler().handle(
         new RMAppEvent(applicationId, RMAppEventType.APP_ACCEPTED,
             transactionState));
-        long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
     }
   }
 
@@ -410,7 +396,6 @@ public class FifoScheduler extends AbstractYarnScheduler
       ApplicationAttemptId appAttemptId,
       boolean transferStateFromPreviousAttempt,
       TransactionState transactionState) {
-    long start = System.currentTimeMillis();
     org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication
         application = applications.get(appAttemptId.getApplicationId());
     String user = application.getUser();
@@ -431,23 +416,14 @@ public class FifoScheduler extends AbstractYarnScheduler
     rmContext.getDispatcher().getEventHandler().handle(
         new RMAppAttemptEvent(appAttemptId, RMAppAttemptEventType.ATTEMPT_ADDED,
             transactionState));
-        long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
   }
 
   private synchronized void doneApplication(ApplicationId applicationId,
       RMAppState finalState, TransactionState transactionState) {
-    long start = System.currentTimeMillis();
     org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication
         application = applications.get(applicationId);
     if (application == null) {
       LOG.warn("Couldn't find application " + applicationId);
-                long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
       return;
     }
 
@@ -461,25 +437,16 @@ public class FifoScheduler extends AbstractYarnScheduler
       ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(applicationId)
           .setApplicationIdtoRemove(applicationId);
     }
-     long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
   }
 
   private synchronized void doneApplicationAttempt(
       ApplicationAttemptId applicationAttemptId,
       RMAppAttemptState rmAppAttemptFinalState, boolean keepContainers,
       TransactionState transactionState) throws IOException {
-    long start = System.currentTimeMillis();
     FiCaSchedulerApp attempt = getApplicationAttempt(applicationAttemptId);
     org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication
         application = applications.get(applicationAttemptId.getApplicationId());
     if (application == null || attempt == null) {
-                long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
       throw new IOException(
           "Unknown application " + applicationAttemptId + " has completed!");
     }
@@ -501,21 +468,8 @@ public class FifoScheduler extends AbstractYarnScheduler
 
     // Clean up pending requests, metrics etc.
     attempt.stop(rmAppAttemptFinalState, transactionState);
-     long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
   }
 
-  private class Tuple{
-    public int id;
-    public long value;
-    public Tuple(int id, long value){
-      this.id = id;
-      this.value = value;
-    }
-  }
-  
   /**
    * Heart of the scheduler...
    *
@@ -525,8 +479,6 @@ public class FifoScheduler extends AbstractYarnScheduler
   private void assignContainers(
       org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode node,
       TransactionState transactionState) {
-    long start = System.currentTimeMillis();
-    List<Long> time = new ArrayList<Long>();
     LOG.debug(
         "assignContainers:" + " node=" + node.getRMNode().getNodeAddress() +
             " #applications=" + applications.size());
@@ -539,12 +491,9 @@ public class FifoScheduler extends AbstractYarnScheduler
       if (application == null) {
         continue;
       }
+      LOG.debug("pre-assignContainers");
       application.showRequests();
-//      LOG.info("synchronizing on app: " + application.getApplicationAttemptId());
-      time.add(System.currentTimeMillis() - start);
       synchronized (application) {
-        time.add(System.currentTimeMillis() - start);
-           
         // Check if this resource is on the blacklist
         if (SchedulerAppUtils.isBlacklisted(application, node, LOG)) {
           continue;
@@ -565,10 +514,9 @@ public class FifoScheduler extends AbstractYarnScheduler
             }
           }
         }
-        time.add(System.currentTimeMillis() - start);
-         time.add(new Long(100000));
       }
 
+      LOG.debug("post-assignContainers");
       application.showRequests();
 
       // Done
@@ -577,8 +525,7 @@ public class FifoScheduler extends AbstractYarnScheduler
         break;
       }
     }
-    time.add(new Long(100000));
-    time.add(System.currentTimeMillis() - start);
+
     // Update the applications' headroom to correctly take into
     // account the containers assigned in this update.
     for (org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication application : applications
@@ -594,20 +541,6 @@ public class FifoScheduler extends AbstractYarnScheduler
         ((TransactionStateImpl) transactionState)
             .updateClusterResource(clusterResource);
       }
-    }
-    time.add(System.currentTimeMillis() - start);
-    long total = System.currentTimeMillis() - start;
-    if (total > 1000) {
-      String s = "";
-      for (long l : time) {
-        if (l == 100000) {
-          s = s + "|";
-        } else {
-          s = s + ", " + l;
-        }
-      }
-        LOG.info("assignContainers too long: " + total + s);
-
     }
   }
 
@@ -803,21 +736,14 @@ public class FifoScheduler extends AbstractYarnScheduler
 
   private synchronized void nodeUpdate(RMNode rmNode,
       TransactionState transactionState) {
-    long start = System.currentTimeMillis();
     LOG.debug("HOP :: nodeUpdate, rmNode:" + rmNode.getNodeID().toString());
     org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode
         node = getNode(rmNode.getNodeID());
 
     // Update resource if any change
     SchedulerUtils.updateResourceIfChanged(node, rmNode, clusterResource, LOG, transactionState);
-    long t1 = System.currentTimeMillis() - start;
-//    if (transactionState != null) {
-//      ((TransactionStateImpl) transactionState)
-//          .updateClusterResource(clusterResource);
-//    }
     List<UpdatedContainerInfo> containerInfoList =
         rmNode.pullContainerUpdates(transactionState);
-    long t2 = System.currentTimeMillis() - start;
     List<ContainerStatus> newlyLaunchedContainers =
         new ArrayList<ContainerStatus>();
     List<ContainerStatus> completedContainers =
@@ -827,19 +753,18 @@ public class FifoScheduler extends AbstractYarnScheduler
           .addAll(containerInfo.getNewlyLaunchedContainers());
       completedContainers.addAll(containerInfo.getCompletedContainers());
     }
-    long t22 = System.currentTimeMillis() - start;
     // Processing the newly launched containers
     for (ContainerStatus launchedContainer : newlyLaunchedContainers) {
       containerLaunchedOnNode(launchedContainer.getContainerId(), node,
           transactionState);
     }
-    long t3 = System.currentTimeMillis() - start;
+
     // Process completed containers
     for (ContainerStatus completedContainer : completedContainers) {
       ContainerId containerId = completedContainer.getContainerId();
       RMContainer container = getRMContainer(containerId);
       if(container!=null){
-      NodeId containerNodeId = container.getNodeId();
+        NodeId containerNodeId = container.getNodeId();
       
       if(!containerNodeId.equals(rmNode.getNodeID())){
         LOG.error("We should have containers only for the updated node" + getRMContainer(containerId).getNodeId() + " " + rmNode.getNodeID() + " " + containerId);
@@ -850,7 +775,7 @@ public class FifoScheduler extends AbstractYarnScheduler
       containerCompleted(getRMContainer(containerId), completedContainer,
           RMContainerEventType.FINISHED, transactionState);
     }
-    long t4 = System.currentTimeMillis() - start;
+
     if (Resources.greaterThanOrEqual(resourceCalculator, clusterResource,
         node.getAvailableResource(), minimumAllocation)) {
       LOG.debug(
@@ -862,7 +787,6 @@ public class FifoScheduler extends AbstractYarnScheduler
       LOG.debug("Node after allocation " + rmNode.getNodeID() + " resource = " +
           node.getAvailableResource());
     }
-    long t5 = System.currentTimeMillis() - start;
     LOG.debug("HOP :: metrics.setAvailableResourcesToQueue, clusterResource:" +
         clusterResource +
         ", usedResource:" +
@@ -872,14 +796,6 @@ public class FifoScheduler extends AbstractYarnScheduler
     if (transactionState != null) {
       ((TransactionStateImpl) transactionState)
           .updateClusterResource(clusterResource);
-    }
-    long t6 = System.currentTimeMillis() - start;
-    if(t6>1000){
-      LOG.info("node update too long: " + t1 + ", "+ t2+ ", "+ t22 + ", "+ t3 + ", "+ t4 + " (" + completedContainers.size() + ")"+ ", "+ t5 + ", "+ t6);
-    }
-     long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
     }
   }
 
@@ -990,7 +906,6 @@ public class FifoScheduler extends AbstractYarnScheduler
   private synchronized void containerCompleted(RMContainer rmContainer,
       ContainerStatus containerStatus, RMContainerEventType event,
       TransactionState transactionState) {
-    long start = System.currentTimeMillis();
     if (rmContainer == null) {
       LOG.info("Null container completed..." + containerStatus.getContainerId());
       return;
@@ -1022,15 +937,10 @@ public class FifoScheduler extends AbstractYarnScheduler
 
     // Update total usage
     Resources.subtractFrom(usedResource, container.getResource());
-//    ((TransactionStateImpl) transactionState)
-//        .updateUsedResource(clusterResource);
     LOG.info("Application attempt " + application.getApplicationAttemptId() +
         " released container " + container.getId() + " on node: " + node +
         " with event: " + event);
-    long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
+
   }
 
   private org.apache.hadoop.yarn.api.records.Resource clusterResource =
@@ -1044,14 +954,9 @@ public class FifoScheduler extends AbstractYarnScheduler
 
   private synchronized void removeNode(RMNode nodeInfo,
       TransactionState transactionState) {
-    long start = System.currentTimeMillis();
     org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode
         node = getNode(nodeInfo.getNodeID());
     if (node == null) {
-              long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
       return;
     }
 
@@ -1078,10 +983,6 @@ public class FifoScheduler extends AbstractYarnScheduler
       ((TransactionStateImpl) transactionState)
           .updateClusterResource(clusterResource);
     }
-        long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
   }
 
   @Override
@@ -1098,7 +999,6 @@ public class FifoScheduler extends AbstractYarnScheduler
   private synchronized void addNode(RMNode nodeManager,
       org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode node,
       TransactionState ts) {
-    long start = System.currentTimeMillis();
     this.nodes.put(nodeManager.getNodeID(), node);
     LOG.debug("HOP :: FifoScheduler - node was added");
     Resources.addTo(clusterResource, nodeManager.getTotalCapability());
@@ -1107,10 +1007,6 @@ public class FifoScheduler extends AbstractYarnScheduler
           .addFicaSchedulerNodeInfoToAdd(nodeManager.getNodeID().toString(),
               node);
       ((TransactionStateImpl) ts).updateClusterResource(clusterResource);
-    }
-        long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
     }
   }
 
@@ -1212,13 +1108,8 @@ public class FifoScheduler extends AbstractYarnScheduler
 
   @Override
   public synchronized SchedulerNodeReport getNodeReport(NodeId nodeId) {
-    long start = System.currentTimeMillis();
     org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode
         node = getNode(nodeId);
-        long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
     return node == null ? null : new SchedulerNodeReport(node);
   }
 
@@ -1247,19 +1138,12 @@ public class FifoScheduler extends AbstractYarnScheduler
   @Override
   public synchronized boolean checkAccess(UserGroupInformation callerUGI,
       QueueACL acl, String queueName) {
-    long start = System.currentTimeMillis();
-    boolean result = DEFAULT_QUEUE.hasAccess(acl, callerUGI);
-        long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }      
-    return result;
+    return DEFAULT_QUEUE.hasAccess(acl, callerUGI);
   }
 
   @Override
   public synchronized List<ApplicationAttemptId> getAppsInQueue(
       String queueName) {
-    long start = System.currentTimeMillis();
     if (queueName.equals(DEFAULT_QUEUE.getQueueName())) {
       List<ApplicationAttemptId> attempts =
           new ArrayList<ApplicationAttemptId>(applications.size());
@@ -1267,16 +1151,8 @@ public class FifoScheduler extends AbstractYarnScheduler
           .values()) {
         attempts.add(app.getCurrentAppAttempt().getApplicationAttemptId());
       }
-          long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
       return attempts;
     } else {
-                long total = System.currentTimeMillis() - start;
-    if(total > 1000){
-      LOG.info("fifoScheduler too long " + total);
-    }
       return null;
     }
   }

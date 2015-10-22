@@ -121,7 +121,8 @@ public class TestRMContainerImpl {
             SchedulerUtils.RELEASED_CONTAINER);
     rmContainer.handle(
         new RMContainerFinishedEvent(containerId, containerStatus,
-            RMContainerEventType.RELEASED, new TransactionStateImpl(TransactionState.TransactionType.RM, 1,
+            RMContainerEventType.RELEASED, new TransactionStateImpl(
+                    TransactionState.TransactionType.RM, 1,
                             false, null)));
     drainDispatcher.await();
     assertEquals(RMContainerState.RELEASED, rmContainer.getState());

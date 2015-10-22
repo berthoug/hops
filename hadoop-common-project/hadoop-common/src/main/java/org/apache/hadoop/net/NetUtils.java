@@ -558,6 +558,7 @@ public class NetUtils {
    */
   public static String normalizeHostName(String name) {
     try {
+      //trick to make sls more efficient
       if (name.contains(".smile.com")) {
         return "72.52.4.119";
       }

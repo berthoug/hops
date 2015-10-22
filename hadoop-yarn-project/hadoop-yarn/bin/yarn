@@ -114,7 +114,7 @@ JAVA_HEAP_MAX=-Xmx20000m
 
 # check envvars which might override default args
 if [ "$YARN_HEAPSIZE" != "" ]; then
-  echo "run with heapsize $YARN_HEAPSIZE"
+  #echo "run with heapsize $YARN_HEAPSIZE"
   JAVA_HEAP_MAX="-Xmx""$YARN_HEAPSIZE""m"
   #echo $JAVA_HEAP_MAX
 fi
@@ -255,6 +255,6 @@ YARN_OPTS="$YARN_OPTS -Dyarn.root.logger=${YARN_ROOT_LOGGER:-INFO,console}"
 if [ "x$JAVA_LIBRARY_PATH" != "x" ]; then
   YARN_OPTS="$YARN_OPTS -Djava.library.path=$JAVA_LIBRARY_PATH"
 fi  
-echo "$JAVA" -Dproc_$COMMAND $JAVA_HEAP_MAX $JAVA_HEAP_START $YARN_OPTS -classpath "$CLASSPATH" $CLASS "$@"
+
 exec "$JAVA" -Dproc_$COMMAND $JAVA_HEAP_MAX $JAVA_HEAP_START $YARN_OPTS -classpath "$CLASSPATH" $CLASS "$@"
 fi

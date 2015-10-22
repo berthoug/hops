@@ -328,28 +328,19 @@ public class RMContainerImpl implements
 
   @Override
   public void handle(RMContainerEvent event) {
-    long start = System.currentTimeMillis();
     LOG.debug("Processing " + event.getContainerId() + " of type " + event.
         getType());
-    long t1=0;
-    long t2=0;
-    long t3=0;
     try {
       writeLock.lock();
-      t1 = System.currentTimeMillis() - start;
-      start = System.currentTimeMillis();
       RMContainerState oldState = getState();
       try {
         stateMachine.doTransition(event.getType(), event);
-        t2=System.currentTimeMillis() - start;
-        start = System.currentTimeMillis();
         if(stateMachine.getCurrentState()!=oldState){
           if (event.getTransactionState() != null) {
             ((TransactionStateImpl) event.getTransactionState()).
                 addRMContainerToUpdate(this);
           }
         }
-        t3 = System.currentTimeMillis()-start;
       } catch (InvalidStateTransitonException e) {
         LOG.error("Can't handle this event at current state", e);
         LOG.error("Invalid event " + event.getType() + " on container " +
@@ -357,11 +348,6 @@ public class RMContainerImpl implements
       }
     } finally {
       writeLock.unlock();
-    }
-    if(event.getTimes()!=null){
-      event.getTimes().add(t1);
-      event.getTimes().add(t2);
-      event.getTimes().add(t3);
     }
   }
 
@@ -407,11 +393,11 @@ public class RMContainerImpl implements
     @Override
     public void transition(RMContainerImpl container, RMContainerEvent event) {
       // Register with containerAllocationExpirer.
-      long start = System.currentTimeMillis();
       container.containerAllocationExpirer.register(container.getContainerId());
-      start=System.currentTimeMillis();
+
       // Tell the appAttempt
-      ((AsyncDispatcher.GenericEventHandler) container.eventHandler).handle(new RMAppAttemptContainerAcquiredEvent(
+      ((AsyncDispatcher.GenericEventHandler) container.eventHandler).
+              handle(new RMAppAttemptContainerAcquiredEvent(
           container.getApplicationAttemptId(), container.getContainer(),
           event.getTransactionState()));
     }

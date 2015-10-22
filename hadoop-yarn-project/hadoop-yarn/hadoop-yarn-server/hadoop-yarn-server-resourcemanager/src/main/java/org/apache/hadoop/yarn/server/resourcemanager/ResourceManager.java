@@ -1353,4 +1353,5 @@ public class ResourceManager extends CompositeService implements Recoverable {
         YarnConfiguration.DEFAULT_RM_ADDRESS,
         YarnConfiguration.DEFAULT_RM_PORT);
   }
+
 }

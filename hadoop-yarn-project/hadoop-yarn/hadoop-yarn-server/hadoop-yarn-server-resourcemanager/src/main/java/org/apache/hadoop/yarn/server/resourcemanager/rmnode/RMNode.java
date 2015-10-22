@@ -136,7 +136,6 @@ public interface RMNode extends Recoverable {
    */
   public String getRackName();
  
-  
   /**
    * the {@link Node} information for this node.
    *

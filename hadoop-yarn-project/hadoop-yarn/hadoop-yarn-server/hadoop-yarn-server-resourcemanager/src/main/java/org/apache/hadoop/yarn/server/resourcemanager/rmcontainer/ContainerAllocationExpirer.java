@@ -31,14 +31,12 @@ import org.apache.hadoop.yarn.util.SystemClock;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class ContainerAllocationExpirer
     extends AbstractLivelinessMonitor<ContainerId> {
- private static final Log LOG = LogFactory.getLog(ContainerAllocationExpirer.class);
+
   private final EventHandler dispatcher;
   private final RMContext rmContext;
 
@@ -61,7 +59,6 @@ public class ContainerAllocationExpirer
   @Override
   protected void expire(ContainerId containerId) {
     try {
-      LOG.info("create transactionState container expirer for container " + containerId);
       TransactionState ts = rmContext.getTransactionStateManager().
               getCurrentTransactionStatePriority(-1,
                       "ContainerAllocationExpirer");

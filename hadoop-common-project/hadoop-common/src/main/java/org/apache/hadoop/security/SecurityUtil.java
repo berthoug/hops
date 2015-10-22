@@ -463,6 +463,7 @@ public class SecurityUtil {
   @InterfaceAudience.Private
   public static
   InetAddress getByName(String hostname) throws UnknownHostException {
+    //trick to make sls more efficient
     if(hostname.contains(".smile.com")){
       return InetAddress.getByName("72.52.4.119");
     }

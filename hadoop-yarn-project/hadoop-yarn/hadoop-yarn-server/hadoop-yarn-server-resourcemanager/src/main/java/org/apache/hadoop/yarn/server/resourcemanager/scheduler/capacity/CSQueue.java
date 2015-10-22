@@ -141,7 +141,8 @@ public interface CSQueue
    * @param absUsedCapacity
    *     absolute used capacity of the queue
    */
-  public void setAbsoluteUsedCapacity(float absUsedCapacity, TransactionState transactionState);
+  public void setAbsoluteUsedCapacity(float absUsedCapacity,
+          TransactionState transactionState);
 
   /**
    * Get the currently utilized resources in the cluster
@@ -274,7 +275,8 @@ public interface CSQueue
    * @param clusterResource
    *     the current cluster resource
    */
-    public void updateClusterResource(Resource clusterResource, TransactionState transactionState);
+    public void updateClusterResource(Resource clusterResource,
+            TransactionState transactionState);
   
   /**
    * Get the {@link ActiveUsersManager} for the queue.

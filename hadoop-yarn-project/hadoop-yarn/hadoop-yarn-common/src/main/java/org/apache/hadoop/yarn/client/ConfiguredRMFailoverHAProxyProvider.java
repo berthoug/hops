@@ -110,7 +110,7 @@ public abstract class ConfiguredRMFailoverHAProxyProvider<T>
 
   @Override
   public synchronized void performFailover(T currentProxy) {
-    LOG.debug("performing failover");
+    LOG.info("performing failover");
     if (currentProxy != null) {
       oldProxies.put(currentRMId, this.currentProxy);
     }

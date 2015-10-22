@@ -162,7 +162,8 @@ public class SchedulerApplicationAttempt implements Recoverable{
 
   public int getNewContainerId(TransactionState ts) {
     if (ts != null) {
-      ((TransactionStateImpl) ts).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId).
+      ((TransactionStateImpl) ts).getSchedulerApplicationInfos(
+              this.appSchedulingInfo.applicationId).
               getFiCaSchedulerAppInfo(this.getApplicationAttemptId()).
               updateAppInfo(this);
     }
@@ -199,14 +200,19 @@ public class SchedulerApplicationAttempt implements Recoverable{
     return liveContainers.get(id);
   }
 
-  protected synchronized void resetReReservations(Priority priority, TransactionState ts) {
+  protected synchronized void resetReReservations(Priority priority,
+          TransactionState ts) {
     reReservations.setCount(priority, 0);
-   ((TransactionStateImpl) ts).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId).getFiCaSchedulerAppInfo(getApplicationAttemptId()).resetReReservations(priority);
+   ((TransactionStateImpl) ts).getSchedulerApplicationInfos(
+           this.appSchedulingInfo.applicationId).getFiCaSchedulerAppInfo(getApplicationAttemptId()).resetReReservations(priority);
   }
 
-  protected synchronized void addReReservation(Priority priority, TransactionState ts) {
+  protected synchronized void addReReservation(Priority priority, 
+          TransactionState ts) {
     reReservations.add(priority);
-    ((TransactionStateImpl) ts).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId).getFiCaSchedulerAppInfo(getApplicationAttemptId()).addReReservation(priority);
+    ((TransactionStateImpl) ts).getSchedulerApplicationInfos(
+            this.appSchedulingInfo.applicationId).getFiCaSchedulerAppInfo(
+                    getApplicationAttemptId()).addReReservation(priority);
   }
 
   public synchronized int getReReservations(Priority priority) {
@@ -240,7 +246,8 @@ public class SchedulerApplicationAttempt implements Recoverable{
     // Cleanup all scheduling information
     isStopped = true;
     if (ts != null) {
-      ((TransactionStateImpl) ts).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId).
+      ((TransactionStateImpl) ts).getSchedulerApplicationInfos(
+              this.appSchedulingInfo.applicationId).
               getFiCaSchedulerAppInfo(this.getApplicationAttemptId()).
               updateAppInfo(this);
     }
@@ -283,7 +290,8 @@ public class SchedulerApplicationAttempt implements Recoverable{
       Resources.addTo(currentReservation, container.getResource());
       //HOP : Update Resources
       if (transactionState != null) {
-        ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId)
+        ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(
+                this.appSchedulingInfo.applicationId)
             .getFiCaSchedulerAppInfo(
                 this.appSchedulingInfo.getApplicationAttemptId())
             .toUpdateResource(Resource.CURRENTRESERVATION, currentReservation);
@@ -291,7 +299,8 @@ public class SchedulerApplicationAttempt implements Recoverable{
       // Reset the re-reservation count
       resetReReservations(priority, transactionState);
     } else {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId).setFiCaSchedulerAppInfo(this);
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(
+              this.appSchedulingInfo.applicationId).setFiCaSchedulerAppInfo(this);
       // Note down the re-reservation
       addReReservation(priority, transactionState);
     }
@@ -310,7 +319,8 @@ public class SchedulerApplicationAttempt implements Recoverable{
     LOG.debug("SchedulerApplicationAttempt: Persist reservedContainer "
             + getApplicationAttemptId().toString() + " containerid "
             + rmContainer.getContainerId().toString());
-    ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId).
+    ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(
+            this.appSchedulingInfo.applicationId).
             getFiCaSchedulerAppInfo(getApplicationAttemptId()).
             addReservedContainer(rmContainer);
 
@@ -583,20 +593,9 @@ public class SchedulerApplicationAttempt implements Recoverable{
   // in the newlyAllocatedContainers waiting to be refetched.
   public synchronized ContainersAndNMTokensAllocation pullNewlyAllocatedContainersAndNMTokens(
       TransactionState transactionState) {
-    long start = System.currentTimeMillis();
     List<Container> returnContainerList =
         new ArrayList<Container>(newlyAllocatedContainers.size());
-    int size = newlyAllocatedContainers.size();
     List<NMToken> nmTokens = new ArrayList<NMToken>();
-    int count = 0;
-    long startInt = System.currentTimeMillis();
-          long total1=0;
-      long total2=0;
-      long total3=0;
-      long total4=0;
-      long total41=0;
-      long total42=0;
-      long total43=0;
     for (Iterator<RMContainer> i = newlyAllocatedContainers.iterator();
          i.hasNext(); ) {
       RMContainer rmContainer = i.next();
@@ -606,16 +605,12 @@ public class SchedulerApplicationAttempt implements Recoverable{
         container.setContainerToken(rmContext.getContainerTokenSecretManager()
             .createContainerToken(container.getId(), container.getNodeId(),
                 getUser(), container.getResource()));
-        total1+=System.currentTimeMillis() - startInt;
-        startInt=System.currentTimeMillis();
         NMToken nmToken = rmContext.getNMTokenSecretManager()
             .createAndGetNMToken(getUser(), getApplicationAttemptId(),
                 container);
         if (nmToken != null) {
           nmTokens.add(nmToken);
         }
-        total2+=System.currentTimeMillis() - startInt;
-        startInt=System.currentTimeMillis();
       } catch (IllegalArgumentException e) {
         // DNS might be down, skip returning this container.
         LOG.error("Error trying to assign container token and NM token to" +
@@ -624,31 +619,14 @@ public class SchedulerApplicationAttempt implements Recoverable{
       }
       returnContainerList.add(container);
       i.remove();
-      total3+=System.currentTimeMillis() - startInt;
-        startInt=System.currentTimeMillis();
-        java.util.Queue<Long> times = new LinkedBlockingQueue<Long>();
       rmContainer.handle(new RMContainerEvent(rmContainer.getContainerId(),
-          RMContainerEventType.ACQUIRED, transactionState, times));
-      count++;
-      total41+=times.poll();
-      total42+=times.poll();
-      total43+=times.poll();
-      total4+=System.currentTimeMillis() - startInt;
-        startInt=System.currentTimeMillis();
+          RMContainerEventType.ACQUIRED, transactionState));
       if (maxAllocatedContainersPerRequest > 0 && count
               > maxAllocatedContainersPerRequest) {
         LOG.info("Blocking the allocation of more than "
                 + maxAllocatedContainersPerRequest + " containers");
         break;
       }
-    }
-    long t5 = System.currentTimeMillis()-startInt;
-    long total = System.currentTimeMillis() - start;
-    if(total>1000){
-      LOG.info("pullNewlyAllocatedContainersAndNMTokens too long " + total
-              + " size = " + size + " detail: " + total1 + ", "
-              + total2 + ", " + total3 + ", " + total41 + ", " + total42 + ", "
-              + total43 + ", " + total4 + ", " + t5);
     }
     return new ContainersAndNMTokensAllocation(returnContainerList, nmTokens);
   }
@@ -683,8 +661,8 @@ public class SchedulerApplicationAttempt implements Recoverable{
     int count = schedulingOpportunities.count(priority) - 1;
     this.schedulingOpportunities.setCount(priority, Math.max(count, 0));
 
-    //HOP : Update SchedulingOpportunities
-    ((TransactionStateImpl) ts).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId).
+    ((TransactionStateImpl) ts).getSchedulerApplicationInfos(
+            this.appSchedulingInfo.applicationId).
             getFiCaSchedulerAppInfo(getApplicationAttemptId()).
             addSchedulingOppurtunity(priority, Math.max(count, 0));
 
@@ -720,7 +698,9 @@ public class SchedulerApplicationAttempt implements Recoverable{
     schedulingOpportunities.setCount(priority, 0);
 
     //HOP : Update lastScheduledContainers, schedulingOpportunities
-    FiCaSchedulerAppInfo fica = ((TransactionStateImpl) ts).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId).getFiCaSchedulerAppInfo(
+    FiCaSchedulerAppInfo fica = ((TransactionStateImpl) ts).
+            getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId).
+            getFiCaSchedulerAppInfo(
                     getApplicationAttemptId());
     fica.addLastScheduledContainer(priority, currentTimeMs);
     fica.addSchedulingOppurtunity(priority, 0);

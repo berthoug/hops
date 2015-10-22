@@ -126,23 +126,6 @@ public class SchedulerApplicationInfo {
   public void setSchedulerApplicationtoAdd(
           org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication schedulerApplicationToAdd,
           ApplicationId applicationIdToAdd) {
-    //TODO the queue metrics are shared by several nodes they should not be persisted for each nodes.
-//    org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics toAddQM
-//            = schedulerApplicationToAdd.getQueue().getMetrics();
-//    QueueMetrics toAdHopQueueMetrics = new QueueMetrics(toAddQM.getQueueName(),
-//            toAddQM.getAppsSubmitted(), toAddQM.getAppsRunning(),
-//            toAddQM.getAppsPending(), toAddQM.getAppsCompleted(),
-//            toAddQM.getAppsKilled(), toAddQM.getAppsFailed(),
-//            toAddQM.getAllocatedMB(), toAddQM.getAllocatedVirtualCores(),
-//            toAddQM.getAllocatedContainers(),
-//            toAddQM.getAggregateContainersAllocated(),
-//            toAddQM.getaggregateContainersReleased(),
-//            toAddQM.getAvailableMB(), toAddQM.getAvailableVirtualCores(),
-//            toAddQM.getPendingMB(), toAddQM.getPendingVirtualCores(),
-//            toAddQM.getPendingContainers(), toAddQM.getReservedMB(),
-//            toAddQM.getReservedVirtualCores(),
-//            toAddQM.getReservedContainers(), toAddQM.getActiveUsers(),
-//            toAddQM.getActiveApps(), 0);
 
     //Persist SchedulerApplication - Value of applications Map
     SchedulerApplication toAddSchedulerApplication = new SchedulerApplication(
@@ -183,7 +166,6 @@ public class SchedulerApplicationInfo {
     Map<String, FiCaSchedulerAppInfo> map = fiCaSchedulerAppInfo.get(appId.toString());
     String appAttemptIdString = appAttemptId.toString();
     return map.get(appAttemptIdString);
-//    return fiCaSchedulerAppInfo.get(appId.toString()).get(appAttemptId.toString());
     }finally{
       fiCaSchedulerAppInfoLock.unlock();
     }

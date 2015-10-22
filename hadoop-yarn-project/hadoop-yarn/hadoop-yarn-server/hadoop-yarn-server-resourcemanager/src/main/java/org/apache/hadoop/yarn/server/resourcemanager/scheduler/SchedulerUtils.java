@@ -172,10 +172,6 @@ public class SchedulerUtils {
       node.applyDeltaOnAvailableResource(deltaResource, ts);
       // Reflect resource change to clusterResource.
       Resources.addTo(clusterResource, deltaResource);
-//            if (ts != null) {
-//      ((TransactionStateImpl) ts)
-//          .updateClusterResource(clusterResource);
-//    }
       // TODO process resource over-commitment case (allocated containers
       // > total capacity) in different option by getting value of
       // overCommitTimeoutMillis.

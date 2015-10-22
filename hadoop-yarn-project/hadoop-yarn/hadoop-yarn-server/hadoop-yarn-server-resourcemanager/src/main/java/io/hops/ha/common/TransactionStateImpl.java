@@ -927,17 +927,6 @@ public class TransactionStateImpl extends TransactionState {
       Queue<RMContainer> rmcontainerToRemove = new ConcurrentLinkedQueue<RMContainer>();
       for (String nodeId : ficaSchedulerNodeInfoToRemove.keySet()) {
         toRemoveFiCaSchedulerNodes.add(new FiCaSchedulerNode(nodeId));
-        //Remove Resources
-        //Set memory and virtualcores to zero as we do not need
-        //these values during remove anyway.
-//        toRemoveResources.add(new Resource(nodeId, Resource.TOTAL_CAPABILITY,
-//            Resource.FICASCHEDULERNODE, 0, 0));
-//        toRemoveResources.add(
-//            new Resource(nodeId, Resource.AVAILABLE, Resource.FICASCHEDULERNODE,
-//                0, 0));
-//        toRemoveResources.add(
-//            new Resource(nodeId, Resource.USED, Resource.FICASCHEDULERNODE, 0,
-//                0));
         // Update FiCaSchedulerNode reservedContainer
         RMContainer container =
             ficaSchedulerNodeInfoToRemove.get(nodeId).getReservedContainer();
@@ -945,7 +934,6 @@ public class TransactionStateImpl extends TransactionState {
           rmcontainerToRemove.add(container);
         }
       }
-//      resourceDA.removeAll(toRemoveResources);
       ficaNodeDA.removeAll(toRemoveFiCaSchedulerNodes);
       rmcontainerDA.removeAll(rmcontainerToRemove);
     }
@@ -1022,18 +1010,7 @@ public class TransactionStateImpl extends TransactionState {
         LOG.error("did not commit state properly", ex);
     }
   }
-}
-  
-  
-  
-  public void dump(){
-    String dump = "";
-    dump = dump + dumpApplicationToAdd() + "\n";
-    dump = dump + dumpAppAttempt() + "\n";
-    dump = dump + dumpAllocateResponsesToAdd() + "\n";
-    dump = dump + dumpRMContainerToUpdate();
-  }
-  
+}  
   public TransactionStateManager getManager(){
     return manager;
   }

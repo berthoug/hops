@@ -124,7 +124,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
     return this.updatedContainerInfoId;
   }
 
-
   /**
    * Recovers state from NDB into RMNode impl.
    *
@@ -495,9 +494,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
           ).toRemoveFinishedApplications(appId);
         }
       }
-      if(!finishedApplications.isEmpty()){
-       LOG.info("RT_removing_fninshed_application: "+finishedApplications.toString());
-      }
       this.containersToClean.clear();
       this.finishedApplications.clear();
       
@@ -683,7 +679,8 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
         LOG.debug("HOP :: Added Pending event to TransactionState");
         ((TransactionStateImpl) event.getTransactionState()).getRMNodeInfo(rmNode.nodeId).
                 addPendingEventToAdd(rmNode.getNodeID().toString(),
-                        TablesDef.PendingEventTableDef.NODE_REMOVED, TablesDef.PendingEventTableDef.NEW);
+                        TablesDef.PendingEventTableDef.NODE_REMOVED, 
+                        TablesDef.PendingEventTableDef.NEW);
       } else {
         rmNode.context.getDispatcher().getEventHandler()
                 .handle(new NodeRemovedSchedulerEvent(rmNode, event.
@@ -701,9 +698,11 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
               !rmNode.context.getRMGroupMembershipService().isLeader()) {
             //Add NodeAddedSchedulerEvent to TransactionState
             LOG.debug("HOP :: Added Pending event to TransactionState");
-            ((TransactionStateImpl) event.getTransactionState()).getRMNodeInfo(rmNode.nodeId).
+            ((TransactionStateImpl) event.getTransactionState()).
+                    getRMNodeInfo(rmNode.nodeId).
                     addPendingEventToAdd(rmNode.getNodeID().toString(),
-                            TablesDef.PendingEventTableDef.NODE_ADDED, TablesDef.PendingEventTableDef.NEW);
+                            TablesDef.PendingEventTableDef.NODE_ADDED, 
+                            TablesDef.PendingEventTableDef.NEW);
 
           } else {
             rmNode.context.getDispatcher().getEventHandler()
@@ -758,7 +757,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       ((TransactionStateImpl) event.getTransactionState())
               .getRMNodeInfo(rmNode.nodeId)
               .toAddFinishedApplications(((RMNodeCleanAppEvent) event).getAppId());
-
     }
   }
 
@@ -808,9 +806,11 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
             !rmNode.context.getRMGroupMembershipService().isLeader()) {
           //Add NodeRemovedSchedulerEvent to TransactionState
           LOG.debug("HOP :: Added Pending event to TransactionState");
-          ((TransactionStateImpl) event.getTransactionState()).getRMNodeInfo(rmNode.nodeId).
+          ((TransactionStateImpl) event.getTransactionState()).
+                  getRMNodeInfo(rmNode.nodeId).
                   addPendingEventToAdd(rmNode.getNodeID().toString(),
-                          TablesDef.PendingEventTableDef.NODE_REMOVED, TablesDef.PendingEventTableDef.NEW);
+                          TablesDef.PendingEventTableDef.NODE_REMOVED, 
+                          TablesDef.PendingEventTableDef.NEW);
 
         } else {
           rmNode.context.getDispatcher().getEventHandler()
@@ -862,8 +862,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       rmNode.setLastHealthReportTime(remoteNodeHealthStatus.
               getLastHealthReportTime());
       //HOP :: Update TransactionState
-//      ((TransactionStateImpl) event.getTransactionState()).
-//              toUpdateRMNode(rmNode);
 
       if (!remoteNodeHealthStatus.getIsNodeHealthy()) {
         LOG.info(
@@ -880,9 +878,11 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
             !rmNode.context.getRMGroupMembershipService().isLeader()) {
           //Add NodeRemovedSchedulerEvent to TransactionState
           LOG.debug("HOP :: Added Pending event to TransactionState");
-          ((TransactionStateImpl) event.getTransactionState()).getRMNodeInfo(rmNode.nodeId).
+          ((TransactionStateImpl) event.getTransactionState()).
+                  getRMNodeInfo(rmNode.nodeId).
                   addPendingEventToAdd(rmNode.getNodeID().toString(),
-                          TablesDef.PendingEventTableDef.NODE_REMOVED, TablesDef.PendingEventTableDef.NEW);
+                          TablesDef.PendingEventTableDef.NODE_REMOVED, 
+                          TablesDef.PendingEventTableDef.NEW);
 
         } else {
           rmNode.context.getDispatcher().getEventHandler()
@@ -965,8 +965,6 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
                 = new UpdatedContainerInfo(newlyLaunchedContainers,
                         completedContainers, rmNode.updatedContainerInfoId++);
         LOG.debug("HOP :: nodeUpdateQueue.add-" + uci);
-//        ((TransactionStateImpl) event.getTransactionState()).toUpdateRMNode(
-//                rmNode);
         ((TransactionStateImpl) event.getTransactionState())
                 .getRMNodeInfo(rmNode.nodeId).toAddNodeUpdateQueue(uci);
         rmNode.nodeUpdateQueue.add(uci);
@@ -1015,7 +1013,8 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
 
         LOG.debug(
                 "HOP_pending RT adding pending event<SCHEDULER_NOT_FINISHED_PROCESSING>"
-                + rmNode.nodeId.toString() + " pending id : " + ((TransactionStateImpl) event.getTransactionState())
+                + rmNode.nodeId.toString() + " pending id : " + 
+                        ((TransactionStateImpl) event.getTransactionState())
                 .getRMNodeInfo(rmNode.nodeId).getPendingId());
         ((TransactionStateImpl) event.getTransactionState())
                 .getRMNodeInfo(rmNode.nodeId).addPendingEventToAdd(rmNode.

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.hadoop.yarn.client;
 
 import java.io.Closeable;
@@ -36,13 +35,13 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 public class ConfiguredRMFailoverHAProxy<T>
-    implements RMFailoverProxyProvider<T> {
-  private static final Log LOG =
-      LogFactory.getLog(ConfiguredRMFailoverHAProxy.class);
+        implements RMFailoverProxyProvider<T> {
+  private static final Log LOG = LogFactory.getLog(
+          ConfiguredRMFailoverHAProxy.class);
 
   private T currentProxty;
   private String currentRMId;
-  
+
   Map<String, T> oldProxies = new HashMap<String, T>();
 
   private RMProxy<T> rmProxy;
@@ -52,35 +51,26 @@ public class ConfiguredRMFailoverHAProxy<T>
 
   @Override
   public void init(Configuration configuration, RMProxy<T> rmProxy,
-                    Class<T> protocol) {
+          Class<T> protocol) {
     this.rmProxy = rmProxy;
     this.protocol = protocol;
     this.rmProxy.checkAllowedProtocols(this.protocol);
     this.conf = new YarnConfiguration(configuration);
     Collection<String> rmIds = HAUtil.getRMHAIds(conf);
     this.rmServiceIds = rmIds.toArray(new String[rmIds.size()]);
-//    conf.set(YarnConfiguration.RM_HA_ID, rmServiceIds[currentProxyIndex]);
 
-    conf.setInt(CommonConfigurationKeysPublic.IPC_CLIENT_CONNECT_MAX_RETRIES_KEY,
-        conf.getInt(YarnConfiguration.CLIENT_FAILOVER_RETRIES,
-            YarnConfiguration.DEFAULT_CLIENT_FAILOVER_RETRIES));
+    conf.
+            setInt(CommonConfigurationKeysPublic.IPC_CLIENT_CONNECT_MAX_RETRIES_KEY,
+                    conf.getInt(YarnConfiguration.CLIENT_FAILOVER_RETRIES,
+                            YarnConfiguration.DEFAULT_CLIENT_FAILOVER_RETRIES));
 
-    conf.setInt(CommonConfigurationKeysPublic.
-        IPC_CLIENT_CONNECT_MAX_RETRIES_ON_SOCKET_TIMEOUTS_KEY,
-        conf.getInt(YarnConfiguration.CLIENT_FAILOVER_RETRIES_ON_SOCKET_TIMEOUTS,
-            YarnConfiguration.DEFAULT_CLIENT_FAILOVER_RETRIES_ON_SOCKET_TIMEOUTS));
+    conf.setInt(
+            CommonConfigurationKeysPublic.IPC_CLIENT_CONNECT_MAX_RETRIES_ON_SOCKET_TIMEOUTS_KEY,
+            conf.getInt(
+                    YarnConfiguration.CLIENT_FAILOVER_RETRIES_ON_SOCKET_TIMEOUTS,
+                    YarnConfiguration.DEFAULT_CLIENT_FAILOVER_RETRIES_ON_SOCKET_TIMEOUTS));
   }
 
-  private T getProxyInternal() {
-    try {
-      final InetSocketAddress rmAddress = rmProxy.getRMAddress(conf, protocol);
-      return RMProxy.getProxy(conf, protocol, rmAddress);
-    } catch (IOException ioe) {
-//      LOG.error("Unable to create proxy to the ResourceManager " +
-//          rmServiceIds[currentProxyIndex], ioe);
-      return null;
-    }
-  }
 
   @Override
   public synchronized ProxyInfo<T> getProxy() {
@@ -89,12 +79,9 @@ public class ConfiguredRMFailoverHAProxy<T>
 
   @Override
   public synchronized void performFailover(T currentProxy) {
-      
-      //HOP
-        oldProxies.put(currentRMId, currentProxy);
-        //TORECOVER change this to fetch the next proxy from the RM
-      //HOP
-      
+
+    oldProxies.put(currentRMId, currentProxy);
+
     conf.set(YarnConfiguration.RM_HA_ID, currentRMId);
     LOG.info("Failing over to " + currentRMId);
   }
@@ -112,7 +99,7 @@ public class ConfiguredRMFailoverHAProxy<T>
   public synchronized void close() throws IOException {
     for (T proxy : oldProxies.values()) {
       if (proxy instanceof Closeable) {
-        ((Closeable)proxy).close();
+        ((Closeable) proxy).close();
       } else {
         RPC.stopProxy(proxy);
       }

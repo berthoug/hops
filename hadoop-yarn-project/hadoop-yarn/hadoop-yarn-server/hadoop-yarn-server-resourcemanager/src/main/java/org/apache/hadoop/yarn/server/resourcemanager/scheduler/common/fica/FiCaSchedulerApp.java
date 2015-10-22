@@ -114,13 +114,6 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
     queue.getMetrics()
         .releaseResources(getUser(), 1, containerResource);
     Resources.subtractFrom(currentConsumption, containerResource);
-    //HOP : Update Resources
-//    if (transactionState != null) {
-//      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
-//          .getFiCaSchedulerAppInfo(
-//              this.appSchedulingInfo.getApplicationAttemptId())
-//          .toUpdateResource(Resource.CURRENTCONSUMPTION, currentConsumption);
-//    }
     return true;
   }
 
@@ -160,10 +153,6 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
     Resources.addTo(currentConsumption, container.getResource());
     //HOP : Update Resources
     if (transactionState != null) {
-//      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId()).
-//          getFiCaSchedulerAppInfo(
-//              this.appSchedulingInfo.getApplicationAttemptId()).
-//          toUpdateResource(Resource.CURRENTCONSUMPTION, currentConsumption);
       ((TransactionStateImpl) transactionState).addRMContainerToAdd((RMContainerImpl)rmContainer);
       ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId()).
           getFiCaSchedulerAppInfo(

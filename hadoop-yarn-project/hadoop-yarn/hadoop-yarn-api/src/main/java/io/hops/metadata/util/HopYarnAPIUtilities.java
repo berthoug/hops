@@ -108,7 +108,7 @@ public class HopYarnAPIUtilities {
 
             if (found != null) {
               int toReturn = found.getValue();
-              found.setValue(found.getValue() + 1000);
+              found.setValue(found.getValue() + increment);
               yDA.add(found);
               connector.commit();
               LOG.debug("HOP :: setYarnVariables Finish-" +

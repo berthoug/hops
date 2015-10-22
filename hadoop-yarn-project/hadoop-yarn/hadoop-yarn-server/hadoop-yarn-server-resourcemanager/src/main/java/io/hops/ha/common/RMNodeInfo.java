@@ -288,7 +288,6 @@ public class RMNodeInfo {
       }
       agregate.addAllContainersStatusToAdd(toAddContainerStatus);
       agregate.addAllJustLaunchedContainersToAdd(toAddHopJustLaunchedContainers);
-      //Persist ContainerId and ContainerStatus
 
     }
   }

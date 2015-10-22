@@ -148,33 +148,16 @@ public class RMContextInfo {
     if (!inactiveNodesToRemove.isEmpty()) {
       ArrayList<RMContextInactiveNodes> inactiveToRemove =
           new ArrayList<RMContextInactiveNodes>();
-//      ArrayList<RMNode> nodesToRemove = new ArrayList<RMNode>();
-//      ArrayList<Resource> resourceToRemove = new ArrayList<Resource>();
 
       for (NodeId inactiveNodeToRemove : inactiveNodesToRemove) {
         inactiveToRemove.add(new RMContextInactiveNodes(inactiveNodeToRemove.
             toString()));
-//        nodesToRemove.add(new RMNode(inactiveNodeToRemove.toString()));
-//        resourceToRemove.add(new Resource(inactiveNodeToRemove.toString(),
-//            Resource.TOTAL_CAPABILITY, Resource.RMNODE));
       }
       RMContextInactiveNodesDataAccess rmctxInactiveNodesDA =
           (RMContextInactiveNodesDataAccess) RMStorageFactory.
               getDataAccess(RMContextInactiveNodesDataAccess.class);
       rmctxInactiveNodesDA.removeAll(inactiveToRemove);
 
-      //clean all the tables depending of RMNode: JustLaunchedContainers,
-      //ContainersToClean, FinishedApplications, UpdatedContainerInfo, NodeHeartBeatResponse, ha_rmnode
-      //ha_node
-      //clearing ha_rmNode is enough because the other tables will be cleared by cascade
-//      RMNodeDataAccess rmnodeDA = (RMNodeDataAccess) RMStorageFactory.
-//          getDataAccess(RMNodeDataAccess.class);
-//      rmnodeDA.removeAll(nodesToRemove);
-//
-//      //clean ha_resource
-//      ResourceDataAccess resourceDA = (ResourceDataAccess) YarnAPIStorageFactory
-//          .getDataAccess(ResourceDataAccess.class);
-//      resourceDA.removeAll(resourceToRemove);
     }
   }
 
