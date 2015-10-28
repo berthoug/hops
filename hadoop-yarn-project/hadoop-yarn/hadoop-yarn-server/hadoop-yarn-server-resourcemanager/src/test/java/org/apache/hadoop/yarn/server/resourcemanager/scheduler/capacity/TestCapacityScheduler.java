@@ -111,6 +111,8 @@ public class TestCapacityScheduler {
     RMUtilities.InitializeDB();
     conf.setClass(YarnConfiguration.RM_SCHEDULER, CapacityScheduler.class,
         ResourceScheduler.class);
+    conf.setInt(YarnConfiguration.HOPS_BATCH_MAX_DURATION, 60000);
+    conf.setInt(YarnConfiguration.HOPS_BATCH_MAX_SIZE, 10000);
     resourceManager.init(conf);
     resourceManager.getRMContext().getContainerTokenSecretManager()
         .rollMasterKey();
@@ -170,7 +172,7 @@ public class TestCapacityScheduler {
     return nm;
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testCapacityScheduler() throws Exception {
 
     LOG.info("--- START: testCapacityScheduler ---");
@@ -331,7 +333,7 @@ public class TestCapacityScheduler {
     LOG.info("Setup top-level queues a and b");
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testMaximumCapacitySetup() {
     float delta = 0.0000001f;
     CapacitySchedulerConfiguration conf = new CapacitySchedulerConfiguration();
@@ -344,7 +346,7 @@ public class TestCapacityScheduler {
         conf.getMaximumCapacity(A), delta);
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testRefreshQueues() throws Exception {
     CapacityScheduler cs = new CapacityScheduler();
     CapacitySchedulerConfiguration conf = new CapacitySchedulerConfiguration();
@@ -439,7 +441,7 @@ public class TestCapacityScheduler {
    *
    * @throws IOException
    */
-  @Test(expected = IOException.class)
+  @Test(timeout = 30000, expected = IOException.class)
   public void testParseQueue() throws IOException {
     CapacityScheduler cs = new CapacityScheduler();
     cs.setConf(new YarnConfiguration());
@@ -456,7 +458,7 @@ public class TestCapacityScheduler {
         new ClientToAMTokenSecretManagerInRM(), null, conf), null);
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testReconnectedNode() throws Exception {
     CapacitySchedulerConfiguration csConf =
         new CapacitySchedulerConfiguration();
@@ -487,7 +489,7 @@ public class TestCapacityScheduler {
     Assert.assertEquals(4 * GB, cs.getClusterResources().getMemory());
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testRefreshQueuesWithNewQueue() throws Exception {
     CapacityScheduler cs = new CapacityScheduler();
     CapacitySchedulerConfiguration conf = new CapacitySchedulerConfiguration();
@@ -524,7 +526,7 @@ public class TestCapacityScheduler {
     }
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testCapacitySchedulerInfo() throws Exception {
     QueueInfo queueInfo =
         resourceManager.getResourceScheduler().getQueueInfo("a", true, true);
@@ -553,7 +555,7 @@ public class TestCapacityScheduler {
   }
 
   @SuppressWarnings("resource")
-  @Test
+  @Test(timeout = 30000)
   public void testBlackListNodes() throws Exception {
     Configuration conf = new Configuration();
     conf.setClass(YarnConfiguration.RM_SCHEDULER, CapacityScheduler.class,
@@ -617,7 +619,7 @@ public class TestCapacityScheduler {
     assertTrue(appComparator.compare(app2, app3) < 0);
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testGetAppsInQueue() throws Exception {
     Application application_0 =
         new Application("user_0", "a1", resourceManager);
@@ -650,7 +652,7 @@ public class TestCapacityScheduler {
     Assert.assertNull(scheduler.getAppsInQueue("nonexistentqueue"));
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testAddAndRemoveAppFromCapacityScheduler() throws Exception {
 
     AsyncDispatcher rmDispatcher = new AsyncDispatcher();
@@ -667,7 +669,7 @@ public class TestCapacityScheduler {
     Assert.assertEquals("a1", app.getQueue().getQueueName());
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testAsyncScheduling() throws Exception {
     Configuration conf = new Configuration();
     conf.setClass(YarnConfiguration.RM_SCHEDULER, CapacityScheduler.class,

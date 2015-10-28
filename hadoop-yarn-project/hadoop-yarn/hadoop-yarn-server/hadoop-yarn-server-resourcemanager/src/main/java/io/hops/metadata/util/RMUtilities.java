@@ -2226,6 +2226,7 @@ public class RMUtilities {
   public static void finishRPCs(TransactionState ts) throws IOException {
     nextRPCLock.lock();
     if (!canCommitApp(ts) || !canCommitNode((TransactionStateImpl) ts)) {
+      LOG.debug(ts);
       finishedTs.add(ts);
       nextRPCLock.unlock();
     } else {

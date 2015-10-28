@@ -85,7 +85,7 @@ public class TestResourceManager {
     return nm;
   }
 
-  @Test
+  @Test(timeout = 60000)
   public void testResourceAllocation()
       throws IOException, YarnException, InterruptedException {
     LOG.info("--- START: testResourceAllocation ---");
@@ -195,7 +195,7 @@ public class TestResourceManager {
     resourceManager.getResourceScheduler().handle(nodeUpdate);
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testNodeHealthReportIsNotNull() throws Exception {
     String host1 = "host1";
     final int memory = 4 * 1024;
@@ -236,7 +236,7 @@ public class TestResourceManager {
     }
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testNMExpiryAndHeartbeatIntervalsValidation() throws Exception {
     Configuration conf = new YarnConfiguration();
     conf.setLong(YarnConfiguration.RM_NM_EXPIRY_INTERVAL_MS, 1000);

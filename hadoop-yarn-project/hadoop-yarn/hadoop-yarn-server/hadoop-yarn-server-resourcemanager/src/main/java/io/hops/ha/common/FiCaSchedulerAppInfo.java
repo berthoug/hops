@@ -88,7 +88,7 @@ public class FiCaSchedulerAppInfo {
   private Map<ContainerId, FiCaSchedulerAppReservedContainerInfo> reservedContainersToRemove
           = new HashMap<ContainerId, FiCaSchedulerAppReservedContainerInfo>();
 
-  private Map<Priority, Long> lastScheduledContainerToAdd;
+  private Map<Priority, Long> lastScheduledContainerToAdd = new HashMap<Priority, Long>();;
 
   Multiset<Priority> schedulingOpportunitiesToAdd;
   Multiset<Priority> reReservations;
@@ -622,9 +622,6 @@ public class FiCaSchedulerAppInfo {
   }
 
   public void addLastScheduledContainer(Priority p, long time) {
-    if (lastScheduledContainerToAdd == null) {
-      lastScheduledContainerToAdd = new HashMap<Priority, Long>();
-    }
     lastScheduledContainerToAdd.put(p, time);
   }
 

@@ -66,18 +66,18 @@ public class ParentQueue implements CSQueue {
 
   private static final Log LOG = LogFactory.getLog(ParentQueue.class);
 
-  private CSQueue parent; //TORECOVER
+  private CSQueue parent; //from conf
   private final String queueName; //in constructor
 
-  private float capacity; //TORECOVER
-  private float maximumCapacity; //TORECOVER
-  private float absoluteCapacity;//TORECOVER
-  private float absoluteMaxCapacity;//TORECOVER
+  private float capacity; //from conf
+  private float maximumCapacity; //from conf
+  private float absoluteCapacity;//from conf
+  private float absoluteMaxCapacity;//from conf
   private float absoluteUsedCapacity = 0.0f; //recovered
 
   private float usedCapacity = 0.0f; //recovered
 
-  private final Set<CSQueue> childQueues; //TORECOVER
+  private final Set<CSQueue> childQueues; //from conf
   private final Comparator<CSQueue> queueComparator;//in constructor
 
   private Resource usedResources = Resources.createResource(0, 0);//recovered
@@ -89,14 +89,14 @@ public class ParentQueue implements CSQueue {
   private volatile int numApplications; //recovered through child
   private volatile int numContainers; //recovered
 
-  private QueueState state;//TORECOVER
+  private QueueState state;//from conf
 
   private final QueueMetrics metrics;//TORECOVER
 
   private QueueInfo queueInfo; //in constructor
 
   private Map<QueueACL, AccessControlList> acls
-          = new HashMap<QueueACL, AccessControlList>(); //TORECOVER
+          = new HashMap<QueueACL, AccessControlList>(); //from conf
 
   private final RecordFactory recordFactory
           = RecordFactoryProvider.getRecordFactory(null);

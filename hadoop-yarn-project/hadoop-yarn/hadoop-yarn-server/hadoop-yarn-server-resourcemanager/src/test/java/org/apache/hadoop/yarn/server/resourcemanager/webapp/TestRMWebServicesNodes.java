@@ -88,10 +88,12 @@ public class TestRMWebServicesNodes extends JerseyTest {
         bind(GenericExceptionHandler.class);
         YarnConfiguration conf = new YarnConfiguration();
         conf.set(YarnConfiguration.RM_NM_HEARTBEAT_INTERVAL_MS, "4000");
+        conf.setInt(YarnConfiguration.HOPS_BATCH_MAX_DURATION, 60000);
+        conf.setInt(YarnConfiguration.HOPS_BATCH_MAX_SIZE, 10000);
         YarnAPIStorageFactory.setConfiguration(conf);
         RMStorageFactory.setConfiguration(conf);
         RMStorageFactory.getConnector().formatStorage();
-        rm = new MockRM(new Configuration());
+        rm = new MockRM(conf);
         rm.getRMContext().getContainerTokenSecretManager().rollMasterKey();
         rm.getRMContext().getNMTokenSecretManager().rollMasterKey();
         bind(ResourceManager.class).toInstance(rm);

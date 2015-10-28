@@ -78,24 +78,24 @@ public class LeafQueue implements CSQueue {
   private static final Log LOG = LogFactory.getLog(LeafQueue.class);
 
   private final String queueName;   //recovered 
-  private CSQueue parent;    //TORECOVER
-  private float capacity;   //TORECOVER
-  private float absoluteCapacity;   //TORECOVER
-  private float maximumCapacity;  // TORECOVER
-  private float absoluteMaxCapacity;  //TORECOVER
+  private CSQueue parent;    //from conf
+  private float capacity;   //from conf
+  private float absoluteCapacity;   //from conf
+  private float maximumCapacity;  // from conf
+  private float absoluteMaxCapacity;  //from conf
   private float absoluteUsedCapacity = 0.0f;   //recovered
-  private int userLimit;  //TORECOVER
-  private float userLimitFactor;  //TORECOVER
+  private int userLimit;  //from conf
+  private float userLimitFactor;  //from conf
 
-  private int maxApplications; //TORECOVER
-  private int maxApplicationsPerUser; //TORECOVER
+  private int maxApplications; //from conf
+  private int maxApplicationsPerUser; //from conf
 
-  private float maxAMResourcePerQueuePercent;  //TORECOVER
-  private int maxActiveApplications; //TORECOVER Based on absolute max capacity
-  private int maxActiveAppsUsingAbsCap; //TORECOVER Based on absolute capacity
-  private int maxActiveApplicationsPerUser;  //TORECOVER Based on maxActiveAppsUsingAbsCap
+  private float maxAMResourcePerQueuePercent;  //from conf
+  private int maxActiveApplications; //Based on absolute max capacity
+  private int maxActiveAppsUsingAbsCap; //Based on absolute capacity
+  private int maxActiveApplicationsPerUser;  //Based on maxActiveAppsUsingAbsCap
 
-  private int nodeLocalityDelay; //TORECOVER from config
+  private int nodeLocalityDelay; //from config
 
   private Resource usedResources = Resources.createResource(0, 0);  // recoverd
   private float usedCapacity = 0.0f;   //recovered
@@ -103,7 +103,7 @@ public class LeafQueue implements CSQueue {
 
   Set<FiCaSchedulerApp> activeApplications; //recovered
   Map<ApplicationAttemptId, FiCaSchedulerApp> applicationAttemptMap
-          = new HashMap<ApplicationAttemptId, FiCaSchedulerApp>();   //recoverd
+          = new HashMap<ApplicationAttemptId, FiCaSchedulerApp>();   //recovered
 
   Set<FiCaSchedulerApp> pendingApplications; //recoverd
 
@@ -119,10 +119,10 @@ public class LeafQueue implements CSQueue {
 
   private QueueInfo queueInfo;   //recovered
 
-  private QueueState state;  //TORECOVER
+  private QueueState state;  //from conf
 
   private Map<QueueACL, AccessControlList> acls
-          = new HashMap<QueueACL, AccessControlList>();  //TORECOVER
+          = new HashMap<QueueACL, AccessControlList>();  //from conf
 
   private final RecordFactory recordFactory
           = RecordFactoryProvider.getRecordFactory(null);  // no need
@@ -146,27 +146,30 @@ public class LeafQueue implements CSQueue {
 
   }
 
+  //TORECOVER: change this to implement recoverable
   public void recoverApp(FiCaSchedulerApp appAttempt, RMStateStore.RMState state)
           throws AccessControlException {
-    applicationAttemptMap.put(appAttempt.getApplicationAttemptId(), appAttempt);
+    if (!appAttempt.isStopped()) {
+      applicationAttemptMap.
+              put(appAttempt.getApplicationAttemptId(), appAttempt);
 
-    if (appAttempt.isPending()) {
-      pendingApplications.add(appAttempt);
-    } else {
-      activeApplications.add(appAttempt);
+      if (appAttempt.isPending()) {
+        pendingApplications.add(appAttempt);
+      } else {
+        activeApplications.add(appAttempt);
+      }
+      // Inform the parent queue
+      try {
+        getParent().submitApplication(appAttempt.getApplicationId(),
+                appAttempt.getUser(), appAttempt.getQueueName(), null);
+      } catch (AccessControlException ace) {
+        LOG.info("Failed to submit application to parent-queue: "
+                + getParent().getQueuePath(), ace);
+        throw ace;
+      }
+      User user = getUser(appAttempt.getUser(), null);
+      user.recover(state.getAllCSLeafQueueUserInfo().get(appAttempt.getUser()));
     }
-    // Inform the parent queue
-    try {
-      getParent().submitApplication(appAttempt.getApplicationId(),
-              appAttempt.getUser(), appAttempt.getQueueName(), null);
-    } catch (AccessControlException ace) {
-      LOG.info("Failed to submit application to parent-queue: "
-              + getParent().getQueuePath(), ace);
-      throw ace;
-    }
-    User user = getUser(appAttempt.getUser(), null);
-    user.recover(state.getAllCSLeafQueueUserInfo().get(appAttempt.getUser()));
-
   }
   
   public LeafQueue(CapacitySchedulerContext cs, String queueName, 
@@ -524,7 +527,7 @@ public class LeafQueue implements CSQueue {
    * @param userLimit new user limit
    */
   synchronized void setUserLimit(int userLimit) {
-    this.userLimit = userLimit; //TORECOVER
+    this.userLimit = userLimit; 
   }
 
   /**
@@ -533,7 +536,7 @@ public class LeafQueue implements CSQueue {
    * @param userLimitFactor new user limit factor
    */
   synchronized void setUserLimitFactor(int userLimitFactor) {
-    this.userLimitFactor = userLimitFactor; //TORECOVER
+    this.userLimitFactor = userLimitFactor;
   }
 
   @Override
@@ -863,9 +866,6 @@ public class LeafQueue implements CSQueue {
     if (!wasActive) {
       pendingApplications.remove(application);
     }
-    //TORECOVER what does this mean?!
-    // important note - now appSchedulingInfo table is not cleared yet ,but schedulerapplication table is 
-    // clearing , so capacityScheduler recover function will work, but we have to clear this.
     applicationAttemptMap.remove(application.getApplicationAttemptId());
 
     user.finishApplication(application.getUser(), wasActive, transactionState);
