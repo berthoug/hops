@@ -67,39 +67,16 @@ public class FiCaSchedulerNodeInfoAgregate {
     this.toUpdateResources.addAll(toUpdateResources);
   }
 
-  static double totalt1 = 0;
-  static double totalt2 = 0;
-  static double totalt3 = 0;
-  static double totalt4 = 0;
-  static double totalt5 = 0;
-  static long nbFinish = 0;
-
   public void persist(ResourceDataAccess resourceDA,
           FiCaSchedulerNodeDataAccess ficaNodeDA,
           RMContainerDataAccess rmcontainerDA,
           LaunchedContainersDataAccess launchedContainersDA)
           throws StorageException {
-    Long start = System.currentTimeMillis();
     persistToUpdateFicaSchedulerNode(ficaNodeDA, rmcontainerDA);
-    totalt1 = totalt1 + System.currentTimeMillis() - start;
     persistRmContainerToRemove(rmcontainerDA);
-    totalt2 = totalt2 + System.currentTimeMillis() - start;
     persistLaunchedContainersToAdd(launchedContainersDA);
-    totalt3 = totalt3 + System.currentTimeMillis() - start;
     persistLaunchedContainersToRemove(launchedContainersDA);
-    totalt4 = totalt4 + System.currentTimeMillis() - start;
     persistToUpdateResources(resourceDA);
-    totalt5 = totalt5 + System.currentTimeMillis() - start;
-    nbFinish++;
-    if (nbFinish % 100 == 0) {
-      double avgt1 = totalt1 / nbFinish;
-      double avgt2 = totalt2 / nbFinish;
-      double avgt3 = totalt3 / nbFinish;
-      double avgt4 = totalt4 / nbFinish;
-      double avgt5 = totalt5 / nbFinish;
-      LOG.debug("avg time commit FiCASchedulerNodeInfo: " + avgt1 + ", " + avgt2
-              + ", " + avgt3 + ", " + avgt4 + ", " + avgt5);
-    }
   }
 
   public void persistToUpdateFicaSchedulerNode(

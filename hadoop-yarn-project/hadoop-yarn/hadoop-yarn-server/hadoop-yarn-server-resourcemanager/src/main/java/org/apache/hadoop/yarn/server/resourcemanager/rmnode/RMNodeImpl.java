@@ -677,9 +677,9 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
           !rmNode.context.getRMGroupMembershipService().isLeader()) {
         //Add NodeRemovedSchedulerEvent to TransactionState
         LOG.debug("HOP :: Added Pending event to TransactionState");
-        ((TransactionStateImpl) event.getTransactionState()).getRMNodeInfo(rmNode.nodeId).
-                addPendingEventToAdd(rmNode.getNodeID().toString(),
-                        TablesDef.PendingEventTableDef.NODE_REMOVED, 
+        ((TransactionStateImpl) event.getTransactionState()).getRMNodeInfo(
+                rmNode.nodeId).addPendingEventToAdd(rmNode.getNodeID().
+                        toString(), TablesDef.PendingEventTableDef.NODE_REMOVED,
                         TablesDef.PendingEventTableDef.NEW);
       } else {
         rmNode.context.getDispatcher().getEventHandler()

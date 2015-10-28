@@ -59,7 +59,7 @@ public class FiCaSchedulerAppInfo {
   private AppSchedulingInfo fiCaSchedulerAppToAdd;
   private Map<Integer, Resource> resourcesToUpdate
           = new HashMap<Integer, Resource>();
-
+  
   protected ApplicationAttemptId applicationAttemptId;
   private Map<ContainerId, ToPersistContainersInfo> liveContainersToAdd
           = new HashMap<ContainerId, ToPersistContainersInfo>();
@@ -428,11 +428,11 @@ public class FiCaSchedulerAppInfo {
               = new ArrayList<AppSchedulingInfoBlacklist>();
       for (String blackList : blacklistToAdd) {
         if (!blacklistToRemove.remove(blackList)) {
-          AppSchedulingInfoBlacklist hopBlackList
-                  = new AppSchedulingInfoBlacklist(applicationAttemptId.
+          AppSchedulingInfoBlacklist hopBlackList =
+              new AppSchedulingInfoBlacklist(applicationAttemptId.
                           toString(), blackList);
-          LOG.debug("adding ha_appschedulinginfo_blacklist " + hopBlackList.
-                  getAppschedulinginfo_id());
+          LOG.debug("adding ha_appschedulinginfo_blacklist " +
+              hopBlackList.getAppschedulinginfo_id());
           toAddblackListed.add(hopBlackList);
         }
       }
@@ -446,8 +446,8 @@ public class FiCaSchedulerAppInfo {
       List<AppSchedulingInfoBlacklist> toRemoveblackListed
               = new ArrayList<AppSchedulingInfoBlacklist>();
       for (String blackList : blacklistToRemove) {
-        AppSchedulingInfoBlacklist hopBlackList
-                = new AppSchedulingInfoBlacklist(applicationAttemptId.
+        AppSchedulingInfoBlacklist hopBlackList =
+            new AppSchedulingInfoBlacklist(applicationAttemptId.
                         toString(), blackList);
         LOG.debug("remove BlackLists " + hopBlackList);
         toRemoveblackListed.add(hopBlackList);

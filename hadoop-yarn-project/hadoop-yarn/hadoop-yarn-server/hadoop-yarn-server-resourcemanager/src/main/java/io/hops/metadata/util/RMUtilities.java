@@ -164,8 +164,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
@@ -195,7 +193,7 @@ public class RMUtilities {
                     .getDataAccess(RMStateVersionDataAccess.class);
             RMStateVersion newVersion = new RMStateVersion(0, version);
             vDA.add(newVersion);
-            nbCommit.incrementAndGet(); nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return null;
           }
         };
@@ -225,7 +223,7 @@ public class RMUtilities {
             if (hopRMStateVersion != null) {
               version = hopRMStateVersion.getVersion();
             }
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return version;
           }
         };
@@ -250,7 +248,7 @@ public class RMUtilities {
                 (ApplicationStateDataAccess) RMStorageFactory
                     .getDataAccess(ApplicationStateDataAccess.class);
             List<ApplicationState> appStates = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return appStates;
           }
         };
@@ -277,7 +275,7 @@ public class RMUtilities {
                     .getDataAccess(ApplicationStateDataAccess.class);
             ApplicationState appState =
                 (ApplicationState) DA.findByApplicationId(applicationId);
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return appState;
           }
         };
@@ -372,7 +370,7 @@ public class RMUtilities {
                     .getDataAccess(SecretMamagerKeysDataAccess.class);
             List<SecretMamagerKey> hopKeys =
                 (List<SecretMamagerKey>) DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             Map<RMStateStore.KeyType, MasterKey> keys =
                 new EnumMap<RMStateStore.KeyType, MasterKey>(
                     RMStateStore.KeyType.class);
@@ -406,7 +404,7 @@ public class RMUtilities {
                     .getDataAccess(AllocateResponseDataAccess.class);
             Map<String, AllocateResponse> hopAllocateResponses =
                 (Map<String, AllocateResponse>) da.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             Map<ApplicationAttemptId, org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse>
                 allocateResponses =
                 new HashMap<ApplicationAttemptId, org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse>();
@@ -469,7 +467,7 @@ public class RMUtilities {
                 = (AllocatedContainersDataAccess) RMStorageFactory.
                 getDataAccess(AllocatedContainersDataAccess.class);
                 Map<String, List<String>> allocatedContainersId = da.getAll();
-                nbCommit.incrementAndGet(); connector.commit();
+                connector.commit();
                 return allocatedContainersId;
               }
             };
@@ -492,7 +490,7 @@ public class RMUtilities {
             RPCDataAccess DA = (RPCDataAccess) RMStorageFactory
                 .getDataAccess(RPCDataAccess.class);
             List<RPC> appMasterRPCs = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return appMasterRPCs;
           }
         };
@@ -513,7 +511,7 @@ public class RMUtilities {
                 (AppSchedulingInfoDataAccess) RMStorageFactory
                     .getDataAccess(AppSchedulingInfoDataAccess.class);
             List<AppSchedulingInfo> result = dA.findAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return result;
           }
         };
@@ -533,7 +531,7 @@ public class RMUtilities {
                     .getDataAccess(SchedulerApplicationDataAccess.class);
             Map<String, SchedulerApplication> schedulerApplications =
                 DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return schedulerApplications;
           }
         };
@@ -553,7 +551,7 @@ public class RMUtilities {
                 (FiCaSchedulerNodeDataAccess) RMStorageFactory
                     .getDataAccess(FiCaSchedulerNodeDataAccess.class);
             Map<String, FiCaSchedulerNode> fiCaSchedulerNodes = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return fiCaSchedulerNodes;
           }
         };
@@ -574,7 +572,7 @@ public class RMUtilities {
                     .getDataAccess(LaunchedContainersDataAccess.class);
             Map<String, List<LaunchedContainers>> hopLaunchedContainers =
                 DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopLaunchedContainers;
           }
         };
@@ -597,7 +595,7 @@ public class RMUtilities {
                         FiCaSchedulerAppNewlyAllocatedContainersDataAccess.class);
             List<FiCaSchedulerAppContainer>
                 hopNewlyAllocatedContainers = DA.findById(ficaId);
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopNewlyAllocatedContainers;
           }
         };
@@ -620,7 +618,7 @@ public class RMUtilities {
                             FiCaSchedulerAppNewlyAllocatedContainersDataAccess.class);
             Map<String, List<FiCaSchedulerAppContainer>>
                 hopNewlyAllocatedContainers = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopNewlyAllocatedContainers;
           }
         };
@@ -644,7 +642,7 @@ public class RMUtilities {
                         FiCaSchedulerAppLiveContainersDataAccess.class);
             Map<String, List<FiCaSchedulerAppContainer>>
                 hopLiveContainers = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopLiveContainers;
           }
         };
@@ -667,7 +665,7 @@ public class RMUtilities {
                     .getDataAccess(ResourceRequestDataAccess.class);
             Map<String, List<ResourceRequest>> hopResourceRequests =
                 DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopResourceRequests;
           }
         };
@@ -689,7 +687,7 @@ public class RMUtilities {
                     .getDataAccess(AppSchedulingInfoBlacklistDataAccess.class);
             Map<String, List<AppSchedulingInfoBlacklist>> hopBlackList =
                 DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopBlackList;
           }
         };
@@ -719,7 +717,7 @@ public class RMUtilities {
             if (hseqNumber != null) {
               seqNumber = hseqNumber.getSequencenumber();
             }
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return seqNumber;
           }
         };
@@ -743,7 +741,7 @@ public class RMUtilities {
                 (DelegationTokenDataAccess) RMStorageFactory
                     .getDataAccess(DelegationTokenDataAccess.class);
             List<DelegationToken> delTokens = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return delTokens;
           }
         };
@@ -767,7 +765,7 @@ public class RMUtilities {
                 (DelegationKeyDataAccess) RMStorageFactory
                     .getDataAccess(DelegationKeyDataAccess.class);
             List<DelegationKey> delKeys = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return delKeys;
           }
         };
@@ -795,7 +793,7 @@ public class RMUtilities {
             ApplicationState hop =
                 new ApplicationState(appId, appState, null, null, null);
             DA.add(hop);
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return null;
           }
         };
@@ -830,7 +828,7 @@ public class RMUtilities {
             DA.add(hop);
             LOG.debug("HOP :: persistAppMasterRPC() - persistRPC");
 
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             LOG.debug("HOP :: persistAppMasterRPC() - persistRPC");
             return null;
           }
@@ -870,7 +868,7 @@ public class RMUtilities {
             if (rpcDA.findByTypeAndUserId(type.toString(), userId) /*||
                         rpcDA.findByTypeAndUserId(HopRPC.Type.NodeHeartbeat.toString(), userId)*/) {
               LOG.debug("HOP :: rmnodeRPCValidation() - RPC already exists");
-              nbCommit.incrementAndGet(); connector.commit();
+              connector.commit();
               return null;
             } else {
               LOG.debug("HOP :: rmnodeRPCValidation() rpcIdFound was null");
@@ -903,7 +901,7 @@ public class RMUtilities {
             } else {
               toReturn.put(1, false);
             }
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return toReturn;
           }
         };
@@ -937,7 +935,7 @@ public class RMUtilities {
             if (rpcDA.findByTypeAndUserId(type.toString(), id)) {
               LOG.debug(
                   "HOP :: heartbeatNMRPCValidation() - RPC already exists");
-              nbCommit.incrementAndGet(); connector.commit();
+              connector.commit();
               return Integer.MIN_VALUE;
             } else {
               //Get new rpcId and persist it
@@ -955,7 +953,7 @@ public class RMUtilities {
               RPC rpcToPersist = new RPC(rpcId, type, rpc, id);
               rpcDA.add(rpcToPersist);
             }
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             LOG.debug("HOP :: heartbeatNMRPCValidation - FINISH");
             return rpcId;
           }
@@ -980,7 +978,7 @@ public class RMUtilities {
               DA.removePendingEvent(persistedEvent);
             }
 
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return null;
           }
         };
@@ -1003,7 +1001,7 @@ public class RMUtilities {
             RMNodeComps hopRMNodeFull =
                 (RMNodeComps) fullRMNodeDA.findByNodeId(id);
 
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopRMNodeFull;
           }
         };
@@ -1218,7 +1216,7 @@ public class RMUtilities {
                 ((RMNodeImpl) rmNode).setLatestNodeHBResponse(hb);
               }
             }
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return rmNode;
           }
         };
@@ -1243,7 +1241,7 @@ public class RMUtilities {
                 (NextHeartbeatDataAccess) RMStorageFactory.
                     getDataAccess(NextHeartbeatDataAccess.class);
             Map<String, Boolean> allNextHeartbeats = nextHBDA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return allNextHeartbeats;
           }
         };
@@ -1268,7 +1266,7 @@ public class RMUtilities {
                 (NextHeartbeatDataAccess) RMStorageFactory.
                     getDataAccess(NextHeartbeatDataAccess.class);
             boolean hopNextHB = nextHBDA.findEntry(id);
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopNextHB;
           }
         };
@@ -1293,8 +1291,8 @@ public class RMUtilities {
             PendingEventDataAccess DA =
                 (PendingEventDataAccess) RMStorageFactory
                     .getDataAccess(PendingEventDataAccess.class);
-            DA.prepare(pendingEvents, null);
-            nbCommit.incrementAndGet(); connector.commit();
+            DA.addAll(pendingEvents);
+            connector.commit();
             return null;
           }
         };
@@ -1340,7 +1338,7 @@ public class RMUtilities {
                 }
               }
             }
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             LOG.debug("HOP :: getPendingEvents - FINISH");
             return pendingEventsByRMNode;
           }
@@ -1393,10 +1391,10 @@ public class RMUtilities {
                           TablesDef.PendingEventTableDef.PENDING, hop.getId());
                   pendingEventsModified.add(pending);
                 }
-                DA.prepare(pendingEventsModified, null);
+                DA.addAll(pendingEventsModified);
               }
             }
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return pendingEventsByRMNode;
           }
         };
@@ -1431,7 +1429,7 @@ public class RMUtilities {
                     .add(new ApplicationAttemptState(appId, attemptId));
               }
               attemptDA.removeAll(attemptIdsToRemove);
-              nbCommit.incrementAndGet(); connector.commit();
+              connector.commit();
             }
             return null;
           }
@@ -1454,7 +1452,7 @@ public class RMUtilities {
               //Remove this particular DT from NDB
               DelegationToken dtToRemove = new DelegationToken(seqNumber, null);
               DA.remove(dtToRemove);
-              nbCommit.incrementAndGet(); connector.commit();
+              connector.commit();
             }
             return null;
           }
@@ -1477,7 +1475,7 @@ public class RMUtilities {
               //Remove this particular DK from NDB
               DelegationKey dkeyToremove = new DelegationKey(key, null);
               DA.remove(dkeyToremove);
-              nbCommit.incrementAndGet(); connector.commit();
+              connector.commit();
               LOG.debug("HOP :: committed");
             }
             return null;
@@ -1501,7 +1499,7 @@ public class RMUtilities {
             SecretMamagerKey hop = new SecretMamagerKey(keyType.toString(),
                 ((MasterKeyPBImpl) key).getProto().toByteArray());
             DA.add(hop);
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return null;
           }
         };
@@ -1523,7 +1521,7 @@ public class RMUtilities {
             SecretMamagerKey hop =
                 new SecretMamagerKey(keyType.toString(), null);
             DA.remove(hop);
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return null;
           }
         };
@@ -1548,7 +1546,7 @@ public class RMUtilities {
                 (ApplicationAttemptStateDataAccess) RMStorageFactory
                     .getDataAccess(ApplicationAttemptStateDataAccess.class);
             Map<String, List<ApplicationAttemptState>> attempts = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return attempts;
           }
         };
@@ -1568,7 +1566,7 @@ public class RMUtilities {
                 (RanNodeDataAccess) RMStorageFactory
                     .getDataAccess(RanNodeDataAccess.class);
             Map<String, List<RanNode>> attempts = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return attempts;
           }
         };
@@ -1588,7 +1586,7 @@ public class RMUtilities {
                 (UpdatedNodeDataAccess) RMStorageFactory
                     .getDataAccess(UpdatedNodeDataAccess.class);
             Map<String, List<UpdatedNode>> attempts = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return attempts;
           }
         };
@@ -1617,7 +1615,7 @@ public class RMUtilities {
                     .getDataAccess(ApplicationAttemptStateDataAccess.class);
             ApplicationAttemptState attempt =
                 (ApplicationAttemptState) DA.findEntry(appId, attemptId);
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return attempt;
           }
         };
@@ -1648,7 +1646,7 @@ public class RMUtilities {
             DA.createApplicationAttemptStateEntry(
                 new ApplicationAttemptState(appId, appAttemptId, attemptIdData,
                     null, 0, null, null));
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return null;
           }
         };
@@ -1698,7 +1696,7 @@ public class RMUtilities {
             SequenceNumber sn = new SequenceNumber(NDBRMStateStore.SEQNUMBER_ID,
                 latestSequenceNumber);
             SDA.add(sn);
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return null;
           }
         };
@@ -1727,7 +1725,7 @@ public class RMUtilities {
             DA.createDTMasterKeyEntry(
                 new DelegationKey(delegationKey.getKeyId(), os.toByteArray()));
 
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return null;
           }
         };
@@ -1749,7 +1747,7 @@ public class RMUtilities {
                     getDataAccess(RMContextActiveNodesDataAccess.class);
             List<RMContextActiveNodes> hopRMContextNodes = rmctxnodesDA.
                 findAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopRMContextNodes;
           }
         };
@@ -1769,7 +1767,7 @@ public class RMUtilities {
                 getDataAccess(RMNodeDataAccess.class);
             Map<String, RMNode> rmNodes = rmDA.
                 getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return rmNodes;
           }
         };
@@ -1788,7 +1786,7 @@ public class RMUtilities {
                 .getDataAccess(NodeDataAccess.class);
             Map<String, Node> rmNodes = nodeDA.
                 getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return rmNodes;
           }
         };
@@ -1810,7 +1808,7 @@ public class RMUtilities {
                     getDataAccess(RMContextInactiveNodesDataAccess.class);
             List<RMContextInactiveNodes> hopRMContextInactiveNodes =
                 rmctxInactiveNodesDA.findAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopRMContextInactiveNodes;
           }
         };
@@ -1906,7 +1904,7 @@ public class RMUtilities {
 
               }
             }
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return inactiveNodes;
           }
         };
@@ -1944,7 +1942,7 @@ public class RMUtilities {
                     getDataAccess(UpdatedContainerInfoDataAccess.class);
             Map<String, Map<Integer, List<UpdatedContainerInfo>>>
                 allUpdatedContainerInfos = uciDA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return allUpdatedContainerInfos;
           }
         };
@@ -1966,7 +1964,7 @@ public class RMUtilities {
                 (ContainerStatusDataAccess) YarnAPIStorageFactory.
                     getDataAccess(ContainerStatusDataAccess.class);
             Map<String, ContainerStatus> allContainerStatus = csDA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return allContainerStatus;
           }
         };
@@ -1988,7 +1986,7 @@ public class RMUtilities {
                 (NodeHBResponseDataAccess) RMStorageFactory
                     .getDataAccess(NodeHBResponseDataAccess.class);
             Map<String, NodeHBResponse> hop = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hop;
           }
         };
@@ -2011,7 +2009,7 @@ public class RMUtilities {
                     getDataAccess(ContainerIdToCleanDataAccess.class);
             Map<String, Set<ContainerId>> hopContainerIdToClean =
                 tocleanDA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopContainerIdToClean;
           }
         };
@@ -2072,7 +2070,7 @@ public class RMUtilities {
               finishedApplications.addAll(finishedApplicationsNDB);
             }
 
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return null;
           }
         };
@@ -2094,7 +2092,7 @@ public class RMUtilities {
             Map<String, List<FinishedApplications>> hopFinishedApps =
                 finishedAppsDA.getAll();
 
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return hopFinishedApps;
           }
         };
@@ -2116,7 +2114,7 @@ public class RMUtilities {
                     getDataAccess(JustLaunchedContainersDataAccess.class);
             Map<String, List<JustLaunchedContainers>> justLaunchedContainers =
                 jlcDA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return justLaunchedContainers;
           }
         };
@@ -2139,7 +2137,7 @@ public class RMUtilities {
             RMContainerDataAccess DA = (RMContainerDataAccess) RMStorageFactory
                 .getDataAccess(RMContainerDataAccess.class);
             Map<String, RMContainer> found = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return found;
           }
         };
@@ -2158,7 +2156,7 @@ public class RMUtilities {
             ContainerDataAccess DA = (ContainerDataAccess) RMStorageFactory.
                 getDataAccess(ContainerDataAccess.class);
             Map<String, Container> found = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return found;
           }
         };
@@ -2218,22 +2216,14 @@ public class RMUtilities {
     nextRPCLock.unlock();
   }
   
-  static int nextRPC = 0;
-  static Map<Integer, TransactionStateImpl> finishedRPCs
-          = new HashMap<Integer, TransactionStateImpl>();
   static Lock nextRPCLock = new ReentrantLock(true);
   static Map<TransactionState, Long> startCommit = new ConcurrentHashMap<TransactionState, Long>();
-  static Map<TransactionState, Long> startHandling
-          = new ConcurrentHashMap<TransactionState, Long>();
 
   public static void logPutInCommitingQueue(TransactionState ts) {
     startCommit.put(ts, System.currentTimeMillis());
   }
 
   public static void finishRPCs(TransactionState ts) throws IOException {
-    if (startHandling.get(ts) == null) {
-      startHandling.put(ts, System.currentTimeMillis());
-    }
     nextRPCLock.lock();
     if (!canCommitApp(ts) || !canCommitNode((TransactionStateImpl) ts)) {
       finishedTs.add(ts);
@@ -2241,11 +2231,11 @@ public class RMUtilities {
     } else {
       nextRPCLock.unlock();
       if(ts.getId()> 0){
-        LOG.info("finishing rpc: " + ts.getId());
+        LOG.debug("finishing rpc: " + ts.getId());
       }
       finishRPC((TransactionStateImpl) ts);
       if(ts.getId()> 0){
-        LOG.info("finished rpc " + ts.getId());
+        LOG.debug("finished rpc " + ts.getId());
       }
       nextRPCLock.lock();
       int oldid = ts.getId();
@@ -2282,7 +2272,7 @@ public class RMUtilities {
       }
       nextRPCLock.unlock();
       for (TransactionState state : toCommit) {
-        LOG.info("recommiting " + state.getId() + " after " + oldid);
+        LOG.debug("recommiting " + state.getId() + " after " + oldid);
         state.commit(false);
       }
     }
@@ -2303,7 +2293,7 @@ public class RMUtilities {
     for (ApplicationId appId : ts.getAppIds()) {
       LOG.debug("peek ts for ap " + appId.toString() + " for ts: " + ts.getId());
       if (transactionStateForApp.get(appId).peek() != ts) {
-        LOG.info("cannot commit rpc " + ts.getId() + " head for " + appId
+        LOG.debug("cannot commit rpc " + ts.getId() + " head for " + appId
                 + " is " + transactionStateForApp.get(appId).peek().getId());
         nextRPCLock.unlock();
         return false;
@@ -2317,7 +2307,7 @@ public class RMUtilities {
     nextRPCLock.lock();
     for (String nodeId : ts.getRMNodesToUpdate().keySet()) {
       if (transactionStateForRMNode.get(nodeId).peek() != ts) {
-        LOG.info("cannot commit rpc " + ts.getId() + " head for " + nodeId
+        LOG.debug("cannot commit rpc " + ts.getId() + " head for " + nodeId
                 + " is "
                 + transactionStateForRMNode.get(nodeId).peek().
                 getId());
@@ -2328,25 +2318,6 @@ public class RMUtilities {
     nextRPCLock.unlock();
     return true;
   }
-
-  static LinkedBlockingQueue<String> logs = new LinkedBlockingQueue<String>();
-  static AtomicDouble totalCommitDuration =new AtomicDouble(0);
-  static double minCommitDuration = Double.MAX_VALUE;
-  static double maxCommitDuration = 0;
-  static double minCommitAndQueueDuration = Double.MAX_VALUE;
-  static double maxCommitAndQueueDuration = 0;
-  static AtomicDouble totalCommitAndQueueDuration =new AtomicDouble(0);
-  static AtomicDouble nbFinish =new AtomicDouble(0);
-  static AtomicDouble totalt1 =new AtomicDouble(0);
-  static AtomicDouble totalt2 =new AtomicDouble(0);
-  static AtomicDouble totalt3 =new AtomicDouble(0);
-  static AtomicDouble totalt4 =new AtomicDouble(0);
-  static AtomicDouble totalt5 =new AtomicDouble(0);
-  static AtomicDouble totalt6 =new AtomicDouble(0);
-  static AtomicDouble totalt7 =new AtomicDouble(0);
-  static AtomicDouble totalt8 =new AtomicDouble(0);
-  static AtomicDouble totalt9 =new AtomicDouble(0);
-  static AtomicDouble totalt10 =new AtomicDouble(0);
 
   static int commitAndQueueThreshold = 500;
   static int commitQueueMaxLength = 2;
@@ -2361,17 +2332,12 @@ public class RMUtilities {
   }
 
   public static void finishRPC(final TransactionStateImpl ts) {
-    logs.add("start commit " + ts.getId());
-    long start = System.currentTimeMillis();
     LightWeightRequestHandler setfinishRPCHandler =
         new LightWeightRequestHandler(YARNOperationType.TEST) {
           @Override
           public Object performTask() throws IOException {
-            logs.add("start handle " + ts.getId());
             connector.beginTransaction();
             connector.writeLock();
-            LOG.debug("HOP :: finishRPC() - handler for rpc: " );
-            long start = System.currentTimeMillis();
             RPCDataAccess DA = (RPCDataAccess) RMStorageFactory
                 .getDataAccess(RPCDataAccess.class);
             RMNodeDataAccess rmnodeDA = (RMNodeDataAccess) RMStorageFactory
@@ -2441,59 +2407,19 @@ public class RMUtilities {
                 rpcToRemove.add(hop);
               }
              DA.removeAll(rpcToRemove);
-            long t1 = System.currentTimeMillis()-start;
 //            //TODO put all of this in ts.persist
             ts.persistCSQueueInfo(csQDA, csLQDA);
-            long t2 = System.currentTimeMillis()-start;
-            logs.add("handle 1 " + ts.getId());
-            connector.flush();
             ts.persistRMNodeToUpdate(rmnodeDA);
-            long t3 = System.currentTimeMillis()-start;
-            connector.flush();
             ts.persistRmcontextInfo(rmnodeDA, resourceDA, nodeDA,
                 rmctxInactiveNodesDA);
-            long t4 = System.currentTimeMillis()-start;
-            connector.flush();
-            logs.add("handle 2 " + ts.getId());
             ts.persistRMNodeInfo(hbDA, cidToCleanDA, justLaunchedContainersDA,
                 updatedContainerInfoDA, faDA, csDA,persistedEventDA, connector);
-            long t5 = System.currentTimeMillis()-start;
-            connector.flush();
-            logs.add("handle 3 " + ts.getId());
-            ts.persist(logs);
-            long t6 = System.currentTimeMillis()-start;
-            connector.flush();
-            logs.add("handle 4 " + ts.getId());
+            ts.persist();
             ts.persistFicaSchedulerNodeInfo(resourceDA, ficaNodeDA,
                 rmcontainerDA, launchedContainersDA);
-            long t7 = System.currentTimeMillis()-start;
-            connector.flush();
             ts.persistFairSchedulerNodeInfo(FSSNodeDA);
-            long t8 = System.currentTimeMillis()-start;
-            connector.flush();
-            logs.add("handle 5 " + ts.getId());
             ts.persistSchedulerApplicationInfo(QMDA, connector);
-            long t9 = System.currentTimeMillis()-start;
-            connector.flush();
-            nbCommit.incrementAndGet(); connector.commit();
-            long t10 = System.currentTimeMillis()-start;
-            if (t10 > 1000) {
-              LOG.error("commit too long: " + ts.getId() + " dt: " + t1 + " " + t2
-                      + " " + t3 + " " + t4 + " " + t5 + " " + t6 + " " + t7
-                      + " " + t8 + " " + t9 + " " + t10 + " ");
-            }
-            totalt1.addAndGet(t1);
-            totalt2.addAndGet(t2);
-            totalt3.addAndGet(t3);
-            totalt4.addAndGet(t4);
-            totalt5.addAndGet(t5);
-            totalt6.addAndGet(t6);
-            totalt7.addAndGet(t7);
-            totalt8.addAndGet(t8);
-            totalt9.addAndGet(t9);
-            totalt10.addAndGet(t10);
-            //totalt11.addAndGet(t11);
-            logs.add("finish handle " + ts.getId());
+            connector.commit();
             return null;
           }
         };
@@ -2503,33 +2429,8 @@ public class RMUtilities {
       //TODO properly handle different kind of exceptions
       LOG.error("HOP :: Error commiting finishRPC ", ex);
     }
-    long commitDuration = System.currentTimeMillis() - start;
-    long commitAndQueueDuration = commitDuration;
-    long beforeHandling = 0;
-    commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(ts);
-    beforeHandling = startHandling.get(ts) - startCommit.get(ts);
-    
-    totalCommitDuration.addAndGet(commitDuration);
-    if(commitDuration> maxCommitDuration){
-      maxCommitDuration = commitDuration;
-    }
-    if(commitDuration< minCommitDuration){
-      minCommitDuration = commitDuration;
-    }
-    totalCommitAndQueueDuration.addAndGet(commitAndQueueDuration);
-        if(commitAndQueueDuration> maxCommitAndQueueDuration){
-      maxCommitAndQueueDuration = commitAndQueueDuration;
-    }
-    if(commitAndQueueDuration< minCommitAndQueueDuration){
-      minCommitAndQueueDuration = commitAndQueueDuration;
-    }
-    nbFinish.addAndGet(1);
-    if(commitAndQueueDuration>1000){
-      LOG.error("commit and queue duration too long: " + commitAndQueueDuration + " (" + commitDuration + ", " + beforeHandling + ") ts: " + ts.getId() + " nodes: " + ts.getRMNodesToUpdate().keySet().size() + " (" + ts.getRMNodesToUpdate().keySet() + ") " +
-              " app: " + ts.getAppIds().size() + " (" + ts.getAppIds() + ")");
-    }
-    logs.add("finish (" + ts.getId() +"): " + commitDuration + ", " + commitAndQueueDuration );
-    
+    long commitAndQueueDuration = System.currentTimeMillis() - startCommit.get(ts);
+       
     if(ts.getManager()!=null){
       if(commitAndQueueDuration>commitAndQueueThreshold || getQueueLength()>commitQueueMaxLength){
         if(ts.getManager().blockNonHB()){
@@ -2540,79 +2441,11 @@ public class RMUtilities {
       }
     }
   }
-
-  public static LinkedBlockingQueue<String>getLogs(){
-    return logs;
-  }
-  
-  public static void resetLogs(){
-    LOG.info("commit logs: reset");
-    TransactionStateImpl.resetLogs();
-    totalCommitDuration = new AtomicDouble(0);
-    minCommitDuration = Double.MAX_VALUE;
-    maxCommitDuration = 0;
-        minCommitAndQueueDuration = Double.MAX_VALUE;
-    maxCommitAndQueueDuration = 0;
-    totalCommitAndQueueDuration = new AtomicDouble(0);
-    nbFinish= new AtomicDouble(0);
-    totalt1 = new AtomicDouble(0);
-  totalt2 = new AtomicDouble(0);
-  totalt3 = new AtomicDouble(0);
-  totalt4 = new AtomicDouble(0);
-  totalt5 = new AtomicDouble(0);
-  totalt6 = new AtomicDouble(0);
-  totalt7 = new AtomicDouble(0);
-  totalt8 = new AtomicDouble(0);
-  totalt9 = new AtomicDouble(0);
-  totalt10 = new AtomicDouble(0);
-  }
-  public static double getCommitAvgDuration(){
-    return totalCommitDuration.get() / nbFinish.get();
-  }
-  
-  public static double getMinCommitDuration(){
-    return minCommitDuration;
-  }
-  
-  public static double getMaxCommitDuration(){
-    return maxCommitDuration;
-  }
-  
-    public static double getMinCommitAndQueueDuration(){
-    return minCommitAndQueueDuration;
-  }
-  
-  public static double getMaxCommitAndQueueDuration(){
-    return maxCommitAndQueueDuration;
-  }
   
   public static int getQueueLength(){
     return finishedTs.size();
   }
-  
-  public static double getCommitAndQueueAvgDuration(){
-    return totalCommitAndQueueDuration.get() / nbFinish.get();
-  }
-  
-  private static AtomicInteger nbCommit = new AtomicInteger(0);
-  private static int  oldNBCommit=0;
-  public static String getavgt(){
-    double avgt1=totalt1.get()/nbFinish.get();
-    double avgt2=totalt2.get()/nbFinish.get();
-    double avgt3=totalt3.get()/nbFinish.get();
-    double avgt4=totalt4.get()/nbFinish.get();
-    double avgt5=totalt5.get()/nbFinish.get();
-    double avgt6=totalt6.get()/nbFinish.get();
-    double avgt7=totalt7.get()/nbFinish.get();
-    double avgt8=totalt8.get()/nbFinish.get();
-    double avgt9=totalt9.get()/nbFinish.get();
-    double avgt10=totalt10.get()/nbFinish.get();
-    int nbCommits = nbCommit.get()-oldNBCommit;
-    oldNBCommit = nbCommit.get();
-    return "nb commits: " + nbCommits + "| " + avgt1 + ", " + avgt2 + ", "
-            + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", " + avgt7
-            + ", " + avgt8 + ", " + avgt9 + ", " + avgt1;
-  }
+   
   //for testing (todo: move in test class)
   public static Resource getResource(final String id, final int type,
       final int parent) throws IOException {
@@ -2625,7 +2458,7 @@ public class RMUtilities {
             ResourceDataAccess DA = (ResourceDataAccess) YarnAPIStorageFactory
                 .getDataAccess(ResourceDataAccess.class);
             Resource res = ((Resource) DA.findEntry(id, type, parent));
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return res;
           }
         };
@@ -2645,7 +2478,7 @@ public class RMUtilities {
                 .getDataAccess(ResourceDataAccess.class);
             Map<String, Map<Integer, Map<Integer, Resource>>> res = DA.
                 getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return res;
           }
         };
@@ -2666,7 +2499,7 @@ public class RMUtilities {
             RMLoadDataAccess DA = (RMLoadDataAccess) YarnAPIStorageFactory.
                 getDataAccess(RMLoadDataAccess.class);
             Map<String, Load> res = DA.getAll();
-            nbCommit.incrementAndGet(); connector.commit();
+            connector.commit();
             return res;
           }
         };
@@ -2719,7 +2552,7 @@ public class RMUtilities {
                         FiCaSchedulerAppSchedulingOpportunitiesDataAccess.class);
                 Map<String, List<FiCaSchedulerAppSchedulingOpportunities>> hopSOpp
                 = DA.getAll();
-                nbCommit.incrementAndGet(); connector.commit();
+                connector.commit();
                 return hopSOpp;
               }
             };
@@ -2741,7 +2574,7 @@ public class RMUtilities {
                         FiCaSchedulerAppLastScheduledContainerDataAccess.class);
                 Map<String, List<FiCaSchedulerAppLastScheduledContainer>> hopLastScheduledContainers
                 = DA.getAll();
-                nbCommit.incrementAndGet(); connector.commit();
+                connector.commit();
                 return hopLastScheduledContainers;
               }
             };
@@ -2762,7 +2595,7 @@ public class RMUtilities {
                 getDataAccess(FiCaSchedulerAppReservationsDataAccess.class);
                 Map<String, List<SchedulerAppReservations>> hopReservationsMap
                 = DA.getAll();
-                nbCommit.incrementAndGet(); connector.commit();
+                connector.commit();
                 return hopReservationsMap;
               }
             };
@@ -2783,7 +2616,7 @@ public class RMUtilities {
                 getDataAccess(FiCaSchedulerAppReservedContainersDataAccess.class);
                 Map<String, List<FiCaSchedulerAppReservedContainers>> hopResCont
                 = DA.getAll();
-                nbCommit.incrementAndGet(); connector.commit();
+                connector.commit();
                 return hopResCont;
               }
             };
@@ -2834,7 +2667,7 @@ public class RMUtilities {
                 CSQueue found = (CSQueue) CSQDA.findById(queuepath);
                 LOG.debug("HOP :: getCSQueueInfo() - got HopSCSQueueInfo:"
                         + queuepath);
-                nbCommit.incrementAndGet(); connector.commit();
+                connector.commit();
                 return found;
               }
             };

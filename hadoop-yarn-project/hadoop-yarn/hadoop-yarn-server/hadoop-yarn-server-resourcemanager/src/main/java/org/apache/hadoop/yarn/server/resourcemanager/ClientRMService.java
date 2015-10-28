@@ -528,8 +528,8 @@ public class ClientRMService extends AbstractService
           .persistAppMasterRPC(rpcID, RPC.Type.SubmitApplication, submitAppData,
               user);
     }
-    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID,
-                    "submitApplication");
+    TransactionState transactionState = rmContext.getTransactionStateManager().
+            getCurrentTransactionStateNonPriority(rpcID,"submitApplication");
     // Check whether app has already been put into rmContext,
     // If it is, simply return the response
     if (rmContext.getRMApps().get(applicationId) != null) {
@@ -618,8 +618,8 @@ public class ClientRMService extends AbstractService
       RMUtilities.persistAppMasterRPC(rpcID, RPC.Type.ForceKillApplication,
           forceKillAppData, callerUGI.getUserName());
     }
-    TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID,
-                    "forceKillApplication");
+    TransactionState transactionState = rmContext.getTransactionStateManager().
+            getCurrentTransactionStateNonPriority(rpcID,"forceKillApplication");
     RMApp application = this.rmContext.getRMApps().get(applicationId);
     if (application == null) {
       RMAuditLogger

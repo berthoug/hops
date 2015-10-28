@@ -90,7 +90,7 @@ public class TestFifoScheduler {
     conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 2048);
     conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB, 1024);
     try {
-      scheduler.reinitialize(conf, null);
+      scheduler.reinitialize(conf, null, null);
       fail("Exception is expected because the min memory allocation is" +
           " larger than the max memory allocation.");
     } catch (YarnRuntimeException e) {
@@ -280,7 +280,7 @@ public class TestFifoScheduler {
     conf.setQueues("default", new String[]{"default"});
     conf.setCapacity("default", 100);
     FifoScheduler fs = new FifoScheduler();
-    fs.reinitialize(conf, null);
+    fs.reinitialize(conf, null, null);
 
     RMNode n1 =
         MockNodes.newNodeInfo(0, MockNodes.newResource(4 * GB), 1, "127.0.0.2");

@@ -346,7 +346,8 @@ public class FiCaSchedulerNode extends SchedulerNode implements Recoverable{
 
   @Override
   public synchronized void applyDeltaOnAvailableResource(
-      org.apache.hadoop.yarn.api.records.Resource deltaResource, TransactionState ts) {
+      org.apache.hadoop.yarn.api.records.Resource deltaResource, 
+          TransactionState ts) {
     // we can only adjust available resource if total resource is changed.
     Resources.addTo(this.availableResource, deltaResource);
   }

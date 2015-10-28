@@ -205,7 +205,8 @@ public class TestParentQueue {
     
     Map<String, CSQueue> queues = new HashMap<String, CSQueue>();
     CSQueue root = CapacityScheduler.parseQueue(csContext, csConf, null,
-        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook);
+        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook,
+        null);
 
     // Setup some nodes
     final int memoryPerNode = 10;
@@ -312,7 +313,7 @@ public class TestParentQueue {
     try {
       CapacityScheduler.parseQueue(csContext, csConf, null,
           CapacitySchedulerConfiguration.ROOT, queues, queues,
-          TestUtils.spyHook);
+          TestUtils.spyHook, null);
     } catch (IllegalArgumentException ie) {
       exceptionOccured = true;
     }
@@ -326,7 +327,7 @@ public class TestParentQueue {
     try {
       CapacityScheduler.parseQueue(csContext, csConf, null,
           CapacitySchedulerConfiguration.ROOT, queues, queues,
-          TestUtils.spyHook);
+          TestUtils.spyHook, null);
     } catch (IllegalArgumentException ie) {
       exceptionOccured = true;
     }
@@ -340,7 +341,7 @@ public class TestParentQueue {
     try {
       CapacityScheduler.parseQueue(csContext, csConf, null,
           CapacitySchedulerConfiguration.ROOT, queues, queues,
-          TestUtils.spyHook);
+          TestUtils.spyHook, null);
     } catch (IllegalArgumentException ie) {
       exceptionOccured = true;
     }
@@ -416,7 +417,8 @@ public class TestParentQueue {
     
     Map<String, CSQueue> queues = new HashMap<String, CSQueue>();
     CSQueue root = CapacityScheduler.parseQueue(csContext, csConf, null,
-        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook);
+        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook, 
+        null);
     
     // Setup some nodes
     final int memoryPerNode = 10;
@@ -550,7 +552,8 @@ public class TestParentQueue {
     
     Map<String, CSQueue> queues = new HashMap<String, CSQueue>();
     CapacityScheduler.parseQueue(csContext, csConf, null,
-        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook);
+        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook, 
+        null);
   }
   
   @Test(expected = IllegalArgumentException.class)
@@ -566,7 +569,8 @@ public class TestParentQueue {
 
     Map<String, CSQueue> queues = new HashMap<String, CSQueue>();
     CapacityScheduler.parseQueue(csContext, csConf, null,
-        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook);
+        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook, 
+        null);
   }
   
   @Test
@@ -588,7 +592,7 @@ public class TestParentQueue {
     try {
       CapacityScheduler.parseQueue(csContext, csConf, null,
           CapacitySchedulerConfiguration.ROOT, queues, queues,
-          TestUtils.spyHook);
+          TestUtils.spyHook, null);
     } catch (IllegalArgumentException e) {
       fail("Failed to create queues with 0 capacity: " + e);
     }
@@ -602,7 +606,8 @@ public class TestParentQueue {
     
     Map<String, CSQueue> queues = new HashMap<String, CSQueue>();
     CSQueue root = CapacityScheduler.parseQueue(csContext, csConf, null,
-        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook);
+        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook, 
+        null);
 
     // Setup some nodes
     final int memoryPerNode = 10;
@@ -679,7 +684,8 @@ public class TestParentQueue {
     //B3
     Map<String, CSQueue> queues = new HashMap<String, CSQueue>();
     CSQueue root = CapacityScheduler.parseQueue(csContext, csConf, null,
-        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook);
+        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook, 
+        null);
 
     // Setup some nodes
     final int memoryPerNode = 10;
@@ -778,7 +784,8 @@ public class TestParentQueue {
 
     Map<String, CSQueue> queues = new HashMap<String, CSQueue>();
     CSQueue root = CapacityScheduler.parseQueue(csContext, csConf, null,
-        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook);
+        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook, 
+        null);
 
     UserGroupInformation user = UserGroupInformation.getCurrentUser();
     // Setup queue configs

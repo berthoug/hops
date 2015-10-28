@@ -33,9 +33,9 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
  */
 public class NdbRtStreamingReceiver {
 
+  //TODO make the queue size configurable
   public static BlockingQueue<StreamingRTComps> blockingRTQueue
-          = new ArrayBlockingQueue<StreamingRTComps>(
-                  YarnConfiguration.NDB_EVENT_STREAMING_QUEUE_CAPACITY);
+          = new ArrayBlockingQueue<StreamingRTComps>(100000);
 
   private static final Log LOG = LogFactory.getLog(NdbRtStreamingReceiver.class);
   private Set<org.apache.hadoop.yarn.api.records.ContainerId> containersToCleanSet

@@ -651,7 +651,8 @@ public class SchedulerApplicationAttempt implements Recoverable{
             schedulingOpportunities.count(priority) + 1);
 
     //HOP : Update SchedulingOpportunities
-    ((TransactionStateImpl) ts).getSchedulerApplicationInfos(this.appSchedulingInfo.applicationId).
+    ((TransactionStateImpl) ts).getSchedulerApplicationInfos(
+            this.appSchedulingInfo.applicationId).
             getFiCaSchedulerAppInfo(getApplicationAttemptId()).
             addSchedulingOppurtunity(priority, schedulingOpportunities.count(
                             priority) - 1);

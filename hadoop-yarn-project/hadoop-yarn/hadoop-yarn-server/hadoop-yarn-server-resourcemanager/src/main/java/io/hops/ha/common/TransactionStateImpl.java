@@ -175,10 +175,6 @@ public class TransactionStateImpl extends TransactionState {
     this.type = type;
     this.schedulerApplicationInfo =
       new SchedulerApplicationInfo(this);
-    if(!printerRuning){
-      printerRuning = true;
-      (new Thread(new LogsPrinter())).start();
-    }
     this.manager = manager;
   }
 
@@ -217,83 +213,17 @@ public class TransactionStateImpl extends TransactionState {
     return appIds.add(appId);
   }
     
-  static double totalt1 =0;
-  static double totalt2 =0;
-  static double totalt3 =0;
-  static double totalt4 =0;
-  static double totalt5 =0;
-  static double totalt6 =0;
-  static double totalt7=0;
-    static long nbFinish =0;
-    
-  public static void resetLogs(){
-    
-    nbFinish=0;
-
-    nbFinish=0;
-    totalt1 =0;
-  totalt2 =0;
-  totalt3 =0;
-  totalt4 =0;
-  totalt5 =0;
-  totalt6 =0;
-  totalt7=0;
-  }
-      
-  public void persist(LinkedBlockingQueue<String> logs) throws IOException {
-    Long start = System.currentTimeMillis();
-    try{
-    persitApplicationToAdd(logs);
-    logs.add("handle 3 1 " + getId());
-    long t1 =System.currentTimeMillis() - start;
-    totalt1=totalt1 + t1;
+  public void persist() throws IOException {
+    persitApplicationToAdd();
     persistApplicationStateToRemove();
-    logs.add("handle 3 2 " + getId());
-    long t2 =System.currentTimeMillis() - start;
-    totalt2=totalt2 + System.currentTimeMillis() - start;
     persistAppAttempt();
-    logs.add("handle 3 3 " + getId());
-    long t3 =System.currentTimeMillis() - start;
-    totalt3=totalt3 + System.currentTimeMillis() - start;
-//    persistAllocateResponsesToAdd();
-    logs.add("handle 3 4 " + getId());
-    long t4 =System.currentTimeMillis() - start;
-    totalt4=totalt4 + System.currentTimeMillis() - start;
+    persistAllocateResponsesToAdd();
     persistAllocateResponsesToRemove();
-    logs.add("handle 3 5 " + getId());
-    long t5 =System.currentTimeMillis() - start;
-    totalt5=totalt5 + System.currentTimeMillis() - start;
-    persistRMContainerToUpdate(logs);
-    logs.add("handle 3 6 " + getId());
-     long t6 =System.currentTimeMillis() - start;
-    totalt6=totalt6 + System.currentTimeMillis() - start;
+    persistRMContainerToUpdate();
     persistContainers();
-    logs.add("handle 3 7 " + getId());
-    long t7 =System.currentTimeMillis() - start;
-    totalt7=totalt7 + System.currentTimeMillis() - start;
-    nbFinish++;
-    if(nbFinish%100==0){
-    double avgt1=totalt1/nbFinish;
-    double avgt2=totalt2/nbFinish;
-    double avgt3=totalt3/nbFinish;
-    double avgt4=totalt4/nbFinish;
-    double avgt5=totalt5/nbFinish;
-    double avgt6=totalt6/nbFinish;
-    double avgt7=totalt7/nbFinish;
-    LOG.info("avg time commit transactionStateImpl: " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", " + avgt7);
-    }
-    if(t6>500){
-      LOG.error("commit transactionStateImpl too long : " + t1 + ", " + t2 + ", " + t3 + ", " + t4 + ", " + t5 + ", " + t6 + ", " + t7);
-    }
     //TODO rebuild cluster resource from node resources
 //    persistClusterResourceToUpdate();
 //    persistUsedResourceToUpdate();
-    }catch (IOException e){
-      LOG.error("exception " + e, e);
-      throw e;
-    }catch (Exception e){
-      LOG.error("exception " + e, e);
-    }
   }
 
   public void persistSchedulerApplicationInfo(QueueMetricsDataAccess QMDA, StorageConnector connector)
@@ -383,13 +313,8 @@ public class TransactionStateImpl extends TransactionState {
     ficaSchedulerNodeInfoToUpdate.remove(nodeId);
   }
   
-  static boolean firstApp=true;
   static public int callsAddApplicationToAdd =0;
   public void addApplicationToAdd(RMAppImpl app) {
-    if(firstApp){
-      firstApp=false;
-      RMUtilities.resetLogs();
-    }
     
     ApplicationStateDataPBImpl appStateData =
               (ApplicationStateDataPBImpl) ApplicationStateDataPBImpl
@@ -418,34 +343,15 @@ public class TransactionStateImpl extends TransactionState {
     addAppId(app.getApplicationId());
   }
   
-  private void persitApplicationToAdd(LinkedBlockingQueue<String> logs) throws IOException {
+  private void persitApplicationToAdd() throws IOException {
     if (!applicationsToAdd.isEmpty()) {
       ApplicationStateDataAccess DA =
           (ApplicationStateDataAccess) RMStorageFactory
               .getDataAccess(ApplicationStateDataAccess.class);
       DA.addAll(applicationsToAdd.values());
-       logs.add("handle 3 0 1 " + getId());
       UpdatedNodeDataAccess uNDA = (UpdatedNodeDataAccess)RMStorageFactory
               .getDataAccess(UpdatedNodeDataAccess.class);
       uNDA.addAll(updatedNodeIdToAdd.values());
-      logs.add("handle 3 0 2 " + getId());
-    }
-  }
-
-  private String dumpApplicationToAdd() {
-    if (!applicationsToAdd.isEmpty()) {
-      String result = "application to add: " + applicationsToAdd.values().size()
-              + "\n";
-      int total = 0;
-      for (List<UpdatedNode> up : updatedNodeIdToAdd.values()) {
-        total += up.size();
-      }
-      int avg = total / updatedNodeIdToAdd.size();
-      result = result + "updatedNodeIdToAdd: " + updatedNodeIdToAdd.values().
-              size() + " avg list size: " + avg + "\n";
-      return result;
-    } else {
-      return "";
     }
   }
   
@@ -473,7 +379,6 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
   
-  public static int callsaddAppAttempt = 0;
   public void addAppAttempt(RMAppAttempt appAttempt) {
     String appIdStr = appAttempt.getAppAttemptId().getApplicationId().
             toString();
@@ -490,8 +395,6 @@ public class TransactionStateImpl extends TransactionState {
       }
       appAttemptTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
     }
-    Queue<ContainerStatus> justFinishedContainers = 
-            new ConcurrentLinkedQueue<ContainerStatus>(appAttempt.getJustFinishedContainers());
     
     ApplicationAttemptStateDataPBImpl attemptStateData
             = (ApplicationAttemptStateDataPBImpl) ApplicationAttemptStateDataPBImpl.
@@ -519,7 +422,6 @@ public class TransactionStateImpl extends TransactionState {
                     getHost(), appAttempt.getRpcPort(), appAttemptTokens,
                     appAttempt.
                     getTrackingUrl()));
-    callsaddAppAttempt++;
     addAppId(appAttempt.getAppAttemptId().getApplicationId());
   }
   
@@ -555,7 +457,6 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
   
-//  private void persist
   public void addAllRanNodes(RMAppAttempt appAttempt) {
     Map<Integer, RanNode> ranNodeToPersist = new HashMap<Integer, RanNode>();
     Queue<NodeId> ranNodes = new ConcurrentLinkedQueue<NodeId>(appAttempt.getRanNodes());
@@ -591,24 +492,7 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
   
-  private String dumpAppAttempt() {
-    if (!appAttempts.isEmpty()) {
-      int stateSize = 0;
-      int tokenSize = 0;
-      for (ApplicationAttemptState state : appAttempts.values()) {
-        stateSize += state.getApplicationattemptstate().length;
-        tokenSize += state.getAppAttemptTokens().array().length;
-      }
-      int avgStateSize = stateSize / appAttempts.values().size();
-      int avgTokenSize = tokenSize/appAttempts.values().size();
-      
-      return "appAttempt : " + appAttempts.values().size() + " avg state size: "
-              + avgStateSize + " avg token size: " + avgTokenSize;
-    }
-    return "";
-  }
   
-  public static int callsaddAllocateResponse=0;
   public void addAllocateResponse(ApplicationAttemptId id,
           AllocateResponseLock allocateResponse) {
     AllocateResponsePBImpl lastResponse
@@ -628,10 +512,8 @@ public class TransactionStateImpl extends TransactionState {
       AllocateResponsePBImpl toPersist = new AllocateResponsePBImpl();
       toPersist.setAMCommand(lastResponse.getAMCommand());
       toPersist.setAvailableResources(lastResponse.getAvailableResources());
-//      toPersist.setCompletedContainersStatuses(lastResponse.getCompletedContainersStatuses());
       toPersist.setDecreasedContainers(lastResponse.getDecreasedContainers());
       toPersist.setIncreasedContainers(lastResponse.getIncreasedContainers());
-//      toPersist.setNMTokens(lastResponse.getNMTokens());
       toPersist.setNumClusterNodes(lastResponse.getNumClusterNodes());
       toPersist.setPreemptionMessage(lastResponse.getPreemptionMessage());
       toPersist.setResponseId(lastResponse.getResponseId());
@@ -645,7 +527,6 @@ public class TransactionStateImpl extends TransactionState {
                 " for " + id + " content: " + print(toPersist));
       }
       allocateResponsesToRemove.remove(id);
-      callsaddAllocateResponse++;
       addAppId(id.getApplicationId());
     }
   }
@@ -669,60 +550,26 @@ public class TransactionStateImpl extends TransactionState {
     return s;
   }
 
-  static double nbPersist =0;
-  static double tt1=0;
-  static double tt2=0;
-  static double tt3=0;
   private void persistAllocateResponsesToAdd() throws IOException {
     if (!allocateResponsesToAdd.isEmpty()) {
-      long start = System.currentTimeMillis();
       AllocateResponseDataAccess da =
           (AllocateResponseDataAccess) RMStorageFactory
               .getDataAccess(AllocateResponseDataAccess.class);
       AllocatedContainersDataAccess containersDA = (AllocatedContainersDataAccess)
               RMStorageFactory.getDataAccess(AllocatedContainersDataAccess.class);
       da.update(allocateResponsesToAdd.values());
-      tt1 = tt1 + System.currentTimeMillis() - start;
       containersDA.update(allocateResponsesToAdd.values());
-      tt2 = tt2 + System.currentTimeMillis() - start;
       CompletedContainersStatusDataAccess completedContainersDA =
               (CompletedContainersStatusDataAccess) 
               RMStorageFactory.getDataAccess(CompletedContainersStatusDataAccess.class);
-//      completedContainersDA.update(allocateResponsesToAdd.values());
-      tt3 = tt3 + System.currentTimeMillis() - start;
-      nbPersist++;
-      if(nbPersist%100 == 0){
-        double avgt1 = tt1/nbPersist;
-        double avgt2 = tt2/nbPersist;
-        double avgt3 = tt3/nbPersist;
-        LOG.info("persist allocate response to add avg time: " + avgt1 + ", " + avgt2 + ", " + avgt3);
-      }
+      completedContainersDA.update(allocateResponsesToAdd.values());
     }
   }
   
-  private String dumpAllocateResponsesToAdd(){
-    if(! allocateResponsesToAdd.isEmpty()){
-      int responseSize = 0;
-      int allocatedContainersSize = 0;
-      for(AllocateResponse response : allocateResponsesToAdd.values()){
-        responseSize+= response.getAllocateResponse().length;
-        allocatedContainersSize+=response.getAllocatedContainers().size();
-      }
-      int avgResponseSize = responseSize/allocateResponsesToAdd.size();
-      int avgAllocatedContainersSize = allocatedContainersSize/allocateResponsesToAdd.size();
-      return "allocatedResponseTo add: " + allocateResponsesToAdd.size() + 
-              " avg response size: " + avgResponseSize + 
-              " avg allocated containers size" + avgAllocatedContainersSize;
-    }
-    return "";
-  }
-  
-  public static int callremoveAllocateResponse=0;
   public void removeAllocateResponse(ApplicationAttemptId id, int responseId) {
     if(allocateResponsesToAdd.remove(id)==null){
     this.allocateResponsesToRemove.put(id,new AllocateResponse(id.toString(), responseId));
     }
-    callremoveAllocateResponse++;
     addAppId(id.getApplicationId());
   }
   
@@ -794,19 +641,13 @@ public class TransactionStateImpl extends TransactionState {
                             rmContainer.getContainerExitStatus()));
   }
 
-  private void persistRMContainerToUpdate(LinkedBlockingQueue<String> logs) throws StorageException {
+  private void persistRMContainerToUpdate() throws StorageException {
     if (!rmContainersToUpdate.isEmpty()) {
       RMContainerDataAccess rmcontainerDA =
           (RMContainerDataAccess) RMStorageFactory
               .getDataAccess(RMContainerDataAccess.class);      
-      logs.add("handle 3 5 1 " + getId());
-      rmcontainerDA.addAll(rmContainersToUpdate.values(), logs, getId());
-      logs.add("handle 3 5 2 " + getId());
+      rmcontainerDA.addAll(rmContainersToUpdate.values());
     }
-  }
-
-  private String dumpRMContainerToUpdate(){
-    return "rmContainer to update " + rmContainersToUpdate.size();
   }
   
   public void persistFicaSchedulerNodeInfo(ResourceDataAccess resourceDA,
@@ -919,7 +760,9 @@ public class TransactionStateImpl extends TransactionState {
     }
   }
 
-  private void persistFiCaSchedulerNodeToRemove(ResourceDataAccess resourceDA, FiCaSchedulerNodeDataAccess ficaNodeDA, RMContainerDataAccess rmcontainerDA, LaunchedContainersDataAccess launchedContainersDA) throws StorageException {
+  private void persistFiCaSchedulerNodeToRemove(ResourceDataAccess resourceDA, 
+          FiCaSchedulerNodeDataAccess ficaNodeDA, RMContainerDataAccess rmcontainerDA, 
+          LaunchedContainersDataAccess launchedContainersDA) throws StorageException {
     if (!ficaSchedulerNodeInfoToRemove.isEmpty()) {
       Queue<FiCaSchedulerNode> toRemoveFiCaSchedulerNodes =
           new ConcurrentLinkedQueue<FiCaSchedulerNode>();
@@ -991,8 +834,6 @@ public class TransactionStateImpl extends TransactionState {
   }
 
 
-  static Queue<Long> durations = new ConcurrentLinkedQueue<Long>();
-  static boolean printerRuning = false;
   
   private class RPCFinisher implements Runnable {
 

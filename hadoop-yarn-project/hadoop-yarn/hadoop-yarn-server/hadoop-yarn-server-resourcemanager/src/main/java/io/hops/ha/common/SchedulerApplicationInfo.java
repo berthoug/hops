@@ -17,11 +17,9 @@ package io.hops.ha.common;
 
 import io.hops.StorageConnector;
 import io.hops.exception.StorageException;
-import io.hops.metadata.util.HopYarnAPIUtilities;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.yarn.dal.QueueMetricsDataAccess;
 import io.hops.metadata.yarn.dal.SchedulerApplicationDataAccess;
-import io.hops.metadata.yarn.entity.QueueMetrics;
 import io.hops.metadata.yarn.entity.SchedulerApplication;
 import io.hops.metadata.yarn.entity.SchedulerApplicationInfoToAdd;
 import org.apache.commons.logging.Log;
@@ -38,7 +36,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSSchedulerApp;
 
 /**
  * Contains scheduler specific information about Applications.
@@ -62,28 +59,11 @@ public class SchedulerApplicationInfo {
     this.transactionState = transactionState;
   }
   
-  static double totalt1 = 0;
-  static double totalt2 = 0;
-  static double totalt3 = 0;
-  static long nbFinish = 0;
-  
   public void persist(QueueMetricsDataAccess QMDA, StorageConnector connector) throws StorageException {
     //TODO: The same QueueMetrics (DEFAULT_QUEUE) is persisted with every app. Its extra overhead. We can persist it just once
-    long start = System.currentTimeMillis();
     persistApplicationIdToAdd(QMDA);
-    totalt1 = totalt1 +  System.currentTimeMillis()-start;
     persistFiCaSchedulerAppInfo(connector);
-    totalt2 = totalt2 + System.currentTimeMillis()-start;
     persistApplicationIdToRemove();
-    totalt3 = totalt3 + System.currentTimeMillis()-start;
-    nbFinish++;
-    if (nbFinish % 100 == 0) {
-      double avgt1 = totalt1 / nbFinish;
-      double avgt2 = totalt2 / nbFinish;
-      double avgt3 = totalt3 / nbFinish;
-      LOG.debug("avg time commit scheduler app info: " + avgt1 + ", " + avgt2
-              + ", " + avgt3);
-    }
   }
 
   private void persistApplicationIdToAdd(QueueMetricsDataAccess QMDA)
@@ -160,8 +140,6 @@ public class SchedulerApplicationInfo {
       String appAttemptIdString = appAttemptId.toString();
       FiCaSchedulerAppInfo appInfo = new FiCaSchedulerAppInfo(appAttemptId, transactionState);
       map.put(appAttemptIdString, appInfo);
-//      fiCaSchedulerAppInfo.get(appId.toString())
-//          .put(appAttemptId.toString(), new FiCaSchedulerAppInfo(appAttemptId));
     }
     Map<String, FiCaSchedulerAppInfo> map = fiCaSchedulerAppInfo.get(appId.toString());
     String appAttemptIdString = appAttemptId.toString();
@@ -173,19 +151,13 @@ public class SchedulerApplicationInfo {
 
   private void persistFiCaSchedulerAppInfo(StorageConnector connector) throws StorageException {
     if(!fiCaSchedulerAppInfo.isEmpty()){
-    long start = System.currentTimeMillis();
     AgregatedAppInfo agregatedAppInfo = new AgregatedAppInfo();
     for (Map<String,FiCaSchedulerAppInfo> map : fiCaSchedulerAppInfo.values()) {
       for(FiCaSchedulerAppInfo appInfo: map.values()){
         appInfo.agregate(agregatedAppInfo);
       }
     }
-    long t1=System.currentTimeMillis()-start;
     agregatedAppInfo.persist();
-    long t2 = System.currentTimeMillis()-start;
-    if(t2>100){
-      LOG.error("persist fica scheduler app info too long: " + t1 + ", " + t2);
-    }
     }
   }
 

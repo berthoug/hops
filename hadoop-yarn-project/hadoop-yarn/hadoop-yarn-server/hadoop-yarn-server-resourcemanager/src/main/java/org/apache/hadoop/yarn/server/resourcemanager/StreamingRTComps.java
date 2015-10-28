@@ -24,32 +24,35 @@ import java.util.Set;
  */
 public class StreamingRTComps {
 
-    private final Set<org.apache.hadoop.yarn.api.records.ContainerId> containersToClean;
-    private final List<org.apache.hadoop.yarn.api.records.ApplicationId> finishedApp;
-    private final String nodeId;
-    private final boolean nextHeartbeat;
+  private final Set<org.apache.hadoop.yarn.api.records.ContainerId> containersToClean;
+  private final List<org.apache.hadoop.yarn.api.records.ApplicationId> finishedApp;
+  private final String nodeId;
+  private final boolean nextHeartbeat;
 
-    public StreamingRTComps(Set<org.apache.hadoop.yarn.api.records.ContainerId> containersToClean, List<org.apache.hadoop.yarn.api.records.ApplicationId> finishedApp, String nodeId, boolean nextHeartbeat) {
-        this.containersToClean = containersToClean;
-        this.finishedApp = finishedApp;
-        this.nodeId = nodeId;
-        this.nextHeartbeat = nextHeartbeat;
-    }
+  public StreamingRTComps(
+          Set<org.apache.hadoop.yarn.api.records.ContainerId> containersToClean,
+          List<org.apache.hadoop.yarn.api.records.ApplicationId> finishedApp,
+          String nodeId, boolean nextHeartbeat) {
+    this.containersToClean = containersToClean;
+    this.finishedApp = finishedApp;
+    this.nodeId = nodeId;
+    this.nextHeartbeat = nextHeartbeat;
+  }
 
-    public Set<org.apache.hadoop.yarn.api.records.ContainerId> getContainersToClean() {
-        return containersToClean;
-    }
+  public Set<org.apache.hadoop.yarn.api.records.ContainerId> getContainersToClean() {
+    return containersToClean;
+  }
 
-    public List<org.apache.hadoop.yarn.api.records.ApplicationId> getFinishedApp() {
-        return finishedApp;
-    }
+  public List<org.apache.hadoop.yarn.api.records.ApplicationId> getFinishedApp() {
+    return finishedApp;
+  }
 
-    public String getNodeId() {
-        return nodeId;
-    }
+  public String getNodeId() {
+    return nodeId;
+  }
 
-    public boolean isNextHeartbeat() {
-        return nextHeartbeat;
-    }
+  public boolean isNextHeartbeat() {
+    return nextHeartbeat;
+  }
 
 }

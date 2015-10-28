@@ -152,7 +152,7 @@ public class TestFifoScheduler {
             writer, config);
 
     FifoScheduler schedular = new FifoScheduler();
-    schedular.reinitialize(new Configuration(), rmContext);
+    schedular.reinitialize(new Configuration(), rmContext, null);
     QueueMetrics metrics = schedular.getRootQueueMetrics();
     int beforeAppsSubmitted = metrics.getAppsSubmitted();
 
@@ -190,7 +190,7 @@ public class TestFifoScheduler {
     rmContext.getNMTokenSecretManager().rollMasterKey();
     rmContext.getContainerTokenSecretManager().rollMasterKey();
     FifoScheduler scheduler = new FifoScheduler();
-    scheduler.reinitialize(new Configuration(), rmContext);
+    scheduler.reinitialize(new Configuration(), rmContext, null);
 
     RMNode node0 = MockNodes
         .newNodeInfo(1, Resources.createResource(1024 * 64), 1, "127.0.0.1");
@@ -263,7 +263,7 @@ public class TestFifoScheduler {
         return nodes;
       }
     };
-    scheduler.reinitialize(new Configuration(), rmContext);
+    scheduler.reinitialize(new Configuration(), rmContext, null);
     RMNode node0 = MockNodes
         .newNodeInfo(1, Resources.createResource(2048, 4), 1, "127.0.0.1");
     NodeAddedSchedulerEvent nodeEvent1 =

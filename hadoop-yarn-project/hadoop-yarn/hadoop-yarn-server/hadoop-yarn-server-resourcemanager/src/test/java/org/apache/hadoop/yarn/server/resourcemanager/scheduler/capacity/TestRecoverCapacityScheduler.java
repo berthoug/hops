@@ -155,7 +155,7 @@ public class TestRecoverCapacityScheduler {
     // Manipulate queue 'a'
     LeafQueue a = (LeafQueue) capScheduler.getQueue(A);
     //unset maxCapacity
-    a.setMaxCapacity(1.0f);
+    a.setMaxCapacity(1.0f, null);
 
     /*
      * This fakecluster resource will be used to manually manipulate the

@@ -153,9 +153,11 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
     Resources.addTo(currentConsumption, container.getResource());
     //HOP : Update Resources
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).addRMContainerToAdd((RMContainerImpl)rmContainer);
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId()).
-          getFiCaSchedulerAppInfo(
+      ((TransactionStateImpl) transactionState).addRMContainerToAdd(
+              (RMContainerImpl) rmContainer);
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(
+              this.appSchedulingInfo.getApplicationId()).
+              getFiCaSchedulerAppInfo(
               this.appSchedulingInfo.getApplicationAttemptId()).
           updateAppInfo(this);
     }
@@ -186,7 +188,8 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
     if (reservedContainers != null) {
       RMContainer reservedContainer =
           reservedContainers.remove(node.getNodeID());
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId()).
+      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(
+              this.appSchedulingInfo.getApplicationId()).
               getFiCaSchedulerAppInfo(getApplicationAttemptId()).
               removeReservedContainer(reservedContainer);
       // unreserve is now triggered in new scenarios (preemption)
@@ -206,10 +209,12 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt
         Resources.subtractFrom(currentReservation, resource);
 
         //HOP : Update Resources
-        ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(this.appSchedulingInfo.getApplicationId())
-            .getFiCaSchedulerAppInfo(
-                this.appSchedulingInfo.getApplicationAttemptId())
-            .toUpdateResource(Resource.CURRENTRESERVATION, currentReservation);
+        ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(
+                this.appSchedulingInfo.getApplicationId())
+                .getFiCaSchedulerAppInfo(
+                        this.appSchedulingInfo.getApplicationAttemptId())
+                .toUpdateResource(Resource.CURRENTRESERVATION,
+                        currentReservation);
 
 
         LOG.info(

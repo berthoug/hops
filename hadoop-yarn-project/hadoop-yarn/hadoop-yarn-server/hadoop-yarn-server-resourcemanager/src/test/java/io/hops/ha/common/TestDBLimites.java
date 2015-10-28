@@ -102,7 +102,7 @@ public class TestDBLimites {
                   RMContainerDataAccess rmcontainerDA
                   = (RMContainerDataAccess) RMStorageFactory
                   .getDataAccess(RMContainerDataAccess.class);
-                  rmcontainerDA.addAll(toAdd, new  LinkedBlockingQueue<String>(), 0);
+                  rmcontainerDA.addAll(toAdd);
                   connector.commit();
                   return null;
                 }
@@ -284,7 +284,7 @@ public class TestDBLimites {
                   RMContainerDataAccess rmcontainerDA
                   = (RMContainerDataAccess) RMStorageFactory
                   .getDataAccess(RMContainerDataAccess.class);
-                  rmcontainerDA.addAll(toAddRMContainers, new  LinkedBlockingQueue<String>(), 0);
+                  rmcontainerDA.addAll(toAddRMContainers);
                   }
                   if(random.nextBoolean()){
                   ContainerDataAccess containerDA

@@ -452,7 +452,7 @@ public class ResourceTrackerService extends AbstractService
   public NodeHeartbeatResponse nodeHeartbeat(NodeHeartbeatRequest request,
           Integer rpcID) throws YarnException, IOException {
     //TODO HOPS: If the RMNode is unknown, fetch from NDB first
-    long start = System.currentTimeMillis();
+    
     NodeStatus remoteNodeStatus = request.getNodeStatus();
     NodeId nodeId = remoteNodeStatus.getNodeId();
 
@@ -467,7 +467,6 @@ public class ResourceTrackerService extends AbstractService
      * healthStatus to RMNode
      */
     RMNode rmNode = this.rmContext.getActiveRMNodes().get(nodeId);
-    long t1 = System.currentTimeMillis() - start;
     // 1. Check if it's a registered node
     if (rmNode == null) {
       /*
@@ -484,25 +483,18 @@ public class ResourceTrackerService extends AbstractService
     // Send ping
     this.nmLivelinessMonitor.receivedPing(nodeId);
     boolean isValid = this.nodesListManager.isValidNode(rmNode.getHostName());
-    long t2 = System.currentTimeMillis() - start;
-    long t21 = 0;
-    long t22 = 0;
     if (rpcID == null) {
       rpcID = HopYarnAPIUtilities.getRPCID();
-      t21 = System.currentTimeMillis() - start;
       byte[] allHBRequestData = ((NodeHeartbeatRequestPBImpl) request).
               getProto().toByteArray();
       RMUtilities
               .persistAppMasterRPC(rpcID, RPC.Type.NodeHeartbeat,
                       allHBRequestData);
-      t22 = System.currentTimeMillis() - start;
     }
     TransactionState transactionState = rmContext.getTransactionStateManager().
             getCurrentTransactionStatePriority(rpcID, "nodeHeartbeat");
-    long t23 = System.currentTimeMillis() - start;
     ((transactionStateWrapper) transactionState).addTime(1);
 
-    long t3 = System.currentTimeMillis() - start;
     // 2. Check if it's a valid (i.e. not excluded) node
     if (!isValid) {
       String message = "Disallowed NodeManager nodeId: " + nodeId
@@ -516,7 +508,6 @@ public class ResourceTrackerService extends AbstractService
       transactionState.decCounter(TransactionState.TransactionType.INIT);
       return shutDown;
     }
-    long t4 = System.currentTimeMillis() - start;
     // 3. Check if it's a 'fresh' heartbeat i.e. not duplicate heartbeat
     NodeHeartbeatResponse lastNodeHeartbeatResponse = rmNode.
             getLastNodeHeartBeatResponse();
@@ -543,19 +534,18 @@ public class ResourceTrackerService extends AbstractService
       transactionState.decCounter(TransactionState.TransactionType.INIT);
       return resync;
     }
-    long t5 = System.currentTimeMillis() - start;
+
     // Heartbeat response
     NodeHeartbeatResponse nodeHeartBeatResponse = YarnServerBuilderUtils
             .newNodeHeartbeatResponse(lastNodeHeartbeatResponse.
                     getResponseId() + 1, NodeAction.NORMAL, null, null, null,
                     null,
                     nextHeartBeatInterval);
-    long t6 = System.currentTimeMillis() - start;
+
     rmNode.updateNodeHeartbeatResponseForCleanup(nodeHeartBeatResponse,
             transactionState);
     nodeHeartBeatResponse.setNextheartbeat(((RMNodeImpl) rmNode).
             getNextHeartbeat());
-    long t7 = System.currentTimeMillis() - start;
     populateKeys(request, nodeHeartBeatResponse);
     LOG.debug("HOP :: remoteNodeStatus.getContainersStatuses()"
             + remoteNodeStatus.getContainersStatuses());
@@ -568,12 +558,6 @@ public class ResourceTrackerService extends AbstractService
                     transactionState));
 
     transactionState.decCounter(TransactionState.TransactionType.INIT);
-    long t8 = System.currentTimeMillis() - start;
-    if (t8 > 500) {
-      LOG.error("heartbeat too long " + t1 + ", " + t2 + ", " + t21 + ", " + t22
-              + ", " + t23 + ", " + t3 + ", " + t4 + ", " + t5 + ", " + t6
-              + ", " + t7 + ", " + t8);
-    }
     return nodeHeartBeatResponse;
   }
 

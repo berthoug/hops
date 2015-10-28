@@ -26,78 +26,97 @@ import java.util.logging.Logger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
+
 /**
  *
  * @author sri
  */
 public class NdbEventStreamingProcessor extends PendingEventRetrieval {
 
-    private RMNode rmNode;
+  private RMNode rmNode;
 
-    
-    public NdbEventStreamingProcessor(RMContext rmContext, Configuration conf) {
-        super(rmContext, conf);
+  public NdbEventStreamingProcessor(RMContext rmContext, Configuration conf) {
+    super(rmContext, conf);
+
+  }
+
+  public void printHopsRMNodeComps(RMNodeComps hopRMNodeNDBCompObject) {
+
+    //print hoprmnode 
+    LOG.debug(
+            "<EvtProcessor_PRINT_START>-------------------------------------------------------------------");
+    if (hopRMNodeNDBCompObject.getHopRMNode() != null) {
+      LOG.debug("<EvtProcessor> [rmnode] id : " + hopRMNodeNDBCompObject.
+              getHopRMNode().getNodeId() + "| peinding id : "
+              + hopRMNodeNDBCompObject.getHopRMNode().getPendingEventId());
+    }
+    //print hopnode
+    if (hopRMNodeNDBCompObject.getHopNode() != null) {
+      LOG.debug("<EvtProcessor> [node] id : " + hopRMNodeNDBCompObject.
+              getHopNode().getId() + "| level : " + hopRMNodeNDBCompObject.
+              getHopNode().getLevel());
+    }
+    //print hopresource 
+    if (hopRMNodeNDBCompObject.getHopResource() != null) {
+      LOG.debug("<EvtProcessor> [resource] id : " + hopRMNodeNDBCompObject.
+              getHopResource().getId() + "| memory : " + hopRMNodeNDBCompObject.
+              getHopResource().getMemory());
+    }
+    if (hopRMNodeNDBCompObject.getPendingEvent() != null) {
+      LOG.debug("<EvtProcessor> [pendingevent] id : " + hopRMNodeNDBCompObject.
+              getPendingEvent().getRmnodeId() + "| peinding id : "
+              + hopRMNodeNDBCompObject.getPendingEvent().getId());
+    }
+    List<UpdatedContainerInfo> hopUpdatedContainerInfo = hopRMNodeNDBCompObject.
+            getHopUpdatedContainerInfo();
+    for (UpdatedContainerInfo hopuc : hopUpdatedContainerInfo) {
+      LOG.debug("<EvtProcessor> [updatedcontainerinfo] id : " + hopuc.
+              getRmnodeid() + "| container id : " + hopuc.getContainerId());
+    }
+    List<ContainerStatus> hopContainersStatus = hopRMNodeNDBCompObject.
+            getHopContainersStatus();
+    for (ContainerStatus hopCS : hopContainersStatus) {
+      LOG.debug("<EvtProcessor> [containerstatus] id : " + hopCS.getRMNodeId()
+              + "| container id : " + hopCS.getContainerid()
+              + "| container status : " + hopCS.getExitstatus());
+    }
+    LOG.debug(
+            "<EvtProcessor_PRINT_END>-------------------------------------------------------------------");
+  }
+
+  @Override
+  public void run() {
+    while (active) {
+      try {
+        //first ask him sleep
+
+        RMNodeComps hopRMNodeCompObject = null;
+        hopRMNodeCompObject
+                = (RMNodeComps) NdbEventStreamingReceiver.blockingQueue.take();
+        if (hopRMNodeCompObject != null) {
+          if (LOG.isDebugEnabled()) {
+            printHopsRMNodeComps(hopRMNodeCompObject);
+          }
+          try {
+            rmNode = processHopRMNodeComps(hopRMNodeCompObject);
+            LOG.debug("HOP :: RMNodeWorker rmNode:" + rmNode);
+          } catch (IOException ex) {
+            LOG.error("HOP :: Error retrieving rmNode:" + ex, ex);
+          }
+
+          if (rmNode != null) {
+            updateRMContext(rmNode);
+            triggerEvent(rmNode, hopRMNodeCompObject.getPendingEvent());
+          }
+
+        }
+      } catch (InterruptedException ex) {
+        Logger.getLogger(NdbEventStreamingProcessor.class.getName()).log(
+                Level.SEVERE, null, ex);
+      }
 
     }
 
-    public void printHopsRMNodeComps(RMNodeComps hopRMNodeNDBCompObject) {
-
-        //print hoprmnode 
-        LOG.debug("<EvtProcessor_PRINT_START>-------------------------------------------------------------------");
-        if (hopRMNodeNDBCompObject.getHopRMNode() != null) {
-             LOG.debug("<EvtProcessor> [rmnode] id : "+hopRMNodeNDBCompObject.getHopRMNode().getNodeId() +"| peinding id : "+hopRMNodeNDBCompObject.getHopRMNode().getPendingEventId());
-        }
-        //print hopnode
-        if (hopRMNodeNDBCompObject.getHopNode() != null) {
-            LOG.debug("<EvtProcessor> [node] id : "+hopRMNodeNDBCompObject.getHopNode().getId()+"| level : "+hopRMNodeNDBCompObject.getHopNode().getLevel());
-        }
-        //print hopresource 
-        if (hopRMNodeNDBCompObject.getHopResource() != null) {
-            LOG.debug("<EvtProcessor> [resource] id : "+hopRMNodeNDBCompObject.getHopResource().getId() +"| memory : "+hopRMNodeNDBCompObject.getHopResource().getMemory());
-        }
-        if (hopRMNodeNDBCompObject.getPendingEvent() != null) {
-            LOG.debug("<EvtProcessor> [pendingevent] id : "+hopRMNodeNDBCompObject.getPendingEvent().getRmnodeId() +"| peinding id : "+hopRMNodeNDBCompObject.getPendingEvent().getId());
-        }
-        List<UpdatedContainerInfo> hopUpdatedContainerInfo = hopRMNodeNDBCompObject.getHopUpdatedContainerInfo();
-        for (UpdatedContainerInfo hopuc : hopUpdatedContainerInfo) {
-            LOG.debug("<EvtProcessor> [updatedcontainerinfo] id : "+hopuc.getRmnodeid() +"| container id : "+hopuc.getContainerId());
-        }
-        List<ContainerStatus> hopContainersStatus = hopRMNodeNDBCompObject.getHopContainersStatus();
-        for (ContainerStatus hopCS : hopContainersStatus) {
-            LOG.debug("<EvtProcessor> [containerstatus] id : "+hopCS.getRMNodeId() +"| container id : "+hopCS.getContainerid()+"| container status : "+hopCS.getExitstatus());
-        }
-        LOG.debug("<EvtProcessor_PRINT_END>-------------------------------------------------------------------");
-    }
-
-    @Override
-    public void run() {
-        while (active) {
-            try {
-                //first ask him sleep
-
-                RMNodeComps hopRMNodeCompObject = null;
-                hopRMNodeCompObject = (RMNodeComps) NdbEventStreamingReceiver.blockingQueue.take();
-                if (hopRMNodeCompObject != null) {
-                    printHopsRMNodeComps(hopRMNodeCompObject);
-                 try {
-                        rmNode = processHopRMNodeComps(hopRMNodeCompObject);
-                        LOG.debug("HOP :: RMNodeWorker rmNode:" + rmNode);
-                    } catch (IOException ex) {
-                        LOG.error("HOP :: Error retrieving rmNode:" + ex, ex);
-                    }
-
-                    if (rmNode != null) {
-                        updateRMContext(rmNode);
-                        triggerEvent(rmNode, hopRMNodeCompObject.getPendingEvent());
-                    }
-                    
-                }
-            } catch (InterruptedException ex) {
-                Logger.getLogger(NdbEventStreamingProcessor.class.getName()).log(Level.SEVERE, null, ex);
-            }
-
-        }
-
-    }
+  }
 
 }

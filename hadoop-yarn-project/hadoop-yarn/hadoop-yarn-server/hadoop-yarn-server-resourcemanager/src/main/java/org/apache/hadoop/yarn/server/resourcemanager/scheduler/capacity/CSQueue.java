@@ -266,8 +266,8 @@ public interface CSQueue
    * @param clusterResource
    *     resources in the cluster
    */
-  public void reinitialize(CSQueue newlyParsedQueue, Resource clusterResource)
-      throws IOException;
+  public void reinitialize(CSQueue newlyParsedQueue, Resource clusterResource,
+          TransactionState transactionState) throws IOException;
 
   /**
    * Update the cluster resource for queues as we add/remove nodes

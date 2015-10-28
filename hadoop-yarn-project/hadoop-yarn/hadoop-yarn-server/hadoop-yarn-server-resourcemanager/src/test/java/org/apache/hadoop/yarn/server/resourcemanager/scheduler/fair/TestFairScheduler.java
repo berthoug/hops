@@ -176,7 +176,7 @@ public class TestFairScheduler {
     conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 2048);
     conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB, 1024);
     try {
-      scheduler.reinitialize(conf, null);
+      scheduler.reinitialize(conf, null, null);
       fail("Exception is expected because the min memory allocation is" +
           " larger than the max memory allocation.");
     } catch (YarnRuntimeException e) {
@@ -189,7 +189,7 @@ public class TestFairScheduler {
     conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES, 2);
     conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES, 1);
     try {
-      scheduler.reinitialize(conf, null);
+      scheduler.reinitialize(conf, null, null);
       fail("Exception is expected because the min vcores allocation is" +
           " larger than the max vcores allocation.");
     } catch (YarnRuntimeException e) {
@@ -326,7 +326,7 @@ public class TestFairScheduler {
     conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 512);
     conf.setInt(FairSchedulerConfiguration.RM_SCHEDULER_INCREMENT_ALLOCATION_MB,
         128);
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     Assert.assertEquals(true, scheduler.assignMultiple);
     Assert.assertEquals(3, scheduler.maxAssign);
     Assert.assertEquals(true, scheduler.sizeBasedWeight);
@@ -355,7 +355,7 @@ public class TestFairScheduler {
         512);
     conf.setInt(
         FairSchedulerConfiguration.RM_SCHEDULER_INCREMENT_ALLOCATION_VCORES, 2);
-    fs.reinitialize(conf, null);
+    fs.reinitialize(conf, null, null);
     Assert.assertEquals(256, fs.getMinimumResourceCapability().getMemory());
     Assert.assertEquals(1, fs.getMinimumResourceCapability().getVirtualCores());
     Assert.assertEquals(512, fs.getIncrementResourceCapability().getMemory());
@@ -373,7 +373,7 @@ public class TestFairScheduler {
         512);
     conf.setInt(
         FairSchedulerConfiguration.RM_SCHEDULER_INCREMENT_ALLOCATION_VCORES, 2);
-    fs.reinitialize(conf, null);
+    fs.reinitialize(conf, null, null);
     Assert.assertEquals(0, fs.getMinimumResourceCapability().getMemory());
     Assert.assertEquals(0, fs.getMinimumResourceCapability().getVirtualCores());
     Assert.assertEquals(512, fs.getIncrementResourceCapability().getMemory());
@@ -383,7 +383,7 @@ public class TestFairScheduler {
   
   @Test
   public void testAggregateCapacityTracking() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Add a node
     RMNode node1 = MockNodes
@@ -410,7 +410,7 @@ public class TestFairScheduler {
 
   @Test
   public void testSimpleFairShareCalculation() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Add one big node (only care about aggregate capacity)
     RMNode node1 =
@@ -439,7 +439,7 @@ public class TestFairScheduler {
   
   @Test
   public void testSimpleHierarchicalFairShareCalculation() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Add one big node (only care about aggregate capacity)
     int capacity = 10 * 24;
@@ -473,7 +473,7 @@ public class TestFairScheduler {
 
   @Test
   public void testHierarchicalQueuesSimilarParents() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     QueueManager queueManager = scheduler.getQueueManager();
     FSLeafQueue leafQueue = queueManager.getLeafQueue("parent.child", true);
@@ -498,7 +498,7 @@ public class TestFairScheduler {
 
   @Test
   public void testSchedulerRootQueueMetrics() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Add a node
     RMNode node1 = MockNodes.newNodeInfo(1, Resources.createResource(1024));
@@ -541,7 +541,7 @@ public class TestFairScheduler {
 
   @Test(timeout = 5000)
   public void testSimpleContainerAllocation() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Add a node
     RMNode node1 = MockNodes
@@ -593,7 +593,7 @@ public class TestFairScheduler {
 
   @Test(timeout = 5000)
   public void testSimpleContainerReservation() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Add a node
     RMNode node1 =
@@ -655,7 +655,7 @@ public class TestFairScheduler {
   @Test
   public void testUserAsDefaultQueue() throws Exception {
     conf.set(FairSchedulerConfiguration.USER_AS_DEFAULT_QUEUE, "true");
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     RMContext rmContext = resourceManager.getRMContext();
     Map<ApplicationId, RMApp> appsMap = rmContext.getRMApps();
     ApplicationAttemptId appAttemptId = createAppAttemptId(1, 1);
@@ -685,7 +685,7 @@ public class TestFairScheduler {
   @Test
   public void testNotUserAsDefaultQueue() throws Exception {
     conf.set(FairSchedulerConfiguration.USER_AS_DEFAULT_QUEUE, "false");
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     RMContext rmContext = resourceManager.getRMContext();
     Map<ApplicationId, RMApp> appsMap = rmContext.getRMApps();
     ApplicationAttemptId appAttemptId = createAppAttemptId(1, 1);
@@ -715,7 +715,7 @@ public class TestFairScheduler {
 
   @Test
   public void testEmptyQueueName() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // only default queue
     assertEquals(1, scheduler.getQueueManager().getLeafQueues().size());
@@ -737,7 +737,7 @@ public class TestFairScheduler {
   @Test
   public void testAssignToQueue() throws Exception {
     conf.set(FairSchedulerConfiguration.USER_AS_DEFAULT_QUEUE, "true");
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     RMApp rmApp1 = new MockRMApp(0, 0, RMAppState.NEW);
     RMApp rmApp2 = new MockRMApp(1, 1, RMAppState.NEW);
@@ -757,7 +757,7 @@ public class TestFairScheduler {
   @Test
   public void testAssignToNonLeafQueueReturnsNull() throws Exception {
     conf.set(FairSchedulerConfiguration.USER_AS_DEFAULT_QUEUE, "true");
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     scheduler.getQueueManager().getLeafQueue("root.child1.granchild", true);
     scheduler.getQueueManager().getLeafQueue("root.child2", true);
@@ -776,7 +776,7 @@ public class TestFairScheduler {
   public void testQueuePlacementWithPolicy() throws Exception {
     conf.setClass(CommonConfigurationKeys.HADOOP_SECURITY_GROUP_MAPPING,
         SimpleGroupsMapping.class, GroupMappingServiceProvider.class);
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     ApplicationAttemptId appId;
 
@@ -843,7 +843,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
     
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Add one big node (only care about aggregate capacity)
     RMNode node1 =
@@ -876,7 +876,7 @@ public class TestFairScheduler {
    */
   @Test
   public void testQueueDemandCalculation() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     ApplicationAttemptId id11 = createAppAttemptId(1, 1);
     scheduler.addApplication(id11.getApplicationId(), "root.queue1", "user1",
@@ -936,7 +936,7 @@ public class TestFairScheduler {
 
   @Test
   public void testAppAdditionAndRemoval() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     ApplicationAttemptId attemptId = createAppAttemptId(1, 1);
     AppAddedSchedulerEvent appAddedEvent = new AppAddedSchedulerEvent(attemptId.
             getApplicationId(), "default",
@@ -994,7 +994,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
 
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     QueueManager queueManager = scheduler.getQueueManager();
     Collection<FSLeafQueue> leafQueues = queueManager.getLeafQueues();
@@ -1028,7 +1028,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
     
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     QueueManager queueManager = scheduler.getQueueManager();
     
     FSQueue root = queueManager.getRootQueue();
@@ -1054,7 +1054,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
 
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Add one big node (only care about aggregate capacity)
     RMNode node1 =
@@ -1113,7 +1113,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
 
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     // Add one big node (only care about aggregate capacity)
     RMNode node1 =
@@ -1188,7 +1188,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
     
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Create four nodes
     RMNode node1 =
@@ -1368,7 +1368,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
 
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Create four nodes
     RMNode node1 =
@@ -1471,7 +1471,7 @@ public class TestFairScheduler {
   
   @Test(timeout = 5000)
   public void testMultipleContainersWaitingForReservation() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Add a node
     RMNode node1 =
@@ -1517,7 +1517,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
 
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     // Add a node
     RMNode node1 =
@@ -1563,7 +1563,7 @@ public class TestFairScheduler {
   
   @Test(timeout = 5000)
   public void testReservationWhileMultiplePriorities() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     // Add a node
     RMNode node1 =
@@ -1649,7 +1649,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
 
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     ApplicationAttemptId attId1 =
         createSchedulingRequest(1024, "queue1", "norealuserhasthisname", 1);
@@ -1664,7 +1664,7 @@ public class TestFairScheduler {
   
   @Test (timeout = 5000)
   public void testMultipleNodesSingleRackRequest() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     RMNode node1 =
         MockNodes
@@ -1721,7 +1721,7 @@ public class TestFairScheduler {
   
   @Test (timeout = 5000)
   public void testFifoWithinQueue() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     RMNode node1 =
         MockNodes
@@ -1768,7 +1768,7 @@ public class TestFairScheduler {
   @Test(timeout = 3000)
   public void testMaxAssign() throws Exception {
     conf.setBoolean(FairSchedulerConfiguration.ASSIGN_MULTIPLE, true);
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     RMNode node =
         MockNodes.newNodeInfo(1, Resources.createResource(16384, 16), 0,
@@ -1815,7 +1815,7 @@ public class TestFairScheduler {
   
   @Test(timeout = 5000)
   public void testAssignContainer() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     final String user = "user1";
     final String fifoQueue = "fifo";
@@ -1901,7 +1901,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
     
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     int appId = this.APP_ID++;
     String user = "usernotallow";
@@ -1959,7 +1959,7 @@ public class TestFairScheduler {
   
   @Test
   public void testReservationThatDoesntFit() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     RMNode node1 =
         MockNodes
@@ -1989,7 +1989,7 @@ public class TestFairScheduler {
   
   @Test
   public void testRemoveNodeUpdatesRootQueueMetrics() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     assertEquals(0, scheduler.getRootQueueMetrics().getAvailableMB());
     assertEquals(0, scheduler.getRootQueueMetrics().getAvailableVirtualCores());
@@ -2019,7 +2019,7 @@ public class TestFairScheduler {
 
   @Test
   public void testStrictLocality() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     RMNode node1 = MockNodes.newNodeInfo(1, Resources.createResource(1024), 1,
             "127.0.0.1");
@@ -2069,7 +2069,7 @@ public class TestFairScheduler {
   
   @Test
   public void testCancelStrictLocality() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     RMNode node1 = MockNodes.newNodeInfo(1, Resources.createResource(1024), 1,
             "127.0.0.1");
@@ -2129,7 +2129,7 @@ public class TestFairScheduler {
    */
   @Test
   public void testReservationsStrictLocality() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     RMNode node1 = MockNodes.newNodeInfo(1, Resources.createResource(1024), 1,
             "127.0.0.1");
@@ -2176,7 +2176,7 @@ public class TestFairScheduler {
   
   @Test
   public void testNoMoreCpuOnNode() throws IOException {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     RMNode node1 = MockNodes.newNodeInfo(1, Resources.createResource(2048, 1),
         1, "127.0.0.1");
@@ -2199,7 +2199,7 @@ public class TestFairScheduler {
 
   @Test
   public void testBasicDRFAssignment() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     RMNode node = MockNodes.newNodeInfo(1, BuilderUtils.newResource(8192, 5));
     NodeAddedSchedulerEvent nodeEvent = new NodeAddedSchedulerEvent(node,
@@ -2243,7 +2243,7 @@ public class TestFairScheduler {
   
   @Test
   public void testBasicDRFWithQueues() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     RMNode node = MockNodes.newNodeInfo(1, BuilderUtils.newResource(8192, 7),
         1, "127.0.0.1");
@@ -2282,7 +2282,7 @@ public class TestFairScheduler {
   
   @Test
   public void testDRFHierarchicalQueues() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     RMNode node = MockNodes.newNodeInfo(1, BuilderUtils.newResource(12288, 12),
         1, "127.0.0.1");
@@ -2355,7 +2355,7 @@ public class TestFairScheduler {
     conf.setBoolean(YarnConfiguration
         .RM_SCHEDULER_INCLUDE_PORT_IN_NODE_NAME, true);
     scheduler.reinitialize(conf, 
-        resourceManager.getRMContext());
+        resourceManager.getRMContext(), null);
     RMNode node1 = MockNodes.newNodeInfo(1, Resources.createResource(1024),
         1, "127.0.0.1", 1);
     NodeAddedSchedulerEvent nodeEvent1 = new NodeAddedSchedulerEvent(node1,
@@ -2439,7 +2439,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
     
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     // exceeds no limits
     ApplicationAttemptId attId1 =
@@ -2500,7 +2500,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
     
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     // exceeds no limits
     ApplicationAttemptId attId1 =
@@ -2572,7 +2572,7 @@ public class TestFairScheduler {
     Configuration conf = createConfiguration();
     conf.setBoolean(FairSchedulerConfiguration.CONTINUOUS_SCHEDULING_ENABLED,
         true);
-    fs.reinitialize(conf, resourceManager.getRMContext());
+    fs.reinitialize(conf, resourceManager.getRMContext(), null);
     Assert.assertTrue("Continuous scheduling should be enabled.",
         fs.isContinuousSchedulingEnabled());
 
@@ -2659,7 +2659,7 @@ public class TestFairScheduler {
     out.println("</allocations>");
     out.close();
 
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     QueueManager queueManager = scheduler.getQueueManager();
     
     FSLeafQueue jerryQueue = queueManager.getLeafQueue("jerry", false);
@@ -2690,7 +2690,7 @@ public class TestFairScheduler {
   @SuppressWarnings("resource")
   @Test
   public void testBlacklistNodes() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     final int GB = 1024;
     String host = "127.0.0.1";
@@ -2748,7 +2748,7 @@ public class TestFairScheduler {
   
   @Test
   public void testGetAppsInQueue() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     ApplicationAttemptId appAttId1 =
         createSchedulingRequest(1024, 1, "queue1.subqueue1", "user1");
@@ -2793,7 +2793,7 @@ public class TestFairScheduler {
 
   @Test
   public void testMoveRunnableApp() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     QueueManager queueMgr = scheduler.getQueueManager();
     FSLeafQueue oldQueue = queueMgr.getLeafQueue("queue1", true);
@@ -2834,7 +2834,7 @@ public class TestFairScheduler {
   
   @Test
   public void testMoveNonRunnableApp() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     QueueManager queueMgr = scheduler.getQueueManager();
     FSLeafQueue oldQueue = queueMgr.getLeafQueue("queue1", true);
@@ -2854,7 +2854,7 @@ public class TestFairScheduler {
   
   @Test
   public void testMoveMakesAppRunnable() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     QueueManager queueMgr = scheduler.getQueueManager();
     FSLeafQueue oldQueue = queueMgr.getLeafQueue("queue1", true);
@@ -2881,7 +2881,7 @@ public class TestFairScheduler {
 
   @Test(expected = YarnException.class)
   public void testMoveWouldViolateMaxAppsConstraints() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     QueueManager queueMgr = scheduler.getQueueManager();
     queueMgr.getLeafQueue("queue2", true);
@@ -2895,7 +2895,7 @@ public class TestFairScheduler {
   
   @Test(expected = YarnException.class)
   public void testMoveWouldViolateMaxResourcesConstraints() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     
     QueueManager queueMgr = scheduler.getQueueManager();
     FSLeafQueue oldQueue = queueMgr.getLeafQueue("queue1", true);
@@ -2920,7 +2920,7 @@ public class TestFairScheduler {
   
   @Test(expected = YarnException.class)
   public void testMoveToNonexistentQueue() throws Exception {
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
 
     scheduler.getQueueManager().getLeafQueue("queue1", true);
     

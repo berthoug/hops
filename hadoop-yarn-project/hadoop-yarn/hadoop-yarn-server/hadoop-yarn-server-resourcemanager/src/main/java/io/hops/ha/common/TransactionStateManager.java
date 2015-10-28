@@ -82,7 +82,7 @@ public class TransactionStateManager implements Runnable{
         lock.lock();
         
         long cycleDuration = System.currentTimeMillis() - startTime;
-        if (cycleDuration > 500) {
+        if (cycleDuration> batchMaxDuration + 10) {
           LOG.error("Cycle too long: " + cycleDuration + "| " + t1 + ", " + t2
                   + ", " + t3 + ", " + t4);
         }
@@ -147,7 +147,6 @@ public class TransactionStateManager implements Runnable{
     while (blockNonHB.get()) {
       try {
         blockNonHB.wait();
-//        Thread.sleep(1);
       } catch (InterruptedException e) {
         LOG.warn(e, e);
       }
@@ -174,33 +173,25 @@ public class TransactionStateManager implements Runnable{
     while (true) {
       int accepted = acceptedRPC.incrementAndGet();
       if (priority || accepted < batchMaxSize) {
-        long start = System.currentTimeMillis();
-              lock.lock();
-              long t1 = System.currentTimeMillis()-start;
+        lock.lock();
         try {
-          transactionStateWrapper wrapper = new transactionStateWrapper((TransactionStateImpl)currentTransactionState,
+          transactionStateWrapper wrapper = new transactionStateWrapper(
+                  (TransactionStateImpl) currentTransactionState,
                   TransactionState.TransactionType.RM, rpcId, callingFuncition);
-          long t2 = System.currentTimeMillis()-start;
           wrapper.incCounter(TransactionState.TransactionType.INIT);
-          long t3 = System.currentTimeMillis()-start;
-          if(rpcId >= 0)
+          if (rpcId >= 0) {
             wrapper.addRPCId(rpcId);
-          long t4 = System.currentTimeMillis()-start;
-          curentRPCs.add(wrapper);
-          long t5 = System.currentTimeMillis() - start;
-          if (t5 > 400) {
-            LOG.error("getCurrentTransactionState too long " + t1 + ", " + t2
-                    + ", " + t3 + ", " + t4 + ", " + t5);
           }
+          curentRPCs.add(wrapper);
           return wrapper;
         } finally {
           lock.unlock();
         }
       } else {
         acceptedRPC.decrementAndGet();
-        try{
+        try {
           Thread.sleep(1);
-        }catch(InterruptedException e){
+        } catch (InterruptedException e) {
           LOG.warn(e, e);
         }
       }
@@ -208,7 +199,6 @@ public class TransactionStateManager implements Runnable{
   }
   
   public void start(){
-    
     Thread t = new Thread(this);
     t.setName("transactionStateManager Thread");
     t.start();

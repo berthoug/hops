@@ -35,10 +35,8 @@ import io.hops.metadata.yarn.entity.NodeHBResponse;
 import io.hops.metadata.yarn.entity.PendingEvent;
 import io.hops.metadata.yarn.entity.UpdatedContainerInfo;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -131,21 +129,6 @@ public class RMNodeInfoAgregate {
     nextHeartBeatToUpdate.add(nextHeartbeat);
   }
 
-  static double totalt1 = 0;
-  static double totalt2 = 0;
-  static double totalt3 = 0;
-  static double totalt4 = 0;
-  static double totalt5 = 0;
-  static double totalt6 = 0;
-  static double totalt7 = 0;
-  static double totalt8 = 0;
-  static double totalt9 = 0;
-  static double totalt10 = 0;
-  static double totalt11 = 0;
-  static double totalt12 = 0;
-  static double totalt13 = 0;
-  static long nbFinish = 0;
-
   public void persist(NodeHBResponseDataAccess hbDA,
           ContainerIdToCleanDataAccess cidToCleanDA,
           JustLaunchedContainersDataAccess justLaunchedContainersDA,
@@ -153,68 +136,19 @@ public class RMNodeInfoAgregate {
           FinishedApplicationsDataAccess faDA, ContainerStatusDataAccess csDA,
           PendingEventDataAccess persistedEventsDA, StorageConnector connector)
           throws StorageException {
-    Long start = System.currentTimeMillis();
     persistContainerStatusToAdd(csDA);
-    totalt1 = totalt1 + System.currentTimeMillis() - start;
-    connector.flush();
     persistJustLaunchedContainersToAdd(justLaunchedContainersDA);
-    totalt2 = totalt2 + System.currentTimeMillis() - start;
-    connector.flush();
     persistJustLaunchedContainersToRemove(justLaunchedContainersDA);
-    totalt3 = totalt3 + System.currentTimeMillis() - start;
-    connector.flush();
     persistContainerToCleanToAdd(cidToCleanDA);
-    totalt4 = totalt4 + System.currentTimeMillis() - start;
-    connector.flush();
     persistContainerToCleanToRemove(cidToCleanDA);
-    totalt5 = totalt5 + System.currentTimeMillis() - start;
-    connector.flush();
     persistFinishedApplicationToAdd(faDA);
-    totalt6 = totalt6 + System.currentTimeMillis() - start;
-    connector.flush();
     persistFinishedApplicationToRemove(faDA);
-    totalt7 = totalt7 + System.currentTimeMillis() - start;
-    connector.flush();
     persistNodeUpdateQueueToAdd(updatedContainerInfoDA);
-    totalt8 = totalt8 + System.currentTimeMillis() - start;
-    connector.flush();
     persistNodeUpdateQueueToRemove(updatedContainerInfoDA);
-    totalt9 = totalt9 + System.currentTimeMillis() - start;
-    connector.flush();
     persistLatestHeartBeatResponseToAdd(hbDA);
-    totalt10 = totalt10 + System.currentTimeMillis() - start;
-    connector.flush();
     persistNextHeartbeat();
-    totalt11 = totalt11 + System.currentTimeMillis() - start;
-    connector.flush();
     persistPendingEventsToAdd(persistedEventsDA);
-    totalt12 = totalt12 + System.currentTimeMillis() - start;
-    connector.flush();
     persistPendingEventsToRemove(persistedEventsDA);
-    totalt13 = totalt13 + System.currentTimeMillis() - start;
-    connector.flush();
-    nbFinish++;
-    if (nbFinish % 100 == 0) {
-      double avgt1 = totalt1 / nbFinish;
-      double avgt2 = totalt2 / nbFinish;
-      double avgt3 = totalt3 / nbFinish;
-      double avgt4 = totalt4 / nbFinish;
-      double avgt5 = totalt5 / nbFinish;
-      double avgt6 = totalt6 / nbFinish;
-      double avgt7 = totalt7 / nbFinish;
-      double avgt8 = totalt8 / nbFinish;
-      double avgt9 = totalt9 / nbFinish;
-      double avgt10 = totalt10 / nbFinish;
-      double avgt11 = totalt11 / nbFinish;
-      double avgt12 = totalt12 / nbFinish;
-      double avgt13 = totalt13 / nbFinish;
-      LOG.info("avg time commit node info agregate: " + avgt1 + ", " + avgt2
-              + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", "
-              + avgt7 + ", " + avgt8 + ", " + avgt9 + ", " + avgt10 + ", "
-              + avgt11 + ", "
-              + avgt12 + ", "
-              + avgt13);
-    }
   }
 
   private void persistContainerStatusToAdd(ContainerStatusDataAccess csDA)

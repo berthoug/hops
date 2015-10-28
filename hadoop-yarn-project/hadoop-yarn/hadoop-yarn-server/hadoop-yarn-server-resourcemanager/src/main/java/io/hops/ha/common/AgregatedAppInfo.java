@@ -168,91 +168,25 @@ public class AgregatedAppInfo {
     toRemoveblackListed.addAll(toRemove);
   }
 
-  static double totalt1 = 0;
-  static double totalt2 = 0;
-  static double totalt3 = 0;
-  static double totalt4 = 0;
-  static double totalt5 = 0;
-  static double totalt6 = 0;
-  static double totalt7 = 0;
-  static double totalt8 = 0;
-  static double totalt9 = 0;
-  static double totalt10 = 0;
-  static double totalt11 = 0;
-  static double avgt1 = 0;
-  static double avgt2 = 0;
-  static double avgt3 = 0;
-  static double avgt4 = 0;
-  static double avgt5 = 0;
-  static double avgt6 = 0;
-  static double avgt7 = 0;
-  static double avgt8 = 0;
-  static double avgt9 = 0;
-  static double avgt10 = 0;
-  static double avgt11 = 0;
-  static double nbFinish =0;
   public void persist() throws StorageException {
-    long start = System.currentTimeMillis();
     persistApplicationToAdd();
-    long t1 = System.currentTimeMillis() - start;
     persistContainers();
-    long t2 = System.currentTimeMillis() - start;
     persistReservedContainersToAdd();
     persistReservedContainersToRemove();
-    long t3 = System.currentTimeMillis() - start;
     //TORECOVER FAIR used only in fair scheduler
 //    persistLastScheduledContainersToAdd();
     persistSchedulingOpportunitiesToAdd();
-    long t4 = System.currentTimeMillis() - start;
     persistReReservations();
-    long t5 = System.currentTimeMillis() - start;
     persistNewlyAllocatedContainersToAdd();
     persistNewlyAllocatedContainersToRemove();
-    long t6 = System.currentTimeMillis() - start;
     persistLiveContainersToAdd();
     persistLiveContainersToRemove();
-    long t7 = System.currentTimeMillis() - start;
     persistRequestsToAdd();
     persistRequestsToRemove();
-    long t8 = System.currentTimeMillis() - start;
     persistBlackListsToAdd();
     persistBlackListsToRemove();
-    long t9 = System.currentTimeMillis() - start;
     persistToUpdateResources();
-    long t10 = System.currentTimeMillis() - start;
     persistRemoval();
-    long t11 = System.currentTimeMillis() - start;
-    if (t11 > 100) {
-      LOG.error("persist agregated app info too long: " + t1 + ", " + t2 + ", "
-              + t3 + ", " + t4 + ", " + t5 + ", " + t6 + ", " + t7 + ", " + t8
-              + ", " + t9 + ", " + t10 + ", " + t11);
-    }
-    totalt1 += t1;
-    totalt2 += t2;
-    totalt3 += t3;
-    totalt4 += t4;
-    totalt5 += t5;
-    totalt6 += t6;
-    totalt7 += t7;
-    totalt8 += t8;
-    totalt9 += t9;
-    totalt10 += t10;
-    totalt11 += t11;
-    avgt1=totalt1/nbFinish;
-    avgt2=totalt2/nbFinish;
-    avgt3=totalt3/nbFinish;
-    avgt4=totalt4/nbFinish;
-    avgt5=totalt5/nbFinish;
-    avgt6=totalt6/nbFinish;
-    avgt7=totalt7/nbFinish;
-    avgt8=totalt8/nbFinish;
-    avgt9=totalt9/nbFinish;
-    avgt10=totalt10/nbFinish;
-    avgt11=totalt11/nbFinish;
-    nbFinish++;
-    if(nbFinish%100==0){
-      LOG.info("avg time in agregated app info persist: " + avgt1 + ", " + avgt2 + ", " + avgt3 + ", " + avgt4 + ", " + avgt5 + ", " + avgt6 + ", " + avgt7 + ", " + avgt8 + ", " + avgt9 + ", " + avgt10 + ", " + avgt11);
-    }
   }
 
   private void persistApplicationToAdd() throws StorageException {

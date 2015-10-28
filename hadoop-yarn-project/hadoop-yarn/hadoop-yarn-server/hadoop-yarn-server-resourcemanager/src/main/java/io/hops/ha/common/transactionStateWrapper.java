@@ -113,9 +113,6 @@ public class transactionStateWrapper extends TransactionStateImpl {
     ts.decCounter(type);
     int val = rpcCounter.decrementAndGet();
     String key = type.getDeclaringClass().getName()+ "." + type.name();
-//    while(handleDurations.containsKey(key)){
-//      key = key+ "I";
-//    }
     Queue<Long> queue = handleDurations.get(key);
     if(queue==null){
       queue = new LinkedBlockingQueue<Long>();
@@ -131,13 +128,6 @@ public class transactionStateWrapper extends TransactionStateImpl {
         LOG.info("finishing rpc too long : " + rpcId + " "
                 + rpcType + " after " + duration + printDetailedDurations());
       }
-//      else if (duration > 10) {
-//        LOG.info("finishing rpc >10: "  + rpcId + " "
-//                + rpcType + " after " + duration + printDetailedDurations());
-//      } else {
-//        LOG.info("finishing rpc: "  + rpcId + " " + rpcType
-//                + " after " + duration + printDetailedDurations());
-//      }
     }
   }
 
@@ -211,8 +201,8 @@ public class transactionStateWrapper extends TransactionStateImpl {
     return ts.getSchedulerApplicationInfos(appId);
   }
 
-  public void persist(LinkedBlockingQueue<String> logs) throws IOException {
-    ts.persist(logs);
+  public void persist() throws IOException {
+    ts.persist();
   }
 
   public void persistSchedulerApplicationInfo(QueueMetricsDataAccess QMDA,

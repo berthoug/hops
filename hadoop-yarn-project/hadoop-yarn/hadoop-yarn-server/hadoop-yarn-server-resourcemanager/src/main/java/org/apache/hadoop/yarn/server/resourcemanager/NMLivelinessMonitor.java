@@ -57,7 +57,6 @@ public class NMLivelinessMonitor extends AbstractLivelinessMonitor<NodeId> {
   @Override
   protected void expire(NodeId id) {
     try {
-      LOG.info("create transactionState NMLiveliness");
       TransactionState ts = rmContext.getTransactionStateManager().
             getCurrentTransactionStatePriority(-1, "NMLivelinessMonitor");
       dispatcher.handle(new RMNodeEvent(id, RMNodeEventType.EXPIRE, ts));

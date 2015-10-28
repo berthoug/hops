@@ -126,8 +126,8 @@ public class FiCaSchedulerNodeInfoToUpdate {
   
   private void agregateLaunchedContainersToAdd(FiCaSchedulerNodeInfoAgregate agregate){
     if (launchedContainersToAdd != null) {
-      ArrayList<LaunchedContainers> toAddLaunchedContainers
-              = new ArrayList<LaunchedContainers>();
+      ArrayList<LaunchedContainers> toAddLaunchedContainers =
+          new ArrayList<LaunchedContainers>();
       for (String key : launchedContainersToAdd.keySet()) {
         if (launchedContainersToRemove == null || !launchedContainersToRemove.
                 remove(key)) {
@@ -142,7 +142,8 @@ public class FiCaSchedulerNodeInfoToUpdate {
     
 
 
-  private void agregateLaunchedContainersToRemove(FiCaSchedulerNodeInfoAgregate agregate){
+  private void agregateLaunchedContainersToRemove(
+          FiCaSchedulerNodeInfoAgregate agregate){
     if (launchedContainersToRemove != null) {
       ArrayList<LaunchedContainers> toRemoveLaunchedContainers =
           new ArrayList<LaunchedContainers>();

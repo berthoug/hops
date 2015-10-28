@@ -26,7 +26,7 @@ public class RMContainerEvent
     extends AbstractEventTransaction<RMContainerEventType> {
 
   private final ContainerId containerId;
-  
+
   public RMContainerEvent(ContainerId containerId, RMContainerEventType type,
       TransactionState transactionState) {
     super(type, transactionState);

@@ -218,7 +218,8 @@ public class TestChildQueueOrder {
     setupSortedQueues(csConf);
     Map<String, CSQueue> queues = new HashMap<String, CSQueue>();
     CSQueue root = CapacityScheduler.parseQueue(csContext, csConf, null,
-        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook);
+        CapacitySchedulerConfiguration.ROOT, queues, queues, TestUtils.spyHook,
+        null);
 
     // Setup some nodes
     final int memoryPerNode = 10;

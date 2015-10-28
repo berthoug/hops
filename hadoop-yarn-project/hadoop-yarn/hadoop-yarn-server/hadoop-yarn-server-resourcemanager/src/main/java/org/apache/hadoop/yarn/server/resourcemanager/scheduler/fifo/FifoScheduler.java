@@ -239,7 +239,8 @@ public class FifoScheduler extends AbstractYarnScheduler
   }
 
   @Override
-  public synchronized void reinitialize(Configuration conf, RMContext rmContext)
+  public synchronized void reinitialize(Configuration conf, RMContext rmContext,
+          TransactionState transactionState)
       throws IOException {
     setConf(conf);
     if (!this.initialized) {
@@ -384,8 +385,7 @@ public class FifoScheduler extends AbstractYarnScheduler
     }
     metrics.submitApp(user);
     LOG.info("Accepted application " + applicationId + " from user: " + user +
-        ", currently num of applications: " + applications.size() + " (" 
-            + transactionState.getId() + ")");
+        ", currently num of applications: " + applications.size());
     rmContext.getDispatcher().getEventHandler().handle(
         new RMAppEvent(applicationId, RMAppEventType.APP_ACCEPTED,
             transactionState));
@@ -433,7 +433,8 @@ public class FifoScheduler extends AbstractYarnScheduler
     applications.remove(applicationId);
 
     if (transactionState != null) {
-      ((TransactionStateImpl) transactionState).getSchedulerApplicationInfos(applicationId)
+      ((TransactionStateImpl) transactionState).
+              getSchedulerApplicationInfos(applicationId)
           .setApplicationIdtoRemove(applicationId);
     }
   }
@@ -740,7 +741,9 @@ public class FifoScheduler extends AbstractYarnScheduler
         node = getNode(rmNode.getNodeID());
 
     // Update resource if any change
-    SchedulerUtils.updateResourceIfChanged(node, rmNode, clusterResource, LOG, transactionState);
+    SchedulerUtils.updateResourceIfChanged(node, rmNode, clusterResource, LOG,
+            transactionState);
+    
     List<UpdatedContainerInfo> containerInfoList =
         rmNode.pullContainerUpdates(transactionState);
     List<ContainerStatus> newlyLaunchedContainers =
@@ -761,16 +764,7 @@ public class FifoScheduler extends AbstractYarnScheduler
     // Process completed containers
     for (ContainerStatus completedContainer : completedContainers) {
       ContainerId containerId = completedContainer.getContainerId();
-      RMContainer container = getRMContainer(containerId);
-      if(container!=null){
-        NodeId containerNodeId = container.getNodeId();
-      
-      if(!containerNodeId.equals(rmNode.getNodeID())){
-        LOG.error("We should have containers only for the updated node" + getRMContainer(containerId).getNodeId() + " " + rmNode.getNodeID() + " " + containerId);
-      }
-      }else{
-        LOG.error("We should have containers only for the updated node null "  + rmNode.getNodeID() + " " + containerId);
-      }
+      LOG.debug("Container FINISHED: " + containerId);
       containerCompleted(getRMContainer(containerId), completedContainer,
           RMContainerEventType.FINISHED, transactionState);
     }
@@ -1064,7 +1058,8 @@ public class FifoScheduler extends AbstractYarnScheduler
 
       }
       //recover nodes map
-      Collection<FiCaSchedulerNode> nodesList = state.getAllFiCaSchedulerNodes().values();
+      Collection<FiCaSchedulerNode> nodesList = 
+              state.getAllFiCaSchedulerNodes().values();
       if (nodesList != null && !nodesList.isEmpty()) {
         for (FiCaSchedulerNode fsnode : nodesList) {
 
@@ -1076,7 +1071,8 @@ public class FifoScheduler extends AbstractYarnScheduler
               ficaNode =
               new org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode(
                   this.rmContext.
-                      getActiveRMNodes().get(nodeId), usePortForNodeName, rmContext);
+                      getActiveRMNodes().get(nodeId), usePortForNodeName, 
+                      rmContext);
           ficaNode.recover(state);
 
           nodes.put(nodeId, ficaNode);

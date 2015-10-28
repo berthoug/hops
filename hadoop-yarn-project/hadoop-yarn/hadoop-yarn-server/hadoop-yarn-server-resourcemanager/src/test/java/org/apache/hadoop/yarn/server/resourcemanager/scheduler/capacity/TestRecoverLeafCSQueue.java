@@ -130,9 +130,9 @@ public class TestRecoverLeafCSQueue {
             = CapacityScheduler.parseQueue(csContext, csConf, null,
                     CapacitySchedulerConfiguration.ROOT,
                     queues, queues,
-                    TestUtils.spyHook);
+                    TestUtils.spyHook, null);
 
-    cs.reinitialize(csConf, rmContext);
+    cs.reinitialize(csConf, rmContext, null);
     RMStorageFactory.setConfiguration(conf);
     YarnAPIStorageFactory.setConfiguration(conf);
 

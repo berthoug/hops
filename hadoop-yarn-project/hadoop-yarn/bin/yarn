@@ -110,7 +110,6 @@ fi
 
 JAVA=$JAVA_HOME/bin/java
 JAVA_HEAP_MAX=-Xmx20000m 
-#JAVA_HEAP_START=-Xms6000m
 
 # check envvars which might override default args
 if [ "$YARN_HEAPSIZE" != "" ]; then
@@ -239,11 +238,8 @@ elif [ "$COMMAND" = "rmRTEval" ] ; then
 else
   CLASS=$COMMAND
 fi
+
 YARN_OPTS="$YARN_OPTS -Dcom.sun.management.jmxremote.port=3333 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false"
-#YARN_OPTS="$YARN_OPTS -XX:+UseG1GC"
-YARN_OPTS="$YARN_OPTS -XX:MaxDirectMemorySize=20G"
-YARN_OPTS="$YARN_OPTS -XX:-HeapDumpOnOutOfMemoryError"
-YARN_OPTS="$YARN_OPTS -XX:HeapDumpPath=$YARN_LOG_DIR"
 YARN_OPTS="$YARN_OPTS -Dhadoop.log.dir=$YARN_LOG_DIR"
 YARN_OPTS="$YARN_OPTS -Dyarn.log.dir=$YARN_LOG_DIR"
 YARN_OPTS="$YARN_OPTS -Dhadoop.log.file=$YARN_LOGFILE"
@@ -256,5 +252,5 @@ if [ "x$JAVA_LIBRARY_PATH" != "x" ]; then
   YARN_OPTS="$YARN_OPTS -Djava.library.path=$JAVA_LIBRARY_PATH"
 fi  
 
-exec "$JAVA" -Dproc_$COMMAND $JAVA_HEAP_MAX $JAVA_HEAP_START $YARN_OPTS -classpath "$CLASSPATH" $CLASS "$@"
+exec "$JAVA" -Dproc_$COMMAND $JAVA_HEAP_MAX $YARN_OPTS -classpath "$CLASSPATH" $CLASS "$@"
 fi

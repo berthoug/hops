@@ -1306,8 +1306,8 @@ public class FairScheduler extends AbstractYarnScheduler {
   }
 
   @Override
-  public synchronized void reinitialize(Configuration conf, RMContext rmContext)
-      throws IOException {
+  public synchronized void reinitialize(Configuration conf, RMContext rmContext,
+          TransactionState transactionState) throws IOException {
     if (!initialized) {
       this.conf = new FairSchedulerConfiguration(conf);
       validateConf(this.conf);

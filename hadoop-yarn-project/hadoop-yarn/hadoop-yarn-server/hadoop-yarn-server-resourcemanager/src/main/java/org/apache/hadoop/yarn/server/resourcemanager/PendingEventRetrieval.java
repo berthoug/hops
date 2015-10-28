@@ -56,217 +56,235 @@ import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 
 public abstract class PendingEventRetrieval implements Runnable {
 
-    static final Log LOG = LogFactory.getLog(PendingEventRetrieval.class);
-    protected boolean active = true;
-    protected final RMContext rmContext;
-    protected final Configuration conf;
-    private int rpcId = -1;
+  static final Log LOG = LogFactory.getLog(PendingEventRetrieval.class);
+  protected boolean active = true;
+  protected final RMContext rmContext;
+  protected final Configuration conf;
+  private int rpcId = -1;
 
-    public PendingEventRetrieval(RMContext rmContext, Configuration conf) {
-        this.rmContext = rmContext;
-        this.conf = conf;
-    }
+  public PendingEventRetrieval(RMContext rmContext, Configuration conf) {
+    this.rmContext = rmContext;
+    this.conf = conf;
+  }
 
-    public void finish() {
-        LOG.info("HOP :: Stopping pendingEventRetrieval");
-        this.active = false;
-    }
+  public void finish() {
+    LOG.info("HOP :: Stopping pendingEventRetrieval");
+    this.active = false;
+  }
 
-    protected RMNode processHopRMNodeComps(RMNodeComps hopRMNodeFull) throws InvalidProtocolBufferException {
-        NodeId nodeId;
-        RMNode rmNode = null;
-        if (hopRMNodeFull != null) {
-            nodeId = ConverterUtils.toNodeId(hopRMNodeFull.getPendingEvent().getRmnodeId());
+  protected RMNode processHopRMNodeComps(RMNodeComps hopRMNodeFull) throws
+          InvalidProtocolBufferException {
+    NodeId nodeId;
+    RMNode rmNode = null;
+    if (hopRMNodeFull != null) {
+      nodeId = ConverterUtils.toNodeId(hopRMNodeFull.getPendingEvent().
+              getRmnodeId());
 
-            rmNode = rmContext.getActiveRMNodes().get(nodeId);
-            // so first time we are receiving , this will happen when node registers
-            if (rmNode == null) {
-                Node node = null;
-                if (hopRMNodeFull.getHopRMNode().getNodeId() != null) {
-                    node = new NodeBase(hopRMNodeFull.getHopNode().getName(), hopRMNodeFull.
-                            getHopNode().getLocation());
-                    if (hopRMNodeFull.getHopNode().getParent() != null) {
-                        node.setParent(new NodeBase(hopRMNodeFull.getHopNode().getParent()));
-                    }
-                    node.setLevel(hopRMNodeFull.getHopNode().getLevel());
-                }
-                //Retrieve nextHeartbeat
-                boolean nextHeartbeat = true;
-                //Create Resource
-                ResourceOption resourceOption = null;
-                if (hopRMNodeFull.getHopResource() != null) {
-                    resourceOption = ResourceOption.newInstance(Resource.newInstance(
-                            hopRMNodeFull.getHopResource().
-                            getMemory(), hopRMNodeFull.getHopResource().getVirtualCores()),
-                            hopRMNodeFull.getHopRMNode().getOvercommittimeout());
-                }
-
-                rmNode = new RMNodeImpl(nodeId,
-                        rmContext,
-                        hopRMNodeFull.getHopRMNode().getHostName(),
-                        hopRMNodeFull.getHopRMNode().getCommandPort(),
-                        hopRMNodeFull.getHopRMNode().getHttpPort(),
-                        resolve(hopRMNodeFull.getHopRMNode().getHostName()),
-                        resourceOption,
-                        hopRMNodeFull.getHopRMNode().getNodemanagerVersion(),
-                        hopRMNodeFull.getHopRMNode().getHealthReport(),
-                        hopRMNodeFull.getHopRMNode().getLastHealthReportTime(),
-                        nextHeartbeat, conf.getBoolean(
-                                YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
-                                YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED));
-                
-                InetSocketAddress addr
-                        = NetUtils.createSocketAddrForHost(nodeId.getHost(), nodeId.getPort());
-                //This is for quick loop-up in scheduler container allocation
-            }
-            // now we update the rmnode
-
-            ((RMNodeImpl) rmNode).setState(hopRMNodeFull.getHopRMNode().
-                    getCurrentState());
-            List<UpdatedContainerInfo> hopUpdatedContainerInfoList
-                    = hopRMNodeFull.getHopUpdatedContainerInfo();
-            if (hopUpdatedContainerInfoList != null && !hopUpdatedContainerInfoList.
-                    isEmpty()) {
-                ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo> updatedContainerInfoQueue
-                        = new ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>();
-                Map<Integer, org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo> ucis = 
-                        new HashMap<Integer, org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>();
-                for (UpdatedContainerInfo hopUCI : hopUpdatedContainerInfoList) {
-                  if(!ucis.containsKey(hopUCI.getUpdatedContainerInfoId())){
-                    ucis.put(hopUCI.getUpdatedContainerInfoId(), 
-                            new org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo(new ArrayList<org.apache.hadoop.yarn.api.records.ContainerStatus>(),
-                            new ArrayList<org.apache.hadoop.yarn.api.records.ContainerStatus>(), hopUCI.getUpdatedContainerInfoId()));
-                  }
-                  
-                  org.apache.hadoop.yarn.api.records.ContainerId cid = ConverterUtils.toContainerId(hopUCI.
-                            getContainerId());
-                  ContainerStatus hopContainerStatus = hopRMNodeFull.
-                            getHopContainersStatusMap().get(hopUCI.getContainerId());
-                   org.apache.hadoop.yarn.api.records.ContainerStatus conStatus = org.apache.hadoop.yarn.api.records.ContainerStatus.newInstance(cid,
-                            ContainerState.valueOf(hopContainerStatus.getState()),
-                            hopContainerStatus.getDiagnostics(),
-                            hopContainerStatus.getExitstatus());
-                    //Check ContainerStatus state to add it to appropriate list
-                    if (conStatus != null) {
-                        if (conStatus.getState().toString().equals(
-                                ContainerStatusTableDef.STATE_RUNNING)) {
-                            ucis.get(hopUCI.getUpdatedContainerInfoId()).getNewlyLaunchedContainers().add(conStatus);
-                        } else if (conStatus.getState().toString().equals(
-                                ContainerStatusTableDef.STATE_COMPLETED)) {
-                            ucis.get(hopUCI.getUpdatedContainerInfoId()).getCompletedContainers().add(conStatus);
-                        }
-                    }
-                }
-                int maxUciId=0;
-                for(org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo uci: ucis.values()){
-                  updatedContainerInfoQueue.add(uci);
-                  if(uci.getUpdatedContainerInfoId()> maxUciId){
-                    maxUciId = uci.getUpdatedContainerInfoId();
-                  }
-                }
-                
-                ((RMNodeImpl) rmNode).setUpdatedContainerInfoId(maxUciId);
-                 ((RMNodeImpl) rmNode).setUpdatedContainerInfo(
-                        updatedContainerInfoQueue);
-            }
-//            //5. Retrieve latestNodeHeartBeatResponse
-//            NodeHBResponse hopHB = hopRMNodeFull.getHopNodeHBResponse();
-//            if (hopHB != null && hopHB.getResponse() != null) {
-//                NodeHeartbeatResponse hb = new NodeHeartbeatResponsePBImpl(
-//                        YarnServerCommonServiceProtos.NodeHeartbeatResponseProto.
-//                        parseFrom(hopHB.getResponse()));
-//                ((RMNodeImpl) rmNode).setLatestNodeHBResponse(hb);
-//            }
+      rmNode = rmContext.getActiveRMNodes().get(nodeId);
+      // so first time we are receiving , this will happen when node registers
+      if (rmNode == null) {
+        Node node = null;
+        if (hopRMNodeFull.getHopRMNode().getNodeId() != null) {
+          node = new NodeBase(hopRMNodeFull.getHopNode().getName(), hopRMNodeFull.
+                  getHopNode().getLocation());
+          if (hopRMNodeFull.getHopNode().getParent() != null) {
+            node.setParent(new NodeBase(hopRMNodeFull.getHopNode().getParent()));
+          }
+          node.setLevel(hopRMNodeFull.getHopNode().getLevel());
         }
-        return rmNode;
-    }
+        //Retrieve nextHeartbeat
+        boolean nextHeartbeat = true;
+        //Create Resource
+        ResourceOption resourceOption = null;
+        if (hopRMNodeFull.getHopResource() != null) {
+          resourceOption = ResourceOption
+              .newInstance(Resource.newInstance(hopRMNodeFull.getHopResource().
+                  getMemory(),
+                      hopRMNodeFull.getHopResource().getVirtualCores()),
+                  hopRMNodeFull.getHopRMNode().getOvercommittimeout());
+        }
+        //Create RMNode from HopRMNode
+        rmNode = new RMNodeImpl(nodeId, rmContext,
+                hopRMNodeFull.getHopRMNode().getHostName(),
+                hopRMNodeFull.getHopRMNode().getCommandPort(),
+                hopRMNodeFull.getHopRMNode().getHttpPort(),
+                resolve(hopRMNodeFull.getHopRMNode().getHostName()),
+                resourceOption,
+                hopRMNodeFull.getHopRMNode().getNodemanagerVersion(),
+                hopRMNodeFull.getHopRMNode().getHealthReport(),
+                hopRMNodeFull.getHopRMNode().getLastHealthReportTime(),
+                nextHeartbeat, conf.getBoolean(
+                        YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
+                        YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED));
 
-    protected void updateRMContext(RMNode rmNode) {
-        if (rmNode.getState() == NodeState.DECOMMISSIONED
-                || rmNode.getState() == NodeState.REBOOTED
-                || rmNode.getState() == NodeState.LOST) {
-            LOG.debug("HOP :: PendingEventRetrieval rmNode:" + rmNode + ", state-"
-                    + rmNode.getState());
-            rmContext.getInactiveRMNodes().put(rmNode.getNodeID().
-                    getHost(), rmNode);
-            rmContext.getActiveRMNodes().
-                    remove(rmNode.getNodeID(), rmNode);
-        } else {
-            LOG.debug("HOP :: PendingEventRetrieval rmNode:" + rmNode + ", state-"
-                    + rmNode.getState());
-            rmContext.getInactiveRMNodes().
-                    remove(rmNode.getNodeID().getHost(), rmNode);
-            rmContext.getActiveRMNodes().put(rmNode.getNodeID(), rmNode);
+        //This is  to force java to put the host in cash 
+        //for quick loop-up in scheduler container allocation  
+        NetUtils.createSocketAddrForHost(nodeId.getHost(), nodeId.
+                        getPort());
+      }
+      // now we update the rmnode
+
+      ((RMNodeImpl) rmNode).setState(hopRMNodeFull.getHopRMNode().
+              getCurrentState());
+      List<UpdatedContainerInfo> hopUpdatedContainerInfoList
+              = hopRMNodeFull.getHopUpdatedContainerInfo();
+      if (hopUpdatedContainerInfoList != null && !hopUpdatedContainerInfoList.
+              isEmpty()) {
+        ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo> updatedContainerInfoQueue
+                = new ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>();
+        Map<Integer, org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo> ucis
+                = new HashMap<Integer, org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>();
+        for (UpdatedContainerInfo hopUCI : hopUpdatedContainerInfoList) {
+          if (!ucis.containsKey(hopUCI.getUpdatedContainerInfoId())) {
+            ucis.put(hopUCI.getUpdatedContainerInfoId(),
+                    new org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo(
+                            new ArrayList<org.apache.hadoop.yarn.api.records.ContainerStatus>(),
+                            new ArrayList<org.apache.hadoop.yarn.api.records.ContainerStatus>(),
+                            hopUCI.getUpdatedContainerInfoId()));
+          }
+
+          org.apache.hadoop.yarn.api.records.ContainerId cid = ConverterUtils.
+                  toContainerId(hopUCI.
+                          getContainerId());
+          ContainerStatus hopContainerStatus = hopRMNodeFull.
+                  getHopContainersStatusMap().get(hopUCI.getContainerId());
+          org.apache.hadoop.yarn.api.records.ContainerStatus conStatus
+                  = org.apache.hadoop.yarn.api.records.ContainerStatus.
+                  newInstance(cid,
+                          ContainerState.valueOf(hopContainerStatus.getState()),
+                          hopContainerStatus.getDiagnostics(),
+                          hopContainerStatus.getExitstatus());
+          //Check ContainerStatus state to add it to appropriate list
+          if (conStatus != null) {
+            if (conStatus.getState().toString().equals(
+                    ContainerStatusTableDef.STATE_RUNNING)) {
+              ucis.get(hopUCI.getUpdatedContainerInfoId()).
+                      getNewlyLaunchedContainers().add(conStatus);
+            } else if (conStatus.getState().toString().equals(
+                    ContainerStatusTableDef.STATE_COMPLETED)) {
+              ucis.get(hopUCI.getUpdatedContainerInfoId()).
+                      getCompletedContainers().add(conStatus);
+            }
+          }
+        }
+        int maxUciId = 0;
+        for (org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo uci
+                : ucis.values()) {
+          updatedContainerInfoQueue.add(uci);
+          if (uci.getUpdatedContainerInfoId() > maxUciId) {
+            maxUciId = uci.getUpdatedContainerInfoId();
+          }
         }
 
+        ((RMNodeImpl) rmNode).setUpdatedContainerInfoId(maxUciId);
+        ((RMNodeImpl) rmNode).setUpdatedContainerInfo(
+                updatedContainerInfoQueue);
+      }
+    }
+    return rmNode;
+  }
+
+  protected void updateRMContext(RMNode rmNode) {
+    if (rmNode.getState() == NodeState.DECOMMISSIONED ||
+        rmNode.getState() == NodeState.REBOOTED ||
+        rmNode.getState() == NodeState.LOST) {
+      LOG.debug("HOP :: PendingEventRetrieval rmNode:" + rmNode + ", state-" +
+          rmNode.getState());
+      rmContext.getInactiveRMNodes().put(rmNode.getNodeID().
+              getHost(), rmNode);
+      rmContext.getActiveRMNodes().
+              remove(rmNode.getNodeID(), rmNode);
+    } else {
+      LOG.debug("HOP :: PendingEventRetrieval rmNode:" + rmNode + ", state-" +
+          rmNode.getState());
+      rmContext.getInactiveRMNodes().
+              remove(rmNode.getNodeID().getHost(), rmNode);
+      rmContext.getActiveRMNodes().put(rmNode.getNodeID(), rmNode);
     }
 
-    protected void triggerEvent(final RMNode rmNode, PendingEvent pendingEvent) {
-        LOG.debug("Nodeupdate event_pending event trigger event - rmnode : "+rmNode.getNodeID());
-        TransactionState transactionState = null;
-        GlobalThreadPool.getExecutorService().execute(new Runnable() {
-            @Override
-            public void run() {
-                NetUtils.normalizeHostName(rmNode.getHostName());
-            }
-        });
-        if (pendingEvent.getType() == PendingEventTableDef.NODE_ADDED) {
-            LOG.debug("HOP :: PendingEventRetrieval event NodeAdded: "
-                    + pendingEvent);
-           //Put pendingEvent to remove (for testing we update the status to COMPLETED
-          transactionState = rmContext.getTransactionStateManager().
-                  getCurrentTransactionStatePriority(rpcId, "nodeHeartbeat");
-          ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
-                    pendingEvent.getId(),
-                    rmNode.getNodeID().toString(),
-                    PendingEventTableDef.NODE_ADDED,
-                    PendingEventTableDef.COMPLETED);
-            rmContext.getDispatcher().getEventHandler().handle(
-                    new NodeAddedSchedulerEvent(rmNode, transactionState));
+  }
 
-        } else if (pendingEvent.getType()
-                == PendingEventTableDef.NODE_REMOVED) {
-            LOG.debug("HOP :: PendingEventRetrieval event NodeRemoved: "
-                    + pendingEvent);
-          //Put pendingEvent to remove (for testing we update the status to COMPLETED
-          transactionState = rmContext.getTransactionStateManager().
-                  getCurrentTransactionStatePriority(rpcId, "nodeHeartbeat");
-          ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
-                    pendingEvent.getId(),
-                    rmNode.getNodeID().toString(),
-                    PendingEventTableDef.NODE_REMOVED,
-                    PendingEventTableDef.COMPLETED);
+  protected void triggerEvent(final RMNode rmNode, PendingEvent pendingEvent) {
+    LOG.debug(
+            "Nodeupdate event_pending event trigger event - rmnode : "
+            + rmNode.getNodeID());
+    
+    TransactionState transactionState = null;
+    GlobalThreadPool.getExecutorService().execute(new Runnable() {
+      @Override
+      public void run() {
+        NetUtils.normalizeHostName(rmNode.getHostName());
+      }
+    });
+    
+    if (pendingEvent.getType() == PendingEventTableDef.NODE_ADDED) {
+      LOG.debug("HOP :: PendingEventRetrieval event NodeAdded: "
+              + pendingEvent);
+      //Put pendingEvent to remove (for testing we update the status to COMPLETED
+      transactionState = rmContext.getTransactionStateManager().
+              getCurrentTransactionStatePriority(rpcId, "nodeHeartbeat");
+      ((TransactionStateImpl) transactionState).
+              getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
+                      pendingEvent.getId(),
+                      rmNode.getNodeID().toString(),
+                      PendingEventTableDef.NODE_ADDED,
+                      PendingEventTableDef.COMPLETED);
+      rmContext.getDispatcher().getEventHandler().handle(
+              new NodeAddedSchedulerEvent(rmNode, transactionState));
 
-            rmContext.getDispatcher().getEventHandler().handle(
-                    new NodeRemovedSchedulerEvent(rmNode, transactionState));
+    } else if (pendingEvent.getType()
+            == PendingEventTableDef.NODE_REMOVED) {
+      LOG.debug("HOP :: PendingEventRetrieval event NodeRemoved: "
+              + pendingEvent);
+      //Put pendingEvent to remove (for testing we update the status to COMPLETED
+      transactionState = rmContext.getTransactionStateManager().
+              getCurrentTransactionStatePriority(rpcId, "nodeHeartbeat");
+      ((TransactionStateImpl) transactionState).
+              getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
+                      pendingEvent.getId(),
+                      rmNode.getNodeID().toString(),
+                      PendingEventTableDef.NODE_REMOVED,
+                      PendingEventTableDef.COMPLETED);
 
-        } else if (pendingEvent.getType()
-                == PendingEventTableDef.NODE_UPDATED) {
+      rmContext.getDispatcher().getEventHandler()
+              .handle(new NodeRemovedSchedulerEvent(rmNode, transactionState));
+
+    } else if (pendingEvent.getType()
+            == PendingEventTableDef.NODE_UPDATED) {
 
             // if scheduler is not finished the previous event , then just update the rmcontext
-            // once scheduler finished the event , nextheartbeat will be true and rt will notfiy
-            // whether to process or not
-            if (pendingEvent.getStatus() == PendingEventTableDef.SCHEDULER_FINISHED_PROCESSING) {
-                transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStatePriority(rpcId, "nodeHeartbeat");
-                 ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).addPendingEventToRemove(
+      // once scheduler finished the event , nextheartbeat will be true and rt will notfiy
+      // whether to process or not
+      if (pendingEvent.getStatus()
+              == PendingEventTableDef.SCHEDULER_FINISHED_PROCESSING) {
+        transactionState = rmContext.getTransactionStateManager().
+                getCurrentTransactionStatePriority(rpcId, "nodeHeartbeat");
+        ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.
+                getNodeID()).addPendingEventToRemove(
                         pendingEvent.getId(),
                         rmNode.getNodeID().toString(),
                         PendingEventTableDef.NODE_UPDATED,
                         PendingEventTableDef.COMPLETED);
-                LOG.debug("Nodeupdate event_Scheduler_finished_processing rmnode : "+rmNode.getNodeID());
-                ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.getNodeID()).setPendingEventId(pendingEvent.getId());
-                rmContext.getDispatcher().getEventHandler().handle(new NodeUpdateSchedulerEvent(rmNode, transactionState));
+        LOG.debug("Nodeupdate event_Scheduler_finished_processing rmnode : "
+                + rmNode.getNodeID());
+        ((TransactionStateImpl) transactionState).getRMNodeInfo(rmNode.
+                getNodeID()).setPendingEventId(pendingEvent.getId());
+        rmContext.getDispatcher().getEventHandler().handle(
+                new NodeUpdateSchedulerEvent(rmNode, transactionState));
 
-            } else if (pendingEvent.getStatus() == PendingEventTableDef.SCHEDULER_NOT_FINISHED_PROCESSING) {
-                LOG.debug("Nodeupdate event_Scheduler_not_finished_processing rmnode : "+rmNode.getNodeID());
-            }
-        }
-
-        try {
-            if(transactionState !=null)
-                transactionState.decCounter(TransactionState.TransactionType.INIT);
-        } catch (IOException ex) {
-            LOG.error("HOP :: Error decreasing ts counter", ex);
-        }
+      } else if (pendingEvent.getStatus()
+              == PendingEventTableDef.SCHEDULER_NOT_FINISHED_PROCESSING) {
+        LOG.debug("Nodeupdate event_Scheduler_not_finished_processing rmnode : "
+                + rmNode.getNodeID());
+      }
     }
+
+    try {
+      if (transactionState != null) {
+        transactionState.decCounter(TransactionState.TransactionType.INIT);
+      }
+    } catch (IOException ex) {
+      LOG.error("HOP :: Error decreasing ts counter", ex);
+    }
+  }
 }

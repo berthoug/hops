@@ -1286,6 +1286,7 @@ public class YarnConfiguration extends Configuration {
   public static final String YARN_HTTP_POLICY_DEFAULT =
       HttpConfig.Policy.HTTP_ONLY.name();
 
+ //TODO What is this for? does it have to be cleaned
   public static final List<Integer> DEFAULT_RM_PORT_HOP;
   public static final List<String> DEFAULT_RM_ADDRESS_HOP;
   public static final List<Integer> DEFAULT_RM_ADMIN_PORT_HOP;
@@ -1303,41 +1304,7 @@ public class YarnConfiguration extends Configuration {
       new ArrayList<Integer>();
   public static final List<String> DEFAULT_RM_RESOURCE_TRACKER_ADDRESS_HOP;
 
-  //Distributed RT properties
-  public static final String HOPS_DISTRIBUTED_RT_ENABLED =
-      HOPS_RM_PREFIX + "distributed-rt.enable";
-  public static boolean DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED = false;
-  public static String HOPS_PENDING_EVENTS_RETRIEVAL_PERIOD =
-      HOPS_RM_PREFIX + "pending-events.retrieval.period";
-  public static int DEFAULT_HOPS_PENDING_EVENTS_RETRIEVAL_PERIOD = 500;
-  public static String HOPS_PENDING_EVENTS_BATCH =
-      HOPS_RM_PREFIX + "pending-events.batch";
-  public static int DEFAULT_HOPS_PENDING_EVENTS_BATCH = 0;
 
-  public static final String HOPS_BATCH_MAX_SIZE = HOPS_RM_PREFIX + "batch.max.size";
-  public static int DEFAULT_HOPS_BATCH_MAX_SIZE = 50;
-
-  public static final String HOPS_BATCH_MAX_DURATION = HOPS_RM_PREFIX + "batch.max.duration";
-  public static int DEFAULT_HOPS_BATCH_MAX_DURATION = 100;
-
-  //NDB event streaming
-  public static boolean DEFAULT_HOPS_NDB_EVENT_STREAMING_ENABLED = false;
-  public static final String HOPS_NDB_EVENT_STREAMING_ENABLED = HOPS_RM_PREFIX
-          + "ndb-event-streaming.enable";
-
-  public static boolean DEFAULT_HOPS_NDB_RT_EVENT_STREAMING_ENABLED = false;
-  public static final String HOPS_NDB_RT_EVENT_STREAMING_ENABLED
-          = HOPS_RM_PREFIX + "ndb-rt-event-streaming.enable";
-
-  public static int NDB_EVENT_STREAMING_QUEUE_CAPACITY = 100000;
-
-  public static final String MAX_ALLOCATED_CONTAINERS_PER_REQUEST= HOPS_RM_PREFIX + "max.allocated.containers.per.request";
-  public static int DEFAULT_MAX_ALLOCATED_CONTAINERS_PER_REQUEST = -1;
-  public static final String COMMIT_AND_QUEUE_THRESHOLD = HOPS_RM_PREFIX + "commit.and.queue.threshold";
-  public static int DEFAULT_COMMIT_AND_QUEUE_THRESHOLD=500;
-  public static final String COMMIT_QUEUE_MAX_LENGTH = HOPS_RM_PREFIX + "commit.queue.max.length";
-  public static int DEFAULT_COMMIT_QUEUE_MAX_LENGTH=2;
-  
   static {
 
     Configuration.addDefaultResource(YARN_DEFAULT_CONFIGURATION_FILE);
@@ -1379,6 +1346,42 @@ public class YarnConfiguration extends Configuration {
 
   ;
 
+  //end of TODO What is this for? does it have to be cleaned
+  
+   //Distributed RT properties
+  public static final String HOPS_DISTRIBUTED_RT_ENABLED =
+      HOPS_RM_PREFIX + "distributed-rt.enable";
+  public static boolean DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED = false;
+  public static String HOPS_PENDING_EVENTS_RETRIEVAL_PERIOD =
+      HOPS_RM_PREFIX + "pending-events.retrieval.period";
+  public static int DEFAULT_HOPS_PENDING_EVENTS_RETRIEVAL_PERIOD = 500;
+  public static String HOPS_PENDING_EVENTS_BATCH =
+      HOPS_RM_PREFIX + "pending-events.batch";
+  public static int DEFAULT_HOPS_PENDING_EVENTS_BATCH = 0;
+
+  public static final String HOPS_BATCH_MAX_SIZE = HOPS_RM_PREFIX + "batch.max.size";
+  public static int DEFAULT_HOPS_BATCH_MAX_SIZE = 50;
+
+  public static final String HOPS_BATCH_MAX_DURATION = HOPS_RM_PREFIX + "batch.max.duration";
+  public static int DEFAULT_HOPS_BATCH_MAX_DURATION = 100;
+
+  //NDB event streaming
+  public static boolean DEFAULT_HOPS_NDB_EVENT_STREAMING_ENABLED = false;
+  public static final String HOPS_NDB_EVENT_STREAMING_ENABLED = HOPS_RM_PREFIX
+          + "ndb-event-streaming.enable";
+
+  public static boolean DEFAULT_HOPS_NDB_RT_EVENT_STREAMING_ENABLED = false;
+  public static final String HOPS_NDB_RT_EVENT_STREAMING_ENABLED
+          = HOPS_RM_PREFIX + "ndb-rt-event-streaming.enable";
+
+  public static final String MAX_ALLOCATED_CONTAINERS_PER_REQUEST= HOPS_RM_PREFIX + "max.allocated.containers.per.request";
+  public static int DEFAULT_MAX_ALLOCATED_CONTAINERS_PER_REQUEST = -1;
+  public static final String COMMIT_AND_QUEUE_THRESHOLD = HOPS_RM_PREFIX + "commit.and.queue.threshold";
+  public static int DEFAULT_COMMIT_AND_QUEUE_THRESHOLD=500;
+  public static final String COMMIT_QUEUE_MAX_LENGTH = HOPS_RM_PREFIX + "commit.queue.max.length";
+  public static int DEFAULT_COMMIT_QUEUE_MAX_LENGTH=2;
+  
+  
   public YarnConfiguration() {
     super();
   }

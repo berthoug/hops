@@ -480,7 +480,8 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
         returnList.addAll(this.justFinishedContainers);
         this.justFinishedContainers.clear();
       if (ts != null) {
-        ((TransactionStateImpl) ts).addAllJustFinishedContainersToRemove(returnList, this.applicationAttemptId);
+        ((TransactionStateImpl) ts).addAllJustFinishedContainersToRemove(
+                returnList, this.applicationAttemptId);
       }
       return returnList;
     } finally {

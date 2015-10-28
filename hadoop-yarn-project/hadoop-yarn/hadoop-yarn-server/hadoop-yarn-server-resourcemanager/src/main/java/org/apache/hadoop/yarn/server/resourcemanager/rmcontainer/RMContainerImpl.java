@@ -182,13 +182,14 @@ public class RMContainerImpl implements
       this.containerAllocationExpirer.register(containerId);
     }
     if (hopRMContainer.getReservedNodeIdID() != null) {
-      this.reservedNode = 
-              NodeId.newInstance(hopRMContainer.getReservedNodeHost(),
+      this.reservedNode = NodeId.newInstance(hopRMContainer.
+              getReservedNodeHost(),
               hopRMContainer.getReservedNodePort());
-      this.reservedResource = 
-              Resource.newInstance(hopRMContainer.getReservedMemory(), 
+      this.reservedResource = Resource.newInstance(hopRMContainer.
+              getReservedMemory(),
               hopRMContainer.getReservedVCores());
-      this.reservedPriority = Priority.newInstance(hopRMContainer.getReservedPriorityID());
+      this.reservedPriority = Priority.newInstance(hopRMContainer.
+              getReservedPriorityID());
     }
     if (hopRMContainer.getFinishedStatusState() != null) {
       this.finishedStatus = ContainerStatus.newInstance(containerId,

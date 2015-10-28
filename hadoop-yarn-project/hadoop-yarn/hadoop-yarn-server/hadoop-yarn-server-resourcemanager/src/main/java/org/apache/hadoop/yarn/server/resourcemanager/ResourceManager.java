@@ -488,7 +488,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
 
 
       try {
-        scheduler.reinitialize(conf, rmContext);
+        scheduler.reinitialize(conf, rmContext, null);
       } catch (IOException ioe) {
         throw new RuntimeException("Failed to initialize scheduler", ioe);
       }

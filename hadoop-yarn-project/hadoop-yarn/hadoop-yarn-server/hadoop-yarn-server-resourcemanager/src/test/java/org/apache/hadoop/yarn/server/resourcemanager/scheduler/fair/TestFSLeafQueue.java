@@ -50,7 +50,7 @@ public class TestFSLeafQueue {
     ResourceManager resourceManager = new ResourceManager();
     resourceManager.init(conf);
     ((AsyncDispatcher) resourceManager.getRMContext().getDispatcher()).start();
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext(), null);
     YarnAPIStorageFactory.setConfiguration(conf);
     RMStorageFactory.setConfiguration(conf);
     String queueName = "root.queue1";
