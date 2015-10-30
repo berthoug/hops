@@ -595,7 +595,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
       case ALLOCATED:
         this.masterService.registerAppAttempt(applicationAttemptId, null);
         this.masterService.recoverAllocateResponse(applicationAttemptId, state.
-            getAllocateResponses().get(applicationAttemptId));
+            getAllocateResponses().get(applicationAttemptId),state);
         break;
       case FINISHING:
         this.rmContext.getAMFinishingMonitor().register(applicationAttemptId);

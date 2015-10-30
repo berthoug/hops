@@ -100,7 +100,7 @@ public class TestFifoScheduler {
     }
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testAllocateContainerOnNodeWithoutOffSwitchSpecified()
       throws Exception {
     Logger rootLogger = LogManager.getRootLogger();
@@ -133,7 +133,7 @@ public class TestFifoScheduler {
     rm.stop();
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void test() throws Exception {
     Logger rootLogger = LogManager.getRootLogger();
     rootLogger.setLevel(Level.DEBUG);
@@ -255,14 +255,14 @@ public class TestFifoScheduler {
     rm.stop();
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testDefaultMinimumAllocation() throws Exception {
     // Test with something lesser than default
     testMinimumAllocation(new YarnConfiguration(TestFifoScheduler.conf),
         YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB / 2);
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testNonDefaultMinimumAllocation() throws Exception {
     // Set custom min-alloc to test tweaking it
     int allocMB = 1536;

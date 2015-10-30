@@ -98,6 +98,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.hadoop.yarn.api.records.ContainerResourceIncreaseRequest;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 
 @SuppressWarnings("unchecked")
 @Private
@@ -690,10 +691,27 @@ public class ApplicationMasterService extends AbstractService
   }
 
   public void recoverAllocateResponse(ApplicationAttemptId attemptId,
-      AllocateResponse allocateResponse) {
+          AllocateResponse allocateResponse, RMStateStore.RMState state) throws
+          IOException {
     if (allocateResponse != null) {
+      List<NMToken> allocatedNMTokens
+              = new ArrayList<NMToken>();
+      for (org.apache.hadoop.yarn.api.records.Container container
+              : allocateResponse.
+              getAllocatedContainers()) {
+        NMToken nmToken = rmContext.getNMTokenSecretManager()
+                .createAndGetNMToken(state.getAppSchedulingInfo(
+                                attemptId.getApplicationId().toString()).
+                        getUser(),
+                        attemptId,
+                        container);
+        LOG.debug("set allocated nm token for: " + attemptId + ", " + nmToken);
+        allocatedNMTokens.add(nmToken);
+      }
+      allocateResponse.setNMTokens(allocatedNMTokens);
       LOG.debug(
-          "recovering AllocateResponse " + attemptId + " " + allocateResponse);
+              "recovering AllocateResponse " + attemptId + " "
+              + allocateResponse);
       responseMap.get(attemptId).setAllocateResponse(allocateResponse);
     }
   }

@@ -312,11 +312,18 @@ public class TestUnmanagedAMLauncherWhenSchedulerFailover {
     if (args[0].equals("success")) {
       ApplicationMasterProtocol client = ClientRMProxy.createRMProxy(conf,
               ApplicationMasterProtocol.class);
-      RegisterApplicationMasterResponse registerResponse = client.
-              registerApplicationMaster(RegisterApplicationMasterRequest
-                      .newInstance(NetUtils.getHostname(), -1, ""));
-      Thread.sleep(1000);
-
+      boolean registered=false;
+      while (!registered) {
+        try {
+          RegisterApplicationMasterResponse registerResponse = client.
+                  registerApplicationMaster(RegisterApplicationMasterRequest
+                          .newInstance(NetUtils.getHostname(), -1, ""));
+          registered = true;
+        } catch (IOException ex) {
+          LOG.error(ex, ex);
+        }
+        Thread.sleep(1000);
+      }
       ArrayList<ResourceRequest> resourceRequest
               = new ArrayList<ResourceRequest>();
       resourceRequest.add(ResourceRequest.newInstance(Priority.newInstance(0),

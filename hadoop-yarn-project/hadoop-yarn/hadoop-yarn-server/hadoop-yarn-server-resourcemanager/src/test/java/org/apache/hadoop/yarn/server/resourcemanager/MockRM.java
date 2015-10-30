@@ -384,9 +384,11 @@ public class MockRM extends ResourceManager {
       throws Exception {
     MockAM am = new MockAM(getRMContext(), masterService, appAttemptId);
     am.waitForState(RMAppAttemptState.ALLOCATED, nm);
+    TransactionState ts = new TransactionStateImpl(TransactionState.TransactionType.RM);
     getRMContext().getDispatcher().getEventHandler().handle(
         new RMAppAttemptEvent(appAttemptId, RMAppAttemptEventType.LAUNCHED,
-            null));
+            ts));
+    ts.decCounter(TransactionState.TransactionType.INIT);
     return am;
   }
 

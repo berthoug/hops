@@ -60,6 +60,7 @@ public class TestResourceManager {
     RMStorageFactory.setConfiguration(conf);
     RMUtilities.InitializeDB();
     resourceManager = new ResourceManager();
+    conf.setInt(YarnConfiguration.HOPS_BATCH_MAX_DURATION, 60000);
     resourceManager.init(conf);
     resourceManager.getRMContext().getContainerTokenSecretManager()
         .rollMasterKey();

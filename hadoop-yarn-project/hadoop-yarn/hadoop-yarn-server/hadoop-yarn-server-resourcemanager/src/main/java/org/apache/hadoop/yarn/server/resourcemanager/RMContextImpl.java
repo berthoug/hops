@@ -54,7 +54,6 @@ public class RMContextImpl implements RMContext {
 
 
   private static final Log LOG = LogFactory.getLog(RMContextImpl.class);
-  private int rmId = Integer.MIN_VALUE;
   private TransactionStateManager transactionStateManager;
     
   //ResourceTracker client
@@ -62,20 +61,6 @@ public class RMContextImpl implements RMContext {
 
   public ResourceTracker getResClient() {
     return client;
-  }
-
-  public int getRMID() {
-    return rmId;
-  }
-
-  public void setRMID(int rmid) {
-    this.rmId = rmid;
-  }
-
-  private int id = -1;
-
-  public int getId() {
-    return this.id;
   }
 
   @Override

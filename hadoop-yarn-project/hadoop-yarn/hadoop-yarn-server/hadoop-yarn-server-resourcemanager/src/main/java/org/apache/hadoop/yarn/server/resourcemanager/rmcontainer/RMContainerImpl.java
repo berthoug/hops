@@ -173,6 +173,8 @@ public class RMContainerImpl implements
   //TORECOVER OPT change to implement recoverable
   @Override
   public void recover(RMContainer hopRMContainer) {
+    LOG.debug("recovering container " + hopRMContainer.getContainerIdID() + 
+            " in state "+ hopRMContainer.getState());
     this.startTime = hopRMContainer.getStarttime();
     this.stateMachine.setCurrentState(RMContainerState.valueOf(hopRMContainer.
         getState()));

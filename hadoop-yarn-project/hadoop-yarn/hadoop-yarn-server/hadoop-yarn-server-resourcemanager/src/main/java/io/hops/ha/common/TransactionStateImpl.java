@@ -91,6 +91,7 @@ import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerStatusPBImpl;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.LOG;
 
@@ -162,11 +163,14 @@ public class TransactionStateImpl extends TransactionState {
   NodeId nodeId = null;
   private TransactionStateManager manager =null;
   
+  //FOR TESTING
    public TransactionStateImpl(TransactionType type) {
     super(1, false);
     this.type = type;
     this.schedulerApplicationInfo =
       new SchedulerApplicationInfo(this);
+    LOG.info("creating temporary transactionStateManager");
+    manager = new TransactionStateManager(new YarnConfiguration());
   }
    
   public TransactionStateImpl(TransactionType type, int initialCounter,
@@ -179,16 +183,13 @@ public class TransactionStateImpl extends TransactionState {
   }
 
   
-  private static final ExecutorService executorService =
-      Executors.newFixedThreadPool(32);
-  
   @Override
   public void commit(boolean first) throws IOException {
     if(first){
       RMUtilities.putTransactionStateInQueues(this, rmNodesToUpdate.keySet(), appIds);
       RMUtilities.logPutInCommitingQueue(this);
     }
-    executorService.execute(new RPCFinisher(this));
+    manager.getExecutorService().execute(new RPCFinisher(this));
   }
 
   public FairSchedulerNodeInfo getFairschedulerNodeInfo() {

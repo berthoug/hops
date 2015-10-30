@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
@@ -41,7 +44,13 @@ public class TransactionStateManager implements Runnable{
   int batchMaxSize = 50;
   int batchMaxDuration = 100;
   AtomicBoolean blockNonHB = new AtomicBoolean(false);
+  private boolean running = false;
   
+  Thread excutingThread;
+  
+  private final ExecutorService executorService =
+      Executors.newFixedThreadPool(32);
+    
   public TransactionStateManager(Configuration conf){
     currentTransactionState = new TransactionStateImpl(
                 TransactionState.TransactionType.RM, 0, true, this);
@@ -64,7 +73,7 @@ public class TransactionStateManager implements Runnable{
     long t2=0;
     long t3=0;
     long t4=0;
-    while(true){
+    while(running){
       try {
         //create new transactionState
         currentTransactionState = new TransactionStateImpl(
@@ -104,7 +113,7 @@ public class TransactionStateManager implements Runnable{
         //wait for all the accepted RPCs to finish
         int count = 0;
         long startWaiting = System.currentTimeMillis();
-        while(currentTransactionState.getCounter() != 0){
+        while(currentTransactionState.getCounter() != 0 && running){
           if(System.currentTimeMillis()-startWaiting>1000){
             startWaiting = System.currentTimeMillis();
             count++;
@@ -115,6 +124,9 @@ public class TransactionStateManager implements Runnable{
               }
             }
           }
+        }
+        if(!running){
+          break;
         }
         
         t1= System.currentTimeMillis() - startTime;
@@ -129,11 +141,16 @@ public class TransactionStateManager implements Runnable{
                 log(Level.SEVERE, null, ex);
       }
     }
+    LOG.info("TransactionStateManager stoped");
+  }
+  
+  public ExecutorService getExecutorService(){
+    return executorService;
   }
   
   private void waitForBatch(long maxTime) throws InterruptedException {
     long start = System.currentTimeMillis();
-    while (true) {
+    while (running) {
       if (System.currentTimeMillis() - start > maxTime || acceptedRPC.get() >= batchMaxSize) {
         break;
       }
@@ -199,9 +216,20 @@ public class TransactionStateManager implements Runnable{
   }
   
   public void start(){
-    Thread t = new Thread(this);
-    t.setName("transactionStateManager Thread");
-    t.start();
+    excutingThread = new Thread(this);
+    excutingThread.setName("transactionStateManager Thread");
+    running = true;
+    excutingThread.start();
+  }
+  
+  public void stop() throws InterruptedException{
+    if (running) {
+      running = false;
+      excutingThread.join(10000);
+      executorService.shutdown();
+      executorService.
+              awaitTermination(10, TimeUnit.SECONDS);
+    }
   }
   
   public boolean blockNonHB(){
