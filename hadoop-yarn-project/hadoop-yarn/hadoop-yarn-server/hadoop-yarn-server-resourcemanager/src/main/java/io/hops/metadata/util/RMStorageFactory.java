@@ -16,6 +16,7 @@
 package io.hops.metadata.util;
 
 import io.hops.DalDriver;
+import io.hops.DalNdbEventStreaming;
 import io.hops.DalStorageFactory;
 import io.hops.StorageConnector;
 import io.hops.exception.StorageInitializtionException;
@@ -30,13 +31,18 @@ import io.hops.metadata.common.entity.Variable;
 import io.hops.metadata.election.dal.LeDescriptorDataAccess;
 import io.hops.metadata.election.dal.YarnLeDescriptorDataAccess;
 import io.hops.metadata.election.entity.LeDescriptor;
+import io.hops.metadata.hdfs.dal.GroupDataAccess;
+import io.hops.metadata.hdfs.dal.UserDataAccess;
+import io.hops.metadata.hdfs.dal.UserGroupDataAccess;
 import io.hops.metadata.hdfs.dal.VariableDataAccess;
+import io.hops.security.UsersGroups;
 import io.hops.transaction.EntityManager;
 import io.hops.transaction.context.ContextInitializer;
 import io.hops.transaction.context.EntityContext;
 import io.hops.transaction.context.LeSnapshot;
 import io.hops.transaction.context.VariableContext;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
 
 import java.io.File;
 import java.io.IOException;
@@ -57,10 +63,18 @@ public class RMStorageFactory {
   private static Map<Class, EntityDataAccess> dataAccessAdaptors =
       new HashMap<Class, EntityDataAccess>();
 
+  private static DalNdbEventStreaming dNdbEventStreaming;
   public static StorageConnector getConnector() {
     return dStorageFactory.getConnector();
   }
 
+  public static void kickTheNdbEventStreamingAPI() throws
+          StorageInitializtionException {
+    dNdbEventStreaming = DalDriver.loadHopsNdbEventStreamingLib(
+            YarnAPIStorageFactory.NDB_EVENT_STREAMING_FOR_DISTRIBUTED_SERVICE);
+    dNdbEventStreaming.startHopsNdbEvetAPISession();
+  }
+  
   public static void setConfiguration(Configuration conf)
       throws StorageInitializtionException, IOException {
     if (isInitialized) {
@@ -75,6 +89,17 @@ public class RMStorageFactory {
     dStorageFactory.setConfiguration(getMetadataClusterConfiguration(conf));
     initDataAccessWrappers();
     EntityManager.addContextInitializer(getContextInitializer());
+    if(conf.getBoolean(CommonConfigurationKeys.HOPS_GROUPS_ENABLE, CommonConfigurationKeys
+        .HOPS_GROUPS_ENABLE_DEFAULT)) {
+      UsersGroups.init(getConnector(), (UserDataAccess) getDataAccess
+          (UserDataAccess.class), (UserGroupDataAccess) getDataAccess
+          (UserGroupDataAccess.class), (GroupDataAccess) getDataAccess
+          (GroupDataAccess.class), conf.getInt(CommonConfigurationKeys
+          .HOPS_GROUPS_UPDATER_ROUND, CommonConfigurationKeys
+          .HOPS_GROUPS_UPDATER_ROUND_DEFAULT), conf.getInt(CommonConfigurationKeys
+          .HOPS_USERS_LRU_THRESHOLD, CommonConfigurationKeys
+          .HOPS_USERS_LRU_THRESHOLD_DEFAULT));
+    }
     isInitialized = true;
   }
 

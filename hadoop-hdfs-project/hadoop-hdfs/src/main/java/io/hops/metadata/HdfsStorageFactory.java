@@ -22,7 +22,10 @@ import io.hops.common.IDsMonitor;
 import io.hops.exception.StorageException;
 import io.hops.exception.StorageInitializtionException;
 import io.hops.log.NDCWrapper;
-import io.hops.memcache.PathMemcache;
+import io.hops.metadata.hdfs.dal.GroupDataAccess;
+import io.hops.metadata.hdfs.dal.UserDataAccess;
+import io.hops.metadata.hdfs.dal.UserGroupDataAccess;
+import io.hops.resolvingcache.Cache;
 import io.hops.metadata.adaptor.BlockInfoDALAdaptor;
 import io.hops.metadata.adaptor.INodeAttributeDALAdaptor;
 import io.hops.metadata.adaptor.INodeDALAdaptor;
@@ -49,6 +52,8 @@ import io.hops.metadata.hdfs.dal.INodeDataAccess;
 import io.hops.metadata.hdfs.dal.InvalidateBlockDataAccess;
 import io.hops.metadata.hdfs.dal.LeaseDataAccess;
 import io.hops.metadata.hdfs.dal.LeasePathDataAccess;
+import io.hops.metadata.hdfs.dal.OngoingSubTreeOpsDataAccess;
+import io.hops.metadata.hdfs.dal.MetadataLogDataAccess;
 import io.hops.metadata.hdfs.dal.PendingBlockDataAccess;
 import io.hops.metadata.hdfs.dal.QuotaUpdateDataAccess;
 import io.hops.metadata.hdfs.dal.ReplicaDataAccess;
@@ -59,11 +64,14 @@ import io.hops.metadata.hdfs.entity.BlockChecksum;
 import io.hops.metadata.hdfs.entity.CorruptReplica;
 import io.hops.metadata.hdfs.entity.EncodingStatus;
 import io.hops.metadata.hdfs.entity.ExcessReplica;
-import io.hops.metadata.hdfs.entity.IndexedReplica;
+import io.hops.metadata.hdfs.entity.Replica;
 import io.hops.metadata.hdfs.entity.InvalidatedBlock;
 import io.hops.metadata.hdfs.entity.LeasePath;
+import io.hops.metadata.hdfs.entity.MetadataLogEntry;
 import io.hops.metadata.hdfs.entity.QuotaUpdate;
+import io.hops.metadata.hdfs.entity.SubTreeOperation;
 import io.hops.metadata.hdfs.entity.UnderReplicatedBlock;
+import io.hops.security.UsersGroups;
 import io.hops.transaction.EntityManager;
 import io.hops.transaction.context.BlockChecksumContext;
 import io.hops.transaction.context.BlockInfoContext;
@@ -78,15 +86,18 @@ import io.hops.transaction.context.InvalidatedBlockContext;
 import io.hops.transaction.context.LeSnapshot;
 import io.hops.transaction.context.LeaseContext;
 import io.hops.transaction.context.LeasePathContext;
+import io.hops.transaction.context.MetadataLogContext;
 import io.hops.transaction.context.PendingBlockContext;
 import io.hops.transaction.context.QuotaUpdateContext;
 import io.hops.transaction.context.ReplicaContext;
 import io.hops.transaction.context.ReplicaUnderConstructionContext;
+import io.hops.transaction.context.SubTreeOperationsContext;
 import io.hops.transaction.context.TransactionsStats;
 import io.hops.transaction.context.UnderReplicatedBlockContext;
 import io.hops.transaction.context.VariableContext;
 import io.hops.transaction.lock.LockFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfoUnderConstruction;
@@ -126,7 +137,7 @@ public class HdfsStorageFactory {
 
   public static void setConfiguration(Configuration conf) throws IOException {
     IDsMonitor.getInstance().setConfiguration(conf);
-    PathMemcache.getInstance().setConfiguration(conf);
+    Cache.getInstance(conf);
     LockFactory.getInstance().setConfiguration(conf);
     NDCWrapper.enableNDC(conf.getBoolean(DFSConfigKeys.DFS_NDC_ENABLED_KEY,
         DFSConfigKeys.DFS_NDC_ENABLED_DEFAULT));
@@ -134,7 +145,11 @@ public class HdfsStorageFactory {
         conf.getBoolean(DFSConfigKeys.DFS_TRANSACTION_STATS_ENABLED,
             DFSConfigKeys.DFS_TRANSACTION_STATS_ENABLED_DEFAULT),
         conf.get(DFSConfigKeys.DFS_TRANSACTION_STATS_DIR,
-            DFSConfigKeys.DFS_TRANSACTION_STATS_DIR_DEFAULT));
+            DFSConfigKeys.DFS_TRANSACTION_STATS_DIR_DEFAULT), conf.getInt
+            (DFSConfigKeys.DFS_TRANSACTION_STATS_WRITER_ROUND, DFSConfigKeys
+                .DFS_TRANSACTION_STATS_WRITER_ROUND_DEFAULT), conf
+            .getBoolean(DFSConfigKeys.DFS_TRANSACTION_STATS_DETAILED_ENABLED,
+                DFSConfigKeys.DFS_TRANSACTION_STATS_DETAILED_ENABLED_DEFAULT));
     if (!isDALInitialized) {
       HdfsVariables.registerDefaultValues();
       addToClassPath(conf.get(DFSConfigKeys.DFS_STORAGE_DRIVER_JAR_FILE,
@@ -145,6 +160,17 @@ public class HdfsStorageFactory {
       dStorageFactory.setConfiguration(getMetadataClusterConfiguration(conf));
       initDataAccessWrappers();
       EntityManager.addContextInitializer(getContextInitializer());
+      if(conf.getBoolean(CommonConfigurationKeys.HOPS_GROUPS_ENABLE, CommonConfigurationKeys
+          .HOPS_GROUPS_ENABLE_DEFAULT)) {
+        UsersGroups.init(getConnector(), (UserDataAccess) getDataAccess
+            (UserDataAccess.class), (UserGroupDataAccess) getDataAccess
+            (UserGroupDataAccess.class), (GroupDataAccess) getDataAccess
+            (GroupDataAccess.class), conf.getInt(CommonConfigurationKeys
+            .HOPS_GROUPS_UPDATER_ROUND, CommonConfigurationKeys
+            .HOPS_GROUPS_UPDATER_ROUND_DEFAULT), conf.getInt(CommonConfigurationKeys
+            .HOPS_USERS_LRU_THRESHOLD, CommonConfigurationKeys
+            .HOPS_USERS_LRU_THRESHOLD_DEFAULT));
+      }
       isDALInitialized = true;
     }
   }
@@ -223,7 +249,7 @@ public class HdfsStorageFactory {
             new ReplicaUnderConstructionContext(
                 (ReplicaUnderConstructionDataAccess) getDataAccess(
                     ReplicaUnderConstructionDataAccess.class)));
-        entityContexts.put(IndexedReplica.class, new ReplicaContext(
+        entityContexts.put(Replica.class, new ReplicaContext(
             (ReplicaDataAccess) getDataAccess(ReplicaDataAccess.class)));
         entityContexts.put(ExcessReplica.class, new ExcessReplicaContext(
             (ExcessReplicaDataAccess) getDataAccess(
@@ -280,6 +306,12 @@ public class HdfsStorageFactory {
         entityContexts.put(QuotaUpdate.class, new QuotaUpdateContext(
             (QuotaUpdateDataAccess) getDataAccess(
                 QuotaUpdateDataAccess.class)));
+        entityContexts.put(MetadataLogEntry.class, new MetadataLogContext(
+            (MetadataLogDataAccess) getDataAccess(MetadataLogDataAccess.class)
+        ));
+		entityContexts.put(SubTreeOperation.class, new SubTreeOperationsContext(
+                (OngoingSubTreeOpsDataAccess)
+                getDataAccess(OngoingSubTreeOpsDataAccess.class)));
 
         return entityContexts;
       }
@@ -299,19 +331,19 @@ public class HdfsStorageFactory {
   }
   
   public static boolean formatStorage() throws StorageException {
-    PathMemcache.getInstance().flush();
+    Cache.getInstance().flush();
     return dStorageFactory.getConnector().formatStorage();
   }
   
   public static boolean formatStorageNonTransactional()
       throws StorageException {
-    PathMemcache.getInstance().flush();
+    Cache.getInstance().flush();
     return dStorageFactory.getConnector().formatStorageNonTransactional();
   }
 
   public static boolean formatStorage(Class<? extends EntityDataAccess>... das)
       throws StorageException {
-    PathMemcache.getInstance().flush();
+    Cache.getInstance().flush();
     return dStorageFactory.getConnector().formatStorage(das);
   }
 }

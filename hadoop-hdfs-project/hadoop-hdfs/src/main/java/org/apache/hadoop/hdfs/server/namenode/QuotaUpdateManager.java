@@ -15,7 +15,7 @@
  */
 package org.apache.hadoop.hdfs.server.namenode;
 
-import io.hops.common.QuotaUpdateIdGen;
+import io.hops.common.IDsGeneratorFactory;
 import io.hops.exception.StorageException;
 import io.hops.exception.TransactionContextException;
 import io.hops.metadata.HdfsStorageFactory;
@@ -76,6 +76,7 @@ public class QuotaUpdateManager {
   }
 
   public void activate() {
+    LOG.debug("QuotaUpdateMonitor is running");
     updateThread.start();
   }
 
@@ -91,7 +92,7 @@ public class QuotaUpdateManager {
   }
 
   private int nextId() {
-    return QuotaUpdateIdGen.getUniqueQuotaUpdateId();
+    return IDsGeneratorFactory.getInstance().getUniqueQuotaUpdateID();
   }
 
   public void addUpdate(final int inodeId, final long namespaceDelta,

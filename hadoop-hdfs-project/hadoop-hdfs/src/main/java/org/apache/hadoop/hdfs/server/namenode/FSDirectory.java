@@ -21,12 +21,16 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.hops.exception.StorageException;
 import io.hops.exception.TransactionContextException;
-import io.hops.memcache.PathMemcache;
+import io.hops.resolvingcache.Cache;
 import io.hops.metadata.HdfsStorageFactory;
+import io.hops.metadata.hdfs.dal.AccessTimeLogDataAccess;
 import io.hops.metadata.hdfs.dal.INodeAttributesDataAccess;
 import io.hops.metadata.hdfs.dal.INodeDataAccess;
+import io.hops.metadata.hdfs.entity.AccessTimeLogEntry;
 import io.hops.metadata.hdfs.entity.INodeCandidatePrimaryKey;
+import io.hops.metadata.hdfs.entity.MetadataLogEntry;
 import io.hops.metadata.hdfs.entity.QuotaUpdate;
+import io.hops.security.Users;
 import io.hops.transaction.EntityManager;
 import io.hops.transaction.context.HdfsTransactionContextMaintenanceCmds;
 import io.hops.transaction.handler.HDFSOperationType;
@@ -62,6 +66,7 @@ import org.apache.hadoop.hdfs.server.blockmanagement.BlockManager;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
 import org.apache.hadoop.hdfs.util.ByteArray;
+import org.apache.hadoop.security.AccessControlException;
 
 import java.io.Closeable;
 import java.io.FileNotFoundException;
@@ -69,6 +74,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 
 import static org.apache.hadoop.hdfs.server.namenode.FSNamesystem.LOG;
 import static org.apache.hadoop.util.Time.now;
@@ -341,6 +347,7 @@ public class FSDirectory implements Closeable {
               file.getBlocks().length +
               " blocks is persisted to the file system");
     }
+    file.logMetadataEvent(MetadataLogEntry.Operation.ADD);
   }
 
   /**
@@ -497,15 +504,19 @@ public class FSDirectory implements Closeable {
             .warn("DIR* FSDirectory.unprotectedRenameTo: " + error);
         throw new FileAlreadyExistsException(error);
       }
-      List<INode> children =
-          dstInode.isDirectory() ? ((INodeDirectory) dstInode).getChildren() :
-              null;
-      if (children != null && children.size() != 0) {
-        error =
-            "rename cannot overwrite non empty destination directory " + dst;
-        NameNode.stateChangeLog
-            .warn("DIR* FSDirectory.unprotectedRenameTo: " + error);
-        throw new IOException(error);
+
+      if (dstInode.isDirectory()) {
+        //[S] this a hack. handle this in the acquire lock phase
+        INodeDataAccess ida = (INodeDataAccess) HdfsStorageFactory
+                .getDataAccess(INodeDataAccess.class);
+
+        if (ida.hasChildren(dstInode.getId())) {
+          error =
+                  "rename cannot overwrite non empty destination directory " + dst;
+          NameNode.stateChangeLog
+                  .warn("DIR* FSDirectory.unprotectedRenameTo: " + error);
+          throw new IOException(error);
+        }
       }
     }
     if (dstInodes[dstInodes.length - 2] == null) {
@@ -542,7 +553,8 @@ public class FSDirectory implements Closeable {
     INode removedDst = null;
     try {
       if (dstInode != null) { // dst exists remove it
-        removedDst = removeChild(dstInodes, dstInodes.length - 1);
+        removedDst = removeChild(dstInodes, dstInodes.length - 1,dstNsCount,
+                dstDsCount);
         dstChildName = removedDst.getLocalName();
       }
 
@@ -571,7 +583,8 @@ public class FSDirectory implements Closeable {
           INode rmdst = removedDst;
           removedDst = null;
           List<Block> collectedBlocks = new ArrayList<Block>();
-          filesDeleted = rmdst.collectSubtreeBlocksAndClear(collectedBlocks);
+          filesDeleted = 1; // rmdst.collectSubtreeBlocksAndClear(collectedBlocks);
+                            // [S] as the dst dir was empty it will always return 1
           getFSNamesystem().removePathAndBlocks(src, collectedBlocks);
         }
 
@@ -1136,14 +1149,12 @@ public class FSDirectory implements Closeable {
   }
 
   void setOwner(String src, String username, String groupname)
-      throws FileNotFoundException, UnresolvedLinkException, StorageException,
-      TransactionContextException {
+      throws IOException {
     unprotectedSetOwner(src, username, groupname);
   }
 
   void unprotectedSetOwner(String src, String username, String groupname)
-      throws FileNotFoundException, UnresolvedLinkException, StorageException,
-      TransactionContextException {
+      throws IOException {
     INode inode = getRootDir().getNode(src, true);
     if (inode == null) {
       throw new FileNotFoundException("File does not exist: " + src);
@@ -1154,6 +1165,7 @@ public class FSDirectory implements Closeable {
     if (groupname != null) {
       inode.setGroup(groupname);
     }
+    Users.addUserToGroup(username, groupname);
   }
 
   /**
@@ -1192,13 +1204,16 @@ public class FSDirectory implements Closeable {
     INodeFile[] allSrcInodes = new INodeFile[srcs.length];
     int i = 0;
     int totalBlocks = 0;
+    long concatSize = 0;
     for (String src : srcs) {
       INodeFile srcInode = (INodeFile) getINode(src);
       allSrcInodes[i++] = srcInode;
       totalBlocks += srcInode.numBlocks();
+      concatSize += srcInode.getSize();
     }
     List<BlockInfo> oldBlks =
         trgInode.appendBlocks(allSrcInodes, totalBlocks); // copy the blocks
+    trgInode.recomputeFileSize();
     //HOP now the blocks are added to the targed file. copy of the old block infos is returned for snapshot maintenance
     
 
@@ -2011,7 +2026,7 @@ public class FSDirectory implements Closeable {
         INode[] pc = Arrays.copyOf(pathComponents, pathComponents.length);
         pc[pc.length - 1] = addedNode;
         String path = getFullPathName(pc, pc.length - 1);
-        PathMemcache.getInstance().set(path, pc);
+        Cache.getInstance().set(path, pc);
       }
     }
     //
@@ -2048,7 +2063,7 @@ public class FSDirectory implements Closeable {
         INode[] pc = Arrays.copyOf(pathComponents, pathComponents.length);
         pc[pc.length - 1] = addedNode;
         String path = getFullPathName(pc, pc.length - 1);
-        PathMemcache.getInstance().set(path, pc);
+        Cache.getInstance().set(path, pc);
       }
     }
     //
@@ -2098,6 +2113,7 @@ public class FSDirectory implements Closeable {
     INode removedNode = null;
     if (forRename) {
       removedNode = pathComponents[pos];
+      removedNode.logMetadataEvent(MetadataLogEntry.Operation.DELETE);
     } else {
       removedNode = ((INodeDirectory) pathComponents[pos - 1])
           .removeChild(pathComponents[pos]);
@@ -2115,6 +2131,34 @@ public class FSDirectory implements Closeable {
       removedNode.spaceConsumedInTree(counts);
       updateCountNoQuotaCheck(pathComponents, pos,
           -counts.getNsCount() + nsDelta, -counts.getDsCount() + dsDelta);
+    }
+    return removedNode;
+  }
+  
+  INode removeChild(INode[] pathComponents, int pos, boolean forRename, 
+          final long nsCount, final long dsCount)
+      throws StorageException, TransactionContextException {
+    INode removedNode = null;
+    if (forRename) {
+      removedNode = pathComponents[pos];
+      removedNode.logMetadataEvent(MetadataLogEntry.Operation.DELETE);
+    } else {
+      removedNode = ((INodeDirectory) pathComponents[pos - 1])
+          .removeChild(pathComponents[pos]);
+    }
+    if (removedNode != null && isQuotaEnabled()) {
+      List<QuotaUpdate> outstandingUpdates = (List<QuotaUpdate>) EntityManager
+          .findList(QuotaUpdate.Finder.ByINodeId, removedNode.getId());
+      long nsDelta = 0;
+      long dsDelta = 0;
+      for (QuotaUpdate update : outstandingUpdates) {
+        nsDelta += update.getNamespaceDelta();
+        dsDelta += update.getDiskspaceDelta();
+      }
+      //INode.DirCounts counts = new INode.DirCounts();
+      //removedNode.spaceConsumedInTree(counts);
+      updateCountNoQuotaCheck(pathComponents, pos,
+          -nsCount + nsDelta, -dsCount + dsDelta);
     }
     return removedNode;
   }
@@ -2143,27 +2187,18 @@ public class FSDirectory implements Closeable {
     }
     return removedNode;
   }
-
-  private INode removeChild(INode[] pathComponents, int pos, boolean forRename,
-      long nsCount, long dsCount)
-      throws StorageException, TransactionContextException {
-    INode removedNode = null;
-    if (forRename) {
-      removedNode = pathComponents[pos];
-    } else {
-      removedNode = ((INodeDirectory) pathComponents[pos - 1])
-          .removeChild(pathComponents[pos]);
-    }
-    if (removedNode != null && isQuotaEnabled()) {
-      updateCountNoQuotaCheck(pathComponents, pos, -nsCount, -dsCount);
-    }
-    return removedNode;
-  }
   
   private INode removeChild(INode[] pathComponents, int pos)
       throws StorageException, TransactionContextException {
     return removeChild(pathComponents, pos, false);
   }
+  
+  private INode removeChild(INode[] pathComponents, int pos, final long nsCount,
+          final long dsCount)
+      throws StorageException, TransactionContextException {
+    return removeChild(pathComponents, pos, false,nsCount,dsCount);
+  }
+  
 
   private INode removeChildForRename(INode[] pathComponents, int pos)
       throws StorageException, TransactionContextException {
@@ -2463,20 +2498,22 @@ public class FSDirectory implements Closeable {
    * log.
    */
   void setTimes(String src, INode inode, long mtime, long atime, boolean force)
-      throws StorageException, TransactionContextException {
+      throws StorageException, TransactionContextException,
+      AccessControlException {
     unprotectedSetTimes(src, inode, mtime, atime, force);
   }
 
   boolean unprotectedSetTimes(String src, long mtime, long atime, boolean force)
       throws UnresolvedLinkException, StorageException,
-      TransactionContextException {
+      TransactionContextException, AccessControlException {
     INode inode = getINode(src);
     return unprotectedSetTimes(src, inode, mtime, atime, force);
   }
 
   private boolean unprotectedSetTimes(String src, INode inode, long mtime,
       long atime, boolean force)
-      throws StorageException, TransactionContextException {
+      throws StorageException, TransactionContextException,
+      AccessControlException {
     boolean status = false;
     if (mtime != -1) {
       inode.setModificationTimeForce(mtime);
@@ -2544,7 +2581,8 @@ public class FSDirectory implements Closeable {
     long size = 0;     // length is zero for directories
     if (node instanceof INodeFile) {
       INodeFile fileNode = (INodeFile) node;
-      size = fileNode.computeFileSize(true);
+      size = fileNode.getSize();//.computeFileSize(true);
+      //size = fileNode.computeFileSize(true);
     }
     return createFileStatus(path, node, size);
   }
@@ -2748,4 +2786,16 @@ public class FSDirectory implements Closeable {
     return clone;
   }
 
+  public boolean hasChildren(final int parentId) throws IOException {
+    LightWeightRequestHandler hasChildrenHandler =
+            new LightWeightRequestHandler(HDFSOperationType.HAS_CHILDREN) {
+      @Override
+      public Object performTask() throws IOException {
+        INodeDataAccess ida = (INodeDataAccess) HdfsStorageFactory
+                .getDataAccess(INodeDataAccess.class);
+        return ida.hasChildren(parentId);
+      }
+    };
+    return (Boolean) hasChildrenHandler.handle();
+  }
 }
