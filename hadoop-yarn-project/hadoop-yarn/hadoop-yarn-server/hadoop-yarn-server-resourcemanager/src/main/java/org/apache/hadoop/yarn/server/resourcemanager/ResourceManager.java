@@ -167,6 +167,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
   protected RMAppManager rmAppManager;//recovered
   protected ApplicationACLsManager applicationACLsManager;
   protected QueueACLsManager queueACLsManager;
+  protected ContainersLogsService containersLogsService;
   private WebApp webApp;
   private AppReportFetcher fetcher = null;
   protected ResourceTrackerService resourceTracker;
@@ -343,6 +344,11 @@ public class ResourceManager extends CompositeService implements Recoverable {
     } else {
       webAppAddress = WebAppUtils.getRMWebAppURLWithoutScheme(this.conf);
     }
+    
+    // Add containers logs service
+    containersLogsService = createContainersLogsService();
+    addService(containersLogsService);
+    
 
     this.rmLoginUGI = UserGroupInformation.getCurrentUser();
 
@@ -1088,6 +1094,10 @@ public class ResourceManager extends CompositeService implements Recoverable {
 
   protected RMSecretManagerService createRMSecretManagerService() {
     return new RMSecretManagerService(conf, rmContext);
+  }
+  
+  protected ContainersLogsService createContainersLogsService() {
+      return new ContainersLogsService();
   }
 
   @Private
