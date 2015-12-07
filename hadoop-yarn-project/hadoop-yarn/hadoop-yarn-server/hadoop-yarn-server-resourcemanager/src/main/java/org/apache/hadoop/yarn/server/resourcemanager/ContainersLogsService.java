@@ -397,6 +397,7 @@ public class ContainersLogsService extends CompositeService {
         @Override
         public void run() {
             while (!stopped && !Thread.currentThread().isInterrupted()) {
+                long executionTime = 0;
 
                 try {
                     long startTime = System.currentTimeMillis();
@@ -431,7 +432,7 @@ public class ContainersLogsService extends CompositeService {
                     tickCounter.setValue(tickCounter.getValue() + tickIncrement);
 
                     //Check alert threshold
-                    long executionTime = System.currentTimeMillis() - startTime;
+                    executionTime = System.currentTimeMillis() - startTime;
                     if (threshold < executionTime) {
                         LOG.debug("Monitor interval threshold exceeded!"
                                 + " Execution time: "
@@ -445,7 +446,7 @@ public class ContainersLogsService extends CompositeService {
                 }
 
                 try {
-                    Thread.sleep(monitorInterval);
+                    Thread.sleep(monitorInterval - executionTime);
                 } catch (InterruptedException ex) {
                     LOG.info(getName() + " thread interrupted", ex);
                     break;
