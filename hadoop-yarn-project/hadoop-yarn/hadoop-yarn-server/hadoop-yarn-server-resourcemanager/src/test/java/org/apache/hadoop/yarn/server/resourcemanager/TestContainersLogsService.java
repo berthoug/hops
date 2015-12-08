@@ -66,7 +66,7 @@ public class TestContainersLogsService {
             YarnAPIStorageFactory.setConfiguration(conf);
             RMStorageFactory.setConfiguration(conf);
             RMUtilities.InitializeDB();
-            RMStorageFactory.getConnector().formatStorage();
+//            RMStorageFactory.getConnector().formatStorage();
         } catch (StorageInitializtionException ex) {
             LOG.error(null, ex);
         } catch (IOException ex) {
@@ -79,7 +79,7 @@ public class TestContainersLogsService {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testTickCounterInitialization() throws Exception {
         conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, 1000);
         conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
@@ -96,7 +96,7 @@ public class TestContainersLogsService {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testCheckpoints() throws Exception {
         int checkpointTicks = 5;
         int monitorInterval = 1000;
@@ -141,7 +141,7 @@ public class TestContainersLogsService {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testUnknownExitstatusUseCase() throws Exception {
         int monitorInterval = 1000;
         int timeout = 2;
@@ -174,7 +174,7 @@ public class TestContainersLogsService {
                 ContainersLogs entry = cl.get(cs.getContainerid());
                 Assert.assertNotNull(entry);
                 Assert.assertEquals(0, entry.getStart());
-                Assert.assertTrue((entry.getStop() == timeout) || (entry.getStop() == timeout+1));
+                Assert.assertTrue((entry.getStop() == timeout) || (entry.getStop() == timeout + 1));
                 Assert.assertEquals(ContainersLogs.UNKNOWN_CONTAINER_EXIT, entry.getExitstatus());
             }
         } finally {
@@ -188,7 +188,7 @@ public class TestContainersLogsService {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testFailover() throws Exception {
         int monitorInterval = 1000;
         conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, monitorInterval);
@@ -243,7 +243,7 @@ public class TestContainersLogsService {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testFullUseCase() throws Exception {
         int monitorInterval = 1000;
         int checkpointTicks = 10;
@@ -286,7 +286,7 @@ public class TestContainersLogsService {
                     cs.getRMNodeId(),
                     0);
             csUpdate1.add(csNewStatus);
-            
+
             ContainerStatus cs2 = containerStatuses2.get(i);
             ContainerStatus cs2NewStatus = new ContainerStatus(
                     cs2.getContainerid(),
@@ -319,11 +319,11 @@ public class TestContainersLogsService {
         Thread.sleep(monitorInterval * 5);
 
         rm.stop();
-        
+
         // Check if tick counter is correct
         YarnVariables tc = getTickCounter();
         Assert.assertEquals(20, tc.getValue());
-        
+
         // Check if container logs have correct values
         Map<String, ContainersLogs> cl = getContainersLogs();
         for (int i = 0; i < 5; i++) {
@@ -332,24 +332,85 @@ public class TestContainersLogsService {
             Assert.assertEquals(0, entry.getStart());
             Assert.assertEquals(11, entry.getStop());
             Assert.assertEquals(ContainerExitStatus.SUCCESS, entry.getExitstatus());
-            
+
             ContainersLogs entry2 = cl.get(containerStatuses2.get(i).getContainerid());
             Assert.assertNotNull(entry2);
             Assert.assertEquals(6, entry2.getStart());
             Assert.assertEquals(11, entry2.getStop());
             Assert.assertEquals(ContainerExitStatus.ABORTED, entry2.getExitstatus());
-            
-            ContainersLogs entry3 = cl.get(containerStatuses2.get(5+i).getContainerid());
+
+            ContainersLogs entry3 = cl.get(containerStatuses2.get(5 + i).getContainerid());
             Assert.assertNotNull(entry3);
             Assert.assertEquals(6, entry3.getStart());
             Assert.assertEquals(16, entry3.getStop());
             Assert.assertEquals(ContainerExitStatus.SUCCESS, entry.getExitstatus());
-            
-            ContainersLogs entry4 = cl.get(containerStatuses1.get(5+i).getContainerid());
+
+            ContainersLogs entry4 = cl.get(containerStatuses1.get(5 + i).getContainerid());
             Assert.assertNotNull(entry4);
             Assert.assertEquals(0, entry4.getStart());
             Assert.assertEquals(20, entry4.getStop());
             Assert.assertEquals(ContainersLogs.CONTAINER_RUNNING_STATE, entry4.getExitstatus());
+        }
+    }
+
+    @Test
+    public void testLoad() throws Exception {
+        int numExperiments = 10;
+//        int containerCount[] = {100};
+        int containerCount[] = {0, 1, 3, 10, 30, 100, 300, 1000,
+            3000, 10000, 30000, 100000, 300000, 1000000};
+        conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS, false);
+        
+
+        // For each container count
+        for (int i = 0; i < containerCount.length; i++) {
+            int numContainers = containerCount[i];
+
+            // Do N number of experiment repeats
+            for (int j = 0; j < numExperiments; j++) {
+                long startTime = System.nanoTime();
+                RMStorageFactory.getConnector().formatStorage();
+
+                LOG.debug("{{RUNNING LOAD TEST}};EXPERIMENT;" + j + ";CONTAINERS;" + numContainers);
+
+                List<RMNode> rmNodes = generateRMNodesToAdd(1);
+                List<RMContainer> rmContainers = generateRMContainersToAdd(numContainers, 0);
+                List<ContainerStatus> containerStatuses
+                        = generateContainersStatusToAdd(rmNodes, rmContainers);
+                populateDB(rmNodes, rmContainers, containerStatuses);
+
+                MockRM rm = new MockRM(conf);
+                
+                try {
+                    rm.start();
+                    rm.containersLogsService.containerStatusChecker();
+
+                    LOG.debug("{{CHANGING STATUS}};EXPERIMENT;" + j + ";CONTAINERS;" + numContainers);
+                    List<ContainerStatus> csUpdate = new ArrayList<ContainerStatus>();
+                    for (int k = 0; k < containerStatuses.size(); k++) {
+                        ContainerStatus cs = containerStatuses.get(k);
+                        ContainerStatus csNewStatus = new ContainerStatus(
+                                cs.getContainerid(),
+                                ContainerState.COMPLETE.toString(),
+                                null,
+                                ContainerExitStatus.SUCCESS,
+                                cs.getRMNodeId(),
+                                0);
+                        csUpdate.add(csNewStatus);
+                    }
+                    updateContainerStatuses(csUpdate);
+                    
+                    rm.containersLogsService.containerStatusChecker();
+
+                } finally {
+                    rm.stop();
+                }
+                
+
+                LOG.debug("{{FINISHED LOAD TEST}};EXPERIMENT;" + j + 
+                        ";CONTAINERS;" + numContainers + 
+                        ";TIME;" + (System.nanoTime() - startTime));
+            }
         }
     }
 
