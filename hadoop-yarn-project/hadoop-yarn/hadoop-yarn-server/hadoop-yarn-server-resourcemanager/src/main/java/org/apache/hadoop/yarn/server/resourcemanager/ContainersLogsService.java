@@ -112,15 +112,17 @@ public class ContainersLogsService extends CompositeService {
         // Creates separate thread for retrieving container statuses
 //        checkerThread = new Thread(new ContainerStatusChecker());
 //        checkerThread.setName("ContainersLogs Container Status Checker");
-        super.serviceInit(conf);
+//        super.serviceInit(conf);
     }
 
     @Override
     protected void serviceStart() throws Exception {
         LOG.info("Starting containers logs service");
+        
+        this.containerStatusChecker();
 
 //        checkerThread.start();
-        super.serviceStart();
+//        super.serviceStart();
     }
 
     @Override
@@ -131,7 +133,7 @@ public class ContainersLogsService extends CompositeService {
 //        if (checkerThread != null) {
 //            checkerThread.interrupt();
 //        }
-        super.serviceStop();
+//        super.serviceStop();
     }
 
     /**
@@ -385,65 +387,42 @@ public class ContainersLogsService extends CompositeService {
         }
     }
 
-    public void containerStatusChecker() {
-        long executionTime = 0;
-        long totalStart = System.nanoTime();
+    private void containerStatusChecker() {
+        long totalTimeStart = System.nanoTime();
 
         try {
-            long startTime = System.currentTimeMillis();
 
-            LOG.debug("Current tick: " + tickCounter.getValue());
-
-            long fetchStart = System.nanoTime();
+            long timeStart = System.nanoTime();
             Map<String, ContainerStatus> allContainerStatuses
                     = getContainerStatuses();
-            LOG.debug("{{{FETCHING}}};" + (System.nanoTime() - fetchStart) + ";");
+            LOG.info("{{{READ-TIME}}};" + (System.nanoTime() - timeStart) + ";");
 
-            LOG.debug("Retrieved container status count: " + allContainerStatuses.size());
+            LOG.info("Retrieved container status count: " + allContainerStatuses.size());
 
             // Go through all containers statuses and update active and update lists
-            long statusCheck = System.nanoTime();
+            timeStart = System.nanoTime();
             checkContainerStatuses(allContainerStatuses);
-            LOG.debug("{{{UPDATE-CHECK}}};" + (System.nanoTime() - statusCheck) + ";");
+            LOG.info("{{{UPDATE-LIST-TIME}}};" + (System.nanoTime() - timeStart) + ";");
 
             // Go through all active container statuses
-            long activeCheck = System.nanoTime();
+            timeStart = System.nanoTime();
             checkActiveContainerStatuses();
-            LOG.debug("{{{ACTIVE-CHECK}}};" + (System.nanoTime() - activeCheck) + ";");
+            LOG.info("{{{ACTIVE-LIST-TIME}}};" + (System.nanoTime() - timeStart) + ";");
 
-            // Checkpoint
-            if (checkpointEnabled
-                    && (tickCounter.getValue() % checkpointInterval == 0)) {
-                LOG.debug("Creating checkoint");
-                createCheckpoint();
-            }
-
-            LOG.debug("Update list size: " + updateContainers.size());
-            LOG.debug("Active list size: " + activeContainers.size());
+            
+            LOG.info("Update list size: " + updateContainers.size());
+            LOG.info("Active list size: " + activeContainers.size());
 
             // Update Containers logs table and tick counter
-            long updateStart = System.nanoTime();
+            timeStart = System.nanoTime();
             updateContainersLogs();
-            LOG.debug("{{{UPDATING}}};" + (System.nanoTime() - updateStart) + ";");
+            LOG.info("{{{WRITE-TIME}}};" + (System.nanoTime() - timeStart) + ";");
 
-            // Increment tick counter
-            tickCounter.setValue(tickCounter.getValue() + tickIncrement);
-
-            //Check alert threshold
-            executionTime = System.currentTimeMillis() - startTime;
-            if (threshold < executionTime) {
-                LOG.debug("Monitor interval threshold exceeded!"
-                        + " Execution time: "
-                        + Long.toString(executionTime) + "ms."
-                        + " Threshold: "
-                        + Double.toString(threshold) + "ms."
-                        + " Consider increasing monitor interval!");
-            }
         } catch (Exception ex) {
             LOG.warn("Exception in containers logs thread loop", ex);
         }
 
-        LOG.debug("{{{TOTAL}}};" + (System.nanoTime() - totalStart) + ";");
+        LOG.info("{{{TOTAL}}};" + (System.nanoTime() - totalTimeStart) + ";");
     }
 
     /**

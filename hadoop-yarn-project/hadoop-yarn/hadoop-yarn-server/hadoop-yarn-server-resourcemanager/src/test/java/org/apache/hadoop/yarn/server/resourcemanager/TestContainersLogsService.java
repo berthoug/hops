@@ -66,7 +66,6 @@ public class TestContainersLogsService {
             YarnAPIStorageFactory.setConfiguration(conf);
             RMStorageFactory.setConfiguration(conf);
             RMUtilities.InitializeDB();
-//            RMStorageFactory.getConnector().formatStorage();
         } catch (StorageInitializtionException ex) {
             LOG.error(null, ex);
         } catch (IOException ex) {
@@ -74,292 +73,12 @@ public class TestContainersLogsService {
         }
     }
 
-    /**
-     * Basic tick counter test, check if initialized in variables table
-     *
-     * @throws Exception
-     */
-//    @Test
-    public void testTickCounterInitialization() throws Exception {
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, 1000);
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
-        conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS, false);
-
-        YarnVariables tc = getTickCounter();
-
-        // Check if tick counter is initialized with YARN variables
-        Assert.assertNotNull(tc);
-    }
-
-    /**
-     * Test if checkpoint is created with correct container status values
-     *
-     * @throws Exception
-     */
-//    @Test
-    public void testCheckpoints() throws Exception {
-        int checkpointTicks = 5;
-        int monitorInterval = 1000;
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, monitorInterval);
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
-        conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS, true);
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_TICKS, checkpointTicks);
-
-        MockRM rm = new MockRM(conf);
-
-        try {
-            // Insert dummy data into necessary tables
-            List<RMNode> rmNodes = generateRMNodesToAdd(10);
-            List<RMContainer> rmContainers = generateRMContainersToAdd(10, 0);
-            List<ContainerStatus> containerStatuses
-                    = generateContainersStatusToAdd(rmNodes, rmContainers);
-            populateDB(rmNodes, rmContainers, containerStatuses);
-
-            rm.start();
-
-            int sleepTillCheckpoint = monitorInterval * (checkpointTicks + 1);
-            Thread.sleep(sleepTillCheckpoint);
-
-            // Check if checkpoint has containers and correct values
-            Map<String, ContainersLogs> cl = getContainersLogs();
-            for (ContainerStatus cs : containerStatuses) {
-                ContainersLogs entry = cl.get(cs.getContainerid());
-                Assert.assertNotNull(entry);
-                Assert.assertEquals(0, entry.getStart());
-                Assert.assertEquals(checkpointTicks, entry.getStop());
-                Assert.assertEquals(ContainersLogs.CONTAINER_RUNNING_STATE, entry.getExitstatus());
-            }
-
-        } finally {
-            rm.stop();
-        }
-    }
-
-    /**
-     * Test if container statuses that were not captures by ContainersLogs
-     * service are correctly recorded into DB. This is an unlikely edge-case.
-     *
-     * @throws Exception
-     */
-//    @Test
-    public void testUnknownExitstatusUseCase() throws Exception {
-        int monitorInterval = 1000;
-        int timeout = 2;
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, monitorInterval);
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
-        conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS, false);
-
-        MockRM rm = new MockRM(conf);
-
-        try {
-            // Insert dummy data into necessary tables
-            List<RMNode> rmNodes = generateRMNodesToAdd(1);
-            List<RMContainer> rmContainers = generateRMContainersToAdd(10, 0);
-            List<ContainerStatus> containerStatuses
-                    = generateContainersStatusToAdd(rmNodes, rmContainers);
-            populateDB(rmNodes, rmContainers, containerStatuses);
-
-            rm.start();
-
-            Thread.sleep(monitorInterval * timeout);
-
-            // Delete RM node, which should delete container statuses
-            removeRMNodes(rmNodes);
-
-            Thread.sleep(monitorInterval * timeout);
-
-            // Check if all containers are marked with exitstatus UNKNOWN
-            Map<String, ContainersLogs> cl = getContainersLogs();
-            for (ContainerStatus cs : containerStatuses) {
-                ContainersLogs entry = cl.get(cs.getContainerid());
-                Assert.assertNotNull(entry);
-                Assert.assertEquals(0, entry.getStart());
-                Assert.assertTrue((entry.getStop() == timeout) || (entry.getStop() == timeout + 1));
-                Assert.assertEquals(ContainersLogs.UNKNOWN_CONTAINER_EXIT, entry.getExitstatus());
-            }
-        } finally {
-            rm.stop();
-        }
-    }
-
-    /**
-     * Tests if tick counter and container statuses are recorded correctly after
-     * RM is stopped and new RM takes over.
-     *
-     * @throws Exception
-     */
-//    @Test
-    public void testFailover() throws Exception {
-        int monitorInterval = 1000;
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, monitorInterval);
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
-        conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS, false);
-
-        // Insert dummy data into necessary tables
-        List<RMNode> rmNodes = generateRMNodesToAdd(10);
-        List<RMContainer> rmContainers = generateRMContainersToAdd(10, 0);
-        List<ContainerStatus> containerStatuses
-                = generateContainersStatusToAdd(rmNodes, rmContainers);
-        populateDB(rmNodes, rmContainers, containerStatuses);
-
-        // Start RM1
-        MockRM rm1 = new MockRM(conf);
-        rm1.start();
-        Thread.sleep(monitorInterval * 5);
-        rm1.stop();
-
-        // Change Container Statuses to COMPLETED
-        List<ContainerStatus> updatedStatuses = changeContainerStatuses(
-                containerStatuses,
-                ContainerState.COMPLETE.toString(),
-                ContainerExitStatus.SUCCESS
-        );
-        updateContainerStatuses(updatedStatuses);
-
-        // Start RM2
-        MockRM rm2 = new MockRM(conf);
-        rm2.start();
-        Thread.sleep(monitorInterval * 2);
-        rm2.stop();
-
-        // Check if tick counter is correct
-        YarnVariables tc = getTickCounter();
-        Assert.assertEquals(7, tc.getValue());
-
-        // Check if container logs have correct values
-        Map<String, ContainersLogs> cl = getContainersLogs();
-        for (ContainerStatus cs : containerStatuses) {
-            ContainersLogs entry = cl.get(cs.getContainerid());
-            Assert.assertNotNull(entry);
-            Assert.assertEquals(0, entry.getStart());
-            Assert.assertTrue(entry.getStop() == 4 || entry.getStop() == 5);
-            Assert.assertEquals(ContainerExitStatus.SUCCESS, entry.getExitstatus());
-        }
-    }
-
-    /**
-     * Test general use case where Container Statuses are added and changes over
-     * time.
-     *
-     * @throws Exception
-     */
-//    @Test
-    public void testFullUseCase() throws Exception {
-        int monitorInterval = 1000;
-        int checkpointTicks = 10;
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, monitorInterval);
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
-        conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS, true);
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_TICKS, checkpointTicks);
-
-        MockRM rm = new MockRM(conf);
-
-        // Insert first batch of dummy containers
-        List<RMNode> rmNodes1 = generateRMNodesToAdd(10);
-        List<RMContainer> rmContainers1 = generateRMContainersToAdd(10, 0);
-        List<ContainerStatus> containerStatuses1
-                = generateContainersStatusToAdd(rmNodes1, rmContainers1);
-        populateDB(rmNodes1, rmContainers1, containerStatuses1);
-
-        rm.start();
-
-        Thread.sleep(monitorInterval * 5);
-
-        // Insert second batch of dummy containers
-        List<RMNode> rmNodes2 = new ArrayList<RMNode>();
-        List<RMContainer> rmContainers2 = generateRMContainersToAdd(10, 10);
-        List<ContainerStatus> containerStatuses2
-                = generateContainersStatusToAdd(rmNodes1, rmContainers2);
-        populateDB(rmNodes2, rmContainers2, containerStatuses2);
-
-        Thread.sleep(monitorInterval * 5);
-
-        // Complete half of first and second batch of dummy containers
-        List<ContainerStatus> csUpdate1 = new ArrayList<ContainerStatus>();
-        for (int i = 0; i < 5; i++) {
-            ContainerStatus cs = containerStatuses1.get(i);
-            ContainerStatus csNewStatus = new ContainerStatus(
-                    cs.getContainerid(),
-                    ContainerState.COMPLETE.toString(),
-                    null,
-                    ContainerExitStatus.SUCCESS,
-                    cs.getRMNodeId(),
-                    0);
-            csUpdate1.add(csNewStatus);
-
-            ContainerStatus cs2 = containerStatuses2.get(i);
-            ContainerStatus cs2NewStatus = new ContainerStatus(
-                    cs2.getContainerid(),
-                    ContainerState.COMPLETE.toString(),
-                    null,
-                    ContainerExitStatus.ABORTED,
-                    cs2.getRMNodeId(),
-                    0);
-            csUpdate1.add(cs2NewStatus);
-        }
-        updateContainerStatuses(csUpdate1);
-
-        Thread.sleep(monitorInterval * 5);
-
-        // Complete second half of second batch of dummy containers
-        List<ContainerStatus> csUpdate2 = new ArrayList<ContainerStatus>();
-        for (int i = 5; i < 10; i++) {
-            ContainerStatus cs = containerStatuses2.get(i);
-            ContainerStatus csNewStatus = new ContainerStatus(
-                    cs.getContainerid(),
-                    ContainerState.COMPLETE.toString(),
-                    null,
-                    ContainerExitStatus.SUCCESS,
-                    cs.getRMNodeId(),
-                    0);
-            csUpdate2.add(csNewStatus);
-        }
-        updateContainerStatuses(csUpdate2);
-
-        Thread.sleep(monitorInterval * 5);
-
-        rm.stop();
-
-        // Check if tick counter is correct
-        YarnVariables tc = getTickCounter();
-        Assert.assertEquals(20, tc.getValue());
-
-        // Check if container logs have correct values
-        Map<String, ContainersLogs> cl = getContainersLogs();
-        for (int i = 0; i < 5; i++) {
-            ContainersLogs entry = cl.get(containerStatuses1.get(i).getContainerid());
-            Assert.assertNotNull(entry);
-            Assert.assertEquals(0, entry.getStart());
-            Assert.assertEquals(11, entry.getStop());
-            Assert.assertEquals(ContainerExitStatus.SUCCESS, entry.getExitstatus());
-
-            ContainersLogs entry2 = cl.get(containerStatuses2.get(i).getContainerid());
-            Assert.assertNotNull(entry2);
-            Assert.assertEquals(6, entry2.getStart());
-            Assert.assertEquals(11, entry2.getStop());
-            Assert.assertEquals(ContainerExitStatus.ABORTED, entry2.getExitstatus());
-
-            ContainersLogs entry3 = cl.get(containerStatuses2.get(5 + i).getContainerid());
-            Assert.assertNotNull(entry3);
-            Assert.assertEquals(6, entry3.getStart());
-            Assert.assertEquals(16, entry3.getStop());
-            Assert.assertEquals(ContainerExitStatus.SUCCESS, entry.getExitstatus());
-
-            ContainersLogs entry4 = cl.get(containerStatuses1.get(5 + i).getContainerid());
-            Assert.assertNotNull(entry4);
-            Assert.assertEquals(0, entry4.getStart());
-            Assert.assertEquals(20, entry4.getStop());
-            Assert.assertEquals(ContainersLogs.CONTAINER_RUNNING_STATE, entry4.getExitstatus());
-        }
-    }
-
     @Test
-    public void testLoad() throws Exception {
+    public void testLoad() throws Exception  {
         int numExperiments = 10;
-//        int containerCount[] = {100};
-        int containerCount[] = {0, 1, 3, 10, 30, 100, 300, 1000,
-            3000, 10000, 30000, 100000, 300000, 1000000};
-        conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS, false);
+        int containerCount[] = {1000};
+//        int containerCount[] = {0, 1, 3, 10, 30, 100, 300, 1000,
+//            3000, 10000, 30000, 100000};
         
 
         // For each container count
@@ -371,21 +90,21 @@ public class TestContainersLogsService {
                 long startTime = System.nanoTime();
                 RMStorageFactory.getConnector().formatStorage();
 
-                LOG.debug("{{RUNNING LOAD TEST}};EXPERIMENT;" + j + ";CONTAINERS;" + numContainers);
+                LOG.info("{{RUNNING LOAD TEST}};EXPERIMENT;" + j + ";CONTAINERS;" + numContainers);
 
                 List<RMNode> rmNodes = generateRMNodesToAdd(1);
                 List<RMContainer> rmContainers = generateRMContainersToAdd(numContainers, 0);
                 List<ContainerStatus> containerStatuses
                         = generateContainersStatusToAdd(rmNodes, rmContainers);
                 populateDB(rmNodes, rmContainers, containerStatuses);
-
-                MockRM rm = new MockRM(conf);
                 
+                LoadTester loadTester = new LoadTester();
+                loadTester.serviceInit(conf);
                 try {
-                    rm.start();
-                    rm.containersLogsService.containerStatusChecker();
+                    
+                    loadTester.serviceStart();
 
-                    LOG.debug("{{CHANGING STATUS}};EXPERIMENT;" + j + ";CONTAINERS;" + numContainers);
+                    LOG.info("{{CHANGING STATUS}};EXPERIMENT;" + j + ";CONTAINERS;" + numContainers);
                     List<ContainerStatus> csUpdate = new ArrayList<ContainerStatus>();
                     for (int k = 0; k < containerStatuses.size(); k++) {
                         ContainerStatus cs = containerStatuses.get(k);
@@ -400,18 +119,21 @@ public class TestContainersLogsService {
                     }
                     updateContainerStatuses(csUpdate);
                     
-                    rm.containersLogsService.containerStatusChecker();
+                    loadTester.serviceStart();
 
                 } finally {
-                    rm.stop();
+                    loadTester.serviceStop();
                 }
                 
 
-                LOG.debug("{{FINISHED LOAD TEST}};EXPERIMENT;" + j + 
+                LOG.info("{{FINISHED LOAD TEST}};EXPERIMENT;" + j + 
                         ";CONTAINERS;" + numContainers + 
                         ";TIME;" + (System.nanoTime() - startTime));
             }
         }
+    }
+    
+    private class LoadTester extends ContainersLogsService {
     }
 
     //Populates DB with fake RM, Containers and status entries
