@@ -965,19 +965,19 @@ public class ResourceManager extends CompositeService implements Recoverable {
     //Start periodic retrieval of pending scheduler events
     if (conf.getBoolean(YarnConfiguration.HOPS_DISTRIBUTED_RT_ENABLED,
         YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED)) {
-    if (conf.getBoolean(YarnConfiguration.HOPS_NDB_EVENT_STREAMING_ENABLED,
+        if (conf.getBoolean(YarnConfiguration.HOPS_NDB_EVENT_STREAMING_ENABLED,
               YarnConfiguration.DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED)) {
-        if (!conf.getBoolean(
-                YarnConfiguration.HOPS_NDB_RT_EVENT_STREAMING_ENABLED,
-                YarnConfiguration.DEFAULT_HOPS_NDB_RT_EVENT_STREAMING_ENABLED)) {
-          LOG.info("HOP :: NDB Event streaming is starting now ..");
-          RMStorageFactory.kickTheNdbEventStreamingAPI();
+            if (!conf.getBoolean(
+                    YarnConfiguration.HOPS_NDB_RT_EVENT_STREAMING_ENABLED,
+                    YarnConfiguration.DEFAULT_HOPS_NDB_RT_EVENT_STREAMING_ENABLED)) {
+              LOG.info("HOP :: NDB Event streaming is starting now ..");
+              RMStorageFactory.kickTheNdbEventStreamingAPI(true);
+            }
+            retrievalThread = new NdbEventStreamingProcessor(rmContext, conf);
+        } else {
+          LOG.debug("HOP :: Starting PendingEvent retrieval thread");
+          retrievalThread = new PendingEventRetrievalBatch(rmContext, conf);
         }
-        retrievalThread = new NdbEventStreamingProcessor(rmContext, conf);
-      } else {
-        LOG.debug("HOP :: Starting PendingEvent retrieval thread");
-        retrievalThread = new PendingEventRetrievalBatch(rmContext, conf);
-      }
       GlobalThreadPool.getExecutorService().execute(retrievalThread);
     }
   }

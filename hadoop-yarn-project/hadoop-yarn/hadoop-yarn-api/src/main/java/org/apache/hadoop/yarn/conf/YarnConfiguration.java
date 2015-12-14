@@ -1388,7 +1388,7 @@ public class YarnConfiguration extends Configuration {
    //Distributed RT properties
   public static final String HOPS_DISTRIBUTED_RT_ENABLED =
       HOPS_RM_PREFIX + "distributed-rt.enable";
-  public static boolean DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED = false;
+  public static boolean DEFAULT_HOPS_DISTRIBUTED_RT_ENABLED = true;
   public static String HOPS_PENDING_EVENTS_RETRIEVAL_PERIOD =
       HOPS_RM_PREFIX + "pending-events.retrieval.period";
   public static int DEFAULT_HOPS_PENDING_EVENTS_RETRIEVAL_PERIOD = 500;
@@ -1403,11 +1403,11 @@ public class YarnConfiguration extends Configuration {
   public static int DEFAULT_HOPS_BATCH_MAX_DURATION = 100;
 
   //NDB event streaming
-  public static boolean DEFAULT_HOPS_NDB_EVENT_STREAMING_ENABLED = false;
+  public static boolean DEFAULT_HOPS_NDB_EVENT_STREAMING_ENABLED = true;
   public static final String HOPS_NDB_EVENT_STREAMING_ENABLED = HOPS_RM_PREFIX
           + "ndb-event-streaming.enable";
 
-  public static boolean DEFAULT_HOPS_NDB_RT_EVENT_STREAMING_ENABLED = false;
+  public static boolean DEFAULT_HOPS_NDB_RT_EVENT_STREAMING_ENABLED = true;
   public static final String HOPS_NDB_RT_EVENT_STREAMING_ENABLED
           = HOPS_RM_PREFIX + "ndb-rt-event-streaming.enable";
 

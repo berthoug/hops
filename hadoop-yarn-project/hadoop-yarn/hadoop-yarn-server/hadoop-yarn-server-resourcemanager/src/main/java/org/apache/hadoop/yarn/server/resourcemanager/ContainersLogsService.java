@@ -112,6 +112,7 @@ public class ContainersLogsService extends CompositeService {
         // Creates separate thread for retrieving container statuses
         checkerThread = new Thread(new ContainerStatusChecker());
         checkerThread.setName("ContainersLogs Container Status Checker");
+        
 
         super.serviceInit(conf);
     }

@@ -73,13 +73,33 @@ public class TestContainersLogsService {
             LOG.error(null, ex);
         }
     }
+    
+//    @Test
+    public void testStreaming() throws Exception {
+        conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS, false);
+        
+        TestContainersLogs tcl = new TestContainersLogs();
+        tcl.serviceInit(conf);
+        
+        try {
+
+            tcl.serviceStart();
+
+            Thread.sleep(5000);
+
+        } finally {
+            tcl.serviceStop();
+        }
+    }
+    
+    public class TestContainersLogs extends ContainersLogsService {}
 
     /**
      * Basic tick counter test, check if initialized in variables table
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testTickCounterInitialization() throws Exception {
         conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, 1000);
         conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
@@ -98,7 +118,7 @@ public class TestContainersLogsService {
      */
     @Test
     public void testCheckpoints() throws Exception {
-        int checkpointTicks = 5;
+        int checkpointTicks = 500;
         int monitorInterval = 1000;
         conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, monitorInterval);
         conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
@@ -117,6 +137,8 @@ public class TestContainersLogsService {
 
             rm.start();
 
+            RMStorageFactory.kickTheNdbEventStreamingAPI(false);
+            
             int sleepTillCheckpoint = monitorInterval * (checkpointTicks + 1);
             Thread.sleep(sleepTillCheckpoint);
 
@@ -141,7 +163,7 @@ public class TestContainersLogsService {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testUnknownExitstatusUseCase() throws Exception {
         int monitorInterval = 1000;
         int timeout = 2;
@@ -188,7 +210,7 @@ public class TestContainersLogsService {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testFailover() throws Exception {
         int monitorInterval = 1000;
         conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, monitorInterval);
@@ -243,7 +265,7 @@ public class TestContainersLogsService {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testFullUseCase() throws Exception {
         int monitorInterval = 1000;
         int checkpointTicks = 10;
