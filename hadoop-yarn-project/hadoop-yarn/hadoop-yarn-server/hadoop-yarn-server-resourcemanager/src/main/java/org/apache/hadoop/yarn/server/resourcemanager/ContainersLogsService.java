@@ -74,6 +74,7 @@ public class ContainersLogsService extends CompositeService {
     // True when service is up to speed with existing statuses and 
     // with events triggered while initializing
     boolean recovered = true;
+    public boolean finishedProcessing = false;
 
     public ContainersLogsService() {
         super(ContainersLogsService.class.getName());
@@ -128,8 +129,10 @@ public class ContainersLogsService extends CompositeService {
         LOG.info("Starting containers logs service");
 
         recover();
+        
+//        finishedProcessing = false;
 
-        tickThread.start();
+//        tickThread.start();
 
         super.serviceStart();
     }
@@ -137,6 +140,13 @@ public class ContainersLogsService extends CompositeService {
     @Override
     protected void serviceStop() throws Exception {
         LOG.info("Stopping containers logs service");
+        
+        activeContainers
+            = new HashMap<String, ContainersLogs>();
+        updateContainers = new ArrayList<ContainersLogs>();
+        eventContainers
+            = new LinkedBlockingQueue<ContainerStatus>();
+        finishedProcessing = false;
 
         stopped = true;
         if (tickThread != null) {
@@ -214,7 +224,7 @@ public class ContainersLogsService extends CompositeService {
 
             updateContainersLogs(false);
 
-//            recovered = true;
+            recovered = true;
 
             LOG.info("Finished containers logs recovery");
         } catch (Exception ex) {
@@ -476,13 +486,20 @@ public class ContainersLogsService extends CompositeService {
      * Update containers logs table
      */
     public void processTick() {
+        long totalTimeStart = System.nanoTime();
+        
+        try {
+        long timeStart = System.nanoTime();
         List<ContainerStatus> latestEvents
                 = getLatestEvents();
+        LOG.info("{{{EVENT-TIME}}};" + (System.nanoTime() - timeStart) + ";");
 
         LOG.debug("CL :: Event count: " + latestEvents.size());
 
         // Go through all events and update active and update lists
+        timeStart = System.nanoTime();
         checkEventContainerStatuses(latestEvents);
+        LOG.info("{{{ACTIVE-TIME}}};" + (System.nanoTime() - timeStart) + ";");
 
         // Checkpoint
         if (checkpointEnabled
@@ -495,7 +512,16 @@ public class ContainersLogsService extends CompositeService {
         LOG.debug("CL :: Active list size: " + activeContainers.size());
 
         // Update Containers logs table and tick counter
+        timeStart = System.nanoTime();
         updateContainersLogs(true);
+        LOG.info("{{{WRITE-TIME}}};" + (System.nanoTime() - timeStart) + ";");
+        } catch (Exception ex) {
+            LOG.warn("Exception in tick processor", ex);
+        }
+        
+        finishedProcessing = true;
+        
+        LOG.info("{{{TOTAL}}};" + (System.nanoTime() - totalTimeStart) + ";");
     }
 
     /**
