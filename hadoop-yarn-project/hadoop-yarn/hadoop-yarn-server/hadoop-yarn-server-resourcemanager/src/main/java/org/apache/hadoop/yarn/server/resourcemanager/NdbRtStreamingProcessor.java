@@ -76,22 +76,26 @@ public class NdbRtStreamingProcessor implements Runnable {
               printStreamingRTComps(streamingRTComps);
             }
 
-//            NodeId nodeId = ConverterUtils.
-//                    toNodeId(streamingRTComps.getNodeId());
-//            rmNode = context.getActiveRMNodes().get(nodeId);
-//            if (rmNode != null) {
-//              rmNode.setContainersToCleanUp(streamingRTComps.
-//                      getContainersToClean());
-//              rmNode.setAppsToCleanup(streamingRTComps.getFinishedApp());
-//              rmNode.setNextHeartBeat(streamingRTComps.isNextHeartbeat());
-//            }
-//            
+            
+            String streamingRTCompsNodeId = streamingRTComps.getNodeId();
+            if(streamingRTCompsNodeId != null) {
+                NodeId nodeId = ConverterUtils.
+                    toNodeId(streamingRTCompsNodeId);
+                rmNode = context.getActiveRMNodes().get(nodeId);
+                if (rmNode != null) {
+                  rmNode.setContainersToCleanUp(streamingRTComps.
+                          getContainersToClean());
+                  rmNode.setAppsToCleanup(streamingRTComps.getFinishedApp());
+                  rmNode.setNextHeartBeat(streamingRTComps.isNextHeartbeat());
+                }
+            }
+            
+            // Processes container statuses for ContainersLogs service
             List<ContainerStatus> hopContainersStatusList 
                     = streamingRTComps.getHopContainersStatusList();
             if(hopContainersStatusList.size() > 0) {
-                for(ContainerStatus status: hopContainersStatusList){
-                LOG.info("Received container status updates " + status.getContainerid());
-                }
+                context.getContainersLogsService()
+                        .insertEvent(hopContainersStatusList);
             }
           }
         } catch (InterruptedException ex) {

@@ -348,6 +348,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
     // Add containers logs service
     containersLogsService = createContainersLogsService();
     addService(containersLogsService);
+    rmContext.setContainersLogsService(containersLogsService);
     
 
     this.rmLoginUGI = UserGroupInformation.getCurrentUser();

@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -46,7 +47,7 @@ public class ContainersLogsService extends CompositeService {
     private static final Log LOG = LogFactory.getLog(ContainersLogsService.class);
 
     Configuration conf;
-    private Thread checkerThread;
+    private Thread tickThread;
     private volatile boolean stopped; //Flag for Thread force stop
     private int monitorInterval; //Time in ms till next ContainerStatus read
     private int tickIncrement;
@@ -55,14 +56,24 @@ public class ContainersLogsService extends CompositeService {
     private double alertThreshold;
     private double threshold;
 
-    Map<String, ActiveContainersLogs> activeContainers;
-    List<ContainersLogs> updateContainers;
-
     ContainerStatusDataAccess containerStatusDA;
     ContainersLogsDataAccess containersLogsDA;
     YarnVariablesDataAccess yarnVariablesDA;
 
-    YarnVariables tickCounter;
+    Map<String, ContainersLogs> activeContainers
+            = new HashMap<String, ContainersLogs>();
+    List<ContainersLogs> updateContainers = new ArrayList<ContainersLogs>();
+    LinkedBlockingQueue<ContainerStatus> eventContainers
+            = new LinkedBlockingQueue<ContainerStatus>();
+
+    YarnVariables tickCounter = new YarnVariables(
+            HopYarnAPIUtilities.CONTAINERSTICKCOUNTER,
+            0
+    );
+
+    // True when service is up to speed with existing statuses and 
+    // with events triggered while initializing
+    boolean recovered = true;
 
     public ContainersLogsService() {
         super(ContainersLogsService.class.getName());
@@ -94,6 +105,7 @@ public class ContainersLogsService extends CompositeService {
                 YarnConfiguration.QUOTAS_CONTAINERS_LOGS_ALERT_THRESHOLD,
                 YarnConfiguration.DEFAULT_QUOTAS_CONTAINERS_LOGS_ALERT_THRESHOLD
         );
+        // Calculate execution time warning threshold
         this.threshold = this.monitorInterval * alertThreshold;
 
         // Initialize DataAccesses
@@ -104,15 +116,9 @@ public class ContainersLogsService extends CompositeService {
         yarnVariablesDA = (YarnVariablesDataAccess) RMStorageFactory
                 .getDataAccess(YarnVariablesDataAccess.class);
 
-        // Retrieve unfinished containers logs and tick counter
-        tickCounter = getTickCounter();
-        activeContainers = getActiveContainersLogs();
-        updateContainers = new ArrayList<ContainersLogs>();
-
         // Creates separate thread for retrieving container statuses
-        checkerThread = new Thread(new ContainerStatusChecker());
-        checkerThread.setName("ContainersLogs Container Status Checker");
-        
+        tickThread = new Thread(new TickThread());
+        tickThread.setName("ContainersLogs Tick Thread");
 
         super.serviceInit(conf);
     }
@@ -121,7 +127,9 @@ public class ContainersLogsService extends CompositeService {
     protected void serviceStart() throws Exception {
         LOG.info("Starting containers logs service");
 
-        checkerThread.start();
+        recover();
+
+        tickThread.start();
 
         super.serviceStart();
     }
@@ -131,79 +139,169 @@ public class ContainersLogsService extends CompositeService {
         LOG.info("Stopping containers logs service");
 
         stopped = true;
-        if (checkerThread != null) {
-            checkerThread.interrupt();
+        if (tickThread != null) {
+            tickThread.interrupt();
         }
 
         super.serviceStop();
     }
 
     /**
-     * Loop through retrieved container statuses, and check if it exists in
-     * active list Also check if container is COMPLETED, populate update list if
-     * necessary
+     * Appends container statuses obtained from events into event queue
      *
-     * @param containerStatuses
+     * @param changedContainerStatuses
      */
-    private void checkContainerStatuses(Map<String, ContainerStatus> containerStatuses) {
+    public void insertEvent(List<ContainerStatus> changedContainerStatuses) {
+        LOG.debug("CL :: New event, size: " + changedContainerStatuses.size());
+        for (ContainerStatus cs : changedContainerStatuses) {
+            try {
+                eventContainers.put(cs);
+            } catch (InterruptedException ex) {
+                LOG.warn("Unable to insert container status: "
+                        + cs.toString() + " inside event queue", ex);
+            }
+        }
+    }
 
-        for (Map.Entry<String, ContainerStatus> entry : containerStatuses.entrySet()) {
-            boolean updatable = false; //Indicates wether container will be updated in DB
-            ContainerStatus cs = entry.getValue();
-            ActiveContainersLogs acl;
+    /**
+     * Returns list of latest entries in eventContainers list and removes them
+     *
+     * @return
+     */
+    private List<ContainerStatus> getLatestEvents() {
+        List<ContainerStatus> oldEvents = new ArrayList<ContainerStatus>();
 
-            // Check if container exists in active list, if not add, if yes retrieve
-            if (activeContainers.get(entry.getKey()) == null) {
-                acl = new ActiveContainersLogs(
+        while (!eventContainers.isEmpty()) {
+            oldEvents.add(eventContainers.poll());
+        }
+
+        return oldEvents;
+    }
+
+    /**
+     * Retrieve tick counter, unfinished containers logs entries and container
+     * statuses entries. Merge them and then retrieve events that have arrived
+     * since launching service. Merge events and mark recovery as completed.
+     */
+    public void recover() {
+        LOG.info("Starting containers logs recovery");
+
+        try {
+            tickCounter = getTickCounter();
+            activeContainers = getContainersLogs();
+
+            // Iterate container statuses and update active list
+            List<ContainerStatus> containerStatuses
+                    = new ArrayList<ContainerStatus>(getContainerStatuses().values());
+            recoverContainerStatuses(containerStatuses, tickCounter);
+
+            // Iterate events and update active list
+            List<ContainerStatus> latestEvents = getLatestEvents();
+            recoverContainerStatuses(latestEvents, tickCounter);
+
+            // Iterate active list, remove COMPLETE from active list
+            // and insert all in update list
+            for (Iterator<Map.Entry<String, ContainersLogs>> it
+                    = activeContainers.entrySet().iterator(); it.hasNext();) {
+                ContainersLogs cl = it.next().getValue();
+
+                updateContainers.add(cl);
+
+                if (cl.getExitstatus() != ContainersLogs.CONTAINER_RUNNING_STATE) {
+                    it.remove();
+                }
+            }
+
+            updateContainersLogs(false);
+
+//            recovered = true;
+
+            LOG.info("Finished containers logs recovery");
+        } catch (Exception ex) {
+            LOG.warn("Unable to finish containers logs recovery", ex);
+        }
+    }
+
+    private void checkEventContainerStatuses(
+            List<ContainerStatus> latestEvents
+    ) {
+        for (ContainerStatus cs : latestEvents) {
+            ContainersLogs cl;
+            boolean updatable = false;
+
+            if (activeContainers.get(cs.getContainerid()) == null) {
+                cl = new ContainersLogs(
                         cs.getContainerid(),
                         tickCounter.getValue(),
                         ContainersLogs.DEFAULT_STOP_TIMESTAMP,
                         ContainersLogs.CONTAINER_RUNNING_STATE
                 );
 
-                activeContainers.put(entry.getKey(), acl);
+                // Unable to capture start use case,
+                if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
+                    cl.setExitstatus(ContainersLogs.UNKNOWN_CONTAINER_EXIT);
+                }
+
+                activeContainers.put(cl.getContainerid(), cl);
                 updatable = true;
             } else {
-                acl = activeContainers.get(entry.getKey());
+                cl = activeContainers.get(cs.getContainerid());
             }
-            acl.setFound(true);
 
-            // If state COMPLETE and not yet been completed mark stop time & exit state
-            if (!acl.getCompleted() && cs.getState().equals(ContainerState.COMPLETE.toString())) {
-                acl.setStop(tickCounter.getValue());
-                acl.setExitstatus(cs.getExitstatus());
-                acl.setCompleted(true);
+            if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
+                cl.setStop(tickCounter.getValue());
+                cl.setExitstatus(cs.getExitstatus());
+                activeContainers.remove(cl.getContainerid());
                 updatable = true;
             }
 
-            // Check if container needs to be added/updated in DB
             if (updatable) {
-                updateContainers.add(acl.getContainersLogs());
+                updateContainers.add(cl);
             }
         }
     }
 
     /**
-     * Loop through active list and remove completed containers or check if a
-     * container completed state was missed
+     * Go through container status list that is passed(containers statuses or
+     * events). Ignore the states which are completed and not known or known,
+     * completed and previously were completed.
+     *
+     * @param recoveryStatuses
+     * @param ticks
      */
-    private void checkActiveContainerStatuses() {
-        for (Iterator<Map.Entry<String, ActiveContainersLogs>> it
-                = activeContainers.entrySet().iterator(); it.hasNext();) {
-            ActiveContainersLogs acl = it.next().getValue();
+    private void recoverContainerStatuses(
+            List<ContainerStatus> recoveryStatuses,
+            YarnVariables ticks
+    ) {
+        for (ContainerStatus cs : recoveryStatuses) {
 
-            // If container status has not been seen its either completed, or we were unable to capture it
-            if (!acl.getFound()) {
-                if (!acl.getCompleted()) {
-                    //If status not found and not completed, unable to capture containers status
-                    acl.setStop(tickCounter.getValue());
-                    acl.setExitstatus(ContainersLogs.UNKNOWN_CONTAINER_EXIT);
-                    updateContainers.add(acl.getContainersLogs());
+            if (activeContainers.get(cs.getContainerid()) == null) {
+
+                // Only care about the ones that are not finished when recovering
+                if (!cs.getState().equals(ContainerState.COMPLETE.toString())) {
+
+                    ContainersLogs cl = new ContainersLogs(
+                            cs.getContainerid(),
+                            ticks.getValue(),
+                            ContainersLogs.DEFAULT_STOP_TIMESTAMP,
+                            ContainersLogs.CONTAINER_RUNNING_STATE
+                    );
+
+                    activeContainers.put(cl.getContainerid(), cl);
                 }
+            } else {
+                ContainersLogs cl = activeContainers.get(cs.getContainerid());
 
-                it.remove();
+                // If COMPLETE, either transition happened or and old entry
+                if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
+                    if (cl.getExitstatus() == ContainersLogs.CONTAINER_RUNNING_STATE) {
+                        cl.setStop(ticks.getValue());
+                        cl.setExitstatus(cs.getExitstatus());
+                    } else {
+                        activeContainers.remove(cl.getContainerid());
+                    }
+                }
             }
-            acl.setFound(false);
         }
     }
 
@@ -211,7 +309,7 @@ public class ContainersLogsService extends CompositeService {
      * Updates containers logs table with container status information in update
      * list Also update tick counter in YARN variables table
      */
-    private void updateContainersLogs() {
+    private void updateContainersLogs(final boolean updatetTick) {
 
         try {
             LightWeightRequestHandler containersLogsHandler
@@ -223,7 +321,7 @@ public class ContainersLogsService extends CompositeService {
 
                     // Update containers logs table if necessary
                     if (updateContainers.size() > 0) {
-                        LOG.debug("Update containers logs size: " + updateContainers.size());
+                        LOG.debug("CL :: Update containers logs size: " + updateContainers.size());
                         try {
                             containersLogsDA.addAll(updateContainers);
                             updateContainers.clear();
@@ -233,7 +331,9 @@ public class ContainersLogsService extends CompositeService {
                     }
 
                     // Update tick counter
-                    yarnVariablesDA.add(tickCounter);
+                    if (updatetTick) {
+                        yarnVariablesDA.add(tickCounter);
+                    }
 
                     connector.commit();
                     return null;
@@ -251,13 +351,11 @@ public class ContainersLogsService extends CompositeService {
      *
      * @return
      */
-    private Map<String, ActiveContainersLogs> getActiveContainersLogs() {
-        Map<String, ActiveContainersLogs> activeList
-                = new HashMap<String, ActiveContainersLogs>();
+    private Map<String, ContainersLogs> getContainersLogs() {
+        Map<String, ContainersLogs> allContainersLogs
+                = new HashMap<String, ContainersLogs>();
 
         try {
-            Map<String, ContainersLogs> allContainersLogs;
-
             // Retrieve unfinished containers logs entries
             LightWeightRequestHandler allContainersHandler
                     = new LightWeightRequestHandler(YARNOperationType.TEST) {
@@ -267,9 +365,7 @@ public class ContainersLogsService extends CompositeService {
                     connector.readCommitted();
 
                     Map<String, ContainersLogs> allContainersLogs
-                            = containersLogsDA.getByExitStatus(
-                                    ContainersLogs.CONTAINER_RUNNING_STATE
-                            );
+                            = containersLogsDA.getAll();
 
                     connector.commit();
 
@@ -278,25 +374,11 @@ public class ContainersLogsService extends CompositeService {
             };
             allContainersLogs = (Map<String, ContainersLogs>) allContainersHandler.handle();
 
-            // Store table entries into active list
-            for (Map.Entry<String, ContainersLogs> entry : allContainersLogs.entrySet()) {
-                ContainersLogs cl = entry.getValue();
-                ActiveContainersLogs acl;
-
-                acl = new ActiveContainersLogs(
-                        cl.getContainerid(),
-                        cl.getStart(),
-                        cl.getStop(),
-                        cl.getExitstatus()
-                );
-
-                activeList.put(entry.getKey(), acl);
-            }
         } catch (IOException ex) {
             LOG.warn("Unable to retrieve containers logs table data", ex);
         }
 
-        return activeList;
+        return allContainersLogs;
     }
 
     /**
@@ -379,21 +461,48 @@ public class ContainersLogsService extends CompositeService {
      * update list. This ensures that whole running time is not lost.
      */
     private void createCheckpoint() {
-        for (Map.Entry<String, ActiveContainersLogs> entry : activeContainers.entrySet()) {
-            ActiveContainersLogs acl = entry.getValue();
+        for (Map.Entry<String, ContainersLogs> entry : activeContainers.entrySet()) {
+            ContainersLogs cl = entry.getValue();
 
-            if (!acl.getCompleted()) {
-                acl.setStop(tickCounter.getValue());
-                updateContainers.add(acl.getContainersLogs());
-            }
+            cl.setStop(tickCounter.getValue());
+            updateContainers.add(cl);
         }
+    }
+
+    /**
+     * Retrieve latest events from the queue;
+     * Update active and update lists with latest events
+     * Perform checkpoint if necessary
+     * Update containers logs table
+     */
+    public void processTick() {
+        List<ContainerStatus> latestEvents
+                = getLatestEvents();
+
+        LOG.debug("CL :: Event count: " + latestEvents.size());
+
+        // Go through all events and update active and update lists
+        checkEventContainerStatuses(latestEvents);
+
+        // Checkpoint
+        if (checkpointEnabled
+                && (tickCounter.getValue() % checkpointInterval == 0)) {
+            LOG.debug("CL :: Creating checkoint");
+            createCheckpoint();
+        }
+
+        LOG.debug("CL :: Update list size: " + updateContainers.size());
+        LOG.debug("CL :: Active list size: " + activeContainers.size());
+
+        // Update Containers logs table and tick counter
+        updateContainersLogs(true);
     }
 
     /**
      * Thread that retrieves container statuses, updates active and update
      * lists, and updates containers logs table and tick counter
      */
-    private class ContainerStatusChecker implements Runnable {
+    private class TickThread implements Runnable {
 
         @Override
         public void run() {
@@ -403,44 +512,30 @@ public class ContainersLogsService extends CompositeService {
                 try {
                     long startTime = System.currentTimeMillis();
 
-                    LOG.debug("Current tick: " + tickCounter.getValue());
+                    if (recovered) {
+                        LOG.debug("CL :: Current tick: " + tickCounter.getValue());
 
-                    Map<String, ContainerStatus> allContainerStatuses
-                            = getContainerStatuses();
+                        // Process everything for single tick
+                        processTick();
 
-                    LOG.debug("Retrieved container status count: " + allContainerStatuses.size());
-
-                    // Go through all containers statuses and update active and update lists
-                    checkContainerStatuses(allContainerStatuses);
-
-                    // Go through all active container statuses
-                    checkActiveContainerStatuses();
-
-                    // Checkpoint
-                    if (checkpointEnabled
-                            && (tickCounter.getValue() % checkpointInterval == 0)) {
-                        LOG.debug("Creating checkoint");
-                        createCheckpoint();
+                        // Increment tick counter
+                        tickCounter.setValue(tickCounter.getValue() + tickIncrement);
+                    } else {
+                        LOG.debug("CL :: Not yet recovered");
                     }
-
-                    LOG.debug("Update list size: " + updateContainers.size());
-                    LOG.debug("Active list size: " + activeContainers.size());
-
-                    // Update Containers logs table and tick counter
-                    updateContainersLogs();
-
-                    // Increment tick counter
-                    tickCounter.setValue(tickCounter.getValue() + tickIncrement);
 
                     //Check alert threshold
                     executionTime = System.currentTimeMillis() - startTime;
                     if (threshold < executionTime) {
-                        LOG.debug("Monitor interval threshold exceeded!"
+                        LOG.warn("Monitor interval threshold exceeded!"
                                 + " Execution time: "
                                 + Long.toString(executionTime) + "ms."
                                 + " Threshold: "
                                 + Double.toString(threshold) + "ms."
                                 + " Consider increasing monitor interval!");
+                        //To avoid negative values
+                        executionTime = (executionTime > monitorInterval)
+                                ? monitorInterval : executionTime;
                     }
                 } catch (Exception ex) {
                     LOG.warn("Exception in containers logs thread loop", ex);
@@ -453,52 +548,6 @@ public class ContainersLogsService extends CompositeService {
                     break;
                 }
             }
-        }
-    }
-
-    /**
-     * Extends ContainersLogs adding two more flags
-     *
-     * @param found, represents a flag in containers status has been retrieved
-     * @param completed, represents a flag if container has been completed
-     */
-    private class ActiveContainersLogs extends ContainersLogs {
-
-        private boolean found = false;
-        private boolean completed = false;
-
-        public ActiveContainersLogs(
-                String containerid,
-                int start,
-                int stop,
-                int exitstatus
-        ) {
-            super(containerid, start, stop, exitstatus);
-        }
-
-        public void setFound(boolean found) {
-            this.found = found;
-        }
-
-        public boolean getFound() {
-            return this.found;
-        }
-
-        public void setCompleted(boolean completed) {
-            this.completed = completed;
-        }
-
-        public boolean getCompleted() {
-            return this.completed;
-        }
-
-        public ContainersLogs getContainersLogs() {
-            return new ContainersLogs(
-                    this.getContainerid(),
-                    this.getStart(),
-                    this.getStop(),
-                    this.getExitstatus()
-            );
         }
     }
 }

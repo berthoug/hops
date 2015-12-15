@@ -173,11 +173,11 @@ public class NdbRtStreamingReceiver {
   }
   
   public void resetObjects() throws InterruptedException {
-        containersToCleanSet = null;
-   finishedAppList = null;
+    containersToCleanSet = null;
+    finishedAppList = null;
     nodeId = null;
     nextHeartbeat = false;
-     hopContainersStatusList = null;
+    hopContainersStatusList = null;
   }
 
   // this two methods are using for multi-thread version from c++ library

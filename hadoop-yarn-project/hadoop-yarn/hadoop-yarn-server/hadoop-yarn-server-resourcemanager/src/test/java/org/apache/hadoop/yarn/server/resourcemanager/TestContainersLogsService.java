@@ -73,26 +73,39 @@ public class TestContainersLogsService {
             LOG.error(null, ex);
         }
     }
-    
+
 //    @Test
     public void testStreaming() throws Exception {
+        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, 1000);
+        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
         conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS, false);
+
+        MockRM rm;
         
-        TestContainersLogs tcl = new TestContainersLogs();
-        tcl.serviceInit(conf);
+        List<RMNode> rmNodes = generateRMNodesToAdd(10);
+        List<RMContainer> rmContainers = generateRMContainersToAdd(10, 0);
+        List<ContainerStatus> containerStatuses
+                = generateContainersStatusToAdd(rmNodes, rmContainers);
+        populateDB(rmNodes, rmContainers, containerStatuses);
+
+        rm = new MockRM(conf);
         
-        try {
+//        List<RMNode> rmNodes = generateRMNodesToAdd(10);
+//        List<RMContainer> rmContainers = generateRMContainersToAdd(10, 0);
+//        List<ContainerStatus> containerStatuses
+//                = generateContainersStatusToAdd(rmNodes, rmContainers);
+//        populateDB(rmNodes, rmContainers, containerStatuses);
+        
+        
+        rm.start();
 
-            tcl.serviceStart();
+        Thread.sleep(50000000);
 
-            Thread.sleep(5000);
-
-        } finally {
-            tcl.serviceStop();
-        }
+        rm.stop();
     }
+
     
-    public class TestContainersLogs extends ContainersLogsService {}
+    
 
     /**
      * Basic tick counter test, check if initialized in variables table
@@ -116,7 +129,7 @@ public class TestContainersLogsService {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testCheckpoints() throws Exception {
         int checkpointTicks = 500;
         int monitorInterval = 1000;
@@ -138,7 +151,7 @@ public class TestContainersLogsService {
             rm.start();
 
             RMStorageFactory.kickTheNdbEventStreamingAPI(false);
-            
+
             int sleepTillCheckpoint = monitorInterval * (checkpointTicks + 1);
             Thread.sleep(sleepTillCheckpoint);
 
@@ -196,7 +209,7 @@ public class TestContainersLogsService {
                 ContainersLogs entry = cl.get(cs.getContainerid());
                 Assert.assertNotNull(entry);
                 Assert.assertEquals(0, entry.getStart());
-                Assert.assertTrue((entry.getStop() == timeout) || (entry.getStop() == timeout+1));
+                Assert.assertTrue((entry.getStop() == timeout) || (entry.getStop() == timeout + 1));
                 Assert.assertEquals(ContainersLogs.UNKNOWN_CONTAINER_EXIT, entry.getExitstatus());
             }
         } finally {
@@ -308,7 +321,7 @@ public class TestContainersLogsService {
                     cs.getRMNodeId(),
                     0);
             csUpdate1.add(csNewStatus);
-            
+
             ContainerStatus cs2 = containerStatuses2.get(i);
             ContainerStatus cs2NewStatus = new ContainerStatus(
                     cs2.getContainerid(),
@@ -341,11 +354,11 @@ public class TestContainersLogsService {
         Thread.sleep(monitorInterval * 5);
 
         rm.stop();
-        
+
         // Check if tick counter is correct
         YarnVariables tc = getTickCounter();
         Assert.assertEquals(20, tc.getValue());
-        
+
         // Check if container logs have correct values
         Map<String, ContainersLogs> cl = getContainersLogs();
         for (int i = 0; i < 5; i++) {
@@ -354,20 +367,20 @@ public class TestContainersLogsService {
             Assert.assertEquals(0, entry.getStart());
             Assert.assertEquals(11, entry.getStop());
             Assert.assertEquals(ContainerExitStatus.SUCCESS, entry.getExitstatus());
-            
+
             ContainersLogs entry2 = cl.get(containerStatuses2.get(i).getContainerid());
             Assert.assertNotNull(entry2);
             Assert.assertEquals(6, entry2.getStart());
             Assert.assertEquals(11, entry2.getStop());
             Assert.assertEquals(ContainerExitStatus.ABORTED, entry2.getExitstatus());
-            
-            ContainersLogs entry3 = cl.get(containerStatuses2.get(5+i).getContainerid());
+
+            ContainersLogs entry3 = cl.get(containerStatuses2.get(5 + i).getContainerid());
             Assert.assertNotNull(entry3);
             Assert.assertEquals(6, entry3.getStart());
             Assert.assertEquals(16, entry3.getStop());
             Assert.assertEquals(ContainerExitStatus.SUCCESS, entry.getExitstatus());
-            
-            ContainersLogs entry4 = cl.get(containerStatuses1.get(5+i).getContainerid());
+
+            ContainersLogs entry4 = cl.get(containerStatuses1.get(5 + i).getContainerid());
             Assert.assertNotNull(entry4);
             Assert.assertEquals(0, entry4.getStart());
             Assert.assertEquals(20, entry4.getStop());
