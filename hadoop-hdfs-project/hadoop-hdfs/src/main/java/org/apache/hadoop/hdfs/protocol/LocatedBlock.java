@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p/>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p/>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,6 +19,7 @@ package org.apache.hadoop.hdfs.protocol;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.security.token.Token;
 
@@ -37,6 +38,8 @@ public class LocatedBlock {
   private ExtendedBlock b;
   private long offset;  // offset of the first byte of the block in the file
   private DatanodeInfo[] locs;
+  // Storage type for each replica, if reported.
+  private StorageType[] storageTypes;
   // corrupt flag is true if all of the replicas of a block are corrupt.
   // else false. If block has few corrupt replicas, they are filtered and 
   // their locations are not part of this object
@@ -56,6 +59,13 @@ public class LocatedBlock {
 
   public LocatedBlock(ExtendedBlock b, DatanodeInfo[] locs, long startOffset,
       boolean corrupt) {
+    this(b, locs, null, startOffset, corrupt);
+  }
+
+  public LocatedBlock(ExtendedBlock b, DatanodeInfo[] locs,
+      StorageType[] storageTypes, long startOffset,
+      boolean corrupt) {
+
     this.b = b;
     this.offset = startOffset;
     this.corrupt = corrupt;
@@ -64,6 +74,7 @@ public class LocatedBlock {
     } else {
       this.locs = locs;
     }
+    this.storageTypes = storageTypes;
     this.data = null;
   }
 
@@ -105,6 +116,14 @@ public class LocatedBlock {
 
   public Token<BlockTokenIdentifier> getBlockToken() {
     return blockToken;
+  }
+
+  public void setStorageTypes(StorageType[] storageTypes) {
+    this.storageTypes = storageTypes;
+  }
+
+  public StorageType[] getStorageTypes() {
+    return storageTypes;
   }
 
   public void setBlockToken(Token<BlockTokenIdentifier> token) {

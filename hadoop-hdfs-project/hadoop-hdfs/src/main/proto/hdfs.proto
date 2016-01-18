@@ -137,6 +137,7 @@ message LocatedBlockProto {
   repeated StorageTypeProto storageTypes = 7;
   repeated string storageIDs = 8;
   optional bytes data = 9;
+  optional uint64 checksum = 7;
 }
 
 message DataEncryptionKeyProto {
