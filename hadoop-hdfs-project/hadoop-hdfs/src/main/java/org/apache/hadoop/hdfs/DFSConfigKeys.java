@@ -20,6 +20,7 @@ package org.apache.hadoop.hdfs;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockPlacementPolicyDefault;
 
 /**
  * This class contains constants for configuration keys used
@@ -397,6 +398,9 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
       "dfs.datanode.balance.bandwidthPerSec";
   public static final long DFS_DATANODE_BALANCE_BANDWIDTHPERSEC_DEFAULT =
       1024 * 1024;
+  public static final String  DFS_DATANODE_BALANCE_MAX_NUM_CONCURRENT_MOVES_KEY = "dfs.datanode.balance.max.concurrent.moves";
+  public static final int     DFS_DATANODE_BALANCE_MAX_NUM_CONCURRENT_MOVES_DEFAULT = 5;
+
   public static final String DFS_DATANODE_READAHEAD_BYTES_KEY =
       "dfs.datanode.readahead.bytes";
   public static final long DFS_DATANODE_READAHEAD_BYTES_DEFAULT =
@@ -643,42 +647,41 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final String DFS_CLIENT_USE_LEGACY_BLOCKREADER =
       "dfs.client.use.legacy.blockreader";
   public static final boolean DFS_CLIENT_USE_LEGACY_BLOCKREADER_DEFAULT = false;
-  public static final String DFS_BALANCER_MOVEDWINWIDTH_KEY =
-      "dfs.balancer.movedWinWidth";
-  public static final long DFS_BALANCER_MOVEDWINWIDTH_DEFAULT = 5400 * 1000L;
-  public static final String DFS_DATANODE_ADDRESS_KEY = "dfs.datanode.address";
-  public static final int DFS_DATANODE_DEFAULT_PORT = 50010;
-  public static final String DFS_DATANODE_ADDRESS_DEFAULT =
-      "0.0.0.0:" + DFS_DATANODE_DEFAULT_PORT;
-  public static final String DFS_DATANODE_DATA_DIR_PERMISSION_KEY =
-      "dfs.datanode.data.dir.perm";
-  public static final String DFS_DATANODE_DATA_DIR_PERMISSION_DEFAULT = "700";
-  public static final String DFS_DATANODE_DIRECTORYSCAN_INTERVAL_KEY =
-      "dfs.datanode.directoryscan.interval";
-  public static final int DFS_DATANODE_DIRECTORYSCAN_INTERVAL_DEFAULT = 21600;
-  public static final String DFS_DATANODE_DIRECTORYSCAN_THREADS_KEY =
-      "dfs.datanode.directoryscan.threads";
-  public static final int DFS_DATANODE_DIRECTORYSCAN_THREADS_DEFAULT = 1;
-  public static final String DFS_DATANODE_DNS_INTERFACE_KEY =
-      "dfs.datanode.dns.interface";
-  public static final String DFS_DATANODE_DNS_INTERFACE_DEFAULT = "default";
-  public static final String DFS_DATANODE_DNS_NAMESERVER_KEY =
-      "dfs.datanode.dns.nameserver";
-  public static final String DFS_DATANODE_DNS_NAMESERVER_DEFAULT = "default";
-  public static final String DFS_DATANODE_DU_RESERVED_KEY =
-      "dfs.datanode.du.reserved";
-  public static final long DFS_DATANODE_DU_RESERVED_DEFAULT = 0;
-  public static final String DFS_DATANODE_HANDLER_COUNT_KEY =
-      "dfs.datanode.handler.count";
-  public static final int DFS_DATANODE_HANDLER_COUNT_DEFAULT = 10;
-  public static final String DFS_DATANODE_HTTP_ADDRESS_KEY =
-      "dfs.datanode.http.address";
-  public static final int DFS_DATANODE_HTTP_DEFAULT_PORT = 50075;
-  public static final String DFS_DATANODE_HTTP_ADDRESS_DEFAULT =
-      "0.0.0.0:" + DFS_DATANODE_HTTP_DEFAULT_PORT;
-  public static final String DFS_DATANODE_MAX_RECEIVER_THREADS_KEY =
-      "dfs.datanode.max.transfer.threads";
-  public static final int DFS_DATANODE_MAX_RECEIVER_THREADS_DEFAULT = 4096;
+  public static final String  DFS_BALANCER_MOVEDWINWIDTH_KEY = "dfs.balancer.movedWinWidth";
+  public static final long    DFS_BALANCER_MOVEDWINWIDTH_DEFAULT = 5400*1000L;
+  public static final String  DFS_BALANCER_MOVERTHREADS_KEY = "dfs.balancer.moverThreads";
+  public static final int     DFS_BALANCER_MOVERTHREADS_DEFAULT = 1000;
+  public static final String  DFS_BALANCER_DISPATCHERTHREADS_KEY = "dfs.balancer.dispatcherThreads";
+  public static final int     DFS_BALANCER_DISPATCHERTHREADS_DEFAULT = 200;
+
+  public static final String  DFS_MOVER_MOVEDWINWIDTH_KEY = "dfs.mover.movedWinWidth";
+  public static final long    DFS_MOVER_MOVEDWINWIDTH_DEFAULT = 5400*1000L;
+  public static final String  DFS_MOVER_MOVERTHREADS_KEY = "dfs.mover.moverThreads";
+  public static final int     DFS_MOVER_MOVERTHREADS_DEFAULT = 1000;
+
+  public static final String  DFS_DATANODE_ADDRESS_KEY = "dfs.datanode.address";
+  public static final int     DFS_DATANODE_DEFAULT_PORT = 50010;
+  public static final String  DFS_DATANODE_ADDRESS_DEFAULT = "0.0.0.0:" + DFS_DATANODE_DEFAULT_PORT;
+  public static final String  DFS_DATANODE_DATA_DIR_PERMISSION_KEY = "dfs.datanode.data.dir.perm";
+  public static final String  DFS_DATANODE_DATA_DIR_PERMISSION_DEFAULT = "700";
+  public static final String  DFS_DATANODE_DIRECTORYSCAN_INTERVAL_KEY = "dfs.datanode.directoryscan.interval";
+  public static final int     DFS_DATANODE_DIRECTORYSCAN_INTERVAL_DEFAULT = 21600;
+  public static final String  DFS_DATANODE_DIRECTORYSCAN_THREADS_KEY = "dfs.datanode.directoryscan.threads";
+  public static final int     DFS_DATANODE_DIRECTORYSCAN_THREADS_DEFAULT = 1;
+  public static final String  DFS_DATANODE_DNS_INTERFACE_KEY = "dfs.datanode.dns.interface";
+  public static final String  DFS_DATANODE_DNS_INTERFACE_DEFAULT = "default";
+  public static final String  DFS_DATANODE_DNS_NAMESERVER_KEY = "dfs.datanode.dns.nameserver";
+  public static final String  DFS_DATANODE_DNS_NAMESERVER_DEFAULT = "default";
+  public static final String  DFS_DATANODE_DU_RESERVED_KEY = "dfs.datanode.du.reserved";
+  public static final long    DFS_DATANODE_DU_RESERVED_DEFAULT = 0;
+  public static final String  DFS_DATANODE_HANDLER_COUNT_KEY = "dfs.datanode.handler.count";
+  public static final int     DFS_DATANODE_HANDLER_COUNT_DEFAULT = 10;
+  public static final String  DFS_DATANODE_HTTP_ADDRESS_KEY = "dfs.datanode.http.address";
+  public static final int     DFS_DATANODE_HTTP_DEFAULT_PORT = 50075;
+  public static final String  DFS_DATANODE_HTTP_ADDRESS_DEFAULT = "0.0.0.0:" + DFS_DATANODE_HTTP_DEFAULT_PORT;
+  public static final String  DFS_DATANODE_MAX_RECEIVER_THREADS_KEY = "dfs.datanode.max.transfer.threads";
+  public static final int     DFS_DATANODE_MAX_RECEIVER_THREADS_DEFAULT = 4096;
+
   public static final String DFS_DATANODE_NUMBLOCKS_KEY =
       "dfs.datanode.numblocks";
   public static final int DFS_DATANODE_NUMBLOCKS_DEFAULT = 64;
@@ -739,6 +742,12 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
       "dfs.block.access.token.lifetime";
   public static final long DFS_BLOCK_ACCESS_TOKEN_LIFETIME_DEFAULT = 600L;
 
+  public static final String DFS_BLOCK_REPLICATOR_CLASSNAME_KEY =
+      "dfs.block.replicator.classname";
+  public static final Class<BlockPlacementPolicyDefault>
+      DFS_BLOCK_REPLICATOR_CLASSNAME_DEFAULT =
+      BlockPlacementPolicyDefault.class;
+
   public static final String DFS_REPLICATION_MAX_KEY = "dfs.replication.max";
   public static final int DFS_REPLICATION_MAX_DEFAULT = 512;
   public static final String DFS_DF_INTERVAL_KEY = "dfs.df.interval";
@@ -750,6 +759,8 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final String DFS_BLOCKREPORT_INITIAL_DELAY_KEY =
       "dfs.blockreport.initialDelay";
   public static final int DFS_BLOCKREPORT_INITIAL_DELAY_DEFAULT = 0;
+  public static final String  DFS_BLOCKREPORT_SPLIT_THRESHOLD_KEY = "dfs.blockreport.split.threshold";
+  public static final long    DFS_BLOCKREPORT_SPLIT_THRESHOLD_DEFAULT = 1000 * 1000;
   public static final String DFS_BLOCK_INVALIDATE_LIMIT_KEY =
       "dfs.block.invalidate.limit";
   public static final int DFS_BLOCK_INVALIDATE_LIMIT_DEFAULT = 1000;
