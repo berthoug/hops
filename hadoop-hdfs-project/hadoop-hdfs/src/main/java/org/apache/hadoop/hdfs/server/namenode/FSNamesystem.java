@@ -3717,8 +3717,8 @@ public class FSNamesystem
             // the file is getting closed. Insert block locations into blockManager.
             // Otherwise fsck will report these blocks as MISSING, especially if the
             // blocksReceived from Datanodes take a long time to arrive.
-            for (DatanodeDescriptor descriptor : descriptors) {
-              descriptor.addBlock(storedBlock);
+            for (int i = 0; i < descriptors.length; i++) {
+              descriptors[i].addBlock(newtargetstorages[i], storedBlock);
             }
           }
           // add pipeline locations into the INodeUnderConstruction
@@ -5087,7 +5087,7 @@ public class FSNamesystem
       DatanodeInfo[] nodes = block.getLocations();
       for (DatanodeInfo dn : nodes) {
         blockManager
-            .findAndMarkBlockAsCorrupt(blk, dn, "client machine reported it");
+            .findAndMarkBlockAsCorrupt(blk, dn, "STORAGE_ID", "client machine reported it");
       }
     }
   }

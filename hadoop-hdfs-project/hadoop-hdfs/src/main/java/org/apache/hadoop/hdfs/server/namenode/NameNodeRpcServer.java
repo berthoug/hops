@@ -65,6 +65,9 @@ import org.apache.hadoop.hdfs.protocolPB.NamenodeProtocolServerSideTranslatorPB;
 import org.apache.hadoop.hdfs.security.token.block.DataEncryptionKey;
 import org.apache.hadoop.hdfs.security.token.block.ExportedBlockKeys;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockManager;
+import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
+import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeStorageInfo;
 import org.apache.hadoop.hdfs.server.common.IncorrectVersionException;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
 import org.apache.hadoop.hdfs.server.namenode.metrics.NameNodeMetrics;
@@ -827,15 +830,21 @@ class NameNodeRpcServer implements NamenodeProtocols {
   public DatanodeCommand blockReport(DatanodeRegistration nodeReg,
       String poolId, StorageBlockReport[] reports) throws IOException {
     verifyRequest(nodeReg);
-    
-    BlockReport blist = reports[0].getReport(); // Assume no federation '0'
     if (blockStateChangeLog.isDebugEnabled()) {
       blockStateChangeLog.debug(
-          "*BLOCK* NameNode.blockReport: " + "from " + nodeReg + " " +
-              blist.getNumBlocks() + " blocks");
+          "*BLOCK* NameNode.blockReport: from " + nodeReg +
+              ", reports.length=" + reports.length);
     }
 
-    namesystem.getBlockManager().processReport(nodeReg, poolId, blist);
+    final BlockManager bm = namesystem.getBlockManager();
+    for(StorageBlockReport r : reports) {
+      final BlockListAsLongs blocks = new BlockListAsLongs(r.getBlocks());
+      bm.processReport(nodeReg, r.getStorage(), poolId, blocks);
+    }
+
+    DatanodeDescriptor datanode = bm.getDatanodeManager().getDatanode(nodeReg);
+    datanode.receivedBlockReport();
+
     return new FinalizeCommand(poolId);
   }
 
@@ -849,8 +858,11 @@ class NameNodeRpcServer implements NamenodeProtocols {
           "*BLOCK* NameNode.blockReceivedAndDeleted: " + "from " + nodeReg +
               " " + receivedAndDeletedBlocks.length + " blocks.");
     }
-    namesystem.getBlockManager().processIncrementalBlockReport(nodeReg, poolId,
-        receivedAndDeletedBlocks[0].getBlocks());
+
+    for(StorageReceivedDeletedBlocks r : receivedAndDeletedBlocks) {
+      namesystem.getBlockManager().processIncrementalBlockReport(nodeReg,
+          poolId, r);
+    }
   }
   
   @Override // DatanodeProtocol

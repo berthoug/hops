@@ -80,8 +80,11 @@ import org.apache.hadoop.hdfs.server.protocol.BlockReportBucket;
 import org.apache.hadoop.hdfs.server.protocol.BlocksWithLocations;
 import org.apache.hadoop.hdfs.server.protocol.BlocksWithLocations.BlockWithLocations;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeCommand;
+import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
+import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.KeyUpdateCommand;
 import org.apache.hadoop.hdfs.server.protocol.ReceivedDeletedBlockInfo;
+import org.apache.hadoop.hdfs.server.protocol.StorageReceivedDeletedBlocks;
 import org.apache.hadoop.net.Node;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.Time;
@@ -731,7 +734,7 @@ public class BlockManager {
 
     // remove this block from the list of pending blocks to be deleted.
     for (DatanodeDescriptor dd : targets) {
-      String datanodeId = dd.getStorageID();
+      String datanodeId = dd.getDatanodeUuid();
       invalidateBlocks.remove(datanodeId, oldBlock);
     }
 
@@ -756,7 +759,7 @@ public class BlockManager {
     ArrayList<String> machineSet =
         new ArrayList<>(blocksMap.numNodes(block));
     for (DatanodeDescriptor node : blocksMap.nodeList(block)){
-      String storageID = node.getStorageID();
+      String storageID = node.getDatanodeUuid();
       // filter invalidate replicas
       if (!invalidateBlocks.contains(storageID, block)) {
         machineSet.add(storageID);
@@ -1105,8 +1108,7 @@ public class BlockManager {
     }
 
     node.resetBlocks();
-    invalidateBlocks.remove(node.getStorageID());
-
+    invalidateBlocks.remove(node.getDatanodeUuid());
     // If the DN hasn't block-reported since the most recent
     // failover, then we may have been holding up on processing
     // over-replicated blocks because of it. But we can now
@@ -1156,7 +1158,8 @@ public class BlockManager {
    *     logging purposes
    */
   public void findAndMarkBlockAsCorrupt(final ExtendedBlock blk,
-      final DatanodeInfo dn, final String reason) throws IOException {
+      final DatanodeInfo dn, final String storageID, final String reason) throws
+      IOException {
     new HopsTransactionalRequestHandler(
         HDFSOperationType.FIND_AND_MARK_BLOCKS_AS_CORRUPT) {
       INodeIdentifier inodeIdentifier;
@@ -1194,14 +1197,15 @@ public class BlockManager {
               .info("BLOCK* findAndMarkBlockAsCorrupt: " + blk + " not found");
           return null;
         }
-        markBlockAsCorrupt(new BlockToMarkCorrupt(storedBlock, reason), dn);
+        markBlockAsCorrupt(new BlockToMarkCorrupt(storedBlock, reason), dn,
+            storageID);
         return null;
       }
     }.handle(namesystem);
   }
 
-  private void markBlockAsCorrupt(BlockToMarkCorrupt b, DatanodeInfo dn)
-      throws IOException, StorageException {
+  private void markBlockAsCorrupt(BlockToMarkCorrupt b, DatanodeInfo dn,
+      String storageID) throws IOException, StorageException {
     DatanodeDescriptor node = getDatanodeManager().getDatanode(dn);
     if (node == null) {
       throw new IOException(
@@ -1218,7 +1222,7 @@ public class BlockManager {
     }
 
     // Add replica to the data-node if it is not already there
-    node.addBlock(b.stored);
+    node.addBlock(storageID, b.stored);
 
     // Add this replica to corruptReplicas Map
     corruptReplicas.addToCorruptReplicasMap(b.corrupted, node, b.reason);
@@ -1265,15 +1269,17 @@ public class BlockManager {
   }
 
   /**
-   * Invalidates the given block on the given datanode.
+   * Invalidates the given block on the given storage.
    */
-  private void invalidateBlock(BlockToMarkCorrupt b, DatanodeInfo dn)
-      throws IOException, StorageException {
-    blockLog.info("BLOCK* invalidateBlock: " + b + " on " + dn);
-    DatanodeDescriptor node = getDatanodeManager().getDatanode(dn);
+  private void invalidateBlock(BlockToMarkCorrupt b,
+      DatanodeStorageInfo storage) throws IOException, StorageException {
+    blockLog.info("BLOCK* invalidateBlock: " + b + " on " + storage);
+//    DatanodeDescriptor node = getDatanodeManager().getDatanode(dn);
+
+
     if (node == null) {
       throw new IOException(
-          "Cannot invalidate " + b + " because datanode " + dn +
+          "Cannot invalidate " + b + " because storage " + storage +
               " does not exist.");
     }
 
@@ -1281,21 +1287,21 @@ public class BlockManager {
     NumberReplicas nr = countNodes(b.stored);
     if (nr.replicasOnStaleNodes() > 0) {
       blockLog.info("BLOCK* invalidateBlocks: postponing " +
-          "invalidation of " + b + " on " + dn + " because " +
-          nr.replicasOnStaleNodes() + " replica(s) are located on nodes " +
+          "invalidation of " + b + " on " + storage + " because " +
+          nr.replicasOnStaleNodes() + " replica(s) are located on storages " +
           "with potentially out-of-date block reports");
       postponeBlock(b.corrupted);
 
     } else if (nr.liveReplicas() >= 1) {
       // If we have at least one copy on a live node, then we can delete it.
-      addToInvalidates(b.corrupted, dn);
-      removeStoredBlock(b.stored, node);
+      addToInvalidates(b.corrupted, storage);
+      removeStoredBlock(b.stored, storage);
       if (blockLog.isDebugEnabled()) {
-        blockLog.debug("BLOCK* invalidateBlocks: " + b + " on " + dn +
+        blockLog.debug("BLOCK* invalidateBlocks: " + b + " on " + storage +
             " listed for deletion.");
       }
     } else {
-      blockLog.info("BLOCK* invalidateBlocks: " + b + " on " + dn +
+      blockLog.info("BLOCK* invalidateBlocks: " + b + " on " + storage +
           " is the only copy and was not deleted");
     }
   }
@@ -1633,7 +1639,7 @@ public class BlockManager {
       } else if (node.isDecommissionInProgress() || node.isDecommissioned()) {
         decommissioned++;
       } else if (excessReplicateMap
-          .contains(node.getStorageID(), getBlockInfo(block))) {
+          .contains(node.getDatanodeUuid(), getBlockInfo(block))) {
         excess++;
       } else {
         nodesContainingLiveReplicas.add(node);
@@ -1655,7 +1661,7 @@ public class BlockManager {
       }
       // the block must not be scheduled for removal on srcNode
       if (excessReplicateMap
-          .contains(node.getStorageID(), getBlockInfo(block))) {
+          .contains(node.getDatanodeUuid(), getBlockInfo(block))) {
         continue;
       }
       // never use already decommissioned nodes
@@ -1762,11 +1768,11 @@ public class BlockManager {
   }
 
   /**
-   * The given datanode is reporting all its blocks.
-   * Update the (machine-->blocklist) and (block-->machinelist) maps.
+   * The given storage is reporting all its blocks.
+   * Update the (storage-->block list) and (block-->storage list) maps.
    */
-  public void processReport(final DatanodeID nodeID, final String poolId,
-      final BlockReport newReport) throws IOException {
+  public void processReport(final DatanodeID nodeID, final DatanodeStorage storage, 
+        final String poolId, final BlockReport newReport) throws IOException {
     final long startTime = Time.now(); //after acquiring write lock
     final DatanodeDescriptor node = datanodeManager.getDatanode(nodeID);
     if (node == null || !node.isAlive) {
@@ -1783,8 +1789,11 @@ public class BlockManager {
       return;
     }
   
-    ReportStatistics reportStatistics = processReport(node, newReport);
-  
+    // Get the storageinfo object that we are updating in this processreport
+    DatanodeDescriptor datanode = datanodeManager.getDatanode(nodeID);
+    DatanodeStorageInfo storageInfo = datanode.getStorageInfo(storage.getStorageID());
+    ReportStatistics reportStatistics = processReport(node, storageInfo, newReport);
+    
     // Now that we have an up-to-date block report, we know that any
     // deletions from a previous NN iteration have been accounted for.
     boolean staleBefore = node.areBlockContentsStale();
@@ -1871,12 +1880,11 @@ public class BlockManager {
       rescanPostponedMisreplicatedBlocksHandler.handle(namesystem);
     }
     postponedMisreplicatedBlocks.removeAll(toRemove);
-  }
+  } 
   
   
-  
-  private ReportStatistics processReport(final DatanodeDescriptor node,
-      final BlockReport report) throws IOException {
+  private ReportStatistics processReport(final DatanodeDescriptor node, final
+    DatanodeStorageInfo storage, final BlockReport report) throws IOException {
     // Normal case:
     // Modify the (block-->datanode) map, according to the difference
     // between the old and new block report.
@@ -1894,16 +1902,15 @@ public class BlockManager {
 
     final boolean firstBlockReport =
         namesystem.isInStartupSafeMode() && node.isFirstBlockReport();
-    ReportStatistics reportStatistics = reportDiff(node, report, toAdd, toRemove, toInvalidate, toCorrupt, toUC,
-        firstBlockReport);
-  
+    ReportStatistics reportStatistics = reportDiff(storage, report, toAdd, toRemove, toInvalidate, toCorrupt,
+        toUC, firstBlockReport);
+
     // Process the blocks on each queue
     for (StatefulBlockInfo b : toUC) {
       if (firstBlockReport) {
-        addStoredBlockUnderConstructionImmediateTx(b.storedBlock, node,
-            b.reportedState);
+        addStoredBlockUnderConstructionImmediateTx(b.storedBlock, storage, b.reportedState);
       } else {
-        addStoredBlockUnderConstructionTx(b.storedBlock, node, b.reportedState);
+        addStoredBlockUnderConstructionTx(b.storedBlock, storage, b.reportedState);
       }
     }
   
@@ -1911,12 +1918,12 @@ public class BlockManager {
     final List<Callable<Object>> addTasks = new ArrayList<>();
     for (final BlockInfo b : toAdd) {
       if (firstBlockReport) {
-        addStoredBlockImmediateTx(b, node);
+        addStoredBlockImmediateTx(b, node, storage.getStorageID());
       } else {
         addTasks.add(new Callable<Object>() {
           @Override
           public Object call() throws Exception {
-            addStoredBlockTx(b, node, null, true);
+            addStoredBlockTx(b, node, storage.getStorageID(), null, true);
             return null;
           }
         });
@@ -1936,18 +1943,19 @@ public class BlockManager {
   
   
     for (BlockToMarkCorrupt b : toCorrupt) {
-      markBlockAsCorruptTx(b, node);
+      markBlockAsCorruptTx(b, node, storage.getStorageID());
     }
 
     if (!firstBlockReport) {
       for (Block b : toInvalidate) {
-        blockLog.info("BLOCK* processReport: " + b + " on " + node + " size " +
-            b.getNumBytes() + " does not belong to any file");
+        blockLog.info("BLOCK* processReport: " + b + " on " + node + " " +
+            storage + " size " + b.getNumBytes() +
+            " does not belong to any file");
       }
       addToInvalidates(toInvalidate, node);
 
       for (Long b : toRemove) {
-        removeStoredBlockTx(b, node);
+        removeStoredBlockTx(b, node, storage.getStorageID());
       }
     }
     return reportStatistics;
@@ -1983,7 +1991,7 @@ public class BlockManager {
     }
   }
 
-  private ReportStatistics reportDiff(final DatanodeDescriptor dn,
+  private ReportStatistics reportDiff(final DatanodeStorageInfo storage,
       final BlockReport newReport, final Collection<BlockInfo> toAdd,
       // add to DatanodeDescriptor
       final Collection<Long> toRemove,
@@ -1993,6 +2001,12 @@ public class BlockManager {
       // add to corrupt replicas list
       final Collection<StatefulBlockInfo> toUC, final boolean firstBlockReport)
       throws IOException { // add to under-construction list
+
+    // add all blocks to remove list
+    for(Iterator<BlockInfo> it = storage.getBlockIterator();
+        it.hasNext(); ) {
+      toRemove.add(it.next());
+    }
 
     if (newReport == null) {
       return null;
@@ -2269,6 +2283,7 @@ public class BlockManager {
    * Otherwise, null.
    */
   private BlockInfo processIncrementallyReportedBlock(final DatanodeDescriptor dn,
+      final DatanodeStorageInfo storage,
       final Block block, final ReplicaState reportedState,
       final Collection<BlockInfo> toAdd, final Collection<Block> toInvalidate,
       final Collection<BlockToMarkCorrupt> toCorrupt,
@@ -2298,7 +2313,7 @@ public class BlockManager {
     }
 
     // Ignore replicas already scheduled to be removed from the DN
-    if (invalidateBlocks.contains(dn.getStorageID(), getBlockInfo(block))) {
+    if (invalidateBlocks.contains(dn.getDatanodeUuid(), getBlockInfo(block))) {
      /*  TODO: following assertion is incorrect, see HDFS-2668
       assert storedBlock.findDatanode(dn) < 0 : "Block " + block
       + " in recentInvalidatesSet should not appear in DN " + dn; */
@@ -2322,7 +2337,7 @@ public class BlockManager {
 
     //add replica if appropriate
     if (reportedState == ReplicaState.FINALIZED) {
-      if(storedBlock.hasReplicaIn(dn)){
+      if(storedBlock.isReplicatedOnStorage(storage)){
         return storedBlock;
       }
 
@@ -2334,6 +2349,7 @@ public class BlockManager {
 
   private BlockInfo processReportedBlock(final
   DatanodeDescriptor dn,
+      final DatanodeStorageInfo storage,
       final Block block, final ReplicaState reportedState,
       final Collection<BlockInfo> toAdd, final Collection<Block> toInvalidate,
       final Collection<BlockToMarkCorrupt> toCorrupt,
@@ -2399,7 +2415,7 @@ public class BlockManager {
 
     //add replica if appropriate
     if (reportedState == ReplicaState.FINALIZED) {
-      if(replicaAlreadyExists || storedBlock.hasReplicaIn(dn)){
+      if(replicaAlreadyExists || storedBlock.isReplicatedOnStorage(storage)){
         return storedBlock;
       }
 
@@ -2506,17 +2522,17 @@ public class BlockManager {
   }
 
   private void addStoredBlockUnderConstruction(BlockInfoUnderConstruction block,
-      DatanodeDescriptor node, ReplicaState reportedState) throws IOException {
-    block.addExpectedReplicaIfNotPresent(node, reportedState);
-    if (reportedState == ReplicaState.FINALIZED && !block.hasReplicaIn(node)) {
-      addStoredBlock(block, node, null, true);
+     DatanodeStorageInfo storage, ReplicaState reportedState) throws IOException {
+    block.addExpectedReplicaIfNotPresent(storage, reportedState);
+    if (reportedState == ReplicaState.FINALIZED && !block.isReplicatedOnStorage(storage)) {
+      addStoredBlock(block, storage, null, true);
     }
   }
 
   /**
    * Faster version of
-   * {@link #addStoredBlock(BlockInfo, DatanodeDescriptor, DatanodeDescriptor,
-   * boolean)}
+   * {@link #addStoredBlock(BlockInfo, DatanodeDescriptor, String,
+   * DatanodeDescriptor,boolean)}
    * , intended for use with initial block report at startup. If not in startup
    * safe mode, will call standard addStoredBlock(). Assumes this method is
    * called "immediately" so there is no need to refresh the storedBlock from
@@ -2526,17 +2542,19 @@ public class BlockManager {
    *
    * @throws IOException
    */
-  private void addStoredBlockImmediate(BlockInfo storedBlock,
-      DatanodeDescriptor node) throws IOException {
+  private void addStoredBlockImmediate(
+      BlockInfo storedBlock,
+      DatanodeDescriptor node,
+      String storageID) throws IOException {
     assert (storedBlock != null);
     if (!namesystem.isInStartupSafeMode() ||
         namesystem.isPopulatingReplQueues()) {
-      addStoredBlock(storedBlock, node, null, false);
+      addStoredBlock(storedBlock, node, storageID, null, false);
       return;
     }
 
     // just add it
-    node.addBlock(storedBlock);
+    node.addBlock(storageID, storedBlock);
 
     // Now check for completion of blocks and safe block count
     int numCurrentReplica = countLiveNodes(storedBlock);
@@ -2559,9 +2577,12 @@ public class BlockManager {
    *
    * @return the block that is stored in blockMap.
    */
-  private Block addStoredBlock(final BlockInfo block, DatanodeDescriptor node,
-      DatanodeDescriptor delNodeHint, boolean logEveryBlock)
-      throws IOException {
+  private Block addStoredBlock(
+      final BlockInfo block,
+      DatanodeDescriptor node,
+      String storageID,
+      DatanodeDescriptor delNodeHint,
+      boolean logEveryBlock) throws IOException {
     assert block != null;
     BlockInfo storedBlock;
     if (block instanceof BlockInfoUnderConstruction) {
@@ -2573,7 +2594,7 @@ public class BlockManager {
     if (storedBlock == null || storedBlock.getBlockCollection() == null) {
       // If this block does not belong to anyfile, then we are done.
       blockLog.info(
-          "BLOCK* addStoredBlock: " + block + " on " + node + " size " +
+          "BLOCK* addStoredBlock: " + block + " on " + storageID + " size " +
               block.getNumBytes() + " but it does not belong to any file");
       // we could add this block to invalidate set of this datanode.
       // it will happen in next block report otherwise.
@@ -2590,18 +2611,18 @@ public class BlockManager {
     }
 
     // add block to the datanode
-    boolean added = node.addBlock(storedBlock);
+    boolean added = node.addBlock(storageID, storedBlock);
     int curReplicaDelta;
     if (added) {
       curReplicaDelta = 1;
       if (logEveryBlock) {
-        logAddStoredBlock(storedBlock, node);
+        logAddStoredBlock(storedBlock, storageID);
       }
     } else {
       curReplicaDelta = 0;
       blockLog.warn("BLOCK* addStoredBlock: " +
           "Redundant addStoredBlock request received for " + storedBlock +
-          " on " + node + " size " + storedBlock.getNumBytes());
+          " on " + storageID + " size " + storedBlock.getNumBytes());
     }
 
     // Now check for completion of blocks and safe block count
@@ -2643,7 +2664,7 @@ public class BlockManager {
       updateNeededReplications(storedBlock, curReplicaDelta, 0);
     }
     if (numCurrentReplica > fileReplication) {
-      processOverReplicatedBlock(storedBlock, fileReplication, node,
+      processOverReplicatedBlock(storedBlock, fileReplication, storageID,
           delNodeHint);
     }
     // If the file replication has reached desired value
@@ -2701,16 +2722,19 @@ public class BlockManager {
   }
 
   private void logAddStoredBlock(BlockInfo storedBlock,
-      DatanodeDescriptor node) {
+      String storageID) {
     if (!blockLog.isInfoEnabled()) {
       return;
     }
 
     StringBuilder sb = new StringBuilder(500);
-    sb.append("BLOCK* addStoredBlock: blockMap updated: ").append(node)
-        .append(" is added to ");
-    storedBlock.appendStringTo(sb);
-    sb.append(" size ").append(storedBlock.getNumBytes());
+    sb.append("BLOCK* addStoredBlock: blockMap updated: ")
+        .append(storageID)
+        .append(" is added to ")
+        .append(storedBlock)
+        .append(" size ")
+        .append(storedBlock.getNumBytes())
+        .append(" byte");
     blockLog.info(sb);
   }
 
@@ -3001,8 +3025,10 @@ public class BlockManager {
    * If there are any extras, call chooseExcessReplicates() to
    * mark them in the excessReplicateMap.
    */
-  private void processOverReplicatedBlock(final Block block,
-      final short replication, final DatanodeDescriptor addedNode,
+  private void processOverReplicatedBlock(
+      final Block block,
+      final short replication,
+      final DatanodeDescriptor addedNode,
       DatanodeDescriptor delNodeHint)
       throws StorageException, TransactionContextException {
 
@@ -3013,22 +3039,21 @@ public class BlockManager {
         new ArrayList<>();
     Collection<DatanodeDescriptor> corruptNodes =
         corruptReplicas.getNodes(getBlockInfo(block));
-    for (DatanodeDescriptor cur : blocksMap.nodeList(block)){
+    for (DatanodeStorageInfo storage : blocksMap.nodeList(block)){
+      final DatanodeDescriptor cur = storage.getDatanodeDescriptor();
       if (cur.areBlockContentsStale()) {
-        LOG.info("BLOCK* processOverReplicatedBlock: " +
-            "Postponing processing of over-replicated " +
+        LOG.info("BLOCK* processOverReplicatedBlock: Postponing processing of over-replicated " +
             block + " since datanode " + cur +
-            " does not yet have up-to-date " +
-            "block information.");
+            " does not yet have up-to-date block information.");
         postponeBlock(block);
         return;
       }
       if (!excessReplicateMap
-          .contains(cur.getStorageID(), getBlockInfo(block))) {
+          .contains(cur.getDatanodeUuid(), getBlockInfo(block))) {
         if (!cur.isDecommissionInProgress() && !cur.isDecommissioned()) {
           // exclude corrupt replicas
           if (corruptNodes == null || !corruptNodes.contains(cur)) {
-            nonExcess.add(cur);
+            nonExcess.add(storage);
           }
         }
       }
@@ -3053,23 +3078,25 @@ public class BlockManager {
    * If no such a node is available,
    * then pick a node with least free space
    */
-  private void chooseExcessReplicates(Collection<DatanodeDescriptor> nonExcess,
-      Block b, short replication, DatanodeDescriptor addedNode,
-      DatanodeDescriptor delNodeHint, BlockPlacementPolicy replicator)
+  private void chooseExcessReplicates(final Collection<DatanodeStorageInfo> nonExcess,
+      Block b, short replication,
+      DatanodeDescriptor addedNode,
+      DatanodeDescriptor delNodeHint,
+      BlockPlacementPolicy replicator)
       throws StorageException, TransactionContextException {
 
     // first form a rack to datanodes map and
     BlockCollection bc = getBlockCollection(b);
     final Map<String, List<DatanodeDescriptor>> rackMap =
         new HashMap<>();
-    for (final DatanodeDescriptor node : nonExcess) {
-      final String rackName = node.getNetworkLocation();
+    for (final DatanodeStorageInfo storage : nonExcess) {
+      final String rackName = storage.getNetworkLocation();
       List<DatanodeDescriptor> datanodeList = rackMap.get(rackName);
       if (datanodeList == null) {
         datanodeList = new ArrayList<>();
         rackMap.put(rackName, datanodeList);
       }
-      datanodeList.add(node);
+      datanodeList.add(storage);
     }
 
     // split nodes into two sets
@@ -3092,11 +3119,11 @@ public class BlockManager {
     boolean firstOne = true;
     while (nonExcess.size() - replication > 0) {
       // check if we can delete delNodeHint
-      final DatanodeInfo cur;
-      if (firstOne && delNodeHint != null && nonExcess.contains(delNodeHint) &&
-          (priSet.contains(delNodeHint) ||
-              (addedNode != null && !priSet.contains(addedNode)))) {
-        cur = delNodeHint;
+      final DatanodeStorageInfo cur;
+      if (firstOne && delStorageHint != null && nonExcess.contains(delStorageHint) &&
+          (priSet.contains(delStorageHint) ||
+              (addedStorage != null && !priSet.contains(addedStorage)))) {
+        cur = delStorageHint;
       } else { // regular excessive replica removal
         cur = replicator
             .chooseReplicaToDelete(bc, b, replication, priSet, remains);
@@ -3104,7 +3131,7 @@ public class BlockManager {
       firstOne = false;
 
       // adjust rackmap, priSet, and remains
-      String rack = cur.getNetworkLocation();
+      String rack = cur.getDatanodeDescriptor().getNetworkLocation();
       final List<DatanodeDescriptor> datanodes = rackMap.get(rack);
       datanodes.remove(cur);
       if (datanodes.isEmpty()) {
@@ -3137,13 +3164,13 @@ public class BlockManager {
     }
   }
 
-  private void addToExcessReplicate(DatanodeInfo dn, Block block)
+  private void addToExcessReplicate(DatanodeStorageInfo storage, Block block)
       throws StorageException, TransactionContextException {
-    if (excessReplicateMap.put(dn.getStorageID(), getBlockInfo(block))) {
+    if (excessReplicateMap.put(storage.getStorageID(), getBlockInfo(block))) {
       excessBlocksCount.incrementAndGet();
       if (blockLog.isDebugEnabled()) {
         blockLog.debug(
-            "BLOCK* addToExcessReplicate:" + " (" + dn + ", " + block +
+            "BLOCK* addToExcessReplicate:" + " (" + storage + ", " + block +
                 ") is added to excessReplicateMap");
       }
     }
@@ -3153,16 +3180,16 @@ public class BlockManager {
    * Modify (block-->datanode) map. Possibly generate replication tasks, if the
    * removed block is still valid.
    */
-  private void removeStoredBlock(Block block, DatanodeDescriptor node)
+  private void removeStoredBlock(Block block, DatanodeStorageInfo storage)
       throws IOException {
     if (blockLog.isDebugEnabled()) {
-      blockLog.debug("BLOCK* removeStoredBlock: " + block + " from " + node);
+      blockLog.debug("BLOCK* removeStoredBlock: " + block + " from " + storage);
     }
 
-    if (!blocksMap.removeNode(block, node)) {
+    if (!blocksMap.removeNode(block, storage)) {
       if (blockLog.isDebugEnabled()) {
         blockLog.debug("BLOCK* removeStoredBlock: " + block +
-            " has already been removed from node " + node);
+            " has already been removed from storage " + storage);
       }
       return;
     }
@@ -3183,7 +3210,8 @@ public class BlockManager {
     // We've removed a block from a node, so it's definitely no longer
     // in "excess" there.
     //
-    if (excessReplicateMap.remove(node.getStorageID(), getBlockInfo(block))) {
+    if (excessReplicateMap
+        .remove(storage.getStorageID(), getBlockInfo(block))) {
       excessBlocksCount.decrementAndGet();
       if (blockLog.isDebugEnabled()) {
         blockLog.debug("BLOCK* removeStoredBlock: " + block +
@@ -3192,7 +3220,7 @@ public class BlockManager {
     }
 
     // Remove the replica from corruptReplicas
-    corruptReplicas.removeFromCorruptReplicasMap(getBlockInfo(block), node);
+    corruptReplicas.removeFromCorruptReplicasMap(getBlockInfo(block), storage);
 
     FSNamesystem fsNamesystem = (FSNamesystem) namesystem;
     if (fsNamesystem.isErasureCodingEnabled()) {
@@ -3350,13 +3378,21 @@ public class BlockManager {
    * This includes blocks that are starting to be received, completed being
    * received, or deleted.
    */
-  public void processIncrementalBlockReport(final DatanodeID nodeID,
-      final String poolId, final ReceivedDeletedBlockInfo blockInfos[])
-      throws IOException {
+  //TODO change to a per-storage report (one report message deals with an
+  // entire host, but it's split up per storage)
+  public void processIncrementalBlockReport(DatanodeRegistration nodeID,
+      final String poolId, final StorageReceivedDeletedBlocks blockInfos)
+    throws IOException {
     final int[] received = {0};
     final int[] deleted = {0};
     final int[] receiving = {0};
+
     final DatanodeDescriptor node = datanodeManager.getDatanode(nodeID);
+
+    // TODO what if node==null? (check code down, in the try/catch)
+    final DatanodeStorageInfo storage = node.getStorageInfo(blockInfos
+        .getStorageID());
+
 
     HopsTransactionalRequestHandler processIncrementalBlockReportHandler =
         new HopsTransactionalRequestHandler(
@@ -3409,22 +3445,23 @@ public class BlockManager {
                 (ReceivedDeletedBlockInfo) getParams()[0];
             LOG.debug("BLOCK_RECEIVED_AND_DELETED_INC_BLK_REPORT " +
                 rdbi.getStatus() + " bid=" + rdbi.getBlock().getBlockId() +
-                " dataNode=" + node.getXferAddr());
+                " dataNode=" + node.getXferAddr()) + " storage=" +
+                storage.getStorageID());
             HashBuckets hashBuckets = HashBuckets.getInstance();
             
             switch (rdbi.getStatus()) {
               case CREATING:
-                processAndHandleReportedBlock(node, rdbi.getBlock(),
+                processAndHandleReportedBlock(storage, rdbi.getBlock(),
                     ReplicaState.RBW, null);
                 received[0]++;
                 break;
               case APPENDING:
-                processAndHandleReportedBlock(node, rdbi.getBlock(),
+                processAndHandleReportedBlock(storage, rdbi.getBlock(),
                     ReplicaState.RBW, null);
                 received[0]++;
                 break;
               case RECOVERING_APPEND:
-                processAndHandleReportedBlock(node, rdbi.getBlock(),
+                processAndHandleReportedBlock(storage, rdbi.getBlock(),
                     ReplicaState.RBW, null);
                 received[0]++;
                 break;
@@ -3446,15 +3483,16 @@ public class BlockManager {
                 break;
               default:
                 String msg =
-                    "Unknown block status code reported by " + nodeID + ": " +
-                        rdbi;
+                    "Unknown block status code reported by " + storage
+                        .getStorageID() + ": " + rdbi;
                 blockLog.warn(msg);
                 assert false : msg; // if assertions are enabled, throw.
                 break;
             }
             if (blockLog.isDebugEnabled()) {
               blockLog.debug("BLOCK* block " + (rdbi.getStatus()) + ": " +
-                  rdbi.getBlock() + " is received from " + nodeID);
+                  rdbi.getBlock() + " is received from " +
+                  storage.getStorageID());
             }
             return null;
           }
@@ -3468,7 +3506,7 @@ public class BlockManager {
             "Got incremental block report from unregistered or dead node");
       }
 
-      for (ReceivedDeletedBlockInfo rdbi : blockInfos) {
+      for (ReceivedDeletedBlockInfo rdbi : blockInfos.getBlocks()) {
         processIncrementalBlockReportHandler.setParams(rdbi);
         processIncrementalBlockReportHandler.handle(namesystem);
       }
@@ -3502,7 +3540,7 @@ public class BlockManager {
       } else if (node.isDecommissionInProgress() || node.isDecommissioned()) {
         decommissioned++;
       } else {
-        if (excessReplicateMap.contains(node.getStorageID(), getBlockInfo(b))) {
+        if (excessReplicateMap.contains(node.getDatanodeUuid(), getBlockInfo(b))) {
           excess++;
         } else {
           live++;
@@ -4279,7 +4317,7 @@ public class BlockManager {
   }
 
   private void addStoredBlockUnderConstructionTx(
-      final BlockInfoUnderConstruction block, final DatanodeDescriptor node,
+      final BlockInfoUnderConstruction block, final DatanodeStorageInfo storage,
       final ReplicaState reportedState) throws IOException {
 
     new HopsTransactionalRequestHandler(
@@ -4308,7 +4346,7 @@ public class BlockManager {
 
       @Override
       public Object performTask() throws IOException {
-        addStoredBlockUnderConstruction(block, node, reportedState);
+        addStoredBlockUnderConstruction(block, storage, reportedState);
         return null;
       }
     }.handle();
@@ -4358,7 +4396,7 @@ public class BlockManager {
   }
 
   private void addStoredBlockUnderConstructionImmediateTx(
-      final BlockInfoUnderConstruction block, final DatanodeDescriptor node,
+      final BlockInfoUnderConstruction block, final DatanodeStorageInfo storage,
       final ReplicaState reportedState) throws IOException {
 
     new HopsTransactionalRequestHandler(
@@ -4387,7 +4425,7 @@ public class BlockManager {
 
       @Override
       public Object performTask() throws IOException {
-        block.addExpectedReplicaIfNotPresent(node, reportedState);
+        block.addExpectedReplicaIfNotPresent(storage, reportedState);
         //and fall through to next clause
         //add replica if appropriate
         if (reportedState == ReplicaState.FINALIZED) {

@@ -134,7 +134,7 @@ public class TestNodeCount {
               DatanodeDescriptor nonExcessDN = null;
               for (DatanodeDescriptor dn : bm.blocksMap.nodeList(block
                   .getLocalBlock())){
-                if (!excessDns.contains(dn.getStorageID())) {
+                if (!excessDns.contains(dn.getDatanodeUuid())) {
                   nonExcessDN = dn;
                 }
               }

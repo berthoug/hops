@@ -238,11 +238,12 @@ public class BlockInfo extends Block {
   /**
    * Adds new replica for this block.
    */
-  void addReplica(DatanodeDescriptor dn, BlockInfo b )
+  void addReplica(DatanodeStorageInfo storage)
       throws StorageException, TransactionContextException {
+    // TODO check we don't already have a replica on this machine
     Replica replica =
-        new Replica(dn.getSId(), getBlockId(), b.getInodeId(), HashBuckets
-            .getInstance().getBucketForBlock(b));
+        new Replica(storage.getSid(), getBlockId(), getInodeId(), HashBuckets
+            .getInstance().getBucketForBlock(this));
     update(replica);
   }
 
@@ -258,12 +259,12 @@ public class BlockInfo extends Block {
    *
    * @return
    */
-  Replica removeReplica(DatanodeDescriptor dn)
+  Replica removeReplica(DatanodeStorageInfo storage)
       throws StorageException, TransactionContextException {
     List<Replica> replicas = getReplicasNoCheck();
     Replica replica = null;
     for (Replica r : replicas) {
-      if (r.getStorageId() == dn.getSId()) {
+      if (r.getStorageId() == storage.getSid()) {
         replica = r;
         remove(r);
         break;
@@ -272,11 +273,13 @@ public class BlockInfo extends Block {
     return replica;
   }
   
-  boolean hasReplicaIn(DatanodeDescriptor dn)
+  boolean isReplicatedOnStorage(DatanodeStorageInfo storage)
       throws StorageException, TransactionContextException {
-    return EntityManager
+    Replica replica = EntityManager
         .find(Replica.Finder.ByBlockIdAndStorageId, getBlockId(),
-            dn.getSId()) != null;
+            storage.getSid());
+
+    return replica != null;
   }
 
   /**
@@ -305,7 +308,7 @@ public class BlockInfo extends Block {
    * @return BlockInfoUnderConstruction - an under construction block.
    */
   public BlockInfoUnderConstruction convertToBlockUnderConstruction(
-      BlockUCState s, DatanodeDescriptor[] targets)
+      BlockUCState s, DatanodeStorageInfo[] targets)
       throws StorageException, TransactionContextException {
     if (isComplete()) {
       return new BlockInfoUnderConstruction(this, this.getInodeId(), s,
@@ -359,7 +362,10 @@ public class BlockInfo extends Block {
     setTimestampNoPersistance(ts);
     save();
   }
-  
+
+  /**
+   * Returns an array of Datanodes where the replicas are stored
+   */
   protected DatanodeDescriptor[] getDatanodes(DatanodeManager datanodeMgr,
       List<? extends ReplicaBase> replicas) {
     int numLocations = replicas.size();

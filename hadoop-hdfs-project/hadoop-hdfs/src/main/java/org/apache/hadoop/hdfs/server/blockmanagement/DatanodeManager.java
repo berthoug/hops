@@ -91,10 +91,10 @@ public class DatanodeManager {
   private Daemon decommissionthread = null;
 
   /**
-   * Stores the datanode -> block map.
+   * Maps datanode uuid's to the DatanodeDescriptor
    * <p/>
    * Done by storing a set of {@link DatanodeDescriptor} objects, sorted by
-   * storage id. In order to keep the storage map consistent it tracks
+   * uuid. In order to keep the storage map consistent it tracks
    * all storages ever registered with the namenode.
    * A descriptor corresponding to a specific storage id can be
    * <ul>
@@ -105,7 +105,6 @@ public class DatanodeManager {
    * different storage id.</li>
    * </ul> <br>
    * <p/>
-   * Mapping: StorageID -> DatanodeDescriptor
    */
   private final NavigableMap<String, DatanodeDescriptor> datanodeMap =
       new TreeMap<>();
@@ -170,7 +169,11 @@ public class DatanodeManager {
    * according to the NetworkTopology.
    */
   private boolean hasClusterEverBeenMultiRack = false;
-  
+
+  /**
+   * Stores storageID->sid and sid->storageID mapping.
+   * Works effectively like a cache to avoid hitting the DAL.
+   */
   private StorageIdMap storageIdMap;
   
   DatanodeManager(final BlockManager blockManager, final Namesystem namesystem,
@@ -353,14 +356,14 @@ public class DatanodeManager {
   }
 
   /**
-   * Get a datanode descriptor given corresponding storageID
+   * Get a datanode descriptor given corresponding datanode uuid
    */
-  public DatanodeDescriptor getDatanode(final String storageID) {
-    return datanodeMap.get(storageID);
+  public DatanodeDescriptor getDatanodeByUuid(final String uuid) {
+    return datanodeMap.get(uuid);
   }
 
   /**
-   * Get data node by storage ID.
+   * Get data node by datanode ID.
    *
    * @param nodeID
    * @return DatanodeDescriptor or null if the node is not found.
@@ -369,9 +372,9 @@ public class DatanodeManager {
   public DatanodeDescriptor getDatanode(DatanodeID nodeID)
       throws UnregisteredNodeException {
     DatanodeDescriptor node = null;
-    if (nodeID != null && nodeID.getStorageID() != null &&
-        !nodeID.getStorageID().equals("")) {
-      node = getDatanode(nodeID.getStorageID());
+    if (nodeID != null && nodeID.getDatanodeUuid() != null &&
+        !nodeID.getDatanodeUuid().equals("")) {
+      node = getDatanode(nodeID.getDatanodeUuid());
     }
     if (node == null) {
       return null;
@@ -397,9 +400,9 @@ public class DatanodeManager {
     if (namesystem.isLeader()) {
       NameNode.stateChangeLog.info(
           "DataNode is dead. Removing all replicas for datanode " + nodeInfo +
-              " StorageID " + nodeInfo.getStorageID() + " index " +
-              nodeInfo.getSId());
-      blockManager.datanodeRemoved(nodeInfo);
+              " StorageID " + nodeInfo.getDatanodeUuid() + " index " +
+              nodeInfo.getHostID());
+      blockManager.removeBlocksAssociatedTo(nodeInfo);
     }
     networktopology.remove(nodeInfo);
 
@@ -466,7 +469,7 @@ public class DatanodeManager {
     // remove  from host2DatanodeMap the datanodeDescriptor removed
     // from datanodeMap before adding node to host2DatanodeMap.
     synchronized (datanodeMap) {
-      host2DatanodeMap.remove(datanodeMap.put(node.getStorageID(), node));
+      host2DatanodeMap.remove(datanodeMap.put(node.getDatanodeUuid(), node));
     }
 
     host2DatanodeMap.add(node);
@@ -483,7 +486,7 @@ public class DatanodeManager {
    * Physically remove node from datanodeMap.
    */
   private void wipeDatanode(final DatanodeID node) {
-    final String key = node.getStorageID();
+    final String key = node.getDatanodeUuid();
     synchronized (datanodeMap) {
       host2DatanodeMap.remove(datanodeMap.remove(key));
     }
@@ -691,9 +694,9 @@ public class DatanodeManager {
 
     NameNode.stateChangeLog.info(
         "BLOCK* registerDatanode: from " + nodeReg + " storage " +
-            nodeReg.getStorageID());
+            nodeReg.getDatanodeUuid());
 
-    DatanodeDescriptor nodeS = datanodeMap.get(nodeReg.getStorageID());
+    DatanodeDescriptor nodeS = datanodeMap.get(nodeReg.getDatanodeUuid());
     DatanodeDescriptor nodeN = host2DatanodeMap
         .getDatanodeByXferAddr(nodeReg.getIpAddr(), nodeReg.getXferPort());
 
@@ -728,7 +731,7 @@ public class DatanodeManager {
        */
         NameNode.stateChangeLog.info(
             "BLOCK* registerDatanode: " + nodeS + " is replaced by " + nodeReg +
-                " with the same storageID " + nodeReg.getStorageID());
+                " with the same storageID " + nodeReg.getDatanodeUuid());
       }
       // update cluster map
       getNetworkTopology().remove(nodeS);
@@ -746,21 +749,25 @@ public class DatanodeManager {
     }
 
     // this is a new datanode serving a new data storage
-    if ("".equals(nodeReg.getStorageID())) {
+    if ("".equals(nodeReg.getDatanodeUuid())) {
       // this data storage has never been registered
       // it is either empty or was created by pre-storageID version of DFS
       nodeReg.setStorageID(DatanodeStorage.newStorageID());
       if (NameNode.stateChangeLog.isDebugEnabled()) {
         NameNode.stateChangeLog.debug(
             "BLOCK* NameSystem.registerDatanode: " + "new storageID " +
-                nodeReg.getStorageID() + " assigned.");
+                nodeReg.getDatanodeUuid() + " assigned.");
       }
     }
     // register new datanode
     DatanodeDescriptor nodeDescr =
         new DatanodeDescriptor(nodeReg, NetworkTopology.DEFAULT_RACK);
-    
-    storageIdMap.update(nodeDescr);
+
+    // Update all storages in this datanode
+    for(DatanodeStorageInfo storage: getDatanode(nodeDescr.getDatanodeUuid())
+        .getStorageInfos()) {
+      storageIdMap.update(storage);
+    }
     
     resolveNetworkLocation(nodeDescr);
     addDatanode(nodeDescr);
@@ -1253,11 +1260,9 @@ public class DatanodeManager {
   public String toString() {
     return getClass().getSimpleName() + ": " + host2DatanodeMap;
   }
-  
 
-  public DatanodeDescriptor getDatanode(final int sId) {
-    String storageId = storageIdMap.getStorageId(sId);
-    return datanodeMap.get(storageId);
+  public DatanodeDescriptor getDatanode(final String datanodeUuid) {
+    return datanodeMap.get(datanodeUuid);
   }
   
   DatanodeDescriptor[] getDataNodeDescriptorsTx(
@@ -1295,7 +1300,11 @@ public class DatanodeManager {
     if (storageIdMap == null) {
       storageIdMap = new StorageIdMap();
     }
-    storageIdMap.update(nodeDescr);
+ // Loop over all storages in the datanode
+    for(DatanodeStorageInfo storage: getDatanode(nodeDescr.getDatanodeUuid())
+        .getStorageInfos()) {
+      storageIdMap.update(storage);
+    }
   }
 
   Random rand = new Random(System.currentTimeMillis());
