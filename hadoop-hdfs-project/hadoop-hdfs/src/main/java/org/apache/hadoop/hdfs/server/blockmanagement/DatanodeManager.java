@@ -1321,4 +1321,9 @@ public class DatanodeManager {
     }
     return null;
   }
+  
+    // TODO is this the best place for this?
+  public DatanodeStorageInfo getStorage(int sid) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
 }
