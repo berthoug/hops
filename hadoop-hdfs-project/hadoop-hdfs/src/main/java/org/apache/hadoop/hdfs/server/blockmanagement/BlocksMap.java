@@ -41,6 +41,10 @@ import java.util.List;
 class BlocksMap {
 
   private final DatanodeManager datanodeManager;
+  private final static List<DatanodeDescriptor> empty_datanode_list =
+      Collections.unmodifiableList(new ArrayList<>());
+  private final static List<DatanodeStorageInfo> empty_storage_list =
+      Collections.unmodifiableList(new ArrayList<>());
   
   BlocksMap(DatanodeManager datanodeManager) {
     this.datanodeManager = datanodeManager;
@@ -98,7 +102,34 @@ class BlocksMap {
 
   /**
    * Searches for the block in the BlocksMap and
-   * returns a list of datanodes that have this block.
+   * returns a list of storages that have this block.
+   */
+  List<DatanodeStorageInfo> storageIterator(Block b)
+      throws TransactionContextException, StorageException {
+    BlockInfo blockInfo = getStoredBlock(b);
+    return storageList(blockInfo);
+  }
+
+  /**
+   * For a block that has already been retrieved from the BlocksMap
+   * returns Iterator that iterates through the storages the block belongs to.
+   */
+  List<DatanodeStorageInfo> storageList(BlockInfo storedBlock)
+      throws StorageException, TransactionContextException {
+    if (storedBlock == null) {
+      return null;
+    }
+    DatanodeStorageInfo[] desc = storedBlock.getStorages(datanodeManager);
+    if (desc == null) {
+      return empty_storage_list;
+    } else {
+      return Arrays.asList(desc);
+    }
+  }
+
+  /**
+   * Searches for the block in the BlocksMap and
+   * returns Iterator that iterates through the nodes the block belongs to.
    */
   List<DatanodeDescriptor> nodeList(Block b)
       throws StorageException, TransactionContextException {
