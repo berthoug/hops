@@ -104,7 +104,7 @@ class BlocksMap {
    * Searches for the block in the BlocksMap and
    * returns a list of storages that have this block.
    */
-  List<DatanodeStorageInfo> storageIterator(Block b)
+  List<DatanodeStorageInfo> storageList(Block b)
       throws TransactionContextException, StorageException {
     BlockInfo blockInfo = getStoredBlock(b);
     return storageList(blockInfo);
@@ -137,7 +137,7 @@ class BlocksMap {
     if (blockInfo == null){
       return null;
     }
-    DatanodeDescriptor[] desc = blockInfo.getDatanodes(datanodeManager);
+    DatanodeDescriptor[] desc = blockInfo.getDatanodes(datanodeManager, blockInfo.getReplicas(datanodeManager));
     if (desc == null){
       return Collections.emptyList();
     } else {

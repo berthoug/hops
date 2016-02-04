@@ -722,7 +722,7 @@ public class BlockManager {
     assert oldBlock ==
         getStoredBlock(oldBlock) : "last block of the file is not in blocksMap";
 
-    DatanodeDescriptor[] targets = getNodes(oldBlock);
+    DatanodeStorageInfo[] targets = getStorages(oldBlock);
 
     BlockInfoUnderConstruction ucBlock = bc.setLastBlock(oldBlock, targets);
 
@@ -732,10 +732,9 @@ public class BlockManager {
         replicas.decommissionedReplicas(), getReplication(ucBlock));
     pendingReplications.remove(ucBlock);
 
-    // remove this block from the list of pending blocks to be deleted.
-    for (DatanodeDescriptor dd : targets) {
-      String datanodeId = dd.getDatanodeUuid();
-      invalidateBlocks.remove(datanodeId, oldBlock);
+    // remove this block from the list of pending blocks to be deleted. 
+    for (DatanodeStorageInfo target : targets) {
+      invalidateBlocks.remove(target, oldBlock);
     }
 
     // Adjust safe-mode totals, since under-construction blocks don't
@@ -761,8 +760,8 @@ public class BlockManager {
     for (DatanodeStorageInfo storage : blocksMap.storageList(block)){
       String storageID = storage.getStorageID();
       // filter invalidate replicas
-      if (!invalidateBlocks.contains(storageID, block)) {
-        storageSet.add(storageID);
+      if (!invalidateBlocks.contains(storage, block)) {
+        storageSet.add(storage.getStorageID());
       }
     }
     return storageSet;
@@ -1101,27 +1100,43 @@ public class BlockManager {
    */
   void datanodeRemoved(final DatanodeDescriptor node)
       throws IOException {
+    // Remove blocks per storage
     for(DatanodeStorageInfo storage : node.getStorageInfos()) {
       removeBlocksAssociatedTo(storage);
-    }
-  }
-
-  void removeBlocksAssociatedTo(final DatanodeStorageInfo storage)
-      throws IOException {
-    final Iterator<BlockInfo> it = storage.getBlockIterator();
-    while (it.hasNext()) {
-      removeStoredBlockTx(it.next().getBlockId(), storage);
+      invalidateBlocks.remove(storage);
     }
 
     node.resetBlocks();
-    invalidateBlocks.remove(storage);
     // If the DN hasn't block-reported since the most recent
     // failover, then we may have been holding up on processing
     // over-replicated blocks because of it. But we can now
     // process those blocks.
-    if (node.areBlockContentsStale()) {
+    if(node.areBlockContentsStale()) {
       rescanPostponedMisreplicatedBlocks();
     }
+    // TODO use code below (also add areBockContentsStale to storage)
+//    boolean stale = false;
+//    for(DatanodeStorageInfo storage : node.getStorageInfos()) {
+//      if (storage.areBlockContentsStale()) {
+//        stale = true;
+//        break;
+//      }
+//    }
+//    if (stale) {
+//      rescanPostponedMisreplicatedBlocks();
+//    }
+  }
+
+  /** Remove the blocks associated to the given DatanodeStorageInfo. */
+  void removeBlocksAssociatedTo(final DatanodeStorageInfo storageInfo)
+      throws IOException {
+    final Iterator<BlockInfo> it = storageInfo.getBlockIterator();
+    while(it.hasNext()) {
+      BlockInfo block = it.next();
+      removeStoredBlock(block, storageInfo);
+      invalidateBlocks.remove(storageInfo, block);
+    }
+    namesystem.checkSafeMode();
   }
 
   /**
@@ -1141,7 +1156,7 @@ public class BlockManager {
   private void addToInvalidates(Block b)
       throws StorageException, TransactionContextException {
     StringBuilder storages = new StringBuilder();
-    for (DatanodeStorageInfo storage : blocksMap.nodeList(b)){
+    for (DatanodeStorageInfo storage : blocksMap.storageList(b)){
       BlockInfo temp = getBlockInfo(b);
       invalidateBlocks.add(temp, storage, false);
       storages.append(storage).append(" ");
@@ -1772,10 +1787,19 @@ public class BlockManager {
    * The given storage is reporting all its blocks.
    * Update the (storage-->block list) and (block-->storage list) maps.
    */
-  public void processReport(final DatanodeID nodeID, final DatanodeStorage storage, 
-        final String poolId, final BlockReport newReport) throws IOException {
+  public void processReport(final DatanodeID nodeID,
+      final DatanodeStorage dnStorage, final String poolId,
+      final BlockReport newReport) throws IOException {
     final long startTime = Time.now(); //after acquiring write lock
-    final DatanodeDescriptor node = datanodeManager.getDatanode(nodeID);
+    final DatanodeStorageInfo storage = datanodeManager.getStorage(
+        dnStorage.getStorageID());
+
+    if(storage == null) {
+      throw new IOException("ProcessReport from dead or unregistered storage " +
+          "" + dnStorage.getStorageID());
+    }
+
+    final DatanodeDescriptor node = storage.getDatanodeDescriptor();
     if (node == null || !node.isAlive) {
       throw new IOException(
           "ProcessReport from dead or unregistered node: " + nodeID);
@@ -1883,10 +1907,10 @@ public class BlockManager {
     postponedMisreplicatedBlocks.removeAll(toRemove);
   }
 
-  private void processReport(
+  private ReportStatistics processReport(
       final DatanodeDescriptor node,
       final DatanodeStorageInfo storage,
-      final BlockListAsLongs report) throws
+      final BlockReport report) throws
       IOException {
     // Normal case:
     // Modify the (block-->datanode) map, according to the difference
@@ -1955,7 +1979,7 @@ public class BlockManager {
             storage + " size " + b.getNumBytes() +
             " does not belong to any file");
       }
-      addToInvalidates(toInvalidate, node);
+      addToInvalidates(toInvalidate, storage);
 
       for (Long b : toRemove) {
         removeStoredBlockTx(b, storage);
@@ -1994,8 +2018,8 @@ public class BlockManager {
     }
   }
 
-  private void reportDiff(DatanodeStorageInfo storage,
-          final BlockListAsLongs newReport,
+  private ReportStatistics reportDiff(DatanodeStorageInfo storage,
+          final BlockReport newReport,
           final Collection<BlockInfo> toAdd, // add to DatanodeStorageInfo
           final Collection<Long> toRemove, // remove from DatanodeStorageInfo
           final Collection<Block> toInvalidate, // should be removed from
@@ -2006,21 +2030,23 @@ public class BlockManager {
           final boolean firstBlockReport)
           throws IOException { // add to under-construction list
 
-    // add all blocks to remove list
-    for(Iterator<BlockInfo> it = storage.getBlockIterator(); it.hasNext(); ) {
-      toRemove.add(it.next());
-    }
-
     if (newReport == null) {
       return null;
     }
+    // Get all replica's stored on this storage
+    final Map<Long,Integer> blkAndInodeIdMap = storage.getAllStorageReplicas();
+    // Get the id's of all blocks stored on this storage
+    final Set<Long> allMachineBlocks = new HashSet<Long>(blkAndInodeIdMap.keySet());
+    // Get all invalidated replica's
+    final Map<Long,Long> invalidatedReplicas = storage
+        .getAllStorageInvalidatedReplicasWithGenStamp();
     
     ReportStatistics stats = new ReportStatistics();
     stats.numBuckets = newReport.getBuckets().length;
     stats.numBlocks = newReport.getNumBlocks();
   
     HashMatchingResult matchingResult;
-    if (dn.isFirstBlockReport()){
+    if (firstBlockReport){
       //For some reason, the first block reports can report matching hashes
       //despite being incorrect. I still don't get why..
       List<Integer> allBucketIds = new ArrayList<>();
@@ -2030,7 +2056,7 @@ public class BlockManager {
       matchingResult = new HashMatchingResult(new ArrayList<Integer>(),
           allBucketIds );
     } else {
-      matchingResult = calculateMismatchedHashes(dn,
+      matchingResult = calculateMismatchedHashes(storage,
           newReport);
     }
     stats.numBucketsMatching = matchingResult.matchingBuckets.size();
@@ -2221,10 +2247,10 @@ public class BlockManager {
     }
   }
 
-  private HashMatchingResult calculateMismatchedHashes(DatanodeDescriptor dn,
+  private HashMatchingResult calculateMismatchedHashes(DatanodeStorageInfo storage,
       BlockReport report) throws IOException {
     List<HashBucket> allMachineHashes = HashBuckets.getInstance()
-        .getBucketsForDatanode(dn);
+        .getBucketsForDatanode(storage);
     List<Integer> matchedBuckets = new ArrayList<>();
     List<Integer> mismatchedBuckets = new ArrayList<>();
     
@@ -2316,7 +2342,7 @@ public class BlockManager {
     }
 
     // Ignore replicas already scheduled to be removed from the DN
-    if (invalidateBlocks.contains(dn.getDatanodeUuid(), getBlockInfo(block))) {
+    if (invalidateBlocks.contains(storage, getBlockInfo(block))) {
      /*  TODO: following assertion is incorrect, see HDFS-2668
       assert storedBlock.findDatanode(dn) < 0 : "Block " + block
       + " in recentInvalidatesSet should not appear in DN " + dn; */
@@ -2350,7 +2376,7 @@ public class BlockManager {
   }
 
 
-  private BlockInfo processReportedBlock(final
+  private BlockInfo processReportedBlock(
       final DatanodeStorageInfo storage,
       final Block block, final ReplicaState reportedState,
       final Collection<BlockInfo> toAdd, final Collection<Block> toInvalidate,
@@ -2755,21 +2781,21 @@ public class BlockManager {
    */
   private void invalidateCorruptReplicas(BlockInfo blk)
       throws StorageException, TransactionContextException {
-    Collection<DatanodeDescriptor> nodes = corruptReplicas.getNodes(blk);
+    Collection<DatanodeStorageInfo> nodes = corruptReplicas.getStorages(blk);
     boolean gotException = false;
     if (nodes == null) {
       return;
     }
     // make a copy of the array of nodes in order to avoid
     // ConcurrentModificationException, when the block is removed from the node
-    DatanodeDescriptor[] nodesCopy = nodes.toArray(new DatanodeDescriptor[0]);
-    for (DatanodeDescriptor node : nodesCopy) {
+    DatanodeStorageInfo[] nodesCopy = nodes.toArray(new DatanodeStorageInfo[0]);
+    for (DatanodeStorageInfo storage : nodesCopy) {
       try {
-        invalidateBlock(new BlockToMarkCorrupt(blk, null), node);
+        invalidateBlock(new BlockToMarkCorrupt(blk, null), storage);
       } catch (IOException e) {
         blockLog.info(
             "invalidateCorruptReplicas " + "error in deleting bad block " +
-                blk + " on " + node, e);
+                blk + " on " + storage, e);
         gotException = true;
       }
     }
@@ -3452,7 +3478,7 @@ public class BlockManager {
                 (ReceivedDeletedBlockInfo) getParams()[0];
             LOG.debug("BLOCK_RECEIVED_AND_DELETED_INC_BLK_REPORT " +
                 rdbi.getStatus() + " bid=" + rdbi.getBlock().getBlockId() +
-                " dataNode=" + node.getXferAddr()) + " storage=" +
+                " dataNode=" + node.getXferAddr() + " storage=" +
                 storage.getStorageID());
             HashBuckets hashBuckets = HashBuckets.getInstance();
             
@@ -3771,6 +3797,11 @@ public class BlockManager {
       }
     }
     return toReturn;
+  }
+
+  public DatanodeStorageInfo[] getStorages(BlockInfo block)
+      throws TransactionContextException, StorageException {
+    return block.getStorages(datanodeManager);
   }
 
   public int getTotalBlocks() throws IOException {
@@ -4367,8 +4398,8 @@ public class BlockManager {
   }
 
   private void addToInvalidates(final Collection<Block> blocks,
-      final DatanodeDescriptor node) throws IOException {
-    invalidateBlocks.add(blocks, node);
+      final DatanodeStorageInfo storage) throws IOException {
+    invalidateBlocks.add(blocks, storage);
   }
 
   private void markBlockAsCorruptTx(final BlockToMarkCorrupt b,

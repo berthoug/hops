@@ -28,6 +28,7 @@ import org.apache.hadoop.hdfs.protocol.DatanodeID;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfoUnderConstruction;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
+import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeStorageInfo;
 import org.apache.hadoop.hdfs.server.blockmanagement.MutableBlockCollection;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
 
@@ -172,7 +173,7 @@ public class INodeFileUnderConstruction extends INodeFile
    */
   @Override
   public BlockInfoUnderConstruction setLastBlock(BlockInfo lastBlock,
-      DatanodeDescriptor[] targets) throws IOException, StorageException {
+      DatanodeStorageInfo[] targets) throws IOException, StorageException {
     if (numBlocks() == 0) {
       throw new IOException("Failed to set last block: File is empty.");
     }
