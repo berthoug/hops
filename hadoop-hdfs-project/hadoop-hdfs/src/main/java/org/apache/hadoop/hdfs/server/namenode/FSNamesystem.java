@@ -111,6 +111,7 @@ import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeManager;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeStatistics;
 import org.apache.hadoop.hdfs.server.blockmanagement.HashBuckets;
+import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeStorageInfo;
 import org.apache.hadoop.hdfs.server.blockmanagement.MutableBlockCollection;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
@@ -2338,9 +2339,13 @@ public class FSNamesystem
 
 
             // choose targets for the new block to be allocated.
-            final DatanodeDescriptor targets[] = getBlockManager()
-                .chooseTarget(src, replication, clientNode, excludedNodes,
-                    blockSize);
+//            final DatanodeDescriptor targets[] = getBlockManager()
+//                .chooseTarget(src, replication, clientNode, excludedNodes,
+//                    blockSize);
+            final DatanodeStorageInfo targets[] = getBlockManager().chooseTarget4NewBlock(
+                src, replication, clientNode, excludedNodes, blockSize,
+                favoredNodes,
+                storagePolicyID);
 
             // Part II.
             // Allocate a new block, add it to the INode and the BlocksMap.
@@ -5851,6 +5856,22 @@ public class FSNamesystem
   public boolean isAvoidingStaleDataNodesForWrite() {
     return this.blockManager.getDatanodeManager()
         .shouldAvoidStaleDataNodesForWrite();
+  }
+
+  @Override // FSClusterStats
+  public int getNumDatanodesInService() {
+    return datanodeStatistics.getNumDatanodesInService();
+  }
+
+  @Override
+  public double getInServiceXceiverAverage() {
+    double avgLoad = 0;
+    final int nodes = getNumDatanodesInService();
+    if (nodes != 0) {
+      final int xceivers = datanodeStatistics.getInServiceXceiverCount();
+      avgLoad = (double)xceivers/nodes;
+    }
+    return avgLoad;
   }
 
   /**
