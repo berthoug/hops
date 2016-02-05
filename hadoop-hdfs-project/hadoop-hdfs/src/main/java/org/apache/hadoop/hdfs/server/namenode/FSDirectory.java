@@ -62,6 +62,7 @@ import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfoUnderConstruction;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockManager;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
+import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeStorageInfo;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
 import org.apache.hadoop.hdfs.util.ByteArray;
 import org.apache.hadoop.security.AccessControlException;
@@ -288,16 +289,14 @@ public class FSDirectory implements Closeable {
    * Add a block to the file. Returns a reference to the added block.
    */
   BlockInfo addBlock(String path, INode[] inodes, Block block,
-      DatanodeDescriptor targets[])
+      DatanodeStorageInfo targets[])
       throws QuotaExceededException, StorageException,
       TransactionContextException {
     assert inodes[inodes.length - 1]
         .isUnderConstruction() : "INode should correspond to a file under construction";
-    INodeFileUnderConstruction fileINode =
-        (INodeFileUnderConstruction) inodes[inodes.length - 1];
+    INodeFileUnderConstruction fileINode = (INodeFileUnderConstruction) inodes[inodes.length - 1];
 
-    long diskspaceTobeConsumed = fileINode.getPreferredBlockSize() *
-        fileINode.getBlockReplication();
+    long diskspaceTobeConsumed = fileINode.getBlockDiskspace();
     //When appending to a small file stored in DB we should consider the file
     // size which was accounted for before in the inode attributes to avoid
     // over calculation of quota
