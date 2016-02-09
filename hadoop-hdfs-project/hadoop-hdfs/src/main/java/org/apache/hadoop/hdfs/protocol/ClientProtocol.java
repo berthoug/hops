@@ -547,8 +547,11 @@ public interface ClientProtocol {
    */
   @Idempotent
   public LocatedBlock getAdditionalDatanode(final String src,
-      final ExtendedBlock blk, final DatanodeInfo[] existings,
-      final DatanodeInfo[] excludes, final int numAdditionalNodes,
+      final ExtendedBlock blk,
+      final DatanodeInfo[] existings,
+      final String[] existingStorageIDs,
+      final DatanodeInfo[] excludes,
+      final int numAdditionalNodes,
       final String clientName)
       throws AccessControlException, FileNotFoundException, SafeModeException,
       UnresolvedLinkException, IOException;
@@ -1204,7 +1207,8 @@ public interface ClientProtocol {
    *     if any error occurs
    */
   public void updatePipeline(String clientName, ExtendedBlock oldBlock,
-      ExtendedBlock newBlock, DatanodeID[] newNodes) throws IOException;
+      ExtendedBlock newBlock, DatanodeID[] newNodes, String[] newStorages)
+      throws IOException;
 
   /**
    * Get a valid Delegation Token.
