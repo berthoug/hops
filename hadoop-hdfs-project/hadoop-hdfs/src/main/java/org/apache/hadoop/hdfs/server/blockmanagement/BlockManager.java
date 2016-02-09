@@ -52,6 +52,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSUtil;
+import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.BlockListAsLongs;
 import org.apache.hadoop.hdfs.protocol.BlockListAsLongs.BlockReportIterator;
@@ -3184,7 +3185,6 @@ public class BlockManager {
    * If no such a node is available,
    * then pick a node with least free space
    */
-  // TODO make it also host-aware?
   private void chooseExcessReplicates(final Collection<DatanodeStorageInfo> nonExcess,
       Block b, short replication,
       DatanodeStorageInfo addedStorage,
@@ -3193,6 +3193,10 @@ public class BlockManager {
       throws StorageException, TransactionContextException {
 
     BlockCollection bc = getBlockCollection(b);
+
+    // TODO This should be loaded from an XAttr or whatever
+    final List<StorageType> excessTypes = BlockStoragePolicy.DEFAULT
+        .chooseExcess(replication, DatanodeStorageInfo.toStorageTypes(nonExcess));
 
     // For a map from rackId
     final Map<String, List<DatanodeStorageInfo>> rackMap = new  HashMap<>();
@@ -3209,7 +3213,7 @@ public class BlockManager {
       storagesInRack.add(storage);
     }
 
-    // split nodes into two sets
+    // Split nodes into two sets:
     // priSet contains nodes on rack with more than one replica
     // remains contains the remaining nodes
     final List<DatanodeDescriptor> priSet = new ArrayList<>();
@@ -3236,7 +3240,8 @@ public class BlockManager {
           )) {
         cur = delStorageHint;
       } else { // regular excessive replica removal
-        cur = replicator.chooseReplicaToDelete(bc, b, replication, priSet, remains);
+        cur = replicator.chooseReplicaToDelete(bc, b, replication, priSet,
+            remains, excessTypes);
       }
       firstOne = false;
 
