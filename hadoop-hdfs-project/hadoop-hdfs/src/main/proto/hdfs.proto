@@ -121,6 +121,27 @@ enum StorageTypeProto {
   RAM_DISK = 4;
 }
 
+///**
+// * Block replica storage policy.
+// */
+//message BlockStoragePolicyProto {
+//  required uint32 policyId = 1;
+//  required string name = 2;
+//  // a list of storage types for storing the block replicas when creating a
+//  // block.
+//  required StorageTypesProto creationPolicy = 3;
+//  // A list of storage types for creation fallback storage.
+//  optional StorageTypesProto creationFallbackPolicy = 4;
+//  optional StorageTypesProto replicationFallbackPolicy = 5;
+//}
+
+/**
+ * A list of storage IDs.
+ */
+message StorageUuidsProto {
+  repeated string storageUuids = 1;
+}
+
 /**
  * A LocatedBlock gives information about a block and its location.
  */
@@ -128,10 +149,11 @@ message LocatedBlockProto {
   required ExtendedBlockProto b = 1;
   required uint64 offset = 2; // offset of first byte of block in the file
   repeated DatanodeInfoProto locs = 3; // Locations ordered by proximity to client ip
-  required bool corrupt = 4; // true if all replicas of a block are corrupt, else false
+
+  // true if all replicas of a block are corrupt, else false
   // If block has few corrupt replicas, they are filtered and
   // their locations are not part of this object
-
+  required bool corrupt = 4;
   required hadoop.common.TokenProto blockToken = 5;
   repeated bool isCached = 6 [packed=true]; // if a location in locs is cached
   repeated StorageTypeProto storageTypes = 7;
@@ -149,6 +171,12 @@ message DataEncryptionKeyProto {
   optional string encryptionAlgorithm = 6;
 }
 
+/**
+ * A list of storage types.
+ */
+message StorageTypesProto {
+  repeated StorageTypeProto storageTypes = 1;
+}
 
 /**
  * A set of file blocks and their locations.
