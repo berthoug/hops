@@ -84,6 +84,7 @@ import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.protocol.AlreadyBeingCreatedException;
 import org.apache.hadoop.hdfs.protocol.Block;
+import org.apache.hadoop.hdfs.protocol.BlockStoragePolicy;
 import org.apache.hadoop.hdfs.protocol.ClientProtocol;
 import org.apache.hadoop.hdfs.protocol.DatanodeID;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
@@ -2546,7 +2547,8 @@ public class FSNamesystem
             final DatanodeStorageInfo[] targets =
                 blockManager.getBlockPlacementPolicy()
                     .chooseTarget(src, numAdditionalNodes, clientNode, chosen,
-                        true, excludes, preferredBlockSize);
+                        true, excludes, preferredBlockSize,
+                        BlockStoragePolicy.DEFAULT);
             final LocatedBlock lb = new LocatedBlock(blk, targets);
             blockManager.setBlockToken(lb, AccessMode.COPY);
             return lb;
@@ -7651,7 +7653,7 @@ public class FSNamesystem
     DatanodeStorageInfo[] descriptors = placementPolicy
         .chooseTarget(isParity ? parityPath : sourcePath,
             isParity ? 1 : status.getEncodingPolicy().getTargetReplication(),
-            null, chosenStorages, false, excluded, block.getBlockSize());
+            null, chosenStorages, false, excluded, block.getBlockSize(), BlockStoragePolicy.DEFAULT);
     return new LocatedBlock(block.getBlock(), descriptors);
   }
 
