@@ -22,6 +22,7 @@ import io.hops.metadata.yarn.entity.AppSchedulingInfo;
 import io.hops.metadata.yarn.entity.ContainerId;
 import io.hops.metadata.yarn.entity.FinishedApplications;
 import io.hops.metadata.yarn.entity.NodeHBResponse;
+import io.hops.metadata.yarn.entity.appmasterrpc.HeartBeatRPC;
 import io.hops.metadata.yarn.entity.rmstatestore.UpdatedNode;
 import io.hops.metadata.yarn.entity.rmstatestore.DelegationKey;
 import io.hops.metadata.yarn.entity.rmstatestore.DelegationToken;
@@ -133,38 +134,70 @@ public class NDBRMStateStore extends RMStateStore {
                 connector.readLock();
                 // recover DelegationTokenSecretManager
                 loadRMDTSecretManagerState(rmState);
+                connector.flush();
                 // recover RM applications
                 loadRMAppState(rmState);
+                connector.flush();
                 loadNMTokenSecretMamagerCurrentKey(rmState);
+                connector.flush();
                 loadAppSchedulingInfos(rmState);
+                connector.flush();
                 loadAllocateResponses(rmState, rmContext);
+                connector.flush();
                 loadRPCs(rmState);
+                connector.flush();
                 loadPendingEvents(rmState);
+                connector.flush();
                 loadSchedulerApplications(rmState);
+                connector.flush();
                 loadFiCaSchedulerNodes(rmState);
+                connector.flush();
                 loadLaunchedContainers(rmState);
+                connector.flush();
                 loadSchedulingOpportunities(rmState);
+                connector.flush();
                 loadLastScheduleddContainers(rmState);
+                connector.flush();
                 loadRereservations(rmState);
+                connector.flush();
                 loadReservedContainers(rmState);
+                connector.flush();
                 loadResourceRequests(rmState);
+                connector.flush();
                 loadBlackLists(rmState);
+                connector.flush();
                 loadAllQueueMetrics(rmState);
+                connector.flush();
                 loadNodeHeartBeatResponses(rmState);
+                connector.flush();
                 loadContainersToClean(rmState);
+                connector.flush();
                 loadFinishedApplications(rmState);
+                connector.flush();
                 loadNodesResources(rmState);
+                connector.flush();
                 loadAllContainers(rmState);
+                connector.flush();
                 loadAllRMContainers(rmState);
+                connector.flush();
                 loadAllRMContextActiveNodes(rmState);
+                connector.flush();
                 loadAllRMNodes(rmState);
+                connector.flush();
                 loadAllRMNodesNextHeartbeat(rmState);
+                connector.flush();
                 loadAllNodes(rmState);
+                connector.flush();
                 loadRMContextInactiveNodes(rmState);
+                connector.flush();
                 loadAllUpdatedContainerInfos(rmState);
+                connector.flush();
                 loadAllContainerStatus(rmState);
+                connector.flush();
                 loadAllJustLaunchedContainers(rmState);
+                connector.flush();
                 loadAllCSQueues(rmState);
+                connector.flush();
                 loadAllCSLeafQueueUserInfo(rmState);
                 LOG.info("loaded rmState");
                 connector.commit();
@@ -336,6 +369,8 @@ public class NDBRMStateStore extends RMStateStore {
    
   private void loadRPCs(RMState rmState) throws IOException {
     rmState.appMasterRPCs = RMUtilities.getAppMasterRPCs();
+    rmState.heartBeatRPCs = RMUtilities.getHeartBeatRPCs();
+    rmState.allocateRPCs = RMUtilities.getAllocateRPCs();
   }
   
   private void loadPendingEvents(RMState rmState) throws IOException{
