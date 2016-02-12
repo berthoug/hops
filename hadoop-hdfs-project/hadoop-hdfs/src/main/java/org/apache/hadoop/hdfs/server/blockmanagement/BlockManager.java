@@ -1883,7 +1883,7 @@ public class BlockManager {
    * Update the (storage-->block list) and (block-->storage list) maps.
    */
   public void processReport(final DatanodeID nodeID,
-      final DatanodeStorage dnStorage, final String poolId,
+      final DatanodeStorage dnStorage,
       final BlockReport newReport) throws IOException {
     final long startTime = Time.now(); //after acquiring write lock
     final DatanodeStorageInfo storage = datanodeManager.getStorage(
