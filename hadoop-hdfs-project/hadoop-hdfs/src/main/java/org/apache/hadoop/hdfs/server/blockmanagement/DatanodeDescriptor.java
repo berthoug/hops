@@ -257,7 +257,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
    */
   public DatanodeDescriptor(DatanodeID nodeID) {
     super(nodeID);
-    updateHeartbeatState(StorageReport.EMPTY_ARRAY, 0L, 0L, 0, 0);
+    updateHeartbeatState(StorageReport.EMPTY_ARRAY, 0, 0);
   }
 
   /**
@@ -270,7 +270,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
    */
   public DatanodeDescriptor(DatanodeID nodeID, String networkLocation) {
     super(nodeID, networkLocation);
-    updateHeartbeatState(StorageReport.EMPTY_ARRAY, 0L, 0L, 0, 0);
+    updateHeartbeatState(StorageReport.EMPTY_ARRAY, 0, 0);
   }
 
   /**
@@ -350,18 +350,16 @@ public class DatanodeDescriptor extends DatanodeInfo {
     return blocks;
   }
 
-  public void updateHeartbeat(StorageReport[] reports, long cacheCapacity,
-      long cacheUsed, int xceiverCount, int volFailures) {
-    updateHeartbeatState(reports, cacheCapacity, cacheUsed, xceiverCount,
-        volFailures);
+  public void updateHeartbeat(StorageReport[] reports, int xceiverCount,
+      int volFailures) {
+    updateHeartbeatState(reports, xceiverCount, volFailures);
     heartbeatedSinceRegistration = true;
   }
 
   /**
    * process datanode heartbeat or stats initialization.
    */
-  public void updateHeartbeatState(StorageReport[] reports, long cacheCapacity,
-      long cacheUsed, int xceiverCount, int volFailures) {
+  public void updateHeartbeatState(StorageReport[] reports, int xceiverCount, int volFailures) {
     long totalCapacity = 0;
     long totalRemaining = 0;
     long totalBlockPoolUsed = 0;
@@ -395,8 +393,6 @@ public class DatanodeDescriptor extends DatanodeInfo {
           storageMap.values());
     }
 
-    setCacheCapacity(cacheCapacity);
-    setCacheUsed(cacheUsed);
     setXceiverCount(xceiverCount);
     setLastUpdate(Time.now());
     this.volumeFailures = volFailures;
