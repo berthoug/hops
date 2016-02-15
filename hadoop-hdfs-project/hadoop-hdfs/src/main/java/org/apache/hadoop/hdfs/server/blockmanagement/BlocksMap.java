@@ -29,6 +29,7 @@ import io.hops.transaction.handler.LightWeightRequestHandler;
 import org.apache.hadoop.hdfs.protocol.Block;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -166,7 +167,7 @@ class BlocksMap {
     }
 
     // remove block from the data-node list and the node from the block info
-    return node.removeBlock(info);
+    return node.removeReplica(info);
   }
 
   int size() throws IOException {

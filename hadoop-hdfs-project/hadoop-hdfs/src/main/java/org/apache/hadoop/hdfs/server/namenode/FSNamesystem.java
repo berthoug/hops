@@ -2229,9 +2229,9 @@ public class FSNamesystem
                   appendFileInt(src, holder, clientMachine);
              
               if (locatedBlock != null && !locatedBlock.isPhantomBlock()) {
-                for (DatanodeInfo datanodeInfo : locatedBlock.getLocations()) {
-                  int sId = blockManager.getDatanodeManager().getDatanode
-                      (datanodeInfo).getSId();
+                for (String storageID : locatedBlock.getStorageIDs()) {
+                    
+                  int sId = blockManager.getDatanodeManager().getStorage(storageID).getSid();
                   BlockInfo blockInfo =
                       EntityManager.find(BlockInfo.Finder.ByBlockIdAndINodeId,
                           locatedBlock.getBlock().getBlockId(), target.getId());
@@ -2525,7 +2525,7 @@ public class FSNamesystem
 
             final DatanodeDescriptor clientNode;
             final long preferredBlockSize;
-            final List<DatanodeDescriptor> chosen;
+            final List<DatanodeStorageInfo> chosen;
             //check safe mode
             if (isInSafeMode()) {
               throw new SafeModeException(
@@ -3697,16 +3697,16 @@ public class FSNamesystem
           // find the DatanodeDescriptor objects
           // There should be no locations in the blockManager till now because the
           // file is underConstruction
-          ArrayList<DatanodeDescriptor> trimmedTargets = new ArrayList<DatanodeDescriptor>(newtargets.length);
-          ArrayList<String> trimmedStorages = new ArrayList<String>(newtargets.length);
+          ArrayList<DatanodeDescriptor> trimmedTargets = new ArrayList<>(newTargets.length);
+          ArrayList<String> trimmedStorages = new ArrayList<>(newTargets.length);
 
-          for (int i = 0; i < newtargets.length; i++) {
-            DatanodeDescriptor targetNode = blockManager.getDatanodeManager().getDatanode(newtargets[i]);
+          for (int i = 0; i < newTargets.length; i++) {
+            DatanodeDescriptor targetNode = blockManager.getDatanodeManager().getDatanode(newTargets[i]);
             if (targetNode != null) {
               trimmedTargets.add(targetNode);
-              trimmedStorages.add(newtargetstorages[i]);
+              trimmedStorages.add(newTargetStorages[i]);
             } else if (LOG.isDebugEnabled()) {
-              LOG.debug("DatanodeDescriptor (=" + newtargets[i] + ") not found");
+              LOG.debug("DatanodeDescriptor (=" + newTargets[i] + ") not found");
             }
           }
           if ((closeFile) && !trimmedTargets.isEmpty()) {
@@ -5091,7 +5091,7 @@ public class FSNamesystem
     for (LocatedBlock block : blocks) {
       ExtendedBlock blk = block.getBlock();
       DatanodeInfo[] nodes = block.getLocations();
-      String[] storageIDs = blocks[i].getStorageIDs();
+      String[] storageIDs = block.getStorageIDs();
       for (int j = 0; j < nodes.length; j++) {
         blockManager.findAndMarkBlockAsCorrupt(blk, nodes[j],
             storageIDs == null ? null: storageIDs[j],
@@ -5252,9 +5252,9 @@ public class FSNamesystem
     
   
     //Make sure the hashes are corrected to avoid leaving stale replicas behind
-    for (DatanodeDescriptor oldLocation :
-        blockInfo.getDatanodes(getBlockManager().getDatanodeManager())){
-      HashBuckets.getInstance().undoHash(oldLocation.getSId(),
+    for (DatanodeStorageInfo oldLocation :
+        blockInfo.getStorages(blockManager.getDatanodeManager())){
+      HashBuckets.getInstance().undoHash(oldLocation.getSid(),
           HdfsServerConstants.ReplicaState.FINALIZED, oldBlock.getLocalBlock());
     }
     

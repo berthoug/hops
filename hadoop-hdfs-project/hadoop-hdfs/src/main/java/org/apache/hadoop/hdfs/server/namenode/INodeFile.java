@@ -56,6 +56,12 @@ public class INodeFile extends INode implements BlockCollection {
     return (INodeFile) inode;
   }
 
+  //Number of bits for Block size
+  static final short BLOCKBITS = 48;
+
+  //Header mask 64-bit representation
+  //Format: [16 bits for replication][48 bits for PreferredBlockSize]
+  static final long HEADERMASK = 0xffffL << BLOCKBITS;
 
   private int generationStamp = (int) GenerationStamp.FIRST_VALID_STAMP;
   private long size;

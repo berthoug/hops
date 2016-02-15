@@ -242,7 +242,8 @@ public class DatanodeStorageInfo {
 
   public boolean addBlock(BlockInfo b) {
     try {
-      return b.addReplica(this) != null;
+      b.addReplica(this);
+      return true;
     } catch (StorageException e) {
       // TODO how should we handle these exceptions?
       e.printStackTrace();
@@ -334,8 +335,7 @@ public class DatanodeStorageInfo {
         InvalidateBlockDataAccess da =
             (InvalidateBlockDataAccess) HdfsStorageFactory
                 .getDataAccess(InvalidateBlockDataAccess.class);
-        return da.findInvalidatedBlockByDatanodeUuidUsingMySQLServer
-            (getDatanodeDescriptor().getDatanodeUuid());
+        return da.findInvalidatedBlockBySidUsingMySQLServer(sid);
       }
     };
     return (Map<Long, Long>) findBlocksHandler.handle();

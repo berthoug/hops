@@ -81,7 +81,7 @@ public class CorruptReplicasMap {
     
     if (!nodes.contains(storage.getDatanodeDescriptor())) {
       addCorruptReplicaToDB(new CorruptReplica(
-          storage.getDatanodeDescriptor().getDatanodeUuid(), storage.getSid(),
+          storage.getSid(),
           blk.getBlockId(), blk.getInodeId()));
 
       NameNode.blockStateChangeLog

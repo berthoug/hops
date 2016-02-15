@@ -75,7 +75,8 @@ public class DatanodeDescriptor extends DatanodeInfo {
   private final Map<String, DatanodeStorageInfo> storageMap =
       new HashMap<String, DatanodeStorageInfo>();
   
-  public Map<Long,Integer> getAllMachineReplicasInBucket(final int bucketId)
+  public Map<Long,Integer> getAllMachineReplicasInBucket(final int bucketId,
+          final int sid)
       throws IOException {
     LightWeightRequestHandler findReplicasHandler = new
         LightWeightRequestHandler
@@ -84,7 +85,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
       public Object performTask() throws IOException {
         ReplicaDataAccess da = (ReplicaDataAccess) HdfsStorageFactory
             .getDataAccess(ReplicaDataAccess.class);
-        return da.findBlockAndInodeIdsByStorageIdAndBucketId(getSId(),
+        return da.findBlockAndInodeIdsByStorageIdAndBucketId(sid,
             bucketId);
       }
     };
@@ -92,7 +93,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
   }
   
   public Map<Long,Integer> getAllMachineReplicasInBuckets(
-      final List<Integer> mismatchedBuckets) throws IOException {
+      final List<Integer> mismatchedBuckets, final int sid) throws IOException {
     LightWeightRequestHandler findReplicasHandler = new
         LightWeightRequestHandler
             (HDFSOperationType.GET_ALL_MACHINE_BLOCKS_IN_BUCKETS) {
@@ -100,7 +101,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
       public Object performTask() throws IOException {
         ReplicaDataAccess da = (ReplicaDataAccess) HdfsStorageFactory
             .getDataAccess(ReplicaDataAccess.class);
-        return da.findBlockAndInodeIdsByStorageIdAndBucketIds(getSId(),
+        return da.findBlockAndInodeIdsByStorageIdAndBucketIds(sid,
             mismatchedBuckets);
       }
     };

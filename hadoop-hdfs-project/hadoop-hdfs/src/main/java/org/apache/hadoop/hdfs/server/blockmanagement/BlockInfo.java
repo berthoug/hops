@@ -246,7 +246,7 @@ public class BlockInfo extends Block {
     return replicas;
   }
 
-  private List<Replica> getReplicas(DatanodeManager datanodeMgr)
+  List<Replica> getReplicas(DatanodeManager datanodeMgr)
       throws StorageException, TransactionContextException {
     List<Replica> replicas = getReplicasNoCheck();
     getDatanodes(datanodeMgr, replicas);
