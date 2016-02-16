@@ -36,6 +36,7 @@ import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.HDFSPolicyProvider;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
+import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.BlockLocalPathInfo;
 import org.apache.hadoop.hdfs.protocol.ClientDatanodeProtocol;
@@ -1272,8 +1273,8 @@ public class DataNode extends Configured
     return xmitsInProgress.get();
   }
 
-  private void transferBlock(ExtendedBlock block, DatanodeInfo xferTargets[])
-      throws IOException {
+  private void transferBlock(ExtendedBlock block, DatanodeInfo xferTargets[],
+      StorageType[] xferTargetStorageTypes) throws IOException {
     BPOfferService bpos = getBPOSForBlock(block);
     DatanodeRegistration bpReg = getDNRegistrationForBP(block.getBlockPoolId());
     
@@ -1309,16 +1310,17 @@ public class DataNode extends Configured
             block + " to " + xfersBuilder);
       }
 
-      new Daemon(new DataTransfer(xferTargets, block,
+      new Daemon(new DataTransfer(xferTargets, xferTargetStorageTypes, block,
           BlockConstructionStage.PIPELINE_SETUP_CREATE, "")).start();
     }
   }
 
   void transferBlocks(String poolId, Block blocks[],
-      DatanodeInfo xferTargets[][]) {
+      DatanodeInfo xferTargets[][], StorageType[][] xferTargetStorageTypes) {
     for (int i = 0; i < blocks.length; i++) {
       try {
-        transferBlock(new ExtendedBlock(poolId, blocks[i]), xferTargets[i]);
+        transferBlock(new ExtendedBlock(poolId, blocks[i]), xferTargets[i],
+            xferTargetStorageTypes[i]);
       } catch (IOException ie) {
         LOG.warn("Failed to transfer block " + blocks[i], ie);
       }
@@ -1421,6 +1423,7 @@ public class DataNode extends Configured
    */
   private class DataTransfer implements Runnable {
     final DatanodeInfo[] targets;
+    final StorageType[] targetStorageTypes;
     final ExtendedBlock b;
     final BlockConstructionStage stage;
     final private DatanodeRegistration bpReg;
@@ -1430,15 +1433,20 @@ public class DataNode extends Configured
      * Connect to the first item in the target list.  Pass along the
      * entire target list, the block, and the data.
      */
-    DataTransfer(DatanodeInfo targets[], ExtendedBlock b,
-        BlockConstructionStage stage, final String clientname) {
+    DataTransfer(DatanodeInfo targets[], StorageType[] targetStorageTypes,
+        ExtendedBlock b, BlockConstructionStage stage, final String clientname) {
       if (DataTransferProtocol.LOG.isDebugEnabled()) {
         DataTransferProtocol.LOG.debug(
-            getClass().getSimpleName() + ": " + b + " (numBytes=" +
-                b.getNumBytes() + ")" + ", stage=" + stage + ", clientname=" +
-                clientname + ", targests=" + Arrays.asList(targets));
+            getClass().getSimpleName() + ": "
+                + b + " (numBytes=" + b.getNumBytes() + ")"
+                + ", stage=" + stage
+                + ", clientname=" + clientname
+                + ", targets=" + Arrays.asList(targets)
+                + ", target storage types=" + (targetStorageTypes == null ?
+                "[]" : Arrays.asList(targetStorageTypes)));
       }
       this.targets = targets;
+      this.targetStorageTypes = targetStorageTypes;
       this.b = b;
       this.stage = stage;
       BPOfferService bpos = blockPoolManager.get(b.getBlockPoolId());
@@ -1499,8 +1507,9 @@ public class DataNode extends Configured
         }
 
         new Sender(out)
-            .writeBlock(b, accessToken, clientname, targets, srcNode, stage, 0,
-                0, 0, 0, blockSender.getChecksum());
+            .writeBlock(b, targetStorageTypes[0], accessToken, clientname,
+                targets, targetStorageTypes, srcNode, stage, 0, 0, 0, 0,
+                blockSender.getChecksum());
 
         // send data & checksum
         blockSender.sendBlock(out, unbufOut, null);
@@ -2216,7 +2225,8 @@ public class DataNode extends Configured
    * @param client
    */
   void transferReplicaForPipelineRecovery(final ExtendedBlock b,
-      final DatanodeInfo[] targets, final String client) throws IOException {
+      final DatanodeInfo[] targets, final StorageType[] targetStorageTypes,
+      final String client) throws IOException {
     final long storedGS;
     final long visible;
     final BlockConstructionStage stage;
@@ -2250,7 +2260,7 @@ public class DataNode extends Configured
     b.setNumBytes(visible);
 
     if (targets.length > 0) {
-      new DataTransfer(targets, b, stage, client).run();
+      new DataTransfer(targets, targetStorageTypes, b, stage, client).run();
     }
   }
 
