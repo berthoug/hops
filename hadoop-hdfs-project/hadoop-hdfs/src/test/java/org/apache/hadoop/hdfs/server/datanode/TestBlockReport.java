@@ -385,7 +385,7 @@ public class TestBlockReport {
     int randIndex = rand.nextInt(blocks.size());
     // Get a block and screw its GS
     Block corruptedBlock = blocks.get(randIndex);
-    String secondNode = cluster.getDataNodes().get(DN_N1).getStorageId();
+    String secondNode = cluster.getDataNodes().get(DN_N1).getDatanodeUuid();
     if (LOG.isDebugEnabled()) {
       LOG.debug("Working with " + secondNode);
       LOG.debug("BlockGS before " + blocks.get(randIndex).getGenerationStamp());
@@ -423,7 +423,7 @@ public class TestBlockReport {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Done corrupting length of " + corruptedBlock.getBlockName());
     }
-    
+
     report[0] = new StorageBlockReport(new DatanodeStorage(dnR.getDatanodeUuid()),
         BlockReport.builder(NUM_BUCKETS).addAllAsFinalized(blocks).build());
     cluster.getNameNodeRpc().blockReport(dnR, poolId, report);
@@ -954,5 +954,5 @@ public class TestBlockReport {
       fail("No exception was expected. Get "+e);
     }
   }
-   
+
 }
