@@ -223,10 +223,8 @@ public class TestFileCreation {
         fs.create(dir1, true); // Create path, overwrite=true
         fs.close();
         assertTrue("Did not prevent directory from being overwritten.", false);
-      } catch (IOException ie) {
-        if (!ie.getMessage().contains("already exists as a directory.")) {
-          throw ie;
-        }
+      } catch (FileAlreadyExistsException e) {
+        // expected
       }
       
       // create a new file in home directory. Do not close it.
