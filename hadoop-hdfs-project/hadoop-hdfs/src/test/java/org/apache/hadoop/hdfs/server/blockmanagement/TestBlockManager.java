@@ -726,7 +726,9 @@ public class TestBlockManager {
     DatanodeDescriptor node = spy(nodes.get(0));
     DatanodeStorageInfo ds = node.getStorageInfos()[0];
 
-    node.setStorageID("dummy-storage");
+    // TODO: Needs to be fixed. DatanodeUuid is not storageID.
+    node.setDatanodeUuidForTesting(ds.getStorageID());
+
     node.isAlive = true;
 
     DatanodeRegistration nodeReg =
@@ -774,7 +776,9 @@ public class TestBlockManager {
     DatanodeDescriptor node = spy(nodes.get(0));
     DatanodeStorageInfo ds = node.getStorageInfos()[0];
 
-    node.setStorageID("dummy-storage");
+    // TODO: Needs to be fixed. DatanodeUuid is not storageID.
+    node.setDatanodeUuidForTesting(ds.getStorageID());
+
     node.isAlive = true;
 
     DatanodeRegistration nodeReg =
