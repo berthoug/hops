@@ -220,7 +220,7 @@
     <dependency>
       <groupId>io.hops.streaming</groupId>
       <artifactId>libhopsyarn</artifactId>
-      <version>1.0</version>
+      <version>${project.version}</version>
       <type>so</type>
     </dependency>
         
