@@ -2652,7 +2652,7 @@ public class BlockManager {
   /**
    * Faster version of
    * {@link #addStoredBlock(BlockInfo, DatanodeStorageInfo,
-   * DatanodeStorageInfo, boolean)}
+   * DatanodeDescriptor, boolean)}
    * , intended for use with initial block report at startup. If not in startup
    * safe mode, will call standard addStoredBlock(). Assumes this method is
    * called "immediately" so there is no need to refresh the storedBlock from
@@ -2699,7 +2699,7 @@ public class BlockManager {
   private Block addStoredBlock(
       final BlockInfo block,
       DatanodeStorageInfo storage,
-      DatanodeStorageInfo delStorageHint,
+      DatanodeDescriptor delNodeHint,
       boolean logEveryBlock) throws IOException {
     assert block != null;
     BlockInfo storedBlock;
@@ -2730,6 +2730,7 @@ public class BlockManager {
 
     // add block to the datanode
     boolean added = storage.addBlock(storedBlock);
+
     int curReplicaDelta;
     if (added) {
       curReplicaDelta = 1;
@@ -2782,7 +2783,8 @@ public class BlockManager {
       updateNeededReplications(storedBlock, curReplicaDelta, 0);
     }
     if (numCurrentReplica > fileReplication) {
-      processOverReplicatedBlock(storedBlock, fileReplication, storage, delStorageHint);
+      processOverReplicatedBlock(storedBlock, fileReplication,
+          storage.getDatanodeDescriptor(), delNodeHint);
     }
     // If the file replication has reached desired value
     // we can remove any corrupt replicas the block may have
@@ -3145,12 +3147,12 @@ public class BlockManager {
   private void processOverReplicatedBlock(
       final Block block,
       final short replication,
-      final DatanodeStorageInfo addedStorage,
-      DatanodeStorageInfo delStorageHint)
+      final DatanodeDescriptor addedNode,
+      DatanodeDescriptor delNodeHint)
       throws IOException {
 
-    if (addedStorage == delStorageHint) {
-      delStorageHint = null;
+    if (addedNode == delNodeHint) {
+      delNodeHint = null;
     }
     Collection<DatanodeStorageInfo> nonExcess = new ArrayList<>();
     Collection<DatanodeDescriptor> corruptNodes = corruptReplicas.getNodes(getBlockInfo(block));
@@ -3174,8 +3176,8 @@ public class BlockManager {
         }
       }
     }
-    chooseExcessReplicates(nonExcess, block, replication, addedStorage,
-        delStorageHint, blockplacement);
+    chooseExcessReplicates(nonExcess, block, replication, addedNode,
+        delNodeHint, blockplacement);
   }
 
 
@@ -3196,8 +3198,8 @@ public class BlockManager {
    */
   private void chooseExcessReplicates(final Collection<DatanodeStorageInfo> nonExcess,
       Block b, short replication,
-      DatanodeStorageInfo addedStorage,
-      DatanodeStorageInfo delStorageHint,
+      DatanodeDescriptor addedNode,
+      DatanodeDescriptor delNodeHint,
       BlockPlacementPolicy replicator)
       throws StorageException, TransactionContextException {
 
@@ -3210,7 +3212,7 @@ public class BlockManager {
     // For a map from rackId
     final Map<String, List<DatanodeStorageInfo>> rackMap = new  HashMap<>();
     for (final DatanodeStorageInfo storage : nonExcess) {
-      final String rackName = addedStorage.getDatanodeDescriptor().getNetworkLocation();
+      final String rackName = addedNode.getNetworkLocation();
 
       // All storages in this rack that we already iterated over that contain a
       // replica
@@ -3240,17 +3242,18 @@ public class BlockManager {
     // otherwise pick one with least space from priSet if it is not empty
     // otherwise one node with least space from remains
     boolean firstOne = true;
+    final DatanodeStorageInfo delNodeHintStorage = DatanodeStorageInfo.getDatanodeStorageInfo(nonExcess, delNodeHint);
+    final DatanodeStorageInfo addedNodeStorage = DatanodeStorageInfo.getDatanodeStorageInfo(nonExcess, addedNode);
+
     while (nonExcess.size() - replication > 0) {
       // check if we can delete delNodeHint
       final DatanodeStorageInfo cur;
-      if (firstOne && delStorageHint != null && nonExcess.contains(delStorageHint) &&
-          (priSet.contains(delStorageHint) ||
-              (addedStorage != null && !priSet.contains(addedStorage))
-          )) {
-        cur = delStorageHint;
+      if (useDelHint(firstOne, delNodeHintStorage, addedNodeStorage, remains,
+          excessTypes)) {
+        cur = delNodeHintStorage;
       } else { // regular excessive replica removal
-        cur = replicator.chooseReplicaToDelete(bc, b, replication, priSet,
-            remains, excessTypes);
+        cur = replicator.chooseReplicaToDelete(bc, b, replication,
+            remains, priSet, excessTypes);
       }
       firstOne = false;
 
@@ -3286,6 +3289,27 @@ public class BlockManager {
       addToInvalidates(b, cur);
       blockLog.info("BLOCK* chooseExcessReplicates: " + "(" + cur + ", " + b +
           ") is added to invalidated blocks set");
+    }
+  }
+
+  /** Check if we can use delHint */
+  static boolean useDelHint(boolean isFirst, DatanodeStorageInfo delHint,
+      DatanodeStorageInfo added, List<DatanodeStorageInfo> moreThan1Racks,
+      List<StorageType> excessTypes) {
+    if (!isFirst) {
+      return false; // only consider delHint for the first case
+    } else if (delHint == null) {
+      return false; // no delHint
+    } else if (!excessTypes.contains(delHint.getStorageType())) {
+      return false; // delHint storage type is not an excess type
+    } else {
+      // check if removing delHint reduces the number of racks
+      if (moreThan1Racks.contains(delHint)) {
+        return true; // delHint and some other nodes are under the same rack
+      } else if (added != null && !moreThan1Racks.contains(added)) {
+        return true; // the added node adds a new rack
+      }
+      return false; // removing delHint reduces the number of racks;
     }
   }
 
@@ -3454,12 +3478,12 @@ public class BlockManager {
     node.decrementBlocksScheduled(storage.getStorageType());
 
     // get the deletion hint node
-    DatanodeStorageInfo delStorageHint = null;
+    DatanodeDescriptor delHintNode = null;
     if (delHint != null && delHint.length() != 0) {
-      delStorageHint = datanodeManager.getStorage(delHint);
-      if (delStorageHint == null) {
-        blockLog.warn("BLOCK* blockReceived: " + block +
-            " is expected to be removed from an unrecorded node " + delHint);
+      delHintNode = datanodeManager.getDatanodeByUuid(delHint);
+      if (delHintNode == null) {
+        blockLog.warn("BLOCK* blockReceived: " + block
+            + " is expected to be removed from an unrecorded node " + delHint);
       }
     }
 
@@ -3468,18 +3492,21 @@ public class BlockManager {
     //
     pendingReplications.decrement(getBlockInfo(block));
     processAndHandleReportedBlock(storage, block, ReplicaState.FINALIZED,
-        delStorageHint);
+        delHintNode);
   }
   
-  private void processAndHandleReportedBlock(DatanodeStorageInfo storage,
-      Block block, ReplicaState reportedState, DatanodeStorageInfo
-      delStorageHint) throws IOException {
+  private void processAndHandleReportedBlock(
+      DatanodeStorageInfo storage, Block block,
+      ReplicaState reportedState, DatanodeDescriptor delHintNode)
+      throws IOException {
     // blockReceived reports a finalized block
     Collection<BlockInfo> toAdd = new LinkedList<>();
     Collection<Block> toInvalidate = new LinkedList<>();
     Collection<BlockToMarkCorrupt> toCorrupt =
         new LinkedList<>();
     Collection<StatefulBlockInfo> toUC = new LinkedList<>();
+    final DatanodeDescriptor node = storage.getDatanodeDescriptor();
+    
     processIncrementallyReportedBlock(storage, block, reportedState, toAdd, toInvalidate,
         toCorrupt, toUC);
     // the block is only in one of the to-do lists
@@ -3492,8 +3519,9 @@ public class BlockManager {
       addStoredBlockUnderConstruction(b.storedBlock, storage, b.reportedState);
     }
     for (BlockInfo b : toAdd) {
-      addStoredBlock(b, storage, delStorageHint, true);
+      addStoredBlock(b, storage, delHintNode, true);
     }
+
     for (Block b : toInvalidate) {
       blockLog.info("BLOCK* addBlock: block " + b + " on " + storage + " size " +
           b.getNumBytes() + " does not belong to any file");
@@ -4454,8 +4482,8 @@ public class BlockManager {
   }
 
   private Block addStoredBlockTx(final BlockInfo block,
-      final DatanodeStorageInfo storage, final DatanodeStorageInfo
-      delStorageHint, final boolean logEveryBlock) throws IOException {
+      final DatanodeStorageInfo storage, final DatanodeDescriptor
+      delNodeHint, final boolean logEveryBlock) throws IOException {
     return (Block) new HopsTransactionalRequestHandler(
         HDFSOperationType.AFTER_PROCESS_REPORT_ADD_BLK) {
       INodeIdentifier inodeIdentifier;
@@ -4481,7 +4509,7 @@ public class BlockManager {
 
       @Override
       public Object performTask() throws IOException {
-        return addStoredBlock(block, storage, delStorageHint, logEveryBlock);
+        return addStoredBlock(block, storage, delNodeHint, logEveryBlock);
       }
     }.handle();
   }
