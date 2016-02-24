@@ -97,7 +97,8 @@ public class ReplicaUnderConstructionContext
   @Override
   ReplicaUnderConstruction cloneEntity(
       ReplicaUnderConstruction replicaUnderConstruction, int inodeId) {
-    return new ReplicaUnderConstruction(replicaUnderConstruction.getState(),
+    return new ReplicaUnderConstruction(
+        replicaUnderConstruction.getState(),
         replicaUnderConstruction.getStorageId(),
         replicaUnderConstruction.getBlockId(), inodeId,
         replicaUnderConstruction.getBucketId());
