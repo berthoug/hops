@@ -23,6 +23,7 @@ import com.google.common.net.InetAddresses;
 import io.hops.common.INodeUtil;
 import io.hops.exception.StorageException;
 import io.hops.metadata.StorageIdMap;
+import io.hops.metadata.StorageMap;
 import io.hops.metadata.hdfs.entity.INodeIdentifier;
 import io.hops.transaction.handler.HDFSOperationType;
 import io.hops.transaction.handler.HopsTransactionalRequestHandler;
@@ -179,6 +180,8 @@ public class DatanodeManager {
    * Works effectively like a cache to avoid hitting the DAL.
    */
   private StorageIdMap storageIdMap;
+
+  private final StorageMap storageMap = new StorageMap();
   
   DatanodeManager(final BlockManager blockManager, final Namesystem namesystem,
       final Configuration conf) throws IOException {
@@ -773,7 +776,8 @@ public class DatanodeManager {
     }
 
     // register new datanode
-    DatanodeDescriptor nodeDescr = new DatanodeDescriptor(nodeReg, NetworkTopology.DEFAULT_RACK);
+    DatanodeDescriptor nodeDescr = new DatanodeDescriptor(this.storageMap,
+        nodeReg, NetworkTopology.DEFAULT_RACK);
 
     // TODO check if we need this HDP_2.6
     // Update all storages in this datanode
@@ -1098,7 +1102,7 @@ public class DatanodeManager {
         // head from. Eg. a host that is no longer part of the cluster
         // or a bogus entry was given in the hosts files
         DatanodeID dnId = parseDNFromHostsEntry(s);
-        DatanodeDescriptor dn = new DatanodeDescriptor(dnId);
+        DatanodeDescriptor dn = new DatanodeDescriptor(this.storageMap, dnId);
         dn.setLastUpdate(0); // Consider this node dead for reporting
         nodes.add(dn);
       }
@@ -1469,10 +1473,10 @@ public class DatanodeManager {
    * Adds or replaces storageinfo for the sid
    */
   public void updateStorage(DatanodeStorageInfo storageInfo) {
-    storageInfoMap.put(storageInfo.getSid(), storageInfo);
+    this.storageMap.updateStorage(storageInfo);
   }
 
   public DatanodeStorageInfo getStorage(int sid) {
-    return storageInfoMap.get(sid);
+    return this.storageMap.getStorage(sid);
   }
 }
