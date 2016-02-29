@@ -2231,7 +2231,7 @@ public class FSNamesystem
               if (locatedBlock != null && !locatedBlock.isPhantomBlock()) {
                 for (String storageID : locatedBlock.getStorageIDs()) {
                     
-                  int sId = blockManager.getDatanodeManager().getStorage(storageID).getSid();
+                  int sId = blockManager.getDatanodeManager().getSid(storageID);
                   BlockInfo blockInfo =
                       EntityManager.find(BlockInfo.Finder.ByBlockIdAndINodeId,
                           locatedBlock.getBlock().getBlockId(), target.getId());

@@ -276,7 +276,8 @@ public class BlockInfoUnderConstruction extends BlockInfo {
       return;
     }
     ReplicaUnderConstruction replica =
-        new ReplicaUnderConstruction(rState, sid, getBlockId(), getInodeId());
+        new ReplicaUnderConstruction(rState, sid, getBlockId(), getInodeId(),
+            HashBuckets.getInstance().getBucketForBlock(this));
     update(replica);
   }
 

@@ -248,6 +248,8 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     }
 
     registerMBean(datanode.getDatanodeUuid());
+    NUM_BUCKETS = conf.getInt(DFSConfigKeys.DFS_NUM_BUCKETS_KEY,
+        DFSConfigKeys.DFS_NUM_BUCKETS_DEFAULT);
   }
 
   private void addVolume(Collection<StorageLocation> dataLocations,
@@ -272,8 +274,6 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       asyncDiskService.addVolume(sd.getCurrentDir());
       volumes.addVolume(fsVolume);
     }
-    NUM_BUCKETS = conf.getInt(DFSConfigKeys.DFS_NUM_BUCKETS_KEY,
-        DFSConfigKeys.DFS_NUM_BUCKETS_DEFAULT);
     LOG.info("Added volume - " + dir + ", StorageType: " + storageType);
   }
 

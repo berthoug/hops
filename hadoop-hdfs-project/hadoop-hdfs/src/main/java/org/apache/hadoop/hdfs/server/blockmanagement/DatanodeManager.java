@@ -1449,17 +1449,12 @@ public class DatanodeManager {
 
   Random rand = new Random(System.currentTimeMillis());
   public DatanodeDescriptor getRandomDN(){
-    List<String> sids = new ArrayList<>(storageIdMap.getStorageIds());
-    if(sids.size()>0) {
-      for(int i = 0;i < sids.size();i++){
-        String sid = sids.get(rand.nextInt(sids.size()));
-        DatanodeDescriptor dd = getDatanode(sid);
-        if(dd != null){
-          return dd;
-        }
-      }
+    if(datanodeMap.isEmpty()){
+        return null;
+    }else{
+        
+      return (DatanodeDescriptor) datanodeMap.values().toArray()[rand.nextInt(datanodeMap.size())];
     }
-    return null;
   }
   
 
@@ -1478,5 +1473,9 @@ public class DatanodeManager {
 
   public DatanodeStorageInfo getStorage(int sid) {
     return this.storageMap.getStorage(sid);
+  }
+  
+  public int getSid(String StorageId){
+    return this.getSid(StorageId);
   }
 }
