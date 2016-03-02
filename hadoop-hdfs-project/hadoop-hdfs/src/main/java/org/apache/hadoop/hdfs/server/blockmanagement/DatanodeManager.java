@@ -365,6 +365,12 @@ public class DatanodeManager {
     return datanodeMap.get(uuid);
   }
 
+  public DatanodeDescriptor getDatanodeBySid(final int sid) {
+    DatanodeStorageInfo storage = this.getStorage(sid);
+
+    return (storage == null) ? null : storage.getDatanodeDescriptor();
+  }
+
   /**
    * Get data node by datanode ID.
    *
@@ -1464,5 +1470,8 @@ public class DatanodeManager {
   
   public int getSid(String StorageId){
     return this.getSid(StorageId);
+
+  public List<Integer> getSidsOnDatanode(String datanodeUuid) {
+    return this.storageMap.getSidsForDatanodeUuid(datanodeUuid);
   }
 }

@@ -340,7 +340,7 @@ public class DatanodeStorageInfo {
         InvalidateBlockDataAccess da =
             (InvalidateBlockDataAccess) HdfsStorageFactory
                 .getDataAccess(InvalidateBlockDataAccess.class);
-        return da.findInvalidatedBlockBySidUsingMySQLServer(sid);
+        return da.findInvalidatedBlockBySidUsingMySQLServer(getSid());
       }
     };
     return (Map<Long, Long>) findBlocksHandler.handle();

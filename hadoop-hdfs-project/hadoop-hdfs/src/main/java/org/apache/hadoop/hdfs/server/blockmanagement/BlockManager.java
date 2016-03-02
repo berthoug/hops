@@ -737,7 +737,7 @@ public class BlockManager {
 
     // remove this block from the list of pending blocks to be deleted. 
     for (DatanodeStorageInfo target : targets) {
-      invalidateBlocks.remove(target.getDatanodeDescriptor(), oldBlock);
+      invalidateBlocks.remove(target, oldBlock);
     }
 
     // Adjust safe-mode totals, since under-construction blocks don't
@@ -762,7 +762,7 @@ public class BlockManager {
         new ArrayList<>(blocksMap.numNodes(block));
     for (DatanodeStorageInfo storage : blocksMap.storageList(block)){
       // filter invalid replicas
-      if (!invalidateBlocks.contains(storage.getDatanodeDescriptor(), block)) {
+      if (!invalidateBlocks.contains(storage, block)) {
         storageSet.add(storage.getStorageID());
       }
     }
@@ -1111,7 +1111,8 @@ public class BlockManager {
 //    pendingDNMessages.removeAllMessagesForDatanode(node);
 
     node.resetBlocks();
-    invalidateBlocks.remove(node);
+    List<Integer> sids = datanodeManager.getSidsOnDatanode(node.getDatanodeUuid());
+    invalidateBlocks.remove(sids);
 
     // If the DN hasn't block-reported since the most recent
     // failover, then we may have been holding up on processing
@@ -1140,7 +1141,7 @@ public class BlockManager {
     while(it.hasNext()) {
       BlockInfo block = it.next();
       removeStoredBlock(block, storageInfo.getDatanodeDescriptor());
-      invalidateBlocks.remove(storageInfo.getDatanodeDescriptor(), block);
+      invalidateBlocks.remove(storageInfo, block);
     }
     namesystem.checkSafeMode();
   }
@@ -1747,7 +1748,7 @@ public class BlockManager {
         corrupt++;
       } else if (node.isDecommissionInProgress() || node.isDecommissioned()) {
         decommissioned++;
-      } else if (excessReplicateMap.contains(node, block)) {
+      } else if (excessReplicateMap.contains(storage, block)) {
           excess++;
       } else {
         nodesContainingLiveReplicas.add(storage);
@@ -1768,7 +1769,7 @@ public class BlockManager {
         continue;
       }
       // the block must not be scheduled for removal on srcNode
-      if (excessReplicateMap.contains(node, block)) {
+      if (excessReplicateMap.contains(storage, block)) {
         continue;
       }
       // never use already decommissioned nodes
@@ -2432,7 +2433,7 @@ public class BlockManager {
     }
 
     // Ignore replicas already scheduled to be removed from the DN
-    if (invalidateBlocks.contains(storage.getDatanodeDescriptor(), getBlockInfo(block))) {
+    if (invalidateBlocks.contains(storage, getBlockInfo(block))) {
      /*  TODO: following assertion is incorrect, see HDFS-2668
       assert storedBlock.findDatanode(dn) < 0 : "Block " + block
       + " in recentInvalidatesSet should not appear in DN " + dn; */
@@ -3166,8 +3167,7 @@ public class BlockManager {
         postponeBlock(block);
         return;
       }
-      if (!excessReplicateMap.contains(storage.getDatanodeDescriptor(),
-          getBlockInfo(block))) {
+      if (!excessReplicateMap.contains(storage, getBlockInfo(block))) {
         if (!cur.isDecommissionInProgress() && !cur.isDecommissioned()) {
           // exclude corrupt replicas
           if (corruptNodes == null || !corruptNodes.contains(cur)) {
@@ -3317,9 +3317,7 @@ public class BlockManager {
       throws StorageException, TransactionContextException {
     BlockInfo blockInfo = getBlockInfo(block);
 
-    if (excessReplicateMap.put(
-        storage.getDatanodeDescriptor().getDatanodeUuid(),
-        storage.getSid(), blockInfo)) {
+    if (excessReplicateMap.put(storage.getSid(), blockInfo)) {
       excessBlocksCount.incrementAndGet();
       if (blockLog.isDebugEnabled()) {
         blockLog.debug(
@@ -3363,7 +3361,7 @@ public class BlockManager {
     // We've removed a block from a node, so it's definitely no longer
     // in "excess" there.
     //
-    if (excessReplicateMap.remove(node.getDatanodeUuid(), getBlockInfo(block))) {
+    if (excessReplicateMap.remove(node, getBlockInfo(block))) {
       excessBlocksCount.decrementAndGet();
       if (blockLog.isDebugEnabled()) {
         blockLog.debug("BLOCK* removeStoredBlock: " + block +
@@ -3713,7 +3711,7 @@ public class BlockManager {
       } else if (node.isDecommissionInProgress() || node.isDecommissioned()) {
         decommissioned++;
       } else {
-        LightWeightLinkedSet<Block> blocksExcess = excessReplicateMap.get(node.getDatanodeUuid());
+        LightWeightLinkedSet<Block> blocksExcess = excessReplicateMap.get(storage.getSid());
         if (blocksExcess != null && blocksExcess.contains(b)) {
           excess++;
         } else {
@@ -4045,13 +4043,19 @@ public class BlockManager {
     if (dnDescriptor == null) {
       LOG.warn("DataNode " + dn + " cannot be found with UUID " +
           dn.getDatanodeUuid() + ", removing block invalidation work.");
-      invalidateBlocks.remove(dn);
+      List<Integer> sids = datanodeManager.getSidsOnDatanode(dn.getDatanodeUuid());
+      invalidateBlocks.remove(sids);
       return 0;
     }
     final List<Block> toInvalidate = invalidateBlocks.invalidateWork(dnDescriptor);
 
     if (toInvalidate == null) {
       return 0;
+    }
+
+    if (blockLog.isInfoEnabled()) {
+      blockLog.info("BLOCK* " + getClass().getSimpleName()
+          + ": ask " + dn + " to delete " + toInvalidate);
     }
 
     return toInvalidate.size();
