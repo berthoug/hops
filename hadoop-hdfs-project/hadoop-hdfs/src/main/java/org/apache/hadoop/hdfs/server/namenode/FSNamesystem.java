@@ -2671,8 +2671,7 @@ public class FSNamesystem
   boolean completeFile(final String src, final String holder,
       final ExtendedBlock last, final byte[] data) throws IOException {
     HopsTransactionalRequestHandler completeFileHandler =
-        new HopsTransactionalRequestHandler(HDFSOperationType.COMPLETE_FILE,
-            src) {
+        new HopsTransactionalRequestHandler(HDFSOperationType.COMPLETE_FILE, src) {
           @Override
           public void acquireLock(TransactionLocks locks) throws IOException {
             LockFactory lf = getInstance();
@@ -2684,8 +2683,7 @@ public class FSNamesystem
 
             if (data == null) { // the data is stored on the datanodes.
               locks.add(
-                  lf.getBlockRelated(BLK.RE, BLK.CR, BLK.ER, BLK.UC, BLK.UR,
-                      BLK.IV));
+                  lf.getBlockRelated(BLK.RE, BLK.CR, BLK.ER, BLK.UC, BLK.UR, BLK.IV));
             }
           }
 
@@ -2696,6 +2694,7 @@ public class FSNamesystem
                 ExtendedBlock.getLocalBlock(last), data);
           }
         };
+
     return (Boolean) completeFileHandler.handle(this);
   }
 
@@ -2753,7 +2752,7 @@ public class FSNamesystem
     commitOrCompleteLastBlock(pendingFile, last);
 
     if (!checkFileProgress(pendingFile, true)) {
-      return false;
+      return false; // TODO it's going here...
     }
 
     finalizeINodeFileUnderConstruction(src, pendingFile);
@@ -3644,8 +3643,8 @@ public class FSNamesystem
       public void acquireLock(TransactionLocks locks) throws IOException {
         LockFactory lf = getInstance();
         locks.add(
-            lf.getIndividualINodeLock(INodeLockType.WRITE, inodeIdentifier,
-                true)).add(lf.getLeaseLock(LockType.WRITE))
+            lf.getIndividualINodeLock(INodeLockType.WRITE, inodeIdentifier, true))
+            .add(lf.getLeaseLock(LockType.WRITE))
             .add(lf.getLeasePathLock(LockType.READ_COMMITTED))
             .add(lf.getBlockLock(lastBlock.getBlockId(), inodeIdentifier))
             .add(lf.getBlockRelated(BLK.RE, BLK.CR, BLK.ER, BLK.UC, BLK.UR));

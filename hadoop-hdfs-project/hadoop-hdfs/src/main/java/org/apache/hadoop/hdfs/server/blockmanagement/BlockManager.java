@@ -616,18 +616,18 @@ public class BlockManager {
     if (lastBlock.isComplete()) {
       return false; // already completed (e.g. by syncBlock)
     }
+    
+    final boolean b = commitBlock((BlockInfoUnderConstruction) lastBlock, commitBlock);
+    LOG.debug("commitOrCompleteLastBlock for block " + lastBlock.getBlockId());
 
-    final boolean b =
-        commitBlock((BlockInfoUnderConstruction) lastBlock, commitBlock);
-    LOG.debug(
-        "commitOrCompleteLastBlock. Commited Block " + lastBlock.getBlockId());
-    if (countNodes(lastBlock).liveReplicas() >= minReplication) {
-      completeBlock(bc, lastBlock.getBlockIndex(), false);
-      LOG.debug("commitOrCompleteLastBlock. Completed Block " +
-          lastBlock.getBlockId());
+    int numReplicas = countNodes(lastBlock).liveReplicas();
+    if (numReplicas >= minReplication) {
+      completeBlock(bc, bc.numBlocks() - 1, false);
+      LOG.debug("commitOrCompleteLastBlock. Completed Block " + lastBlock.getBlockId());
     } else {
-      LOG.debug("commitOrCompleteLastBlock. Completed FAILED. Block " +
-          lastBlock.getBlockId());
+      LOG.debug("commitOrCompleteLastBlock. Completed FAILED. " +
+          "Block " + lastBlock.getBlockId() + ": " +
+          "needed " + minReplication + " replicas, but only has " + numReplicas);
     }
     return b;
   }
@@ -3535,7 +3535,7 @@ public class BlockManager {
    * This includes blocks that are starting to be received, completed being
    * received, or deleted.
    */
-  //TODO change to a per-storage report (one report message deals with an
+  // TODO change to a per-storage report (one report message deals with an
   // entire host, but it's split up per storage)
   public void processIncrementalBlockReport(DatanodeRegistration nodeID,
       final String poolId, final StorageReceivedDeletedBlocks blockInfos)
@@ -3555,7 +3555,7 @@ public class BlockManager {
           "Got incremental block report from unregistered or dead node");
     }
 
-    // Little hack; since we can reassign final s if s==null, we have to
+    // Little hack; since we can't reassign final s if s==null, we have to
     // declare s as a normal variable and then assign it to a statically
     // declared variable
     DatanodeStorageInfo s = node.getStorageInfo(blockInfos.getStorage()
@@ -3706,6 +3706,7 @@ public class BlockManager {
     for(DatanodeStorageInfo storage: blocksMap.storageList(b)) {
 
       final DatanodeDescriptor node = storage.getDatanodeDescriptor();
+
       if ((nodesCorrupt != null) && (nodesCorrupt.contains(node))) {
         corrupt++;
       } else if (node.isDecommissionInProgress() || node.isDecommissioned()) {
