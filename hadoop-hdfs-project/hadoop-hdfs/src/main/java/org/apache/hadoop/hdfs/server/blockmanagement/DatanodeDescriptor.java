@@ -839,7 +839,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     return sb.toString();
   }
 
-  DatanodeStorageInfo updateStorage(DatanodeStorage s) {
+  public DatanodeStorageInfo updateStorage(DatanodeStorage s) {
     synchronized (storageMap) {
       DatanodeStorageInfo storage = getStorageInfo(s.getStorageID());
       if (storage == null) {

@@ -260,10 +260,15 @@ public class BlockInfo extends Block {
   
   /**
    * Adds new replica for this block.
+   * @return the replica stored, or null if it is already stored on this storage
    */
   void addReplica(DatanodeStorageInfo storage)
       throws StorageException, TransactionContextException {
     // TODO check we don't already have a replica on this machine
+    if(isReplicatedOnStorage(storage)) {
+      return;
+    }
+    
     Replica replica =
         new Replica(storage.getSid(), getBlockId(), getInodeId(), HashBuckets
             .getInstance().getBucketForBlock(this));
