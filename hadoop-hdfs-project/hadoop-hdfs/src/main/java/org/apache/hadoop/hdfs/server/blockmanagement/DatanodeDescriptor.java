@@ -313,12 +313,8 @@ public class DatanodeDescriptor extends DatanodeInfo {
    */
   public boolean removeReplica(BlockInfo b)
       throws StorageException, TransactionContextException {
-    return this.removeReplica(this.getDatanodeUuid(), b);
-  }
+    DatanodeStorageInfo s = b.getStorageOnNode(this);
 
-  boolean removeReplica(String storageID, BlockInfo b) throws
-      StorageException, TransactionContextException {
-    DatanodeStorageInfo s = getStorageInfo(storageID);
     if (s != null) {
       b.removeReplica(s);
     }
