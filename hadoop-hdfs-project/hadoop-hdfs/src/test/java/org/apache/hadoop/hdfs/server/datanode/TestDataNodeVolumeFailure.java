@@ -49,6 +49,7 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.hadoop.hdfs.server.protocol.BlockReport;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -149,19 +150,32 @@ public class TestDataNodeVolumeFailure {
     DataNode dn = cluster.getDataNodes().get(1); //corresponds to dir data3
     String bpid = cluster.getNamesystem().getBlockPoolId();
     DatanodeRegistration dnR = dn.getDNRegistrationForBP(bpid);
-    final StorageBlockReport[] report =
-        {new StorageBlockReport(new DatanodeStorage(dnR.getDatanodeUuid()),
-            DataNodeTestUtils.getFSDataset(dn).getBlockReport(bpid))};
-    cluster.getNameNodeRpc().blockReport(dnR, bpid, report);
+
+    Map<DatanodeStorage, BlockReport> perVolumeBlockLists =
+        dn.getFSDataset().getBlockReports(bpid);
+
+    // Send block report
+    StorageBlockReport[] reports =
+        new StorageBlockReport[perVolumeBlockLists.size()];
+
+    int reportIndex = 0;
+    for(Map.Entry<DatanodeStorage, BlockReport> kvPair : perVolumeBlockLists.entrySet()) {
+      DatanodeStorage dnStorage = kvPair.getKey();
+      BlockReport blockList = kvPair.getValue();
+      reports[reportIndex++] =
+          new StorageBlockReport(dnStorage, blockList);
+    }
+
+    cluster.getNameNodeRpc().blockReport(dnR, bpid, reports);
 
     // verify number of blocks and files...
     verify(filename, filesize);
-    
+
     // create another file (with one volume failed).
     System.out.println("creating file test1.txt");
     Path fileName1 = new Path("/test1.txt");
     DFSTestUtil.createFile(fs, fileName1, filesize, repl, 1L);
-    
+
     // should be able to replicate to both nodes (2 DN, repl=2)
     DFSTestUtil.waitReplication(fs, fileName1, repl);
     System.out.println("file " + fileName1.getName() +

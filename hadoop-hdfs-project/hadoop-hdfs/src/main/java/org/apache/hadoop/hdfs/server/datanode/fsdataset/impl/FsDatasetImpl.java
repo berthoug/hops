@@ -127,6 +127,11 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   }
 
   @Override
+  public DatanodeStorage getStorage(final String storageUuid) {
+    return storageMap.get(storageUuid);
+  }
+
+  @Override
   public synchronized FsVolumeImpl getVolume(final ExtendedBlock b) {
     final ReplicaInfo r = volumeMap.get(b.getBlockPoolId(), b.getLocalBlock());
     return r != null ? (FsVolumeImpl) r.getVolume() : null;
@@ -725,7 +730,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   }
 
   @Override // FsDatasetSpi
-  public void recoverClose(ExtendedBlock b, long newGS, long expectedBlockLen)
+  public String recoverClose(ExtendedBlock b, long newGS, long expectedBlockLen)
       throws IOException {
     LOG.info("Recover failed close " + b);
     // check replica's state
@@ -736,6 +741,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     if (replicaInfo.getState() == ReplicaState.RBW) {
       finalizeReplica(b.getBlockPoolId(), replicaInfo);
     }
+    return replicaInfo.getStorageUuid();
   }
   
   /**
@@ -1054,24 +1060,29 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
    * Generates a block report from the in-memory block map.
    */
   @Override // FsDatasetSpi
-  public BlockReport getBlockReport(String bpid) {
-    int size = volumeMap.size(bpid);
-    BlockReport.Builder builder = BlockReport.builder(NUM_BUCKETS);
-    if (size == 0) {
-      return builder.build();
+  public Map<DatanodeStorage, BlockReport> getBlockReports(String bpid) {
+    Map<DatanodeStorage, BlockReport> blockReportsMap =
+        new HashMap<DatanodeStorage, BlockReport>();
+
+    Map<String, BlockReport.Builder> builders =
+        new HashMap<String, BlockReport.Builder>();
+   
+    List<FsVolumeImpl> curVolumes = getVolumes();
+    for (FsVolumeSpi v : curVolumes) {
+      builders.put(v.getStorageID(), BlockReport.builder(NUM_BUCKETS));
     }
-    
-    synchronized (this) {
+
+    synchronized(this) {
       for (ReplicaInfo b : volumeMap.replicas(bpid)) {
-        switch (b.getState()) {
+        switch(b.getState()) {
           case FINALIZED:
           case RBW:
           case RWR:
-            builder.add(b);
+            builders.get(b.getVolume()).add(b);
             break;
           case RUR:
             ReplicaUnderRecovery rur = (ReplicaUnderRecovery) b;
-            builder.add(rur.getOriginalReplica());
+            builders.get(b.getVolume()).add(rur.getOriginalReplica());
             break;
           case TEMPORARY:
             break;
@@ -1079,8 +1090,13 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
             assert false : "Illegal ReplicaInfo state.";
         }
       }
-      return builder.build();
     }
+
+    for (FsVolumeImpl v : curVolumes) {
+      blockReportsMap.put(((FsVolumeImpl) v).toDatanodeStorage(),builders.get(v.getStorageID()).build());
+    }
+
+    return blockReportsMap;
   }
 
   /**

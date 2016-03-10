@@ -510,8 +510,8 @@ public class BlockManager {
     List<DatanodeDescriptor> containingNodes =
         new ArrayList<>();
     List<DatanodeStorageInfo> containingLiveReplicasNodes =
-        new ArrayList<>();
-    
+        new ArrayList<DatanodeStorageInfo>();
+
     NumberReplicas numReplicas = new NumberReplicas();
     // source node returned is not used
     chooseSourceDatanode(block, containingNodes, containingLiveReplicasNodes, numReplicas, UnderReplicatedBlocks.LEVEL);
@@ -1893,10 +1893,8 @@ public class BlockManager {
     }
 
     DatanodeStorageInfo storageInfo = node.getStorageInfo(storage.getStorageID());
-
     if (storageInfo == null) {
       // We handle this for backwards compatibility.
-      // TODO this changed!
       storageInfo = node.updateStorage(storage);
     }
 

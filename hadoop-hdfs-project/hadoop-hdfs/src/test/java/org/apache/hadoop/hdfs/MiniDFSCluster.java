@@ -61,6 +61,7 @@ import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.NameNodeAdapter;
 import org.apache.hadoop.hdfs.server.protocol.BlockReport;
 import org.apache.hadoop.hdfs.server.protocol.BlockReportBlock;
+import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.NamenodeProtocols;
 import org.apache.hadoop.hdfs.tools.DFSAdmin;
 import org.apache.hadoop.hdfs.web.HftpFileSystem;
@@ -89,6 +90,7 @@ import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -1874,31 +1876,30 @@ public class MiniDFSCluster {
   }
   
   /**
-   * @param dataNodeIndex
-   *     - data node whose block report is desired - the index is same as for
-   *     getDataNodes()
+   *
+   * @param dataNodeIndex - data node whose block report is desired - the index is same as for getDataNodes()
    * @return the block report for the specified data node
    */
-  public Iterable<BlockReportBlock> getBlockReport(String bpid, int
-      dataNodeIndex) {
+  public Map<DatanodeStorage, BlockReport> getBlockReport(String bpid, int dataNodeIndex) {
     if (dataNodeIndex < 0 || dataNodeIndex > dataNodes.size()) {
       throw new IndexOutOfBoundsException();
     }
     final DataNode dn = dataNodes.get(dataNodeIndex).datanode;
-    return DataNodeTestUtils.getFSDataset(dn).getBlockReport(bpid);
+    return DataNodeTestUtils.getFSDataset(dn).getBlockReports(bpid);
   }
   
   
   /**
+   *
    * @return block reports from all data nodes
-   * BlockListAsLongs is indexed in the same order as the list of datanodes
-   * returned by getDataNodes()
+   *    BlockListAsLongs is indexed in the same order as the list of datanodes returned by getDataNodes()
    */
-  public Iterable<BlockReportBlock>[] getAllBlockReports(String bpid) {
+  public List<Map<DatanodeStorage, BlockReport>> getAllBlockReports(String bpid) {
     int numDataNodes = dataNodes.size();
-    Iterable<BlockReportBlock>[] result = new BlockReport[numDataNodes];
+    final List<Map<DatanodeStorage, BlockReport>> result
+        = new ArrayList<Map<DatanodeStorage, BlockReport>>(numDataNodes);
     for (int i = 0; i < numDataNodes; ++i) {
-      result[i] = getBlockReport(bpid, i);
+      result.add(getBlockReport(bpid, i));
     }
     return result;
   }
@@ -1928,6 +1929,35 @@ public class MiniDFSCluster {
           "injectBlocks is valid only for SimilatedFSDataset");
     }
     String bpid = getNamesystem().getBlockPoolId();
+    SimulatedFSDataset sdataset = (SimulatedFSDataset) dataSet;
+    sdataset.injectBlocks(bpid, blocksToInject);
+    dataNodes.get(dataNodeIndex).datanode.scheduleAllBlockReport(0);
+  }
+
+  /**
+   * This method is valid only if the data nodes have simulated data
+   * @param dataNodeIndex - data node i which to inject - the index is same as for getDataNodes()
+   * @param blocksToInject - the blocks
+   * @param bpid - (optional) the block pool id to use for injecting blocks.
+   *             If not supplied then it is queried from the in-process NameNode.
+   * @throws IOException
+   *              if not simulatedFSDataset
+   *             if any of blocks already exist in the data node
+   *
+   */
+  public void injectBlocks(int dataNodeIndex,
+      Iterable<Block> blocksToInject, String bpid) throws IOException {
+    if (dataNodeIndex < 0 || dataNodeIndex > dataNodes.size()) {
+      throw new IndexOutOfBoundsException();
+    }
+    final DataNode dn = dataNodes.get(dataNodeIndex).datanode;
+    final FsDatasetSpi<?> dataSet = DataNodeTestUtils.getFSDataset(dn);
+    if (!(dataSet instanceof SimulatedFSDataset)) {
+      throw new IOException("injectBlocks is valid only for SimilatedFSDataset");
+    }
+    if (bpid == null) {
+      bpid = getNamesystem().getBlockPoolId();
+    }
     SimulatedFSDataset sdataset = (SimulatedFSDataset) dataSet;
     sdataset.injectBlocks(bpid, blocksToInject);
     dataNodes.get(dataNodeIndex).datanode.scheduleAllBlockReport(0);
