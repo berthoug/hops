@@ -59,446 +59,321 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 
 public class QuotaService extends AbstractService {
 
-  private Thread quotaSchedulingThread;
-  private volatile boolean stopped = false;
-  private long ticksPerCredit = 1;
-  private long minNumberOfTicks = 1;
-  private static final Log LOG = LogFactory.getLog(QuotaService.class);
+private Thread quotaSchedulingThread;
+private volatile boolean stopped = false;
+//private long ticksPerCredit = 1;
+private long minNumberOfTicks = 1;
+private static final Log LOG = LogFactory.getLog(QuotaService.class );
 
-  ApplicationStateDataAccess appStatDS
-          = (ApplicationStateDataAccess) RMStorageFactory.
-          getDataAccess(ApplicationStateDataAccess.class);
-  Map<String, String> applicationStateCache = new HashMap<String, String>();
-  Map<String, Long> containersCheckPoints;
-  Set<String> recovered = new HashSet<String>();
+ApplicationStateDataAccess appStatDS = (ApplicationStateDataAccess) RMStorageFactory.getDataAccess(ApplicationStateDataAccess.class );
+Map<String, String> applicationStateCache = new HashMap<String, String>();
+Map<String, ContainerCheckPoint> containersCheckPoints;
+Set<String> recovered = new HashSet<String>();
 
-  BlockingQueue<ContainersLogs> eventContainersLogs
-          = new LinkedBlockingQueue<ContainersLogs>();
+BlockingQueue<ContainersLogs> eventContainersLogs = new LinkedBlockingQueue<ContainersLogs>();
 
-  public QuotaService() {
-    super("quota scheduler service");
-  }
+public QuotaService() {
+        super("quota scheduler service");
+}
 
-  @Override
-  protected void serviceStart() throws Exception {
-    assert !stopped : "starting when already stopped";
-    LOG.info("Starting a new quota schedular service");
-    recover();
-    quotaSchedulingThread = new Thread(new WorkingThread());
-    quotaSchedulingThread.setName("Quota scheduling service");
-    quotaSchedulingThread.start();
-    super.serviceStart();
-  }
+@Override
+protected void serviceStart() throws Exception {
+        assert !stopped : "starting when already stopped";
+        LOG.info("Starting a new quota schedular service");
+        recover();
+        quotaSchedulingThread = new Thread(new WorkingThread());
+        quotaSchedulingThread.setName("Quota scheduling service");
+        quotaSchedulingThread.start();
+        super.serviceStart();
+}
 
-  @Override
-  protected void serviceStop() throws Exception {
-    stopped = true;
-    if (quotaSchedulingThread != null) {
-      quotaSchedulingThread.interrupt();
-    }
-    super.serviceStop();
-    LOG.info("Stopping the quota schedular service.");
-  }
-
-  @Override
-  public void serviceInit(Configuration conf) throws Exception {
-    ticksPerCredit=conf.getInt(YarnConfiguration.QUOTAS_TICKS_PER_CREDIT, 
-            YarnConfiguration.DEFAULT_QUOTAS_TICKS_PER_CREDIT);
-    minNumberOfTicks=conf.getInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 
-            YarnConfiguration.DEFAULT_QUOTAS_MIN_TICKS_CHARGE);
-  }
-
-  public void insertEvents(Collection<ContainersLogs> containersLogs) {
-    for (ContainersLogs cl : containersLogs) {
-      eventContainersLogs.add(cl);
-    }
-  }
-
-  private class WorkingThread implements Runnable {
-
-    @Override
-    public void run() {
-      LOG.info("Quota Scheduler started");
-
-      while (!stopped && !Thread.currentThread().isInterrupted()) {
-        try {
-
-          final List<ContainersLogs> hopContainersLogs
-                  = new ArrayList<ContainersLogs>();
-          Long start = System.currentTimeMillis();
-          long duration = 0;
-          ContainersLogs log = null;
-          do {
-            try {
-              log = eventContainersLogs.poll(1, TimeUnit.SECONDS);
-            } catch (InterruptedException ex) {
-              LOG.error(ex);
-            }
-            if (log != null) {
-              hopContainersLogs.add(log);
-            }
-            duration = System.currentTimeMillis() - start;
-            //TODO put 1000 and 100 in the config file.
-          } while (duration < 1000 && hopContainersLogs.size() < 100);
-
-          start = System.currentTimeMillis();
-          computeAndApplyCharge(hopContainersLogs, false);
-          duration = System.currentTimeMillis() - start;
-          LOG.debug("RIZ: " + duration);
-        } catch (IOException ex) {
-          LOG.error(ex, ex);
+@Override
+protected void serviceStop() throws Exception {
+        stopped = true;
+        if (quotaSchedulingThread != null) {
+                quotaSchedulingThread.interrupt();
         }
-      }
-      LOG.info("Quota scheduler thread is exiting gracefully");
-    }
-  }
+        super.serviceStop();
+        LOG.info("Stopping the quota schedular service.");
+}
 
-  protected void computeAndApplyCharge(
-          final Collection<ContainersLogs> hopContainersLogs,
-          final boolean isRecover)
-          throws IOException {
-    LightWeightRequestHandler quotaSchedulerHandler
-            = new LightWeightRequestHandler(
-                    YARNOperationType.TEST) {
-                      @Override
-                      public Object performTask() throws
-                      IOException {
+@Override
+public void serviceInit(Configuration conf) throws Exception {
+        //ticksPerCredit = conf.getInt(YarnConfiguration.QUOTAS_TICKS_PER_CREDIT, YarnConfiguration.DEFAULT_QUOTAS_TICKS_PER_CREDIT);
+        minNumberOfTicks = conf.getInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, YarnConfiguration.DEFAULT_QUOTAS_MIN_TICKS_CHARGE);
+}
+
+public void insertEvents(Collection<ContainersLogs> containersLogs) {
+        for (ContainersLogs cl : containersLogs) {
+                eventContainersLogs.add(cl);
+        }
+}
+
+private class WorkingThread implements Runnable {
+
+@Override
+public void run() {
+        LOG.info("Quota Scheduler started");
+
+        while (!stopped && !Thread.currentThread().isInterrupted()) {
+                try {
+
+                        final List<ContainersLogs> hopContainersLogs = new ArrayList<ContainersLogs>();
+                        Long start = System.currentTimeMillis();
+                        long duration = 0;
+                        ContainersLogs log = null;
+                        do {
+                                try {
+                                        log = eventContainersLogs.poll(1, TimeUnit.SECONDS);
+                                } catch (InterruptedException ex) {
+                                        LOG.error(ex);
+                                }
+                                if (log != null) {
+                                        hopContainersLogs.add(log);
+                                }
+                                duration = System.currentTimeMillis() - start;
+                                //TODO put 1000 and 100 in the config file.
+                        } while (duration < 1000 && hopContainersLogs.size() < 100);
+
+                        start = System.currentTimeMillis();
+                        computeAndApplyCharge(hopContainersLogs, false);
+                        duration = System.currentTimeMillis() - start;
+                        LOG.debug("RIZ: " + duration);
+                } catch (IOException ex) {
+                        LOG.error(ex, ex);
+                }
+        }
+        LOG.info("Quota scheduler thread is exiting gracefully");
+}
+}
+
+protected void computeAndApplyCharge(final Collection<ContainersLogs> hopContainersLogs, final boolean isRecover) throws IOException {
+        LightWeightRequestHandler quotaSchedulerHandler = new LightWeightRequestHandler(YARNOperationType.TEST) {
+                @Override
+                public Object performTask() throws IOException {
                         connector.beginTransaction();
                         connector.writeLock();
 
                         //Get Data  ** YarnProjectsQuota **
-                        YarnProjectsQuotaDataAccess _pqDA
-                        = (YarnProjectsQuotaDataAccess) RMStorageFactory.
-                        getDataAccess(
-                                YarnProjectsQuotaDataAccess.class);
-                        Map<String, YarnProjectsQuota> hopYarnProjectsQuotaMap
-                        = _pqDA.getAll();
+                        YarnProjectsQuotaDataAccess _pqDA = (YarnProjectsQuotaDataAccess) RMStorageFactory.getDataAccess(YarnProjectsQuotaDataAccess.class );
+                        Map<String, YarnProjectsQuota> hopYarnProjectsQuotaMap = _pqDA.getAll();
                         long _miliSec = System.currentTimeMillis();
-                        final long _day = TimeUnit.DAYS.convert(
-                                _miliSec,
-                                TimeUnit.MILLISECONDS);
-                        Map<String, YarnProjectsQuota> chargedYarnProjectsQuota
-                        = new HashMap<String, YarnProjectsQuota>();
-                        Map<YarnProjectsDailyId, YarnProjectsDailyCost> chargedYarnProjectsDailyCost
-                        = new HashMap<YarnProjectsDailyId, YarnProjectsDailyCost>();
+                        final long _day = TimeUnit.DAYS.convert(_miliSec, TimeUnit.MILLISECONDS);
+                        Map<String, YarnProjectsQuota> chargedYarnProjectsQuota = new HashMap<String, YarnProjectsQuota>();
+                        Map<YarnProjectsDailyId, YarnProjectsDailyCost> chargedYarnProjectsDailyCost = new HashMap<YarnProjectsDailyId, YarnProjectsDailyCost>();
 
-                        List<ContainersLogs> toBeRemovedContainersLogs
-                        = new ArrayList<ContainersLogs>();
-                        List<ContainerCheckPoint> toBeAddedContainerCheckPoint
-                        = new ArrayList<ContainerCheckPoint>();
-                        List<ContainerCheckPoint> toBeRemovedContainerCheckPoint
-                        = new ArrayList<ContainerCheckPoint>();
+                        List<ContainersLogs> toBeRemovedContainersLogs = new ArrayList<ContainersLogs>();
+                        List<ContainerCheckPoint> toBeAddedContainerCheckPoint = new ArrayList<ContainerCheckPoint>();
+                        List<ContainerCheckPoint> toBeRemovedContainerCheckPoint = new ArrayList<ContainerCheckPoint>();
 
-                        // Calculate the quota 
-                        LOG.debug("RIZ:: ContainersLogs count : "
-                                + hopContainersLogs.size());
+                        // Calculate the quota
+                        LOG.debug("RIZ:: ContainersLogs count : " + hopContainersLogs.size());
                         for (ContainersLogs _ycl : hopContainersLogs) {
-                          if (!isRecover && recovered.remove(_ycl.
-                                  getContainerid())) {
-                            continue;
-                          }
-                          // Get ApplicationId from ContainerId
-                          LOG.debug(
-                                  "RIZ:: ContainersLogs entry : "
-                                  + _ycl.toString());
-                          ContainerId _cId = ConverterUtils.toContainerId(_ycl.
-                                  getContainerid());
-                          ApplicationId _appId = _cId.getApplicationAttemptId().
-                          getApplicationId();
+                                if (!isRecover && recovered.remove(_ycl.getContainerid())) {
+                                        continue;
+                                }
+                                // Get ApplicationId from ContainerId
+                                LOG.debug("RIZ:: ContainersLogs entry : " + _ycl.toString());
+                                ContainerId _cId = ConverterUtils.toContainerId(_ycl.getContainerid());
+                                ApplicationId _appId = _cId.getApplicationAttemptId().getApplicationId();
 
-                          //Get ProjectId from ApplicationId in ** ApplicationState Table ** 
-                          String _appUser = applicationStateCache.get(_appId.
-                                  toString());
-                          if (_appUser == null) {
-                            ApplicationState _appStat
-                            = (ApplicationState) appStatDS.findByApplicationId(
-                                    _appId.toString());
-                            if (_appStat == null) {
-                              LOG.error("Application not found: " + _appId.
-                                      toString() + " for container " + _ycl.
-                                      getContainerid());
-                              continue;
-                            } else {
-                              if (applicationStateCache.size()
-                              > 100000) {
-                                applicationStateCache
-                                = new HashMap<String, String>();
-                              }
-                              _appUser = _appStat.getUser();
-                              applicationStateCache.put(_appId.
-                                      toString(),
-                                      _appUser);
-                            }
-                          }
+                                //Get ProjectId from ApplicationId in ** ApplicationState Table **
+                                String _appUser = applicationStateCache.get(_appId.toString());
+                                if (_appUser == null) {
+                                        ApplicationState _appStat = (ApplicationState) appStatDS.findByApplicationId(_appId.toString());
+                                        if (_appStat == null) {
+                                                LOG.error("Application not found: " + _appId.toString() + " for container " + _ycl.getContainerid());
+                                                continue;
+                                        } else {
+                                                if (applicationStateCache.size() > 100000) {
+                                                        applicationStateCache = new HashMap<String, String>();
+                                                }
+                                                _appUser = _appStat.getUser();
+                                                applicationStateCache.put(_appId.toString(), _appUser);
+                                        }
+                                }
 
-                          String _projectName = HopsWorksHelper.
-                          getProjectName(_appUser);
-                          String _user = HopsWorksHelper.
-                          getUserName(
-                                  _appUser);
-                          LOG.debug("RIZ:: App : " + _appId.
-                                  toString()
-                                  + " User : " + _appUser);
+                                String _projectName = HopsWorksHelper.getProjectName(_appUser);
+                                String _user = HopsWorksHelper.getUserName(_appUser);
+                                LOG.debug("RIZ:: App : " + _appId.toString() + " User : " + _appUser);
 
-                          // Calculate the charge
-                          long totalTicks = _ycl.getStop() - _ycl.getStart();
+                                // Calculate the charge
+                                long totalTicks = _ycl.getStop() - _ycl.getStart();
 
-                          Long checkpoint = containersCheckPoints.get(_ycl.
-                                  getContainerid());
-                          if (checkpoint == null) {
-                            checkpoint =  _ycl.getStart();
-                          }
-                          long currentTicks = _ycl.getStop() - checkpoint;
-                          
-                          
-                          // Decide what to do with the charge
-                          if (currentTicks > 0) {
-                            if (_ycl.getExitstatus()
-                            == ContainerExitStatus.CONTAINER_RUNNING_STATE) {
-                              //>> Edit log entry + Increase Quota
-                              containersCheckPoints.put(_ycl.
-                                      getContainerid(), _ycl.
-                                      getStop());
-                              toBeAddedContainerCheckPoint.add(
-                                      new ContainerCheckPoint(
-                                              _ycl.
-                                              getContainerid(),
-                                              _ycl.
-                                              getStop()));
+                                Long checkpoint = (long)0;
+                                float currentPrice = (float)0;
+                                ContainerCheckPoint checkpointObj = containersCheckPoints.get(_ycl.getContainerid());
+                                if (checkpointObj == null) {
+                                        checkpoint = _ycl.getStart();
+                                        currentPrice = _ycl.getPrice();
+                                }else{
+                                        checkpoint = checkpointObj.getCheckPoint();
+                                        currentPrice = checkpointObj.getPrice();
+                                }                                  
+                                long currentTicks = _ycl.getStop() - checkpoint;
 
-                              LOG.debug(
-                                      "charging project still running "
-                                      + _projectName
-                                      + " for container "
-                                      + _ycl.getContainerid()
-                                      + " current ticks "
-                                      + currentTicks + "(" + _ycl.
-                                      getStart()
-                                      + ", " + _ycl.getStop()
-                                      + ", "
-                                      + checkpoint + ")");
-                              
-                              chargeYarnProjectsQuota(
-                                      chargedYarnProjectsQuota,
-                                      hopYarnProjectsQuotaMap,
-                                      _projectName, _user,
-                                      currentTicks, _ycl.getContainerid(),
-                                      _ycl.getExitstatus());
+                                // Decide what to do with the charge
+                                if (currentTicks > 0) {
+                                        if (_ycl.getExitstatus() == ContainerExitStatus.CONTAINER_RUNNING_STATE) {
+                                                //>> Edit log entry + Increase Quota
+                                                ContainerCheckPoint _tempCheckpointObj = new ContainerCheckPoint(_ycl.getContainerid(), _ycl.getStop(), currentPrice);
+                                                containersCheckPoints.put(_ycl.getContainerid(), _tempCheckpointObj);
+                                                toBeAddedContainerCheckPoint.add(_tempCheckpointObj);
 
-                              //** YarnProjectsDailyCost charging**
-                              chargeYarnProjectsDailyCost(
-                                      chargedYarnProjectsDailyCost,
-                                      _projectName, _user, _day,
-                                      currentTicks);
+                                                LOG.info("charging project still running " + _projectName + " for container " + _ycl.getContainerid() + " current ticks " + currentTicks + "(" + _ycl.getStart() + ", " + _ycl.getStop() + ", " + checkpoint + ") current price " + currentPrice);
 
-                            } else {
-                              //>> Delete log entry + Increase Quota                                   
-                              toBeRemovedContainersLogs.add(
-                                      (ContainersLogs) _ycl);
-                              if (isRecover) {
-                                recovered.add(_ycl.getContainerid());
-                              }
-                              if (checkpoint != _ycl.getStart()) {
-                                toBeRemovedContainerCheckPoint.add(
-                                        new ContainerCheckPoint(_ycl.
-                                                getContainerid(), checkpoint));
-                                containersCheckPoints.remove(_ycl.
-                                        getContainerid());
-                              }
-                              //** YarnProjectsQuota charging**
-                              LOG.debug(
-                                      "charging project finished "
-                                      + _projectName
-                                      + " for container "
-                                      + _ycl.getContainerid()
-                                      + " charge "
-                                      + currentTicks);
-                              chargeYarnProjectsQuota(
-                                      chargedYarnProjectsQuota,
-                                      hopYarnProjectsQuotaMap,
-                                      _projectName, _user,
-                                      currentTicks, _ycl.getContainerid(),
-                                      _ycl.getExitstatus());
+                                                chargeYarnProjectsQuota(chargedYarnProjectsQuota, hopYarnProjectsQuotaMap, _projectName, _user, currentTicks, _ycl.getContainerid(), _ycl.getExitstatus(), currentPrice);
 
-                              //** YarnProjectsDailyCost charging**
-                              chargeYarnProjectsDailyCost(
-                                      chargedYarnProjectsDailyCost,
-                                      _projectName, _user, _day,
-                                      currentTicks);
+                                                //** YarnProjectsDailyCost charging**
+                                                chargeYarnProjectsDailyCost(chargedYarnProjectsDailyCost, _projectName, _user, _day, currentTicks, currentPrice);
 
-                            }
-                          }
+                                        } else {
+                                                //>> Delete log entry + Increase Quota
+                                                toBeRemovedContainersLogs.add((ContainersLogs) _ycl);
+                                                if (isRecover) {
+                                                        recovered.add(_ycl.getContainerid());
+                                                }
+                                                if (checkpoint != _ycl.getStart()) {
+                                                        toBeRemovedContainerCheckPoint.add(new ContainerCheckPoint(_ycl.getContainerid(), checkpoint, currentPrice));
+                                                        containersCheckPoints.remove(_ycl.getContainerid());
+                                                }
+                                                //** YarnProjectsQuota charging**
+                                                LOG.info("charging project finished " + _projectName + " for container " + _ycl.getContainerid() + " current ticks " + currentTicks + " current price " + currentPrice);
+                                                chargeYarnProjectsQuota(chargedYarnProjectsQuota, hopYarnProjectsQuotaMap, _projectName, _user, currentTicks, _ycl.getContainerid(), _ycl.getExitstatus(), currentPrice);
+
+                                                //** YarnProjectsDailyCost charging**
+                                                chargeYarnProjectsDailyCost(chargedYarnProjectsDailyCost, _projectName, _user, _day, currentTicks, currentPrice);
+
+                                        }
+                                }
                         }
                         // Delet the finished ContainersLogs
-                        ContainersLogsDataAccess _csDA
-                        = (ContainersLogsDataAccess) RMStorageFactory.
-                        getDataAccess(
-                                ContainersLogsDataAccess.class);
+                        ContainersLogsDataAccess _csDA = (ContainersLogsDataAccess) RMStorageFactory.getDataAccess(ContainersLogsDataAccess.class );
                         _csDA.removeAll(toBeRemovedContainersLogs);
 
-                        //Add and remove Containers checkpoints 
-                        ContainersCheckPointsDataAccess ccpDA
-                        = (ContainersCheckPointsDataAccess) RMStorageFactory.
-                        getDataAccess(
-                                ContainersCheckPointsDataAccess.class);
+                        //Add and remove Containers checkpoints
+                        ContainersCheckPointsDataAccess ccpDA = (ContainersCheckPointsDataAccess) RMStorageFactory.getDataAccess(ContainersCheckPointsDataAccess.class );
                         ccpDA.addAll(toBeAddedContainerCheckPoint);
-                        ccpDA.removeAll(
-                                toBeRemovedContainerCheckPoint);
+                        ccpDA.removeAll(toBeRemovedContainerCheckPoint);
 
                         // Show all charged project
                         if (LOG.isDebugEnabled()) {
-                          for (YarnProjectsQuota _cpq
-                          : chargedYarnProjectsQuota.values()) {
-                            LOG.debug("RIZ:: Charged projects: "
-                                    + _cpq.
-                                    toString() + " charge amount:"
-                                    + _cpq.
-                                    getTotalUsedQuota());
-                          }
+                                for (YarnProjectsQuota _cpq : chargedYarnProjectsQuota.values()) {
+                                        LOG.debug("RIZ:: Charged projects: " + _cpq.toString() + " charge amount:" + _cpq.getTotalUsedQuota());
+                                }
                         }
 
-                        // Add all the changed project quotato NDB
-                        _pqDA.addAll(chargedYarnProjectsQuota.
-                                values());
-                        YarnProjectsDailyCostDataAccess _pdcDA
-                        = (YarnProjectsDailyCostDataAccess) RMStorageFactory.
-                        getDataAccess(
-                                YarnProjectsDailyCostDataAccess.class);
-                        _pdcDA.addAll(
-                                chargedYarnProjectsDailyCost.
-                                values());
+                        // Add all the changed project quota to NDB
+                        _pqDA.addAll(chargedYarnProjectsQuota.values());
+                        YarnProjectsDailyCostDataAccess _pdcDA = (YarnProjectsDailyCostDataAccess) RMStorageFactory.getDataAccess(YarnProjectsDailyCostDataAccess.class );
+                        _pdcDA.addAll(chargedYarnProjectsDailyCost.values());
                         connector.commit();
                         return null;
-                      }
+                }
 
-                    };
-            quotaSchedulerHandler.handle();
-  }
+        };
+        quotaSchedulerHandler.handle();
+}
 
-  Map<YarnProjectsDailyId, YarnProjectsDailyCost> projectsDailyCostCache;
-  long cashDay = -1;
+Map<YarnProjectsDailyId, YarnProjectsDailyCost> projectsDailyCostCache;
+long cashDay = -1;
 
-  private void chargeYarnProjectsDailyCost(
-          Map<YarnProjectsDailyId, YarnProjectsDailyCost> chargedYarnProjectsDailyCost,
-          String _projectid, String _user, long _day, long ticks) {
-    long charge = computeCharge(ticks);
-    LOG.debug("Quota: project " + _projectid + " user " + _user + " has used "
-            + charge + " credits");
-    if (cashDay != _day) {
-      projectsDailyCostCache
-              = new HashMap<YarnProjectsDailyId, YarnProjectsDailyCost>();
-      cashDay = _day;
-    }
+private void chargeYarnProjectsDailyCost(Map<YarnProjectsDailyId, YarnProjectsDailyCost> chargedYarnProjectsDailyCost,
+        String _projectid, String _user, long _day, long ticks,float price ) {        
+        
+        float charge = computeCharge(ticks, price);        
+        LOG.debug("Quota: project " + _projectid + " user " + _user + " has used " + charge + " credits");
+        if (cashDay != _day) {
+                projectsDailyCostCache = new HashMap<YarnProjectsDailyId, YarnProjectsDailyCost>();
+                cashDay = _day;
+        }
 
-    YarnProjectsDailyId _key = new YarnProjectsDailyId(_projectid, _user, _day);
-    YarnProjectsDailyCost _tempPdc
-            = projectsDailyCostCache.get(_key);
+        YarnProjectsDailyId _key = new YarnProjectsDailyId(_projectid, _user, _day);
+        YarnProjectsDailyCost _tempPdc = projectsDailyCostCache.get(_key);
 
-    if (_tempPdc == null) {
-      _tempPdc = new YarnProjectsDailyCost(_projectid, _user, _day, 0);
-      projectsDailyCostCache.put(_key, _tempPdc);
-    }
+        if (_tempPdc == null) {
+                _tempPdc = new YarnProjectsDailyCost(_projectid, _user, _day, 0);
+                projectsDailyCostCache.put(_key, _tempPdc);
+        }
 
-    YarnProjectsDailyCost _incrementedPdc = new YarnProjectsDailyCost(
-            _projectid, _user, _day, _tempPdc.getCreditsUsed() + (int) charge);
-    chargedYarnProjectsDailyCost.put(_key, _incrementedPdc);
-    projectsDailyCostCache.put(_key, _incrementedPdc);
-  }
+        YarnProjectsDailyCost _incrementedPdc = new YarnProjectsDailyCost(_projectid, _user, _day, _tempPdc.getCreditsUsed() + (int) charge);
+        chargedYarnProjectsDailyCost.put(_key, _incrementedPdc);
+        projectsDailyCostCache.put(_key, _incrementedPdc);
+}
 
-  private void chargeYarnProjectsQuota(
-          Map<String, YarnProjectsQuota> chargedYarnProjectsQuota,
-          Map<String, YarnProjectsQuota> hopYarnProjectsQuotaList,
-          String _projectid,  String _user, long ticks, String containerId, 
-          int exitStatus) {
-    long charge = computeCharge(ticks);
-    LOG.info("Quota: project " + _projectid + " user " + _user + " has used "
-            + charge
-            + " credits (container: " + containerId + ", exit status: "
-            + exitStatus + ")");
-    YarnProjectsQuota _tempPq = (YarnProjectsQuota) hopYarnProjectsQuotaList.
-            get(_projectid);
-    if (_tempPq != null) {
-      YarnProjectsQuota _modifiedPq = new YarnProjectsQuota(_projectid,
-              _tempPq.getRemainingQuota() - (int) charge,
-              _tempPq.getTotalUsedQuota() + (int) charge);
+private void chargeYarnProjectsQuota(
+        Map<String, YarnProjectsQuota> chargedYarnProjectsQuota,
+        Map<String, YarnProjectsQuota> hopYarnProjectsQuotaList,
+        String _projectid, String _user, long ticks, String containerId,
+        int exitStatus, float price) {
+          
+        float charge = computeCharge(ticks, price);
+        LOG.info("Quota: project " + _projectid + " user " + _user + " has ticks " + ticks + " [" + charge + " kronor ]  (container: " + containerId + ", exit status: " + exitStatus + ")");
+        YarnProjectsQuota _tempPq = (YarnProjectsQuota) hopYarnProjectsQuotaList.get(_projectid);
+        if (_tempPq != null) {
+                YarnProjectsQuota _modifiedPq = new YarnProjectsQuota(_projectid, _tempPq.getRemainingQuota() - (int) charge, _tempPq.getTotalUsedQuota() + (int) charge);
 
-      chargedYarnProjectsQuota.put(_projectid, _modifiedPq);
-      hopYarnProjectsQuotaList.put(_projectid, _modifiedPq);
-    } else {
-      LOG.error("Project not found: " + _projectid);
-    }
+                chargedYarnProjectsQuota.put(_projectid, _modifiedPq);
+                hopYarnProjectsQuotaList.put(_projectid, _modifiedPq);
+        } else {
+                LOG.error("Project not found: " + _projectid);
+        }
+}
 
-  }
-  
-  private long computeCharge(long ticks){
-    if(ticks<minNumberOfTicks){
-      ticks=minNumberOfTicks;
-    }
-    long charge = ticks/ticksPerCredit;
-    if(ticks%ticksPerCredit!=0){
-      charge++;
-    }
-    return charge;
-  }
-  
-  public void recover() {
+private float computeCharge(long ticks, float pricePerTick) {
+        if (ticks < minNumberOfTicks) {
+                ticks = minNumberOfTicks;
+        }        
+        float credit = (float)ticks * pricePerTick;         
+        return credit;
+}
 
-    long _miliSec = System.currentTimeMillis();
-    final long _day = TimeUnit.DAYS.convert(_miliSec, TimeUnit.MILLISECONDS);
-    try {
-      LightWeightRequestHandler recoveryHandler
-              = new LightWeightRequestHandler(
-                      YARNOperationType.TEST) {
+public void recover() {
+
+        long _miliSec = System.currentTimeMillis();
+        final long _day = TimeUnit.DAYS.convert(_miliSec, TimeUnit.MILLISECONDS);
+        try {
+                LightWeightRequestHandler recoveryHandler = new LightWeightRequestHandler(YARNOperationType.TEST) {
                         @Override
                         public Object performTask() throws IOException {
-                          connector.beginTransaction();
-                          connector.writeLock();
-                          YarnProjectsDailyCostDataAccess _pdcDA
-                          = (YarnProjectsDailyCostDataAccess) RMStorageFactory.
-                          getDataAccess(YarnProjectsDailyCostDataAccess.class);
-                          projectsDailyCostCache = _pdcDA.getByDay(_day);
+                                connector.beginTransaction();
+                                connector.writeLock();
+                                YarnProjectsDailyCostDataAccess _pdcDA = (YarnProjectsDailyCostDataAccess) RMStorageFactory.getDataAccess(YarnProjectsDailyCostDataAccess.class );
+                                projectsDailyCostCache = _pdcDA.getByDay(_day);
 
-                          ContainersCheckPointsDataAccess ccpDA
-                          = (ContainersCheckPointsDataAccess) RMStorageFactory.
-                          getDataAccess(ContainersCheckPointsDataAccess.class);
-                          containersCheckPoints = ccpDA.getAll();
-                          connector.commit();
-                          return null;
+                                ContainersCheckPointsDataAccess ccpDA = (ContainersCheckPointsDataAccess) RMStorageFactory.getDataAccess(ContainersCheckPointsDataAccess.class );
+                                containersCheckPoints = ccpDA.getAll();
+                                connector.commit();
+                                return null;
                         }
-                      };
-              recoveryHandler.handle();
+                };
+                recoveryHandler.handle();
 
-              //getAll
-              LightWeightRequestHandler logsHandler
-                      = new LightWeightRequestHandler(
-                              YARNOperationType.TEST) {
-                                @Override
-                                public Object performTask() throws IOException {
-                                  connector.beginTransaction();
-                                  connector.readLock();
+                //getAll
+                LightWeightRequestHandler logsHandler = new LightWeightRequestHandler(YARNOperationType.TEST) {
+                        @Override
+                        public Object performTask() throws IOException {
+                                connector.beginTransaction();
+                                connector.readLock();
 
-                                  //Get Data  ** ContainersLogs **
-                                  ContainersLogsDataAccess _csDA
-                                  = (ContainersLogsDataAccess) RMStorageFactory.
-                                  getDataAccess(ContainersLogsDataAccess.class);
-                                  Map<String, ContainersLogs> hopContainersLogs
-                                  = _csDA.getAll();
-                                  connector.commit();
-                                  return hopContainersLogs;
-                                }
+                                //Get Data  ** ContainersLogs **
+                                ContainersLogsDataAccess _csDA = (ContainersLogsDataAccess) RMStorageFactory.getDataAccess(ContainersLogsDataAccess.class );
+                                Map<String, ContainersLogs> hopContainersLogs = _csDA.getAll();
+                                connector.commit();
+                                return hopContainersLogs;
+                        }
 
-                              };
-                      final Map<String, ContainersLogs> hopContainersLogs
-                              = (Map<String, ContainersLogs>) logsHandler.
-                              handle();
-                      //run logic on all
-                      computeAndApplyCharge(hopContainersLogs.values(), true);
+                };
+                final Map<String, ContainersLogs> hopContainersLogs = (Map<String, ContainersLogs>)logsHandler.
+                                                                      handle();
+                //run logic on all
+                computeAndApplyCharge(hopContainersLogs.values(), true);
 
-    } catch (StorageException ex) {
-      LOG.error(ex, ex);
-    } catch (IOException ex) {
-      LOG.error(ex, ex);
-    }
-  }
+        } catch (StorageException ex) {
+                LOG.error(ex, ex);
+        } catch (IOException ex) {
+                LOG.error(ex, ex);
+        }
+}
 
 }
