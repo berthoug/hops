@@ -330,7 +330,10 @@ public class TransactionStateImpl extends TransactionState {
           ApplicationState hop =
               new ApplicationState(app.getApplicationId().toString(),
                   appStateDataBytes, app.getUser(), app.getName(),
-                  app.getState().toString());
+                  app.getState().toString(),
+            app.getApplicationSubmissionContext().getApplicationTimeLimit(),
+            app.getApplicationSubmissionContext().getApplicationBudgetLimit(),
+            app.getApplicationSubmissionContext().getApplicationPriceLimit());
     applicationsToAdd.put(app.getApplicationId(), hop);
     List<UpdatedNode> nodeIdsToAdd = new ArrayList<UpdatedNode>();
     for(NodeId nid: app.getUpdatedNodesId()){

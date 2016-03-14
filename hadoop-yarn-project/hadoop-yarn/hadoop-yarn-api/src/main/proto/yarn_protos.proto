@@ -292,6 +292,9 @@ message ApplicationSubmissionContextProto {
   optional string applicationType = 10 [default = "YARN"];
   optional bool keep_containers_across_application_attempts = 11 [default = false];
   repeated string applicationTags = 12;
+  optional int64 ApplicationTimeLimit = 13 [default = 0];
+  optional float ApplicationBudgetLimit = 14 [default = 0];
+  optional float ApplicationPriceLimit = 15 [default = 0];
 }
 
 enum ApplicationAccessTypeProto {

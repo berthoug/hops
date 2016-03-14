@@ -331,11 +331,11 @@ public class RMContextImpl implements RMContext {
       return quotaService;
   }
   
-  void setHAEnabled(boolean isHAEnabled) {
+  public void setHAEnabled(boolean isHAEnabled) {
     this.isHAEnabled = isHAEnabled;
   }
 
-  void setDistributedEnabled(boolean isDistributedEnabled){
+  public void setDistributedEnabled(boolean isDistributedEnabled){
     this.isDistributedEnabled = isDistributedEnabled;
   }
   
@@ -437,7 +437,7 @@ public class RMContextImpl implements RMContext {
     this.resourceTrackerService = resourceTrackerService;
   }
   
-  void setContainersLogsService(
+  public void setContainersLogsService(
           ContainersLogsService containersLogsService) {
       this.containersLogsService = containersLogsService;
   }

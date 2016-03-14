@@ -53,6 +53,20 @@ public class NdbRtStreamingReceiver {
   private String containerIdToCleanrmnodeid = null;
   private String finishedApplicationrmnodeid = null;
   private List<ContainerStatus> hopContainersStatusList = null;
+  private float CurrentPrice = 0.0f;
+  private long CurrentPriceTick = 0;
+
+  public void setId(int id) {
+    //Do nothing
+  }
+  
+  public void setCurrentPriceTick(long CurrentPriceTick) {
+    this.CurrentPriceTick = CurrentPriceTick;
+  }  
+
+  public void setCurrentPrice(float CurrentPrice) {
+    this.CurrentPrice = CurrentPrice;
+  }
 
   NdbRtStreamingReceiver() {
   }
@@ -122,7 +136,7 @@ public class NdbRtStreamingReceiver {
   public void onEventMethod() throws InterruptedException {
     StreamingRTComps streamingRTComps = new StreamingRTComps(
             containersToCleanSet, finishedAppList, nodeId, nextHeartbeat, 
-    hopContainersStatusList);
+    hopContainersStatusList,CurrentPrice, CurrentPriceTick);
     blockingRTQueue.put(streamingRTComps);
   }
   
@@ -176,7 +190,7 @@ public class NdbRtStreamingReceiver {
   // this two methods are using for multi-thread version from c++ library
   StreamingRTComps buildStreamingRTComps() {
     return new StreamingRTComps(containersToCleanSet, finishedAppList, nodeId,
-            nextHeartbeat, hopContainersStatusList);
+            nextHeartbeat, hopContainersStatusList,CurrentPrice, CurrentPriceTick);
   }
 
   public void onEventMethodMultiThread(StreamingRTComps streamingRTComps) throws

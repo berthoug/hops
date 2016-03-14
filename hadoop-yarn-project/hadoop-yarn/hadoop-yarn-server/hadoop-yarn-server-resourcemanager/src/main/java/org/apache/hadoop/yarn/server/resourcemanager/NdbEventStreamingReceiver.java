@@ -63,6 +63,7 @@ public class NdbEventStreamingReceiver {
   private List<ContainerId> hopContainerIdsToCleanList = null;
   private List<FinishedApplications> hopFinishedApplicationsList = null;
   private List<ContainerStatus> hopContainersStatusList = null;
+  private List<String> hopApplicationsToKillList = null;
 
   NdbEventStreamingReceiver() {
   }
@@ -82,7 +83,40 @@ public class NdbEventStreamingReceiver {
   private int hopRMNodeOvercommittimeout = 0;
   private int hopRMNodeUciId = 0;
   private int hopRMNodePendingEventId = 0;
-
+  private String applicationToKillId = "";
+  private int applicationToKillPendingEventId = 0;
+  private String applicationRMNodeId = "";
+  
+  public void setApplicationRMNodeId(String applicationRMNodeId) {
+    LOG.debug("RIZ::setApplicationRMNodeId ");
+    this.applicationRMNodeId = applicationRMNodeId;
+  }
+          
+  public void setApplicationPendingEventId(int pendingeventid) {
+    LOG.debug("RIZ::setApplicationPendingEventId ");
+    this.applicationToKillPendingEventId = pendingeventid;
+  }
+          
+  public void setApplicationId(String applicationId) {
+    LOG.debug("RIZ::setApplicationId :" + applicationId);
+    this.applicationToKillId = applicationId;
+  }
+  
+  public void buildApplicationToKillEvent() {
+    
+    if (this.hopApplicationsToKillList == null ){
+        this.hopApplicationsToKillList = new ArrayList<String>();
+        this.hopApplicationsToKillList.add(this.applicationToKillId);
+    }else{
+     this.hopApplicationsToKillList.add(this.applicationToKillId);
+    }     
+    String apps = "";
+    for(String app :this.hopApplicationsToKillList ){
+        apps = apps +  " " + app ;
+    }
+    LOG.debug("RIZ::buildApplicationToKillEvent apps:" + apps);
+  }
+          
   public void setHopRMNodeNodeId(String hopRMNodeNodeId) {
     this.hopRMNodeNodeId = hopRMNodeNodeId;
   }
@@ -154,6 +188,7 @@ public class NdbEventStreamingReceiver {
   private int hopPendingEventId = 0;
 
   public void setHopPendingEventRmnodeId(String hopPendingEventRmnodeId) {
+    LOG.debug("RIZ::setHopPendingEventRmnodeId " + hopPendingEventRmnodeId);
     this.hopPendingEventRmnodeId = hopPendingEventRmnodeId;
   }
 
@@ -166,6 +201,7 @@ public class NdbEventStreamingReceiver {
   }
 
   public void setHopPendingEventId(int hopPendingEventId) {
+    LOG.debug("RIZ::setHopPendingEventId " + hopPendingEventId);
     this.hopPendingEventId = hopPendingEventId;
   }
 
@@ -183,6 +219,7 @@ public class NdbEventStreamingReceiver {
   private int hopResourcePendingEventId = 0;
 
   public void setHopResourceId(String hopResourceId) {
+    LOG.debug("RIZ:: setHopResourceId " + hopResourceId);
     this.hopResourceId = hopResourceId;
   }
 
@@ -371,13 +408,14 @@ public class NdbEventStreamingReceiver {
 
   //This will be called by c++ shared library, libhopsndbevent.so
   public void onEventMethod() throws InterruptedException {
+    LOG.debug("RIZ::onEventMethod");
     RMNodeComps hopRMNodeBDBObject
             = new RMNodeComps(hopRMNode, hopNextHeartbeat, hopNode,
                     hopNodeHBResponse, hopResource,
                     hopPendingEvent, hopJustLaunchedContainersList,
                     hopUpdatedContainerInfoList, hopContainerIdsToCleanList,
                     hopFinishedApplicationsList, hopContainersStatusList,
-                    hopPendingEvent.getId().getNodeId());
+                    hopPendingEvent.getId().getNodeId(),hopApplicationsToKillList);
     LOG.debug("put event in queue: " + hopRMNodeBDBObject.getPendingEvent().
             getId() + " ; " + hopRMNodeBDBObject.getPendingEvent().getId().
             getNodeId());
@@ -391,7 +429,7 @@ public class NdbEventStreamingReceiver {
             hopPendingEvent, hopJustLaunchedContainersList,
             hopUpdatedContainerInfoList, hopContainerIdsToCleanList,
             hopFinishedApplicationsList, hopContainersStatusList,
-            hopPendingEvent.getId().getNodeId());
+            hopPendingEvent.getId().getNodeId(),hopApplicationsToKillList);
   }
 
   public void onEventMethodMultiThread(RMNodeComps hopCompObject) throws

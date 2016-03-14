@@ -246,12 +246,24 @@ public class MockRM extends ResourceManager {
         maxAppAttempts, ts, appType, waitForAccepted, keepContainers, false,
         null);
   }
-
+  
   public RMApp submitApp(int masterMemory, String name, String user,
       Map<ApplicationAccessType, String> acls, boolean unmanaged, String queue,
       int maxAppAttempts, Credentials ts, String appType,
       boolean waitForAccepted, boolean keepContainers, boolean isAppIdProvided,
       ApplicationId applicationId) throws Exception {
+      
+      return submitApp(masterMemory, name, user, acls, unmanaged, queue,
+        maxAppAttempts, ts, appType, waitForAccepted, keepContainers, isAppIdProvided,
+        applicationId, 0l, 0.0f, 0.0f);
+  
+  }
+
+  public RMApp submitApp(int masterMemory, String name, String user,
+      Map<ApplicationAccessType, String> acls, boolean unmanaged, String queue,
+      int maxAppAttempts, Credentials ts, String appType,
+      boolean waitForAccepted, boolean keepContainers, boolean isAppIdProvided,
+      ApplicationId applicationId, long TimeLimit, float BudgetLimit, float PriceLimit) throws Exception {
     ApplicationId appId = isAppIdProvided ? applicationId : null;
     ApplicationClientProtocol client = getClientRMService();
     if (!isAppIdProvided) {
@@ -267,6 +279,9 @@ public class MockRM extends ResourceManager {
     sub.setApplicationId(appId);
     sub.setApplicationName(name);
     sub.setMaxAppAttempts(maxAppAttempts);
+    sub.setApplicationTimeLimit(TimeLimit);
+    sub.setApplicationBudgetLimit(BudgetLimit);
+    sub.setApplicationPriceLimit(PriceLimit);
     if (unmanaged) {
       sub.setUnmanagedAM(true);
     }
