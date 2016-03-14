@@ -31,6 +31,7 @@ import io.hops.metadata.yarn.dal.RMNodeDataAccess;
 import io.hops.metadata.yarn.dal.ContainersLogsDataAccess;
 import io.hops.metadata.yarn.dal.YarnProjectsDailyCostDataAccess;
 import io.hops.metadata.yarn.dal.YarnProjectsQuotaDataAccess;
+import io.hops.metadata.yarn.dal.YarnRunningPriceDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationAttemptStateDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationStateDataAccess;
 import io.hops.metadata.yarn.dal.util.YARNOperationType;
@@ -40,6 +41,7 @@ import io.hops.metadata.yarn.entity.ContainersLogs;
 import io.hops.metadata.yarn.entity.YarnProjectsDailyCost;
 import io.hops.metadata.yarn.entity.YarnProjectsDailyId;
 import io.hops.metadata.yarn.entity.YarnProjectsQuota;
+import io.hops.metadata.yarn.entity.YarnRunningPrice;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationAttemptState;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationState;
 import io.hops.transaction.handler.LightWeightRequestHandler;
@@ -52,6 +54,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -61,6 +64,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.TestResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
+import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ClusterMetricsInfo;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.codehaus.jackson.map.ext.JodaDeserializers;
 import org.junit.Before;
@@ -88,7 +92,7 @@ public class TestContainerUsage {
                     
             YarnAPIStorageFactory.setConfiguration(conf);
             RMStorageFactory.setConfiguration(conf);
-            //RMUtilities.InitializeDB(); // It will reset the DB, keep it OFF for some localized test
+            RMUtilities.InitializeDB(); // It will reset the DB, keep it OFF for some localized test
             
             //this.connector =  RMStorageFactory.getConnector();
             //RequestHandler.setStorageConnector(this.connector);           
@@ -101,35 +105,74 @@ public class TestContainerUsage {
     }
     
     @Test
-    public void TestLocalLogInRM() throws StorageException, IOException{       
-        
-        try {
+    public void TestProjectQuotaCRUD() throws StorageException, IOException{        
+        try {          
             LightWeightRequestHandler bomb;
-            bomb = new LightWeightRequestHandler(YARNOperationType.TEST) {
+            bomb = new LightWeightRequestHandler(YARNOperationType.TEST) {              
                 @Override
                 public Object performTask() throws IOException {
                     connector.beginTransaction();
-                    connector.writeLock(); 
+                    connector.writeLock();                            
                     
-                    //ContainerIdToCleanClusterJ
-                    ContainerIdToCleanDataAccess _csDA = (ContainerIdToCleanDataAccess)RMStorageFactory.getDataAccess(ContainerIdToCleanDataAccess.class);
-                    if (_csDA != null){                    
-                        List<ContainerId> _containerList =  _csDA.findByRMNode("Andromeda3:51028");
-                        for(ContainerId _c :_containerList){
-                            LOG.info(_c.toString());
-
-                        }
+                    //ContainerIdToCleanClusterJ                    
+                    //YarnRunningPriceDataAccess _rpDA = (YarnRunningPriceDataAccess)RMStorageFactory.getDataAccess(YarnRunningPriceDataAccess.class);
+                    YarnProjectsQuotaDataAccess _pqDA = (YarnProjectsQuotaDataAccess)RMStorageFactory.getDataAccess(YarnProjectsQuotaDataAccess.class);
+                    List<YarnProjectsQuota> _list = new ArrayList<YarnProjectsQuota>();
+                    _list.add(new YarnProjectsQuota("Test", 10,99));
+                    
+                    
+                    if (_pqDA != null){                    
+                        _pqDA.addAll(_list);
+                        
                     }else
                     {
                         LOG.info("DataAccess failed!");
-
                     }
+                    
+                    
                     
                     connector.commit();
                     return null;
                 }
             };
-            bomb.handle();            
+            bomb.handle();     
+            
+            LightWeightRequestHandler bomb2;
+            bomb2 = new LightWeightRequestHandler(YARNOperationType.TEST) {              
+                @Override
+                public Object performTask() throws IOException {
+                    connector.beginTransaction();
+                    connector.writeLock();                            
+                    
+                    YarnProjectsQuotaDataAccess _pqDA = (YarnProjectsQuotaDataAccess)RMStorageFactory.getDataAccess(YarnProjectsQuotaDataAccess.class);
+                                        
+                    if (_pqDA != null){     
+                      
+                        Map<String, YarnProjectsQuota> _pqList = _pqDA.getAll();                         
+                        if (_pqList == null)
+                        {
+                          LOG.info("RIZ: No Project quota found!");                    
+                        }
+                        else{
+                          for(YarnProjectsQuota _c :_pqList.values()){
+                              LOG.info(_c.toString());
+                              Assert.assertEquals("Test", _c.getProjectid());
+                              Assert.assertEquals((float)10, _c.getRemainingQuota());
+                              Assert.assertEquals((float)99, _c.getTotalUsedQuota());
+                          }                          
+                        }
+                    }else
+                    {
+                        LOG.info("DataAccess failed!");
+                    }
+                    
+                    
+                    
+                    connector.commit();
+                    return null;
+                }
+            };
+            bomb2.handle();            
             
         } catch (Exception e) {
             LOG.error(e);
@@ -140,7 +183,7 @@ public class TestContainerUsage {
     }
     
     @Test 
-    public void TestYarnProjectsDailyCost() throws StorageException, IOException{
+    public void TestYarnProjectsDailyCostCRUD() throws StorageException, IOException{
                 
         try 
         {
@@ -161,25 +204,49 @@ public class TestContainerUsage {
                     connector.writeLock(); 
                     
                     YarnProjectsDailyCostDataAccess _csDA = (YarnProjectsDailyCostDataAccess)RMStorageFactory.getDataAccess(YarnProjectsDailyCostDataAccess.class);
+                    List<YarnProjectsDailyCost> _list = new ArrayList<YarnProjectsDailyCost>();
+                    _list.add(new YarnProjectsDailyCost("Test","rizvi",_day,(float)99.99));
+                    
                     if(_csDA !=null ){
-                        Map<String, YarnProjectsDailyCost> _pdc =  _csDA.getAll();
-                        LOG.info(_pdc.get("TestProject#rizvi#16794").toString());
-                        for(  Map.Entry<String , YarnProjectsDailyCost> _p : _pdc.entrySet()){
-                            LOG.info("Project daily cost size : " + _p.getValue().toString());
-                        }
+                        _csDA.addAll(_list);
                     }else
-                        LOG.info(">>>> Data Access Problem ... ");
+                        LOG.info(">>>> Data Access Problem ... ");                  
                     
                     
-                    List<YarnProjectsDailyCost> hopYarnProjectsDailyCost = new ArrayList<YarnProjectsDailyCost>();
-                    hopYarnProjectsDailyCost.add(new YarnProjectsDailyCost("TestProject","rizvi",_day,40));                    
-                    _csDA.addAll(hopYarnProjectsDailyCost);
-                    //String projectName, String projectUser, long day, int creditsUsed
                     connector.commit();
                     return null;
                 }
             };
             bomb.handle();            
+            
+            LightWeightRequestHandler bomb2;
+            bomb2 = new LightWeightRequestHandler(YARNOperationType.TEST) {
+                @Override
+                public Object performTask() throws IOException {
+                    connector.beginTransaction();
+                    connector.writeLock(); 
+                    
+                    YarnProjectsDailyCostDataAccess _csDA = (YarnProjectsDailyCostDataAccess)RMStorageFactory.getDataAccess(YarnProjectsDailyCostDataAccess.class);
+                    if(_csDA !=null ){
+                        Map<String, YarnProjectsDailyCost> _pdc =  _csDA.getAll();                        
+                        for(  Map.Entry<String , YarnProjectsDailyCost> _p : _pdc.entrySet()){
+                            LOG.info("Project daily cost size : " + _p.getValue().toString());
+                            Assert.assertEquals("Test", _p.getValue().getProjectName());
+                            Assert.assertEquals("rizvi", _p.getValue().getProjectUser());
+                            Assert.assertEquals(_day, _p.getValue().getDay());
+                            Assert.assertEquals((float)99.99, _p.getValue().getCreditsUsed());
+
+                            
+                        }
+                    }else
+                        LOG.info(">>>> Data Access Problem ... ");
+                                       
+                    
+                    connector.commit();
+                    return null;
+                }
+            };
+            bomb2.handle();            
             
         } catch (StorageInitializtionException ex) {
           //LOG.error(ex);
@@ -231,9 +298,9 @@ public class TestContainerUsage {
             */
             
             final List<ContainersLogs> hopContainersLogs = new ArrayList<ContainersLogs>();
-            hopContainersLogs.add(new ContainersLogs("container_1450009406746_0001_01_000001",10,11,ContainerExitStatus.SUCCESS));
-            hopContainersLogs.add(new ContainersLogs("container_1450009406746_0001_02_000001",10,11,ContainerExitStatus.ABORTED));
-            hopContainersLogs.add(new ContainersLogs("container_1450009406746_0001_03_000001",10,11,ContainerExitStatus.CONTAINER_RUNNING_STATE));
+            hopContainersLogs.add(new ContainersLogs("container_1450009406746_0001_01_000001",10,11,ContainerExitStatus.SUCCESS,0));
+            hopContainersLogs.add(new ContainersLogs("container_1450009406746_0001_02_000001",10,11,ContainerExitStatus.ABORTED,0));
+            hopContainersLogs.add(new ContainersLogs("container_1450009406746_0001_03_000001",10,11,ContainerExitStatus.CONTAINER_RUNNING_STATE,0));
             
             
             final List<YarnProjectsQuota> hopYarnProjectsQuota = new ArrayList<YarnProjectsQuota>();
@@ -376,7 +443,8 @@ public class TestContainerUsage {
                                 toBeModifiedContainersLogs.add(new ContainersLogs(_ycl.getValue().getContainerid(),
                                                                                           _ycl.getValue().getStop(), 
                                                                                           _ycl.getValue().getStop(),
-                                                                                          _ycl.getValue().getExitstatus()));
+                                                                                          _ycl.getValue().getExitstatus(),
+                                                                                          _ycl.getValue().getPrice()));
                                 //** YarnProjectsQuota charging**
                                 chargeYarnProjectsQuota(chargedYarnProjectsQuota,hopYarnProjectsQuotaList ,_projectid, _charge);
                                 
