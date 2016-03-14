@@ -437,7 +437,7 @@ public class RMContextImpl implements RMContext {
     this.resourceTrackerService = resourceTrackerService;
   }
   
-  void setContainersLogsService(
+  public void setContainersLogsService(
           ContainersLogsService containersLogsService) {
       this.containersLogsService = containersLogsService;
   }
