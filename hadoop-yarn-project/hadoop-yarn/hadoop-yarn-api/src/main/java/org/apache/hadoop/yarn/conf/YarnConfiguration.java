@@ -179,6 +179,36 @@ public class YarnConfiguration extends Configuration {
   public static final boolean DEFAULT_QUOTAS_ENABLED = false;
   
   /**
+   * The maximum percentage of the resource after which price will start increasing.
+   */
+  public static final String MAXIMUM_PERCENTAGE_OF_MEMORY_USAGE_WITH_MINIMUM_PRICE = 
+          YARN_PREFIX + "quotas.price-estimation.max-MB-usage";
+  public static final float DEFAULT_MAXIMUM_PERCENTAGE_OF_MEMORY_USAGE_WITH_MINIMUM_PRICE = 0.5f;
+  
+  public static final String MAXIMUM_PERCENTAGE_OF_VIRTUAL_CORE_USAGE_WITH_MINIMUM_PRICE = 
+          YARN_PREFIX + "quotas.price-estimation.max-VC-usage";
+  public static final float DEFAULT_MAXIMUM_PERCENTAGE_OF_VIRTUAL_CORE_USAGE_WITH_MINIMUM_PRICE = 0.5f;
+  
+  
+  /**
+   * Price per tick, the the minimum price for resource usage. 
+   */
+  public static final String MINIMUM_PRICE_PER_TICK_FOR_MEMORY = 
+          YARN_PREFIX + "quotas.price-estimation.min-price-per-tick-MB";
+  public static final float DEFAULT_MINIMUM_PRICE_PER_TICK_FOR_MEMORY = 100f;
+  
+  public static final String MINIMUM_PRICE_PER_TICK_FOR_VIRTUAL_CORE = 
+          YARN_PREFIX + "quotas.price-estimation.min-price-per-tick-VC";
+  public static final float DEFAULT_MINIMUM_PRICE_PER_TICK_FOR_VIRTUAL_CORE = 100f;
+  
+  
+  /**
+   * The the price increment factor over the minimum price.
+   */
+  
+  
+  
+  /**
    * Time in ms between container status checks.
    */
   public static final String QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL = 
@@ -197,9 +227,9 @@ public class YarnConfiguration extends Configuration {
    * 1000 and the tick increment is 1, then seting ticks per credit to 60 means
    * that 1 credit correspond to one minute of running
    */
-  public static final String QUOTAS_TICKS_PER_CREDIT = YARN_PREFIX
-          + "quotas.ticks.per.credit";
-  public static final int DEFAULT_QUOTAS_TICKS_PER_CREDIT = 60;
+//  public static final String QUOTAS_TICKS_PER_CREDIT = YARN_PREFIX
+//          + "quotas.ticks.per.credit";
+//  public static final int DEFAULT_QUOTAS_TICKS_PER_CREDIT = 60;
 
   /*
    * the minimum of ticks that will be charged, what ever the running time.
