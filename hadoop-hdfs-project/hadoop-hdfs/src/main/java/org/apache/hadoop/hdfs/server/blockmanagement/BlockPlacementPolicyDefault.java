@@ -692,7 +692,7 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
       }
       throw new NotEnoughReplicasException(detail);
     }
-    
+
     return firstChosen;
   }
 

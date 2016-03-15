@@ -1486,7 +1486,7 @@ public class DatanodeManager {
   /**
    * Adds or replaces storageinfo for the sid
    */
-  public void updateStorage(DatanodeStorageInfo storageInfo) {
+  public void updateStorage(DatanodeStorageInfo storageInfo)
       throws IOException {
     this.storageMap.updateStorage(storageInfo);
   }
@@ -1497,6 +1497,7 @@ public class DatanodeManager {
   
   public int getSid(String StorageId){
     return this.getSid(StorageId);
+  }
 
   public List<Integer> getSidsOnDatanode(String datanodeUuid) {
     return this.storageMap.getSidsForDatanodeUuid(datanodeUuid);
