@@ -2436,7 +2436,7 @@ public class BlockManager {
 
     // Block is on the NN
     if (LOG.isDebugEnabled()) {
-      LOG.debug("In memory blockUCState = " + ucState);
+      LOG.debug("In memory blockUCState = " + ucState + " bid=" + storedBlock.getBlockIndex());
     }
 
     // Ignore replicas already scheduled to be removed from the DN
@@ -2505,7 +2505,7 @@ public class BlockManager {
 
     // Block is on the NN
     if (LOG.isDebugEnabled()) {
-      LOG.debug("In memory blockUCState = " + ucState);
+      LOG.debug("In memory blockUCState = " + ucState + " bid=" + storedBlock.getBlockIndex());
     }
 
     // TODO: I see that this is done to "cache" the invalidated blocks before

@@ -34,6 +34,7 @@ import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolClientSideTranslatorPB;
+import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.protocol.BalancerBandwidthCommand;
 import org.apache.hadoop.hdfs.server.protocol.BlockCommand;
 import org.apache.hadoop.hdfs.server.protocol.BlockRecoveryCommand;
@@ -1082,6 +1083,18 @@ public class IncrementalBRTask implements Callable{
   private void blockReceivedAndDeletedWithRetry(
       final StorageReceivedDeletedBlocks[] receivedAndDeletedBlocks)
       throws IOException {
+
+    String blocks = "";
+    for(StorageReceivedDeletedBlocks srdb : receivedAndDeletedBlocks) {
+      blocks += "[";
+      for(ReceivedDeletedBlockInfo b : srdb.getBlocks()) {
+        blocks += " " + b.getBlock().getBlockId() + b.toString();
+      }
+      blocks += "]";
+    }
+    NameNode.LOG.info("sending blockReceivedAndDeletedWithRetry for blocks "
+        + blocks);
+
     doActorActionWithRetry(new ActorActionHandler() {
       @Override
       public Object doAction(BPServiceActor actor) throws IOException {
