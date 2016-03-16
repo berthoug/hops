@@ -2455,7 +2455,6 @@ public class BlockManager {
       return storedBlock;
     }
 
-
     if (isBlockUnderConstruction(storedBlock, ucState, reportedState)) {
       toUC.add(new StatefulBlockInfo((BlockInfoUnderConstruction) storedBlock,
           reportedState));
@@ -2463,10 +2462,8 @@ public class BlockManager {
     }
 
     //add replica if appropriate
-    if (reportedState == ReplicaState.FINALIZED) {
-      if(storedBlock.isReplicatedOnStorage(storage)){
-        return storedBlock;
-      }
+    if (reportedState == ReplicaState.FINALIZED &&
+        storedBlock.isReplicatedOnStorage(storage)) {
 
       toAdd.add(storedBlock);
     }
