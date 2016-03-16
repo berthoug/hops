@@ -504,5 +504,4 @@ public class BlockInfo extends Block {
       return new BlockInfo(block, block.getInodeId());
     }
   }
-
 }
