@@ -2462,9 +2462,8 @@ public class BlockManager {
     }
 
     //add replica if appropriate
-    if (reportedState == ReplicaState.FINALIZED &&
-        storedBlock.isReplicatedOnStorage(storage)) {
-
+    if (reportedState == ReplicaState.FINALIZED
+      && !storedBlock.isReplicatedOnStorage(storage)){
       toAdd.add(storedBlock);
     }
     return storedBlock;
