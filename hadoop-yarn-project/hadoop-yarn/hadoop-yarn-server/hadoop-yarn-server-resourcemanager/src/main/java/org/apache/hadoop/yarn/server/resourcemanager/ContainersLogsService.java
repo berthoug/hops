@@ -254,21 +254,21 @@ public class ContainersLogsService extends CompositeService {
       if (cs.getState().equals(ContainerState.NEW)) {
         continue;
       }
-      if (activeContainers.get(cs.getContainerid()) == null) {
+      cl = activeContainers.get(cs.getContainerid());
+      if (cl == null) {
         cl = new ContainersLogs(cs.getContainerid(), tickCounter.getValue(),
                 ContainersLogs.DEFAULT_STOP_TIMESTAMP,
                 ContainersLogs.CONTAINER_RUNNING_STATE, currentPrice);
 
-        // Unable to capture start use case,
+        // Unable to capture start use case
         if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
+          //TODO: this is overwriten by the next cl.setExitstatus, need to be verified
           cl.setExitstatus(ContainersLogs.UNKNOWN_CONTAINER_EXIT);
         }
 
         activeContainers.put(cl.getContainerid(), cl);
         updatable = true;
-      } else {
-        cl = activeContainers.get(cs.getContainerid());
-      }
+      } 
 
       if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
         cl.setStop(tickCounter.getValue());

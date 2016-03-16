@@ -36,9 +36,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.ContainersLogsService;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 
-/**
- * @author rizvi
- */
 public class PriceFixerService extends AbstractService {
 
   private Configuration conf;

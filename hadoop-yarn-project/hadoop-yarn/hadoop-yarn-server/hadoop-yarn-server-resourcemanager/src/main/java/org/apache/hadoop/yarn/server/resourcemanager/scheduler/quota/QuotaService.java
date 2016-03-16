@@ -305,6 +305,17 @@ public class QuotaService extends AbstractService {
                       _user, _day, currentTicks, currentPrice);
 
             }
+          } else if(_ycl.getExitstatus()
+                    == ContainerExitStatus.CONTAINER_RUNNING_STATE) {
+            //create a checkPoint at start to store the price.
+            ContainerCheckPoint _tempCheckpointObj
+                      = new ContainerCheckPoint(_ycl.
+                              getContainerid(), _ycl.getStart(),
+                              currentPrice);
+              containersCheckPoints.put(_ycl.getContainerid(),
+                      _tempCheckpointObj);
+              toBeAddedContainerCheckPoint.add(
+                      _tempCheckpointObj);
           }
         }
         // Delet the finished ContainersLogs
