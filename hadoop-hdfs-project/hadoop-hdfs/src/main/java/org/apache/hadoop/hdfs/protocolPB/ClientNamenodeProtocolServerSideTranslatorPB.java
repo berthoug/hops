@@ -23,6 +23,7 @@ import io.hops.leader_election.node.ActiveNode;
 import io.hops.leader_election.node.SortedActiveNodeList;
 import io.hops.leader_election.proto.ActiveNodeProtos;
 import io.hops.metadata.hdfs.entity.EncodingStatus;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.fs.ContentSummary;
@@ -332,6 +333,11 @@ public class ClientNamenodeProtocolServerSideTranslatorPB
   @Override
   public CreateResponseProto create(RpcController controller,
       CreateRequestProto req) throws ServiceException {
+
+    LogFactory.getLog(ClientNamenodeProtocolServerSideTranslatorPB.class).debug("###");
+    LogFactory.getLog(ClientNamenodeProtocolServerSideTranslatorPB.class).debug("###");
+    LogFactory.getLog(ClientNamenodeProtocolServerSideTranslatorPB.class).debug("### create called");
+
     try {
       HdfsFileStatus result = null;
       if (req.hasPolicy()) {
@@ -351,8 +357,13 @@ public class ClientNamenodeProtocolServerSideTranslatorPB
             .build();
       }
     } catch (IOException e) {
+      LogFactory.getLog(ClientNamenodeProtocolServerSideTranslatorPB.class)
+          .debug("### create finished (exception)");
       throw new ServiceException(e);
     }
+
+    LogFactory.getLog(ClientNamenodeProtocolServerSideTranslatorPB.class)
+        .debug("### create finished (empty response)");
     return VOID_CREATE_RESPONSE;
   }
   
@@ -436,6 +447,8 @@ public class ClientNamenodeProtocolServerSideTranslatorPB
   @Override
   public AddBlockResponseProto addBlock(RpcController controller,
       AddBlockRequestProto req) throws ServiceException {
+
+    LogFactory.getLog(ClientNamenodeProtocolServerSideTranslatorPB.class).debug("### addBlock called");
     
     try {
       List<DatanodeInfoProto> excl = req.getExcludeNodesList();
@@ -443,9 +456,16 @@ public class ClientNamenodeProtocolServerSideTranslatorPB
           req.hasPrevious() ? PBHelper.convert(req.getPrevious()) : null,
           (excl == null || excl.size() == 0) ? null : PBHelper
               .convert(excl.toArray(new DatanodeInfoProto[excl.size()])));
+
+      LogFactory.getLog(ClientNamenodeProtocolServerSideTranslatorPB.class)
+          .debug("### addBlock finished (success)");
+
       return AddBlockResponseProto.newBuilder()
           .setBlock(PBHelper.convert(result)).build();
     } catch (IOException e) {
+
+      LogFactory.getLog(ClientNamenodeProtocolServerSideTranslatorPB.class)
+          .debug("### addBlock finished (exception: " + e.toString() + ")");
       throw new ServiceException(e);
     }
   }

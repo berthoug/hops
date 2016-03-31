@@ -23,6 +23,7 @@ import com.google.protobuf.ServiceException;
 import io.hops.leader_election.node.ActiveNode;
 import io.hops.leader_election.node.SortedActiveNodeList;
 import io.hops.leader_election.proto.ActiveNodeProtos;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hdfs.protocol.DatanodeID;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.proto.DatanodeProtocolProtos;
@@ -101,6 +102,9 @@ public class DatanodeProtocolServerSideTranslatorPB
   public HeartbeatResponseProto sendHeartbeat(RpcController controller,
       HeartbeatRequestProto request) throws ServiceException {
     HeartbeatResponse response;
+
+//    LogFactory.getLog(DatanodeProtocolServerSideTranslatorPB.class).debug("### received heartbeat");
+
     try {
       final StorageReport[] report = PBHelper.convertStorageReports(
           request.getReportsList());
@@ -130,6 +134,8 @@ public class DatanodeProtocolServerSideTranslatorPB
     DatanodeCommand cmd = null;
     StorageBlockReport[] storageBlockReports =
         new StorageBlockReport[request.getReportsCount()];
+
+    LogFactory.getLog(DatanodeProtocolServerSideTranslatorPB.class).debug("### received blockReport");
     
     int index = 0;
     for (StorageBlockReportProto s : request.getReportsList()) {
@@ -178,8 +184,10 @@ public class DatanodeProtocolServerSideTranslatorPB
       impl.blockReceivedAndDeleted(PBHelper.convert(request.getRegistration()),
           request.getBlockPoolId(), info);
     } catch (IOException e) {
+      LogFactory.getLog(DatanodeProtocolServerSideTranslatorPB.class).debug("### error in blockReceivedAndDeleted");
       throw new ServiceException(e);
     }
+    LogFactory.getLog(DatanodeProtocolServerSideTranslatorPB.class).debug("### received blockReceivedAndDeleted");
     return VOID_BLOCK_RECEIVED_AND_DELETE_RESPONSE;
   }
 
