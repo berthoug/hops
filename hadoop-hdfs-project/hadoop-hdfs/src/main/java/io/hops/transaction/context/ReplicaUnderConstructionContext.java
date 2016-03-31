@@ -23,6 +23,7 @@ import io.hops.metadata.common.FinderType;
 import io.hops.metadata.hdfs.dal.ReplicaUnderConstructionDataAccess;
 import io.hops.transaction.lock.TransactionLocks;
 import org.apache.hadoop.hdfs.server.blockmanagement.ReplicaUnderConstruction;
+import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,6 +47,10 @@ public class ReplicaUnderConstructionContext
       log("added-replicauc", "bid", replica.getBlockId(), "sid",
               replica.getStorageId(), "state", replica.getState().name());
     }
+    // TODO remove debug statement
+    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+      log(ste.toString());
+    }
   }
 
   @Override
@@ -55,6 +60,10 @@ public class ReplicaUnderConstructionContext
     if(isLogDebugEnabled()) {
       log("removed-replicauc", "bid", replica.getBlockId(), "sid",
               replica.getStorageId(), "state", replica.getState().name());
+    }
+    // TODO remove debug statement
+    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+      log(ste.toString());
     }
   }
 

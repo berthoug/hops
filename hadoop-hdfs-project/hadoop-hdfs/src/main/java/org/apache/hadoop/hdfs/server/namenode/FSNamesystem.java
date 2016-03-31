@@ -2353,8 +2353,6 @@ public class FSNamesystem
             // Allocate a new block, add it to the INode and the BlocksMap.
             Block newBlock;
             long offset;
-            // Run the full analysis again, since things could have changed
-            // while chooseTarget() was executing.
             LocatedBlock[] onRetryBlock2 = new LocatedBlock[1];
             INode[] inodes2 =
                 analyzeFileState(src, clientName, previous, onRetryBlock2);
