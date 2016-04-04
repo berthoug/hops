@@ -539,6 +539,12 @@ public class PBHelper {
         builder.addStorageTypes(PBHelper.convertStorageType(storageTypes[i]));
       }
     }
+
+    final String[] storageIDs = b.getStorageIDs();
+    if (storageIDs != null) {
+      builder = builder.addAllStorageIDs(Arrays.asList(b.getStorageIDs()));
+    }
+
     builder = builder.setB(PBHelper.convert(b.getBlock()))
         .setBlockToken(PBHelper.convert(b.getBlockToken()))
         .setCorrupt(b.isCorrupt()).setOffset(b.getStartOffset());
