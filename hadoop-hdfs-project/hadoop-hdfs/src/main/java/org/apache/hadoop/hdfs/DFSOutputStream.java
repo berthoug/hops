@@ -521,19 +521,21 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           synchronized (dataQueue) {
             // wait for a packet to be sent.
             long now = Time.now();
-            while ((!streamerClosed && !hasError && dfsClient.clientRunning &&
+            while ((
+                    !streamerClosed &&
+                    !hasError &&
+                    dfsClient.clientRunning &&
                     dataQueue.size() == 0 &&
                     (stage != BlockConstructionStage.DATA_STREAMING ||
-                            stage == BlockConstructionStage.DATA_STREAMING &&
-                                    now - lastPacket <
-                                            dfsClient.getConf().socketTimeout / 2)) ||
-                    doSleep) {
-              long timeout =
-                      dfsClient.getConf().socketTimeout / 2 - (now - lastPacket);
+                        (stage == BlockConstructionStage.DATA_STREAMING &&
+                        now - lastPacket < dfsClient.getConf().socketTimeout/2)
+                    )
+                )
+                || doSleep ) {
+              long timeout = dfsClient.getConf().socketTimeout/2 - (now-lastPacket);
               timeout = timeout <= 0 ? 1000 : timeout;
-              timeout =
-                      (stage == BlockConstructionStage.DATA_STREAMING) ? timeout :
-                              1000;
+              timeout = (stage == BlockConstructionStage.DATA_STREAMING)? timeout : 1000;
+
               try {
                 dataQueue.wait(timeout);
               } catch (InterruptedException e) {
@@ -1283,8 +1285,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
         DataOutputStream out = null;
         try {
           assert null == s : "Previous socket unclosed";
-          assert
-                  null == blockReplyStream : "Previous blockReplyStream unclosed";
+          assert null == blockReplyStream : "Previous blockReplyStream unclosed";
           s = createSocketForPipeline(nodes[0], nodes.length, dfsClient);
           long writeTimeout = dfsClient.getDatanodeWriteTimeout(nodes.length);
 
@@ -1306,8 +1307,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           //
 
           // send the request
-          new Sender(out)
-              .writeBlock(block, nodeStorageTypes[0], accessToken,
+          new Sender(out).writeBlock(block, nodeStorageTypes[0], accessToken,
                   dfsClient.clientName, nodes, nodeStorageTypes, null,
                   recoveryFlag ? stage.getRecoveryStage() : stage, nodes.length,
                   block.getNumBytes(), bytesSent, newGS, checksum);
