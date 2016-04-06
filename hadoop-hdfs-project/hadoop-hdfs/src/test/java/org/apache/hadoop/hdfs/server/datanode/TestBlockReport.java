@@ -359,7 +359,6 @@ public class TestBlockReport {
     for (Integer aRemovedIndex : removedIndex) {
       blocks2Remove.add(lBlocks.get(aRemovedIndex).getBlock());
     }
-    ArrayList<Block> blocks = locatedToBlocks(lBlocks, removedIndex);
 
     if (LOG.isDebugEnabled()) {
       LOG.debug("Number of blocks allocated " + lBlocks.size());
@@ -375,6 +374,8 @@ public class TestBlockReport {
         DataNodeTestUtils.getFSDataset(dn0).unfinalizeBlock(b);
         if (!f.delete()) {
           LOG.warn("Couldn't delete " + b.getBlockName());
+        } else {
+          LOG.debug("Deleted file " + f.toString());
         }
       }
     }
@@ -402,9 +403,8 @@ public class TestBlockReport {
 
 
   /**
-   * Test writes a file and closes it. Then test finds a block
-   * and changes its GS to be < of original one.
-   * New empty block is added to the list of blocks.
+   * Test writes a file and closes it.
+   * Block reported is generated with a bad GS for a single block.
    * Block report is forced and the check for # of corrupted blocks is
    * performed.
    *
