@@ -263,22 +263,20 @@ public class BlockInfo extends Block {
    * Adds new replica for this block.
    * @return the replica stored, or null if it is already stored on this storage
    */
-  void addReplica(DatanodeStorageInfo storage)
+  boolean addReplica(DatanodeStorageInfo storage)
       throws StorageException, TransactionContextException {
     // TODO check we don't already have a replica on this machine
     
-//    boolean ir = isReplicatedOnStorage(storage);
-//    FSNamesystem.LOG.debug("?z? isReplicatedOnStorage=" +
-//        ir + " (should be false)");
-//
-//    if(ir) {
-//      return null;
-//    }
-    
+    if(isReplicatedOnStorage(storage)) {
+      FSNamesystem.LOG.warn("attempting to add replica on same storage");
+      return false;
+    }
+ 
     Replica replica =
         new Replica(storage.getSid(), getBlockId(), getInodeId(), HashBuckets
             .getInstance().getBucketForBlock(this));
     update(replica);
+    return true;
   }
 
    void removeAllReplicas()

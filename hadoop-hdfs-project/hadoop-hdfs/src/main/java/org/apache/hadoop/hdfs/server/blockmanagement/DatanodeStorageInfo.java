@@ -246,8 +246,7 @@ public class DatanodeStorageInfo {
 
   public boolean addBlock(BlockInfo b)
       throws TransactionContextException, StorageException {
-    b.addReplica(this);
-    return true;
+    return b.addReplica(this);
   }
 
   public boolean removeBlock(BlockInfo b)
