@@ -123,8 +123,6 @@ import org.apache.hadoop.hdfs.server.protocol.DatanodeProtocol;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage.State;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
-import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
-import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage.State;
 import org.apache.hadoop.hdfs.server.protocol.FinalizeCommand;
 import org.apache.hadoop.hdfs.server.protocol.KeyUpdateCommand;
 import org.apache.hadoop.hdfs.server.protocol.NamenodeCommand;
@@ -545,7 +543,7 @@ public class PBHelper {
 
     final String[] storageIDs = b.getStorageIDs();
     if (storageIDs != null) {
-      builder = builder.addAllStorageIDs(Arrays.asList(b.getStorageIDs()));
+      builder = builder.addAllStorageIDs(Arrays.asList(storageIDs));
     }
 
     builder = builder.setB(PBHelper.convert(b.getBlock()))

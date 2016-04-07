@@ -22,7 +22,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
-import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.BlockLocalPathInfo;
@@ -985,7 +984,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   
   private synchronized FinalizedReplica finalizeReplica(String bpid,
       ReplicaInfo replicaInfo) throws IOException {
-    FinalizedReplica newReplicaInfo = null;
+    FinalizedReplica newReplicaInfo;
     if (replicaInfo.getState() == ReplicaState.RUR &&
         ((ReplicaUnderRecovery) replicaInfo).getOriginalReplica().getState() ==
             ReplicaState.FINALIZED) {
@@ -1093,7 +1092,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     }
 
     for (FsVolumeImpl v : curVolumes) {
-      blockReportsMap.put(((FsVolumeImpl) v).toDatanodeStorage(),builders.get(v.getStorageID()).build());
+      blockReportsMap.put(v.toDatanodeStorage(),builders.get(v.getStorageID()).build());
     }
 
     return blockReportsMap;
@@ -1106,12 +1105,12 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   public synchronized List<FinalizedReplica> getFinalizedBlocks(String bpid) {
     ArrayList<FinalizedReplica> finalized =
         new ArrayList<FinalizedReplica>(volumeMap.size(bpid));
-
-    if (volumeMap.replicas(bpid) != null) {
-
-      for (ReplicaInfo b : volumeMap.replicas(bpid)) {
+  
+    Collection<ReplicaInfo> replicas = volumeMap.replicas(bpid);
+    if (replicas != null) {
+      for (ReplicaInfo b : replicas) {
         if (b.getState() == ReplicaState.FINALIZED) {
-          finalized.add(new FinalizedReplica(b));
+          finalized.add(new FinalizedReplica((FinalizedReplica)b));
         }
       }
     }
