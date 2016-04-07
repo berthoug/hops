@@ -129,6 +129,10 @@ public class MiniDFSCluster {
     DefaultMetricsSystem.setMiniClusterMode(true);
   }
 
+  public int getStoragesPerDatanode() {
+    return storagesPerDatanode;
+  }
+
   /**
    * Class to construct instances of MiniDFSClusters with specific options.
    */
