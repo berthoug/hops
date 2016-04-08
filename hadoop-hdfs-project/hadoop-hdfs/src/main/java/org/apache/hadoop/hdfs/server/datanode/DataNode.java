@@ -770,8 +770,6 @@ public class DataNode extends Configured
       storageInfo = new StorageInfo(nsInfo);
     }
 
-    checkDatanodeUuid();
-
     DatanodeID dnId =
         new DatanodeID(streamingAddr.getAddress().getHostAddress(), hostName,
             storage.getDatanodeUuid(), getXferPort(), getInfoPort(), getIpcPort());
