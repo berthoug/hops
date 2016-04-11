@@ -32,6 +32,7 @@ import org.apache.hadoop.hdfs.server.namenode.INode;
 import org.apache.hadoop.hdfs.server.namenode.INodeFile;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -267,9 +268,8 @@ public class BlockInfo extends Block {
    */
   boolean addReplica(DatanodeStorageInfo storage)
       throws StorageException, TransactionContextException {
-    // Check if one of the storages (sids) already stores a replica
-    if(isReplicatedOnDatanode(storage.getDatanodeDescriptor())) {
-      FSNamesystem.LOG.warn("attempting to add replica on same datanode");
+
+    if (isReplicatedOnDatanode(storage.getDatanodeDescriptor())) {
       return false;
     }
  
@@ -313,7 +313,6 @@ public class BlockInfo extends Block {
    */
   boolean isReplicatedOnDatanode(DatanodeDescriptor dn)
       throws StorageException {
-
     DatanodeStorageInfo[] storages = dn.getStorageInfos();
     List<Integer> sids = new ArrayList<Integer>();
     for(DatanodeStorageInfo s : storages) {
@@ -326,7 +325,6 @@ public class BlockInfo extends Block {
 
     return da.existsOnAnyStorage(getBlockId(), sids);
   }
-
   
   boolean isReplicatedOnStorage(DatanodeStorageInfo storage)
       throws StorageException, TransactionContextException {

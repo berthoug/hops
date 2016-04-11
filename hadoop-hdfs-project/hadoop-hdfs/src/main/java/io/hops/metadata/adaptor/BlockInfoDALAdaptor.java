@@ -85,6 +85,8 @@ public class BlockInfoDALAdaptor extends
         dataAccess.findBlockInfosByStorageId(storageId));
   }
 
+
+
   @Override
   public List<org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo> findBlockInfosBySids(
       List<Integer> sids) throws StorageException {
