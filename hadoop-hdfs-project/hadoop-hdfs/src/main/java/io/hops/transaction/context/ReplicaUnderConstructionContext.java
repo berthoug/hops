@@ -47,10 +47,6 @@ public class ReplicaUnderConstructionContext
       log("added-replicauc", "bid", replica.getBlockId(), "sid",
               replica.getStorageId(), "state", replica.getState().name());
     }
-    // TODO remove debug statement
-    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-      log(ste.toString());
-    }
   }
 
   @Override
@@ -60,10 +56,6 @@ public class ReplicaUnderConstructionContext
     if(isLogDebugEnabled()) {
       log("removed-replicauc", "bid", replica.getBlockId(), "sid",
               replica.getStorageId(), "state", replica.getState().name());
-    }
-    // TODO remove debug statement
-    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-      log(ste.toString());
     }
   }
 

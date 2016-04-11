@@ -5840,6 +5840,11 @@ public class FSNamesystem
     return blockManager;
   }
 
+  /** @return the FSDirectory. */
+  public FSDirectory getFSDirectory() {
+    return dir;
+  }
+  
   /**
    * Verifies that the given identifier and password are valid and match.
    *
