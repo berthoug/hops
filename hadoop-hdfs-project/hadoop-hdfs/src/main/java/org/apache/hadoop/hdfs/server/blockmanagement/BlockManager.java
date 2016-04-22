@@ -2654,7 +2654,7 @@ public class BlockManager {
 
   private void addStoredBlockUnderConstruction(BlockInfoUnderConstruction block,
      DatanodeStorageInfo storage, ReplicaState reportedState) throws IOException {
-    block.addExpectedReplicaIfNotPresent(storage, block, reportedState);
+    block.addExpectedReplica(storage, reportedState);
     if (reportedState == ReplicaState.FINALIZED && !block.isReplicatedOnStorage(storage)) {
       addStoredBlock(block, storage, null, true);
     }
@@ -4237,9 +4237,6 @@ public class BlockManager {
     datanodeManager.clearPendingQueues();
   }
 
-  ;
-
-
   private static class ReplicationWork {
 
     private final Block block;
@@ -4610,7 +4607,7 @@ public class BlockManager {
 
       @Override
       public Object performTask() throws IOException {
-        block.addExpectedReplicaIfNotPresent(storage, block, reportedState);
+        block.addExpectedReplica(storage, reportedState);
         //and fall through to next clause
         //add replica if appropriate
         if (reportedState == ReplicaState.FINALIZED) {

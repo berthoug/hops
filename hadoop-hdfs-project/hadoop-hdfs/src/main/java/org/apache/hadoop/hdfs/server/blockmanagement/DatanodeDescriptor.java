@@ -841,4 +841,12 @@ public class DatanodeDescriptor extends DatanodeInfo {
       return storage;
     }
   }
+
+  public HashSet<Integer> getSidsOnNode() {
+    HashSet<Integer> sids = new HashSet<Integer>();
+    for(DatanodeStorageInfo s : getStorageInfos()) {
+      sids.add(s.getSid());
+    }
+    return sids;
+  }
 }
