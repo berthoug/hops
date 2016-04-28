@@ -716,7 +716,7 @@ public class NetworkTopology {
     if (numOfDatanodes == 0) {
       throw new InvalidTopologyException(
           "Failed to find datanode (scope=\"" + String.valueOf(scope) +
-          "\" excludedScope=\"" + String.valueOf(excludedScope) + "\").");
+              "\" excludedScope=\"" + String.valueOf(excludedScope) + "\").");
     }
     int leaveIndex = r.nextInt(numOfDatanodes);
     return innerNode.getLeaf(leaveIndex, node);
@@ -780,8 +780,7 @@ public class NetworkTopology {
         scopeNodeCount=((InnerNode)n).getNumOfLeaves();
       }
       if (isExcluded) {
-        return clusterMap.getNumOfLeaves() - scopeNodeCount
-            - excludedCountOffScope;
+        return clusterMap.getNumOfLeaves() - scopeNodeCount - excludedCountOffScope;
       } else {
         return scopeNodeCount - excludedCountInScope;
       }
