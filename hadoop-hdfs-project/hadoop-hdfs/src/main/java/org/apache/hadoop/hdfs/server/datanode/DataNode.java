@@ -2012,8 +2012,8 @@ public class DataNode extends Configured
   private void recoverBlock(RecoveringBlock rBlock) throws IOException {
     ExtendedBlock block = rBlock.getBlock();
     String blookPoolId = block.getBlockPoolId();
-    DatanodeID[] datanodeids = rBlock.getLocations();
-    List<BlockRecord> syncList = new ArrayList<>(datanodeids.length);
+    DatanodeID[] datanodeids = rBlock.getUniqueLocations();
+    List<BlockRecord> syncList = new ArrayList<BlockRecord>(datanodeids.length);
     int errorCount = 0;
 
     //check generation stamps
