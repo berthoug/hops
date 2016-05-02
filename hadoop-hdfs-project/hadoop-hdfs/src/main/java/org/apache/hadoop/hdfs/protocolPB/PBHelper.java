@@ -529,13 +529,12 @@ public class PBHelper {
   }
 
   public static LocatedBlockProto convert(LocatedBlock b) {
-    if (b == null) {
-      return null;
-    }
+    if (b == null) return null;
     Builder builder = LocatedBlockProto.newBuilder();
     DatanodeInfo[] locs = b.getLocations();
     for (int i = 0; i < locs.length; i++) {
-      builder.addLocs(i, PBHelper.convert(locs[i]));
+      DatanodeInfo loc = locs[i];
+      builder.addLocs(i, PBHelper.convert(loc));
       //For compatability with newer clients
       builder.addStorageIDs("HopsFS_Hack_Storage_ID" );
       builder.addStorageTypes(HdfsProtos.StorageTypeProto.DISK);
@@ -548,7 +547,6 @@ public class PBHelper {
         builder.addStorageTypes(PBHelper.convertStorageType(storageTypes[i]));
       }
     }
-
     final String[] storageIDs = b.getStorageIDs();
     if (storageIDs != null) {
       builder = builder.addAllStorageIDs(Arrays.asList(storageIDs));
@@ -564,35 +562,27 @@ public class PBHelper {
   }
 
   public static LocatedBlock convert(LocatedBlockProto proto) {
-    if (proto == null) {
-      return null;
-    }
+    if (proto == null) return null;
     List<DatanodeInfoProto> locs = proto.getLocsList();
     DatanodeInfo[] targets = new DatanodeInfo[locs.size()];
     for (int i = 0; i < locs.size(); i++) {
       targets[i] = PBHelper.convert(locs.get(i));
     }
 
-    final StorageType[] storageTypes =
-        convertStorageTypes(proto.getStorageTypesList(), locs.size());
+    final StorageType[] storageTypes = convertStorageTypes(
+        proto.getStorageTypesList(), locs.size());
 
     final int storageIDsCount = proto.getStorageIDsCount();
     final String[] storageIDs;
     if (storageIDsCount == 0) {
       storageIDs = null;
     } else {
-      Preconditions.checkState(storageIDsCount == locs.size());
+      assert storageIDsCount == locs.size();
       storageIDs = proto.getStorageIDsList().toArray(new String[storageIDsCount]);
     }
 
-    LocatedBlock lb = new LocatedBlock(
-        PBHelper.convert(proto.getB()),
-        targets,
-        storageIDs,
-        storageTypes,
-        proto.getOffset(),
-        proto.getCorrupt());
-
+    LocatedBlock lb = new LocatedBlock(PBHelper.convert(proto.getB()), targets,
+        storageIDs, storageTypes, proto.getOffset(), proto.getCorrupt());
     lb.setBlockToken(PBHelper.convert(proto.getBlockToken()));
     if(proto.getData().size() > 0){
       lb.setData(proto.getData().toByteArray());
