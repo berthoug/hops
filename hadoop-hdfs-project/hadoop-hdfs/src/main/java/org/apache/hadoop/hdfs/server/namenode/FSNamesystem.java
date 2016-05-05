@@ -127,12 +127,14 @@ import org.apache.hadoop.hdfs.server.namenode.metrics.NameNodeMetrics;
 import org.apache.hadoop.hdfs.server.namenode.web.resources.NamenodeWebHdfsMethods;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeCommand;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
+import org.apache.hadoop.hdfs.server.protocol.DatanodeStorageReport;
 import org.apache.hadoop.hdfs.server.protocol.HeartbeatResponse;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 import org.apache.hadoop.hdfs.server.protocol.StorageReport;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.ipc.Server;
+import org.apache.hadoop.ipc.StandbyException;
 import org.apache.hadoop.metrics2.annotation.Metric;
 import org.apache.hadoop.metrics2.annotation.Metrics;
 import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
@@ -4074,6 +4076,20 @@ public class FSNamesystem
       arr[i] = new DatanodeInfo(results.get(i));
     }
     return arr;
+  }
+
+  DatanodeStorageReport[] getDatanodeStorageReport(final DatanodeReportType type
+  ) throws AccessControlException, StandbyException {
+    checkSuperuserPrivilege();
+    final DatanodeManager dm = getBlockManager().getDatanodeManager();
+    final List<DatanodeDescriptor> datanodes = dm.getDatanodeListForReport(type);
+
+    DatanodeStorageReport[] reports = new DatanodeStorageReport[datanodes.size()];
+    for (int i = 0; i < reports.length; i++) {
+      final DatanodeDescriptor d = datanodes.get(i);
+      reports[i] = new DatanodeStorageReport(new DatanodeInfo(d), d.getStorageReports());
+    }
+    return reports;
   }
 
   Date getStartTime() {
