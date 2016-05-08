@@ -15,6 +15,7 @@
  */
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.quota;
 
+import io.hops.exception.StorageException;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.yarn.dal.YarnHistoryPriceDataAccess;
 import io.hops.metadata.yarn.dal.YarnRunningPriceDataAccess;
@@ -23,10 +24,7 @@ import io.hops.metadata.yarn.entity.YarnHistoryPrice;
 import io.hops.metadata.yarn.entity.YarnRunningPrice;
 import io.hops.transaction.handler.LightWeightRequestHandler;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.logging.Log;
@@ -38,61 +36,111 @@ import org.apache.hadoop.yarn.server.resourcemanager.ContainersLogsService;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 
-/**
- * @author rizvi
- */
-public class PriceEstimationService  extends AbstractService {
-  
+public class PriceEstimationService extends AbstractService {
+
   private Configuration conf;
   private RMContext rmcontext;
   private volatile boolean stopped = false;
   private Thread priceCalculationThread;
-  private float tippingPointMBinPercentage;
-  private float tippingPointVCinPercentage;
-  private float increnetFactorForMemory;
-  private float increnetFactorForVirtualCore;
-  private float minimumPricePerTickMB;
-  private float minimumPricePerTickVC;
-  private int priceCalculationIntervel;
-  private float latestPrice;
-  private long latestPriceTick;
-  
+  private float tippingPointMB;
+  private float tippingPointVC;
+  private float incrementFactorForMemory;
+  private float incrementFactorForVirtualCore;
+  private float basePricePerTickMB;
+  private float basePricePerTickVC;
+  private int priceCalculationInterval;
+  private float currentPrice;
+  private long currentPriceTick = 0;
+
   private YarnRunningPriceDataAccess runningPriceDA;
   private YarnHistoryPriceDataAccess historyPriceDA;
-  
   private static final Log LOG = LogFactory.getLog(PriceEstimationService.class);
 
   public PriceEstimationService(RMContext rmctx) {
-    super("Price estimation service");    
-    rmcontext =  rmctx;    
+    super("Price estimation service");
+    rmcontext = rmctx;
   }
-  
-   @Override
+
+  @Override
   public void serviceInit(Configuration conf) throws Exception {
     LOG.info("Initializing price estimation service");
     this.conf = conf;
-    
+
     // Initialize config parameters
-    this.tippingPointMBinPercentage = this.conf.getFloat(YarnConfiguration.MAXIMUM_PERCENTAGE_OF_MEMORY_USAGE_WITH_MINIMUM_PRICE,YarnConfiguration.DEFAULT_MAXIMUM_PERCENTAGE_OF_MEMORY_USAGE_WITH_MINIMUM_PRICE);
-    this.tippingPointVCinPercentage = this.conf.getFloat(YarnConfiguration.MAXIMUM_PERCENTAGE_OF_VIRTUAL_CORE_USAGE_WITH_MINIMUM_PRICE,YarnConfiguration.DEFAULT_MAXIMUM_PERCENTAGE_OF_VIRTUAL_CORE_USAGE_WITH_MINIMUM_PRICE);
-    this.increnetFactorForMemory = this.conf.getFloat(YarnConfiguration.MANUAL_PRICE_CALIBRATION_FACTOR_MB,YarnConfiguration.DEFAULT_MANUAL_PRICE_CALIBRATION_FACTOR_MB);
-    this.increnetFactorForVirtualCore = this.conf.getFloat(YarnConfiguration.MANUAL_PRICE_CALIBRATION_FACTOR_VC,YarnConfiguration.DEFAULT_MANUAL_PRICE_CALIBRATION_FACTOR_VC);;
-    this.minimumPricePerTickMB = this.conf.getFloat(YarnConfiguration.MINIMUM_PRICE_PER_TICK_FOR_MEMORY,YarnConfiguration.DEFAULT_MINIMUM_PRICE_PER_TICK_FOR_VIRTUAL_CORE);
-    this.minimumPricePerTickVC = this.conf.getFloat(YarnConfiguration.MINIMUM_PRICE_PER_TICK_FOR_MEMORY,YarnConfiguration.DEFAULT_MINIMUM_PRICE_PER_TICK_FOR_VIRTUAL_CORE);
-    this.priceCalculationIntervel = this.conf.getInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL,YarnConfiguration.DEFAULT_QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL);;
-    
+    this.tippingPointMB = this.conf.getFloat(
+            YarnConfiguration.OVERPRICING_THRESHOLD_MB
+,            YarnConfiguration.DEFAULT_OVERPRICING_THRESHOLD_MB);
+    this.tippingPointVC = this.conf.getFloat(
+            YarnConfiguration.OVERPRICING_THRESHOLD_VC,
+            YarnConfiguration.DEFAULT_OVERPRICING_THRESHOLD_VC);
+    this.incrementFactorForMemory = this.conf.getFloat(
+            YarnConfiguration.MEMORY_INCREMENT_FACTOR,
+            YarnConfiguration.DEFAULT_MEMORY_INCREMENT_FACTOR);
+    this.incrementFactorForVirtualCore = this.conf.getFloat(
+            YarnConfiguration.VCORE_INCREMENT_FACTOR,
+            YarnConfiguration.DEFAULT_VCOREINCREMENT_FACTOR);
+    this.basePricePerTickMB = this.conf.getFloat(
+            YarnConfiguration.BASE_PRICE_PER_TICK_FOR_MEMORY,
+            YarnConfiguration.DEFAULT_BASE_PRICE_PER_TICK_FOR_MEMORY);
+    this.basePricePerTickVC = this.conf.getFloat(
+            YarnConfiguration.BASE_PRICE_PER_TICK_FOR_VIRTUAL_CORE,
+            YarnConfiguration.DEFAULT_BASE_PRICE_PER_TICK_FOR_VIRTUAL_CORE);
+    this.priceCalculationInterval = this.conf.getInt(
+            YarnConfiguration.QUOTAS_PRICE_FIXER_INTERVAL,
+            YarnConfiguration.DEFAULT_QUOTAS_PRICE_FIXER_INTERVAL);;
+
     // Initialize DataAccesses
-    this.runningPriceDA = (YarnRunningPriceDataAccess)RMStorageFactory.getDataAccess(YarnRunningPriceDataAccess.class);
-    this.historyPriceDA = (YarnHistoryPriceDataAccess)RMStorageFactory.getDataAccess(YarnHistoryPriceDataAccess.class);
-                    
+    this.runningPriceDA = (YarnRunningPriceDataAccess) RMStorageFactory.
+            getDataAccess(YarnRunningPriceDataAccess.class);
+    this.historyPriceDA = (YarnHistoryPriceDataAccess) RMStorageFactory.
+            getDataAccess(YarnHistoryPriceDataAccess.class);
+    currentPrice = basePricePerTickMB + basePricePerTickVC;
+    recover();
   }
-  
+
+  private void recover() {
+    Map<YarnRunningPrice.PriceType, YarnRunningPrice> currentPrices
+            = getCurrentPrice();
+    if (currentPrices.get(YarnRunningPrice.PriceType.VARIABLE) != null) {
+      currentPrice = currentPrices.get(YarnRunningPrice.PriceType.VARIABLE).
+              getPrice();
+      currentPriceTick = currentPrices.get(YarnRunningPrice.PriceType.VARIABLE).
+              getTime();
+    }
+  }
+
+  private Map<YarnRunningPrice.PriceType, YarnRunningPrice> getCurrentPrice() {
+    try {
+      LightWeightRequestHandler currentPriceHandler
+              = new LightWeightRequestHandler(YARNOperationType.TEST) {
+        @Override
+        public Object performTask() throws StorageException {
+          connector.beginTransaction();
+          connector.readCommitted();
+
+          Map<YarnRunningPrice.PriceType, YarnRunningPrice> currentPrices
+                  = runningPriceDA.
+                  getAll();
+
+          connector.commit();
+
+          return currentPrices;
+        }
+      };
+      return (Map<YarnRunningPrice.PriceType, YarnRunningPrice>) currentPriceHandler.
+              handle();
+    } catch (IOException ex) {
+      LOG.warn("Unable to retrieve container statuses", ex);
+    }
+    return null;
+  }
+
   @Override
   protected void serviceStart() throws Exception {
     assert !stopped : "starting when already stopped";
     LOG.info("Starting a new price estimation service.");
-    
-    priceCalculationThread = new Thread(new PriceEstimationService.WorkingThread());
+
+    priceCalculationThread = new Thread(new WorkingThread());
     priceCalculationThread.setName("Price estimation service");
     priceCalculationThread.start();
     super.serviceStart();
@@ -108,108 +156,99 @@ public class PriceEstimationService  extends AbstractService {
     LOG.info("Stopping the price estimation service.");
   }
 
-  
-  private class WorkingThread implements Runnable  {
+  private class WorkingThread implements Runnable {
 
     @Override
     public void run() {
       LOG.info("Price estimation service started");
-      long iteration = 0;
       while (!stopped && !Thread.currentThread().isInterrupted()) {
         try {
-         
+
           // Calculate the price based on resource usage
           CalculateNewPrice();
-          
+
           // Pass the latest price to the Containers Log Service          
-          if(rmcontext.isLeadingRT()) {            
+          if (rmcontext.isLeadingRT()) {
             ContainersLogsService cl = rmcontext.getContainersLogsService();
-            if (cl!=null)
-            {
-              cl.insertPriceEvent(latestPrice, latestPriceTick);
-            }
-            else
-            {
-              LOG.debug("RIZ: ContainersLogsService not initialized!");
+            if (cl != null) {
+              cl.setCurrentPrice(currentPrice);
             }
           }
-          
-          LOG.debug("RIZ: working thread iteration " + iteration++);
-          
-          Thread.sleep(priceCalculationIntervel);
+          Thread.sleep(priceCalculationInterval);
         } catch (IOException ex) {
           LOG.error(ex, ex);
         } catch (InterruptedException ex) {
           Logger.getLogger(PriceEstimationService.class.getName()).
                   log(Level.SEVERE, null, ex);
         }
-          
+
       }
       LOG.info("Quota scheduler thread is exiting gracefully");
     }
   }
 
   protected void CalculateNewPrice() throws IOException {
-    
+
+    QueueMetrics metrics = rmcontext.getScheduler().
+            getRootQueueMetrics();
+
+    int totalMB = metrics.getAllocatedMB() + metrics.getAvailableMB();
+    int totalCore = metrics.getAllocatedVirtualCores() + metrics.
+            getAvailableVirtualCores();
+
+    int usedMB = metrics.getAllocatedMB() + metrics.getPendingMB();
+    float incrementBaseMB = ((float) usedMB / (float) totalMB)
+            - tippingPointMB;
+    incrementBaseMB = incrementBaseMB > 0 ? incrementBaseMB : 0;
+    float newPriceMB = basePricePerTickMB + (incrementBaseMB
+            * incrementFactorForMemory);
+    LOG.debug("MB use: " + usedMB + " of " + totalMB + " ("
+            + (int) ((float) usedMB * 100 / (float) totalMB) + "%) "
+            + incrementBaseMB + "% over limit");
+    LOG.debug("MB price: " + newPriceMB);
+
+    int usedCore = metrics.getAllocatedVirtualCores() + metrics.
+            getPendingVirtualCores();
+    float incrementBaseVC = ((float) usedCore / (float) totalCore)
+            - tippingPointVC;
+    incrementBaseVC = incrementBaseVC > 0 ? incrementBaseVC : 0;
+    float newPriceVC = basePricePerTickVC + (incrementBaseVC
+            * incrementFactorForVirtualCore);
+    LOG.debug("VC use: " + usedCore + " of " + totalCore + " ("
+            + (int) ((float) usedCore * 100 / (float) totalCore)
+            + "%) " + incrementBaseVC + "% over limit");
+    LOG.debug("VC price: " + newPriceVC);
+
+    currentPrice = newPriceMB + newPriceVC;
+    currentPriceTick++;
+
+    LOG.debug("New price: " + currentPrice + " (" + currentPriceTick + ")");
+
     try {
-            LightWeightRequestHandler prepareHandler;
-            prepareHandler = new LightWeightRequestHandler(YARNOperationType.TEST) {              
-                @Override
-                public Object performTask() throws IOException {
-                    connector.beginTransaction();
-                    connector.writeLock();                                                
-                    
-                    if ( runningPriceDA != null && historyPriceDA !=null){                                            
-                        
-                          long _time = System.currentTimeMillis();
-                          QueueMetrics metrics = rmcontext.getScheduler().getRootQueueMetrics();
-                         
-                          int totalMB = metrics.getAllocatedMB() + metrics.getAvailableMB();
-                          int totalCore = metrics.getAllocatedVirtualCores() + metrics.getAvailableVirtualCores();
-                          
-                          int toUseMB = metrics.getAllocatedMB() + metrics.getPendingMB();                          
-                          float tippingPointMB= tippingPointMBinPercentage; // After 80% the price should be increasing
-                          float incrementBaseMB = ((float)toUseMB /(float)totalMB) - tippingPointMB;   
-                          incrementBaseMB = incrementBaseMB > 0  ? incrementBaseMB : 0;
-                          float incrementFactorMB = increnetFactorForMemory; // The factor the value will be incremented
-                          float newPriceMB = minimumPricePerTickMB + (incrementBaseMB * incrementFactorMB);
-                          LOG.info("MB use: "+ toUseMB+ " of " + totalMB + " ("+ (int)((float)toUseMB * 100 /(float)totalMB) +"%) " + incrementBaseMB + "% over limit");
-                          LOG.info("MB price: " + newPriceMB);
-
-                          int toUseCore = metrics.getAllocatedVirtualCores() + metrics.getPendingVirtualCores();
-                          float tippingPointVC= tippingPointVCinPercentage; // After 80% the price should be increasing
-                          float incrementBaseVC = ((float)toUseCore /(float)totalCore) - tippingPointVC;   
-                          incrementBaseVC = incrementBaseVC > 0  ? incrementBaseVC : 0;
-                          float incrementFactorVC = increnetFactorForVirtualCore; // The factor the value will be incremented
-                          float newPriceVC = minimumPricePerTickVC + (incrementBaseVC * incrementFactorVC);
-                          LOG.info("VC use: "+ toUseMB+ " of " + totalMB + " ("+(int)((float)toUseCore * 100 /(float)totalCore)+"%) " + incrementBaseVC+ "% over limit");
-                          LOG.info("VC price: " + newPriceVC);                         
-                          
-                          latestPrice = newPriceMB + newPriceVC;
-                          latestPriceTick = _time;
-                         
-                          runningPriceDA.add(new YarnRunningPrice(1, latestPriceTick, latestPrice));
-                          historyPriceDA.add(new YarnHistoryPrice(latestPriceTick, latestPrice));
-                         
-                          
-                          LOG.info("New price: " + latestPrice + " (" + latestPriceTick + ")");
-                          //LOG.info("RIZ: Size for YarnRunningPrice :" + _rpDA.getAll().size() + " ");
-                        
-                    }else
-                    {
-                        LOG.info("DataAccess failed!");
-
-                    }                    
-                    connector.commit();
-                    return null;
-                }
-            };
-            prepareHandler.handle();            
-            
-        } catch (Exception e) {
-            LOG.error(e);
-        }
+      persistPrice();
+    } catch (Exception e) {
+      LOG.error(e);
+    }
   }
-  
-  
+
+  private void persistPrice() throws IOException {
+    LightWeightRequestHandler prepareHandler;
+    prepareHandler = new LightWeightRequestHandler(YARNOperationType.TEST) {
+      @Override
+      public Object performTask() throws IOException {
+        connector.beginTransaction();
+        connector.writeLock();
+
+        runningPriceDA.add(new YarnRunningPrice(
+                YarnRunningPrice.PriceType.VARIABLE, currentPriceTick,
+                currentPrice));
+        historyPriceDA.add(
+                new YarnHistoryPrice(currentPriceTick, currentPrice));
+
+        connector.commit();
+        return null;
+      }
+    };
+    prepareHandler.handle();
+  }
 }

@@ -59,11 +59,11 @@ private int checkpointInterval;   //Time in ticks between checkpoints
 private double alertThreshold;
 private double threshold;
 private final RMContext rMContext;
-private float currentPrice; // This variable will be set/updated by the streaming service.
+private float currentPrice;   // This variable will be set/updated by the streaming service.
+private int priceUpdateIntervel;
 
-public float getCurrentPrice() {
-    return currentPrice;
-}
+
+
 
 ContainerStatusDataAccess containerStatusDA;
 ContainersLogsDataAccess containersLogsDA;
@@ -73,7 +73,7 @@ Map<String, ContainersLogs> activeContainers= new HashMap<String, ContainersLogs
 Map<String, ContainersLogs> updateContainers= new HashMap<String, ContainersLogs>();
 LinkedBlockingQueue<ContainerStatus> eventContainers= new LinkedBlockingQueue<ContainerStatus>();
 
-YarnVariables tickCounter = new YarnVariables(HopYarnAPIUtilities.CONTAINERSTICKCOUNTER,0  );
+YarnVariables tickCounter = new YarnVariables(HopYarnAPIUtilities.CONTAINERSTICKCOUNTER, 0);
 
 // True when service is up to speed with existing statuses and
 // with events triggered while initializing
@@ -93,10 +93,16 @@ public void serviceInit(Configuration conf) throws Exception {
         this.monitorInterval = this.conf.getInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL,YarnConfiguration.DEFAULT_QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL);
         this.tickIncrement = this.conf.getInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT,YarnConfiguration.DEFAULT_QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT);
         this.checkpointEnabled = this.conf.getBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_ENABLED,YarnConfiguration.DEFAULT_QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_ENABLED);
-        this.checkpointInterval = this.conf.getInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_MINTICKS,YarnConfiguration.DEFAULT_QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_MINTICKS) * this.conf.getInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE,YarnConfiguration.DEFAULT_QUOTAS_MIN_TICKS_CHARGE);
+        this.checkpointInterval = this.conf.getInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_MINTICKS,YarnConfiguration.DEFAULT_QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_MINTICKS)* this.conf.getInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE,YarnConfiguration.DEFAULT_QUOTAS_MIN_TICKS_CHARGE);
         this.alertThreshold = this.conf.getDouble(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_ALERT_THRESHOLD,YarnConfiguration.DEFAULT_QUOTAS_CONTAINERS_LOGS_ALERT_THRESHOLD);
         // Calculate execution time warning threshold
         this.threshold = this.monitorInterval * alertThreshold;
+
+        this.priceUpdateIntervel = this.conf.getInt(YarnConfiguration.QUOTAS_PRICE_DURATIOM,YarnConfiguration.DEFAULT_QUOTAS_PRICE_DURATIOM)*checkpointInterval;
+
+        float basePricePerTickMB = this.conf.getFloat(YarnConfiguration.BASE_PRICE_PER_TICK_FOR_MEMORY,YarnConfiguration.DEFAULT_BASE_PRICE_PER_TICK_FOR_MEMORY);
+        float basePricePerTickVC = this.conf.getFloat(YarnConfiguration.BASE_PRICE_PER_TICK_FOR_VIRTUAL_CORE,YarnConfiguration.DEFAULT_BASE_PRICE_PER_TICK_FOR_VIRTUAL_CORE);
+        currentPrice = basePricePerTickMB + basePricePerTickVC;
 
         // Initialize DataAccesses
         containerStatusDA = (ContainerStatusDataAccess) RMStorageFactory.getDataAccess(ContainerStatusDataAccess.class );
@@ -142,14 +148,19 @@ public void insertEvent(List<ContainerStatus> changedContainerStatuses) {
                 try {
                         eventContainers.put(cs);
                 } catch (InterruptedException ex) {
-                        LOG.warn("Unable to insert container status: "+ cs.toString() + " inside event queue", ex);
+                        LOG.warn("Unable to insert container status: " + cs.toString()+ " inside event queue", ex);
                 }
         }
 }
+
+public synchronized void setCurrentPrice(float currentPrice) {
+        LOG.debug("set new price: " + currentPrice);
+        this.currentPrice = currentPrice;
+}
+
 public void insertPriceEvent(float currentPrice, long currentPriceTick) {
         LOG.info("CL :: New event, new price: " + currentPrice + " at " + currentPriceTick);
         this.currentPrice = currentPrice;
-        
 }
 
 /**
@@ -160,6 +171,8 @@ public void insertPriceEvent(float currentPrice, long currentPriceTick) {
 private List<ContainerStatus> getLatestEvents() {
         List<ContainerStatus> oldEvents = new ArrayList<ContainerStatus>();
 
+        while (!eventContainers.isEmpty()) {
+                oldEvents.add(eventContainers.poll());
         }
 
         return oldEvents;
@@ -177,8 +190,13 @@ public void recover() {
                 tickCounter = getTickCounter();
                 activeContainers = getContainersLogs();
 
+                //recover current price
+                Map<YarnRunningPrice.PriceType, YarnRunningPrice> currentPrices= getCurrentPrice();
+                if (currentPrices.get(YarnRunningPrice.PriceType.VARIABLE) != null) {
+                        this.currentPrice = currentPrices.get(YarnRunningPrice.PriceType.VARIABLE).getPrice();
+                }
                 // Iterate container statuses and update active list
-                List<ContainerStatus> containerStatuses= new ArrayList<ContainerStatus>(getContainerStatuses().values());
+                List<ContainerStatus> containerStatuses = new ArrayList<ContainerStatus>(getContainerStatuses().values());
                 recoverContainerStatuses(containerStatuses, tickCounter);
 
                 // Iterate events and update active list
@@ -204,8 +222,130 @@ public void recover() {
         } catch (Exception ex) {
                 LOG.warn("Unable to finish containers logs recovery", ex);
         }
-        while (!eventContainers.isEmpty()) {
-                oldEvents.add(eventContainers.poll());
+}
+
+private synchronized void checkEventContainerStatuses(
+        List<ContainerStatus> latestEvents
+        ) {
+        for (ContainerStatus cs : latestEvents) {
+                ContainersLogs cl;
+                boolean updatable = false;
+                if(cs.getState().equals(ContainerState.NEW)) {
+                        continue;
+                }
+                cl = activeContainers.get(cs.getContainerid());
+                if (cl == null) {
+
+                        cl = new ContainersLogs(cs.getContainerid(), tickCounter.getValue(),ContainersLogs.DEFAULT_STOP_TIMESTAMP,ContainersLogs.CONTAINER_RUNNING_STATE, currentPrice);
+
+                        // Unable to capture start use case
+                        if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
+                                //TODO: this is overwriten by the next cl.setExitstatus, need to be verified
+                                cl.setExitstatus(ContainersLogs.UNKNOWN_CONTAINER_EXIT);
+                        }
+
+                        activeContainers.put(cl.getContainerid(), cl);
+                        updatable = true;
+                }
+
+
+
+                if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
+                        cl.setStop(tickCounter.getValue());
+                        cl.setExitstatus(cs.getExitstatus());
+                        activeContainers.remove(cl.getContainerid());
+                        updatable = true;
+                }
+
+                if (updatable) {
+                        updateContainers.put(cl.getContainerid(), cl);
+                }
+        }
+}
+
+
+/**
+ * Go through container status list that is passed(containers statuses or
+ * events). Ignore the states which are completed and not known or known,
+ * completed and previously were completed.
+ *
+ * @param recoveryStatuses
+ * @param ticks
+ */
+private synchronized void recoverContainerStatuses(
+        List<ContainerStatus> recoveryStatuses,
+        YarnVariables ticks
+        ) {
+        for (ContainerStatus cs : recoveryStatuses) {
+
+                if (activeContainers.get(cs.getContainerid()) == null) {
+
+                        // Only care about the ones that are not finished when recovering
+                        if (!cs.getState().equals(ContainerState.COMPLETE.toString())) {
+
+
+                                ContainersLogs cl = new ContainersLogs(cs.getContainerid(),ticks.getValue(),ContainersLogs.DEFAULT_STOP_TIMESTAMP,ContainersLogs.CONTAINER_RUNNING_STATE,currentPrice);
+
+                                activeContainers.put(cl.getContainerid(), cl);
+                        }
+                } else {
+                        ContainersLogs cl = activeContainers.get(cs.getContainerid());
+
+                        // If COMPLETE, either transition happened or and old entry
+                        if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
+                                if (cl.getExitstatus() == ContainersLogs.CONTAINER_RUNNING_STATE) {
+                                        cl.setStop(ticks.getValue());
+                                        cl.setExitstatus(cs.getExitstatus());
+                                } else {
+                                        activeContainers.remove(cl.getContainerid());
+                                }
+                        }
+                }
+        }
+}
+
+/**
+ * Updates containers logs table with container status information in update
+ * list Also update tick counter in YARN variables table
+ */
+private void updateContainersLogs(final boolean updatetTick) {
+
+        try {
+                LightWeightRequestHandler containersLogsHandler = new LightWeightRequestHandler(YARNOperationType.TEST) {
+                        @Override
+                        public Object performTask() throws StorageException {
+                                connector.beginTransaction();
+                                connector.writeLock();
+
+                                // Update containers logs table if necessary
+                                if (updateContainers.size() > 0) {
+                                        LOG.debug("CL :: Update containers logs size: " + updateContainers.size());
+                                        try {
+                                                containersLogsDA.addAll(updateContainers.values());
+                                        } catch (StorageException ex) {
+                                                LOG.warn("Unable to update containers logs table", ex);
+                                        }
+                                }
+
+                                // Update tick counter
+                                if (updatetTick) {
+                                        yarnVariablesDA.add(tickCounter);
+                                }
+
+                                connector.commit();
+                                return null;
+                        }
+                };
+                containersLogsHandler.handle();
+
+                QuotaService quotaService = rMContext.getQuotaService();
+                if (quotaService != null) {
+                        quotaService.insertEvents(updateContainers.values());
+                }
+                updateContainers.clear();
+
+        } catch (IOException ex) {
+                LOG.warn("Unable to update containers logs and tick counter", ex);
         }
 }
 
@@ -226,8 +366,7 @@ private Map<String, ContainersLogs> getContainersLogs() {
                                 connector.beginTransaction();
                                 connector.readCommitted();
 
-                                Map<String, ContainersLogs> allContainersLogs
-                                        = containersLogsDA.getAll();
+                                Map<String, ContainersLogs> allContainersLogs= containersLogsDA.getAll();
 
                                 connector.commit();
 
@@ -249,10 +388,7 @@ private Map<String, ContainersLogs> getContainersLogs() {
  * @return
  */
 private YarnVariables getTickCounter() {
-        YarnVariables tc = new YarnVariables(
-                HopYarnAPIUtilities.CONTAINERSTICKCOUNTER,
-                0
-                );
+        YarnVariables tc = new YarnVariables(HopYarnAPIUtilities.CONTAINERSTICKCOUNTER,0);
 
         try {
                 YarnVariables found;
@@ -263,7 +399,7 @@ private YarnVariables getTickCounter() {
                                 connector.beginTransaction();
                                 connector.readCommitted();
 
-                                YarnVariables tickCounterVariable= (YarnVariables) yarnVariablesDA.findById(HopYarnAPIUtilities.CONTAINERSTICKCOUNTER);
+                                YarnVariables tickCounterVariable = (YarnVariables) yarnVariablesDA.findById(HopYarnAPIUtilities.CONTAINERSTICKCOUNTER);
 
                                 connector.commit();
 
@@ -288,31 +424,51 @@ private YarnVariables getTickCounter() {
  * @return
  */
 private Map<String, ContainerStatus> getContainerStatuses() {
-        Map<String, ContainerStatus> allContainerStatuses
-                = new HashMap<String, ContainerStatus>();
+        Map<String, ContainerStatus> allContainerStatuses= new HashMap<String, ContainerStatus>();
 
         try {
-                LightWeightRequestHandler containerStatusHandler
-                        = new LightWeightRequestHandler(YARNOperationType.TEST) {
+                LightWeightRequestHandler containerStatusHandler= new LightWeightRequestHandler(YARNOperationType.TEST) {
                         @Override
                         public Object performTask() throws StorageException {
                                 connector.beginTransaction();
                                 connector.readCommitted();
 
-                                Map<String, ContainerStatus> containerStatuses
-                                        = containerStatusDA.getAll();
+                                Map<String, ContainerStatus> containerStatuses= containerStatusDA.getAll();
 
                                 connector.commit();
 
                                 return containerStatuses;
                         }
-                        };
-                allContainerStatuses
-                        = (Map<String, ContainerStatus>)containerStatusHandler.handle();
+                };
+                allContainerStatuses= (Map<String, ContainerStatus>)containerStatusHandler.handle();
         } catch (IOException ex) {
                 LOG.warn("Unable to retrieve container statuses", ex);
         }
         return allContainerStatuses;
+}
+
+private Map<YarnRunningPrice.PriceType, YarnRunningPrice> getCurrentPrice() {
+        try {
+                LightWeightRequestHandler currentPriceHandler= new LightWeightRequestHandler(YARNOperationType.TEST) {
+                        @Override
+                        public Object performTask() throws StorageException {
+                                connector.beginTransaction();
+                                connector.readCommitted();
+
+                                YarnRunningPriceDataAccess da= (YarnRunningPriceDataAccess) RMStorageFactory.getDataAccess(YarnRunningPriceDataAccess.class );
+
+                                Map<YarnRunningPrice.PriceType, YarnRunningPrice> currentPrices = da.getAll();
+
+                                connector.commit();
+
+                                return currentPrices;
+                        }
+                };
+                return (Map<YarnRunningPrice.PriceType, YarnRunningPrice>)currentPriceHandler.handle();
+        } catch (IOException ex) {
+                LOG.warn("Unable to retrieve container statuses", ex);
+        }
+        return null;
 }
 
 //TODO optimisation
@@ -320,25 +476,20 @@ private Map<String, ContainerStatus> getContainerStatuses() {
  * Loop active list and add all found & not completed container statuses to
  * update list. This ensures that whole running time is not lost.
  */
-private void createCheckpoint() {
-        // Todo - set priceUpdateIntervel in the config file. 
-        int priceUpdateIntervel = 60 * 60 * 60;
+private synchronized void createCheckpoint() {
+
+
         int tick = tickCounter.getValue();
         for (ContainersLogs log : activeContainers.values()) {
-                boolean logUpdated = false;
-                if((tick -log.getStart())%checkpointInterval==0) {
+
+                if ((tick - log.getStart()) % checkpointInterval == 0) {
                         log.setStop(tickCounter.getValue());
-                        logUpdated = true;
-                }
-                if((tick -log.getStart())%priceUpdateIntervel==0) {
-                        // TODO(RIZ) : the price should come from streaming service                         
-                        log.setPrice(currentPrice); 
-                        logUpdated = true;
-                }
-                
-                if(logUpdated)
+                        if ((tick - log.getStart()) % priceUpdateIntervel == 0) {
+                                log.setPrice(currentPrice);
+                        }
+
                         updateContainers.put(log.getContainerid(), log);
-                
+                }
         }
 }
 
@@ -397,9 +548,9 @@ public void run() {
                         //Check alert threshold
                         executionTime = System.currentTimeMillis() - startTime;
                         if (threshold < executionTime) {
-                                LOG.warn("Monitor interval threshold exceeded!"+ " Execution time: "+ Long.toString(executionTime) + "ms."+ " Threshold: "+ Double.toString(threshold) + "ms."+ " Consider increasing monitor interval!");
+                                LOG.warn("Monitor interval threshold exceeded!"+ " Execution time: " + Long.toString(executionTime) + "ms."+ " Threshold: " + Double.toString(threshold) + "ms."+ " Consider increasing monitor interval!");
                                 //To avoid negative values
-                                executionTime = (executionTime > monitorInterval) ? monitorInterval : executionTime;
+                                executionTime = (executionTime > monitorInterval) ? monitorInterval: executionTime;
                         }
                 } catch (Exception ex) {
                         LOG.warn("Exception in containers logs thread loop", ex);
@@ -413,130 +564,10 @@ public void run() {
                 }
         }
 }
-
-private void checkEventContainerStatuses(
-        List<ContainerStatus> latestEvents
-        ) {
-        for (ContainerStatus cs : latestEvents) {
-                ContainersLogs cl;
-                boolean updatable = false;
-                if(cs.getState().equals(ContainerState.NEW)) {
-                        continue;
-                }
-                if (activeContainers.get(cs.getContainerid()) == null) {
-                        // TODO(RIZ) : the price should come from NDB or streaming service
-                        cl = new ContainersLogs(cs.getContainerid(),tickCounter.getValue(),ContainersLogs.DEFAULT_STOP_TIMESTAMP,ContainersLogs.CONTAINER_RUNNING_STATE, currentPrice);
-
-                        // Unable to capture start use case,
-                        if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
-                                cl.setExitstatus(ContainersLogs.UNKNOWN_CONTAINER_EXIT);
-                        }
-
-                        activeContainers.put(cl.getContainerid(), cl);
-                        updatable = true;
-                } else {
-                        cl = activeContainers.get(cs.getContainerid());
-                }
-
-                if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
-                        cl.setStop(tickCounter.getValue());
-                        cl.setExitstatus(cs.getExitstatus());
-                        activeContainers.remove(cl.getContainerid());
-                        updatable = true;
-                }
-
-                if (updatable) {
-                        updateContainers.put(cl.getContainerid(), cl);
-                }
-        }
 }
 
-/**
- * Go through container status list that is passed(containers statuses or
- * events). Ignore the states which are completed and not known or known,
- * completed and previously were completed.
- *
- * @param recoveryStatuses
- * @param ticks
- */
-private void recoverContainerStatuses(
-        List<ContainerStatus> recoveryStatuses,
-        YarnVariables ticks
-        ) {
-        for (ContainerStatus cs : recoveryStatuses) {
-
-                if (activeContainers.get(cs.getContainerid()) == null) {
-
-                        // Only care about the ones that are not finished when recovering
-                        if (!cs.getState().equals(ContainerState.COMPLETE.toString())) {
-                          
-                                // TODO(RIZ) : the price should come from NDB or streaming service
-                                ContainersLogs cl = new ContainersLogs(
-                                        cs.getContainerid(),
-                                        ticks.getValue(),
-                                        ContainersLogs.DEFAULT_STOP_TIMESTAMP,
-                                        ContainersLogs.CONTAINER_RUNNING_STATE,
-                                        currentPrice
-                                        );
-
-                                activeContainers.put(cl.getContainerid(), cl);
-                        }
-                } else {
-                        ContainersLogs cl = activeContainers.get(cs.getContainerid());
-
-                        // If COMPLETE, either transition happened or and old entry
-                        if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
-                                if (cl.getExitstatus() == ContainersLogs.CONTAINER_RUNNING_STATE) {
-                                        cl.setStop(ticks.getValue());
-                                        cl.setExitstatus(cs.getExitstatus());
-                                } else {
-                                        activeContainers.remove(cl.getContainerid());
-                                }
-                        }
-                }
-        }
+public int getCurrentTick(){
+        return tickCounter.getValue();
 }
 
-/**
- * Updates containers logs table with container status information in update
- * list Also update tick counter in YARN variables table
- */
-private void updateContainersLogs(final boolean updatetTick) {
-
-        try {
-                LightWeightRequestHandler containersLogsHandler = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                        @Override
-                        public Object performTask() throws StorageException {
-                                connector.beginTransaction();
-                                connector.writeLock();
-
-                                // Update containers logs table if necessary
-                                if (updateContainers.size() > 0) {
-                                        LOG.debug("CL :: Update containers logs size: "+ updateContainers.size());
-                                        try {
-                                                containersLogsDA.addAll(updateContainers.values());
-                                        } catch (StorageException ex) {
-                                                LOG.warn("Unable to update containers logs table", ex);
-                                        }
-                                }
-
-                                // Update tick counter
-                                if (updatetTick) {
-                                        yarnVariablesDA.add(tickCounter);
-                                }
-
-                                connector.commit();
-                                return null;
-                        }
-                };
-                containersLogsHandler.handle();
-
-                QuotaService quotaService = rMContext.getQuotaService();
-                if(quotaService!=null) {
-                        quotaService.insertEvents(updateContainers.values());
-                }
-                updateContainers.clear();
-
-        } catch (IOException ex) {
-                LOG.warn("Unable to update containers logs and tick counter", ex);
 }

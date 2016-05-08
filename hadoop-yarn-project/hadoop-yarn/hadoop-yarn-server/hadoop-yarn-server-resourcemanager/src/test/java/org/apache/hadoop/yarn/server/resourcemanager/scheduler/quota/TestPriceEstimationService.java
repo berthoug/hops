@@ -33,6 +33,7 @@ import io.hops.metadata.yarn.entity.PendingEvent;
 import io.hops.metadata.yarn.entity.RMContainer;
 import io.hops.metadata.yarn.entity.RMNode;
 import io.hops.metadata.yarn.entity.YarnRunningPrice;
+import io.hops.metadata.yarn.entity.YarnRunningPrice.PriceType;
 import io.hops.transaction.handler.LightWeightRequestHandler;
 import java.io.IOException;
 import java.util.Random;
@@ -60,13 +61,10 @@ import org.apache.hadoop.yarn.server.resourcemanager.MockAM;
 import org.apache.hadoop.yarn.server.resourcemanager.MockNM;
 import org.apache.hadoop.yarn.server.resourcemanager.MockRM;
 import org.apache.hadoop.yarn.server.resourcemanager.NdbRtStreamingProcessor;
-
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContextImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
-
 import org.apache.hadoop.yarn.server.resourcemanager.RMContextImpl;
-
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.junit.Before;
@@ -107,29 +105,31 @@ public void setup() throws IOException {
 @Test
 public void TestPriceEstimation() throws Exception {
 
-
-        // Starting price estination service
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL,2000);
-        conf.setFloat(YarnConfiguration.MAXIMUM_PERCENTAGE_OF_MEMORY_USAGE_WITH_MINIMUM_PRICE,0.2f);
-        conf.setFloat(YarnConfiguration.MAXIMUM_PERCENTAGE_OF_VIRTUAL_CORE_USAGE_WITH_MINIMUM_PRICE,0.2f);
-
-        conf.setFloat(YarnConfiguration.MINIMUM_PRICE_PER_TICK_FOR_MEMORY,50f);
-        conf.setFloat(YarnConfiguration.MINIMUM_PRICE_PER_TICK_FOR_VIRTUAL_CORE,50f);
+        //Configure price estimation service
+        int monitorIntervel = 2000;
+        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL,monitorIntervel);
+        conf.setFloat(YarnConfiguration.OVERPRICING_THRESHOLD_MB,0.2f);
+        conf.setFloat(YarnConfiguration.OVERPRICING_THRESHOLD_VC,0.2f);
+        conf.setFloat(YarnConfiguration.BASE_PRICE_PER_TICK_FOR_MEMORY,50f);
+        conf.setFloat(YarnConfiguration.BASE_PRICE_PER_TICK_FOR_VIRTUAL_CORE,50f);        
+        conf.setFloat(YarnConfiguration.MEMORY_INCREMENT_FACTOR,10f);
+        conf.setFloat(YarnConfiguration.VCORE_INCREMENT_FACTOR,10f);
+        
+        //Configure RM to run in distributed mode
         conf.setBoolean(YarnConfiguration.RM_HA_ENABLED, true);
 
+        //Start the RM
         MockRM rm = new MockRM(conf);
         rm.start();
 
-        //TestStreamingService();
-
+        //Start Price estimation serivce
         PriceEstimationService ps = new PriceEstimationService(rm.getRMContext()); // RMcontext has to be passed
         ps.init(conf);
-        ps.start();
-
-
+        ps.start();    
+        
         ConsumeSomeResources(rm);
+        Thread.sleep(monitorIntervel + monitorIntervel);        
         CheckCurrentRunningPrice(116.00f);
-
 }
 
 private void CheckCurrentRunningPrice(float value) throws Exception {
@@ -150,7 +150,8 @@ private void CheckCurrentRunningPrice(float value) throws Exception {
 
 
                                 connector.commit();
-                                return priceList.get(1).getPrice();
+                                
+                                return priceList.get(YarnRunningPrice.PriceType.VARIABLE).getPrice();
                         }
                 };
                 float currentRunningPrice =(Float)bomb.handle();
@@ -194,7 +195,7 @@ private void ConsumeSomeResources(MockRM rm) throws Exception {
 
         //request for containers
         request = 10;
-        am.allocate("h1", 1*GB, request, new ArrayList<ContainerId>());
+        am.allocate("h2", 1*GB, request, new ArrayList<ContainerId>());
         //send node2 heartbeat
         conts = am.allocate(new ArrayList<ResourceRequest>(),new ArrayList<ContainerId>()).getAllocatedContainers();
         contReceived = conts.size();
@@ -210,17 +211,23 @@ private void ConsumeSomeResources(MockRM rm) throws Exception {
 }
 
 
-
-
 @Test  //(timeout=30000)
 public void TestContainerLogServiceUpdatesPrice() throws Exception {
-
+      
+        // Insert first batch of 10 dummy containers
+        List<RMNode> rmNodes1 = generateRMNodesToAdd(10);
+        List<RMContainer> rmContainers1 = new ArrayList<RMContainer>();
+        List<ContainerStatus> containerStatuses1 = new ArrayList<ContainerStatus>();
+        generateRMContainersToAdd(10, 0, rmNodes1, rmContainers1, containerStatuses1);
+        populateDB(rmNodes1, rmContainers1, containerStatuses1);
+        
+        //Configure resource manager to run in non-distributed mode 
+        //so that container log service start with price estimation service
         conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL,1000);
         // When RM_HA_ENABLED is disabled the ResourceManager is itself a ResourceTracker.
         // Otherwise the ResourceManager and ResourceTracker are two different nodes.
         conf.setBoolean(YarnConfiguration.RM_HA_ENABLED, false);
         MockRM rm = new MockRM(conf);
-        // Starting resource manager
         rm.start();
 
         //Starting Container Log Service
@@ -229,7 +236,7 @@ public void TestContainerLogServiceUpdatesPrice() throws Exception {
         logService.init(conf);
         logService.start();
 
-        Thread.sleep(1000);
+        Thread.sleep(2000);
 
         Assert.assertNotNull(rm.getRMContext().getContainersLogsService());
         Assert.assertTrue(rm.getRMContext().isLeadingRT());
@@ -240,8 +247,8 @@ public void TestContainerLogServiceUpdatesPrice() throws Exception {
         ps.start();
         
         Thread.sleep(2000);
-        // Todo: get the running price from the DB and then compare
-        Assert.assertEquals(logService.getCurrentPrice(),200f);
+        // Todo: Check in the log that 'setCurrentPrice()' is called in 'ContainersLogsService' 
+        // TODO: Improve the test to use Assert.assertEquals();
 }
 
 @Test
@@ -259,6 +266,7 @@ public void TestStreamingServiceUpdatePriceInContainerLogService() throws Except
         // Otherwise the ResourceManager and ResourceTracker are two different nodes.
         conf.setBoolean(YarnConfiguration.RM_HA_ENABLED, true);
 
+        // Start an RM as Leader/Schedular
         RMContextImpl rmContext = new RMContextImpl();
         rmContext.setHAEnabled(true);
         rmContext.setDistributedEnabled(true);
@@ -271,13 +279,14 @@ public void TestStreamingServiceUpdatePriceInContainerLogService() throws Except
         // Test is this a Leader/Schedular
         org.junit.Assert.assertTrue(rmContext.getGroupMembershipService().isLeader());
         
-        
+        // Start an another RM as LeadingRT
         MockRM rmRT = new MockRM(conf);
         rmRT.start();        
-        // Test is this NOT a Leader/Schedular
+        // Test - this is NOT a Leader/Schedular
         Assert.assertFalse(rmRT.getRMContext().getGroupMembershipService().isLeader());
-        // Test is this a LeadingRT
+        // Test - this is a LeadingRT
         Assert.assertTrue(rmRT.getRMContext().getGroupMembershipService().isLeadingRT());
+        
         // Start the RT Streaming processor
         NdbRtStreamingProcessor rtStreamingProcessor = new NdbRtStreamingProcessor(rmRT.getRMContext());
         RMStorageFactory.kickTheNdbEventStreamingAPI(false, conf);
@@ -288,7 +297,7 @@ public void TestStreamingServiceUpdatePriceInContainerLogService() throws Except
         // Change the global running price directly with out Streaming Service
         // rmRT.getRMContext().getContainersLogsService().insertPriceEvent(100f, 12345678); 
             
-        // Change the global running price, Streaming Service will trigger the 'insertPriceEvent' in th e containerLogServie
+        // Change the global running price, Streaming Service will trigger the 'insertPriceEvent' in the containerLogServie
         LightWeightRequestHandler bomb;
         bomb = new LightWeightRequestHandler(YARNOperationType.TEST) {
             @Override
@@ -299,7 +308,7 @@ public void TestStreamingServiceUpdatePriceInContainerLogService() throws Except
                 YarnRunningPriceDataAccess<YarnRunningPrice> runningPriceDA = (YarnRunningPriceDataAccess)RMStorageFactory.getDataAccess(YarnRunningPriceDataAccess.class);
 
                 if ( runningPriceDA != null) {
-                    runningPriceDA.add(new YarnRunningPrice(1, 12345678, 100f));
+                    runningPriceDA.add(new YarnRunningPrice(PriceType.VARIABLE, 12345678, 100f));
                 } else {
                     LOG.info("DataAccess failed!");
                 }
@@ -337,8 +346,6 @@ public void TestStreamingServiceUpdatePriceInContainerLogService() throws Except
                 org.junit.Assert.assertEquals( (Float)100f, (Float)_price );
         }
         rmRT.stop();
-
-
 }
 
 
@@ -430,7 +437,8 @@ private void generateRMContainersToAdd(int nbContainers,int startNo, List<RMNode
                 RMContainer container = new RMContainer("container_1450009406746_0001_01_00000" + i, "appAttemptId",randomRMNode.getNodeId(), "user", "reservedNodeId", i, i, i, i, i, "state", "finishedStatusState", i);
                 rmContainers.add(container);
 
-                ContainerStatus status = new ContainerStatus(container.getContainerId(),ContainerState.RUNNING.toString(),null,ContainerExitStatus.SUCCESS,randomRMNode.getNodeId(),randomRMNode.getPendingEventId());
+                //ContainerStatus status = new ContainerStatus(container.getContainerId(),ContainerState.RUNNING.toString(), null,ContainerExitStatus.SUCCESS, randomRMNode.getNodeId(),randomRMNode.getPendingEventId(),ContainerStatus.Type.JUST_LAUNCHED);
+                ContainerStatus status = new ContainerStatus(container.getContainerId(),ContainerState.RUNNING.toString(),null,ContainerExitStatus.SUCCESS,randomRMNode.getNodeId(),randomRMNode.getPendingEventId(),ContainerStatus.Type.JUST_LAUNCHED);
                 containersStatus.add(status);
         }
 }
@@ -440,7 +448,8 @@ int pendingId=0;
 private List<RMNode> generateRMNodesToAdd(int nbNodes) {
         List<RMNode> toAdd = new ArrayList<RMNode>();
         for (int i = 0; i < nbNodes; i++) {
-                RMNode rmNode = new RMNode("nodeid_" + i + ":" + 9999, "hostName", 1,1, "nodeAddress", "httpAddress", "", 1, "RUNNING","version", 1, 1, pendingId++);
+              
+                RMNode rmNode = new RMNode("nodeid_" + i + ":" + 9999, "hostName", 1, 1,"nodeAddress", "httpAddress", "", 1, "RUNNING", "version", 1, pendingId++);
                 toAdd.add(rmNode);
         }
         return toAdd;
@@ -449,5 +458,32 @@ private List<RMNode> generateRMNodesToAdd(int nbNodes) {
 
 
 
+
+  private void SetRunningPriceTo(final float f) throws Exception{
+    
+    try {
+            LightWeightRequestHandler bomb;
+            bomb = new LightWeightRequestHandler(YARNOperationType.TEST) {
+              
+                @Override
+                public Object performTask() throws IOException {
+                    connector.beginTransaction();
+                    connector.writeLock();
+
+                    YarnRunningPriceDataAccess _rpDA = (YarnRunningPriceDataAccess)RMStorageFactory.getDataAccess(YarnRunningPriceDataAccess.class);
+                    Assert.assertNotNull(_rpDA);
+                    _rpDA.add(new YarnRunningPrice(YarnRunningPrice.PriceType.VARIABLE, 123456l, f));
+                    connector.commit();
+                    
+                    return null;
+                }
+            };
+            bomb.handle();
+      } catch (Exception e) {
+      }
+ 
+
+    
+  }
 
 }

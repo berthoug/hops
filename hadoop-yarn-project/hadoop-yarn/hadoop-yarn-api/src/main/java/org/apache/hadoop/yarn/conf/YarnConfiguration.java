@@ -182,13 +182,13 @@ public class YarnConfiguration extends Configuration {
    * The maximum percentage of the resource after which price will start increasing.
    */
 
-  public static final String MAXIMUM_PERCENTAGE_OF_MEMORY_USAGE_WITH_MINIMUM_PRICE = 
-          YARN_PREFIX + "quotas.price-estimation.max-MB-usage";
-  public static final float DEFAULT_MAXIMUM_PERCENTAGE_OF_MEMORY_USAGE_WITH_MINIMUM_PRICE = 0.5f;
-  
-  public static final String MAXIMUM_PERCENTAGE_OF_VIRTUAL_CORE_USAGE_WITH_MINIMUM_PRICE = 
-          YARN_PREFIX + "quotas.price-estimation.max-VC-usage";
-  public static final float DEFAULT_MAXIMUM_PERCENTAGE_OF_VIRTUAL_CORE_USAGE_WITH_MINIMUM_PRICE = 0.5f;
+//  public static final String MAXIMUM_PERCENTAGE_OF_MEMORY_USAGE_WITH_MINIMUM_PRICE = 
+//          YARN_PREFIX + "quotas.price-estimation.max-MB-usage";
+//  public static final float DEFAULT_MAXIMUM_PERCENTAGE_OF_MEMORY_USAGE_WITH_MINIMUM_PRICE = 0.5f;
+//  
+//  public static final String MAXIMUM_PERCENTAGE_OF_VIRTUAL_CORE_USAGE_WITH_MINIMUM_PRICE = 
+//          YARN_PREFIX + "quotas.price-estimation.max-VC-usage";
+//  public static final float DEFAULT_MAXIMUM_PERCENTAGE_OF_VIRTUAL_CORE_USAGE_WITH_MINIMUM_PRICE = 0.5f;
 
   public static final String OVERPRICING_THRESHOLD_MB = 
           YARN_PREFIX + "quotas.overpricing-threshold.mb";
@@ -202,15 +202,14 @@ public class YarnConfiguration extends Configuration {
   
   /**
    * Price per tick, the the minimum price for resource usage. 
-
    */
-  public static final String MINIMUM_PRICE_PER_TICK_FOR_MEMORY = 
-          YARN_PREFIX + "quotas.price-estimation.min-price-per-tick-MB";
-  public static final float DEFAULT_MINIMUM_PRICE_PER_TICK_FOR_MEMORY = 100f;
-  
-  public static final String MINIMUM_PRICE_PER_TICK_FOR_VIRTUAL_CORE = 
-          YARN_PREFIX + "quotas.price-estimation.min-price-per-tick-VC";
-  public static final float DEFAULT_MINIMUM_PRICE_PER_TICK_FOR_VIRTUAL_CORE = 100f;
+//  public static final String MINIMUM_PRICE_PER_TICK_FOR_MEMORY = 
+//          YARN_PREFIX + "quotas.price-estimation.min-price-per-tick-MB";
+//  public static final float DEFAULT_MINIMUM_PRICE_PER_TICK_FOR_MEMORY = 100f;
+//  
+//  public static final String MINIMUM_PRICE_PER_TICK_FOR_VIRTUAL_CORE = 
+//          YARN_PREFIX + "quotas.price-estimation.min-price-per-tick-VC";
+//  public static final float DEFAULT_MINIMUM_PRICE_PER_TICK_FOR_VIRTUAL_CORE = 100f;
 /*
    * the default prices are fixed to have a base price of 1credit per minute
    * with the default tick period of 1 per second.
@@ -227,15 +226,14 @@ public class YarnConfiguration extends Configuration {
   
   /**
    * The the price increment factor over the minimum price.
-
    */
-  public static final String MANUAL_PRICE_CALIBRATION_FACTOR_MB = 
-          YARN_PREFIX + "quotas.price-estimation.price-calibration-factor-MB";
-  public static final float DEFAULT_MANUAL_PRICE_CALIBRATION_FACTOR_MB = 10f;
-  
-  public static final String MANUAL_PRICE_CALIBRATION_FACTOR_VC = 
-          YARN_PREFIX + "quotas.price-estimation.price-calibration-factor-VC";
-  public static final float DEFAULT_MANUAL_PRICE_CALIBRATION_FACTOR_VC = 10f;
+//  public static final String MANUAL_PRICE_CALIBRATION_FACTOR_MB = 
+//          YARN_PREFIX + "quotas.price-estimation.price-calibration-factor-MB";
+//  public static final float DEFAULT_MANUAL_PRICE_CALIBRATION_FACTOR_MB = 10f;
+//  
+//  public static final String MANUAL_PRICE_CALIBRATION_FACTOR_VC = 
+//          YARN_PREFIX + "quotas.price-estimation.price-calibration-factor-VC";
+//  public static final float DEFAULT_MANUAL_PRICE_CALIBRATION_FACTOR_VC = 10f;
   
   
 /*

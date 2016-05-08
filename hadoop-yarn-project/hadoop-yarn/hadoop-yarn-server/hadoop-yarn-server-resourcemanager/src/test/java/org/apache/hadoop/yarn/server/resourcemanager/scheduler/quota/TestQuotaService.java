@@ -86,7 +86,7 @@ public class TestQuotaService {
   }
 
   public void PrepareScenario() throws StorageException, IOException {
-//<<<<<<< HEAD
+
         LOG.info("--- START: TestContainerUsage ---");
         LOG.info("--- Checking ContainerStatus ---");
 
@@ -135,66 +135,6 @@ public class TestQuotaService {
                 //LOG.error(ex);
         } catch (StorageException ex) {
                 //LOG.error(ex);
-//=======
-//    LOG.info("--- START: TestContainerUsage ---");
-//    LOG.info("--- Checking ContainerStatus ---");
-//
-//    try {
-//
-//      final List<RMNode> hopRMNode = new ArrayList<RMNode>();
-//      hopRMNode.add(new RMNode("Andromeda3:51028"));
-//
-//      final List<ApplicationState> hopApplicationState
-//              = new ArrayList<ApplicationState>();
-//      hopApplicationState.add(new ApplicationState(
-//              "application_1450009406746_0001", new byte[0], "Project07__rizvi",
-//              "DistributedShell", "FINISHING"));
-//
-//      final List<ContainersLogs> hopContainersLogs
-//              = new ArrayList<ContainersLogs>();
-//      hopContainersLogs.add(new ContainersLogs(
-//              "container_1450009406746_0001_01_000001",
-//              10, 11, ContainerExitStatus.SUCCESS, (float) 0.1));
-//      hopContainersLogs.add(new ContainersLogs(
-//              "container_1450009406746_0001_02_000001",
-//              10, 11, ContainerExitStatus.ABORTED, (float) 0.1));
-//      hopContainersLogs.add(new ContainersLogs(
-//              "container_1450009406746_0001_03_000001",
-//              10, 110, ContainerExitStatus.CONTAINER_RUNNING_STATE, (float) 0.1));
-//
-//      final List<YarnProjectsQuota> hopYarnProjectsQuota
-//              = new ArrayList<YarnProjectsQuota>();
-//      hopYarnProjectsQuota.add(new YarnProjectsQuota("Project07", 50, 0));
-//
-//      LightWeightRequestHandler bomb;
-//      bomb = new LightWeightRequestHandler(YARNOperationType.TEST) {
-//        @Override
-//        public Object performTask() throws IOException {
-//          connector.beginTransaction();
-//          connector.writeLock();
-//
-//          RMNodeDataAccess _rmDA = (RMNodeDataAccess) RMStorageFactory.
-//                  getDataAccess(RMNodeDataAccess.class);
-//          _rmDA.addAll(hopRMNode);
-//
-//          ApplicationStateDataAccess<ApplicationState> _appState
-//                  = (ApplicationStateDataAccess) RMStorageFactory.getDataAccess(
-//                          ApplicationStateDataAccess.class);
-//          _appState.addAll(hopApplicationState);
-//
-//          ContainersLogsDataAccess<ContainersLogs> _clDA
-//                  = (ContainersLogsDataAccess) RMStorageFactory.
-//                  getDataAccess(ContainersLogsDataAccess.class);
-//          _clDA.addAll(hopContainersLogs);
-//
-//          YarnProjectsQuotaDataAccess<YarnProjectsQuota> _pqDA
-//                  = (YarnProjectsQuotaDataAccess) RMStorageFactory.
-//                  getDataAccess(YarnProjectsQuotaDataAccess.class);
-//          _pqDA.addAll(hopYarnProjectsQuota);
-//
-//          connector.commit();
-//          return null;
-//>>>>>>> upstream/develop
         }
 }
 
@@ -278,15 +218,12 @@ public class TestQuotaService {
     // Prepare the scenario
     PrepareScenario();
 
-    // Run the schedulat
-    QuotaService qs = new QuotaService();
     Configuration conf = new YarnConfiguration();
-//<<<<<<< HEAD
     //conf.setInt(YarnConfiguration.QUOTAS_TICKS_PER_CREDIT, 10);
     conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 10);
-//=======
-//    conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 100);
-//>>>>>>> upstream/develop
+    
+    // Run the Quota Service
+    QuotaService qs = new QuotaService();
     qs.init(conf);
     qs.serviceStart();
     Thread.currentThread().sleep(1000);
@@ -302,12 +239,6 @@ public class TestQuotaService {
   public void TestQuotaServiceChargingProjects() throws Exception {
     int initialCredits = 100;
     int totalCost =0;
-//=======
-////        (timeout = 6000)
-//  public void TestStream() throws Exception {
-//    int initialCredits = 50;
-//    int totalCost = 0;
-//>>>>>>> upstream/develop
     //prepare database
     final List<ApplicationState> hopApplicationState
             = new ArrayList<ApplicationState>();
@@ -344,7 +275,6 @@ public class TestQuotaService {
 
     QuotaService qs = new QuotaService();
     Configuration conf = new YarnConfiguration();
-//<<<<<<< HEAD
     //conf.setInt(YarnConfiguration.QUOTAS_TICKS_PER_CREDIT, 5);
     conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 10);
     qs.init(conf);
@@ -374,73 +304,6 @@ public class TestQuotaService {
     Thread.sleep(2000);
     
     CheckProject(initialCredits-totalCost, totalCost);
-//=======
-//    conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 10);
-//    qs.init(conf);
-//    qs.serviceStart();
-//    //add containers
-//    for (int i = 0; i < 10; i++) {
-//      List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
-//
-//      for (int j = 0; j < i; j++) {
-//        logs.add(new ContainersLogs("container_1450009406746_0001_0" + i
-//                + "_00000" + j, i, i,
-//                ContainerExitStatus.CONTAINER_RUNNING_STATE,(float)0.1));
-//      }
-//      qs.insertEvents(logs);
-//    }
-//    Thread.sleep(1000);
-//    //finish some containers
-//    for (int i = 0; i < 3; i++) {
-//    List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
-//
-//      for (int j = 0; j < i; j++) {
-//        logs.add(new ContainersLogs("container_1450009406746_0001_0" + i
-//                + "_00000" + j, i, i + 5, ContainerExitStatus.SUCCESS,(float) 0.1));
-//        totalCost+=1;
-//      }
-//    qs.insertEvents(logs);
-//    }
-//    Thread.sleep(1000);
-//    //checkpoint remaining containers
-//    for (int i = 3; i < 10; i++) {
-//      List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
-//
-//      for (int j = 0; j < i; j++) {
-//        logs.add(new ContainersLogs("container_1450009406746_0001_0" + i
-//                + "_00000" + j, i, i + 10,
-//                ContainerExitStatus.CONTAINER_RUNNING_STATE,(float) 0.1));
-//        totalCost+=1;
-//      }
-//      qs.insertEvents(logs);
-//    }
-//    Thread.sleep(1000);
-//    //finish some checkpointed containers
-//    for (int i = 3; i < 6; i++) {
-//      List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
-//
-//      for (int j = 0; j < i; j++) {
-//        logs.add(new ContainersLogs("container_1450009406746_0001_0" + i
-//                + "_00000" + j, i, i + 15, ContainerExitStatus.SUCCESS,(float) 0.1));
-//        totalCost+=1;
-//      }
-//      qs.insertEvents(logs);
-//    }
-//    Thread.sleep(1000);
-//    //preempt some containers
-//    for (int i = 6; i < 9; i++) {
-//      List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
-//
-//      for (int j = 0; j < i; j++) {
-//        logs.add(new ContainersLogs("container_1450009406746_0001_0" + i
-//                + "_00000" + j, i, i + 16, ContainerExitStatus.PREEMPTED,(float) 0.1));
-//        totalCost+=1;
-//      }
-//      qs.insertEvents(logs);
-//    }
-//    Thread.sleep(2000);
-//    CheckProject(initialCredits - totalCost, totalCost);
-//>>>>>>> upstream/develop
     CheckProjectDailyCost(totalCost);
   }
   
@@ -466,7 +329,8 @@ public class TestQuotaService {
         // A new RM will then be a Leader/Schedular
         MockRM rm = new MockRM(conf);
         rm.start();        
-        Thread.sleep(1000);        
+        // Give some time to start the streaming service.
+        Thread.sleep(5000);        
         
         // Check leadership with groupmembership service
         Assert.assertTrue(rm.getRMContext().getGroupMembershipService().isLeader());

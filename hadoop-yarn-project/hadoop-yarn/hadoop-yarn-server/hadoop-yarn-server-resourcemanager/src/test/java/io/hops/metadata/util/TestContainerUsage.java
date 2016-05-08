@@ -333,6 +333,66 @@ public class TestContainerUsage {
         }
 
     }
+    
+    @Test
+    public void TestRunningPriceCRUD() throws StorageException, IOException {
+        try {
+          
+            LightWeightRequestHandler bomb;
+            bomb = new LightWeightRequestHandler(YARNOperationType.TEST) {
+              
+                @Override
+                public Object performTask() throws IOException {
+                    connector.beginTransaction();
+                    connector.writeLock();
+
+                    YarnRunningPriceDataAccess _rpDA = (YarnRunningPriceDataAccess)RMStorageFactory.getDataAccess(YarnRunningPriceDataAccess.class);
+                    List<YarnRunningPrice> _list = new ArrayList<YarnRunningPrice>();
+                    //_list.add(new YarnRunningPrice(YarnRunningPrice.PriceType.VARIABLE, 123456, 200));
+                    if (_rpDA != null) {
+                        _rpDA.add(new YarnRunningPrice(YarnRunningPrice.PriceType.VARIABLE, 123456l, 200.00f));
+                    } else {
+                        LOG.info("DataAccess failed!");
+                    }
+                    connector.commit();
+                    return null;
+                }
+            };
+            bomb.handle();
+
+            //Thread.sleep(2000);
+            LightWeightRequestHandler bomb2;
+            bomb2 = new LightWeightRequestHandler(YARNOperationType.TEST) {
+              
+                @Override
+                public Object performTask() throws IOException {
+                    connector.beginTransaction();
+                    connector.writeLock();                    
+                    YarnRunningPriceDataAccess _rpDA = (YarnRunningPriceDataAccess)RMStorageFactory.getDataAccess(YarnRunningPriceDataAccess.class);
+                    
+                    Assert.assertNotNull(_rpDA);
+
+                    Map<String, YarnRunningPrice> _pqList = _rpDA.getAll();
+                    Assert.assertNotNull(_pqList);
+                    Assert.assertTrue(_pqList.values().size() > 0); 
+                    Assert.assertEquals(_pqList.get(YarnRunningPrice.PriceType.VARIABLE).getPrice(),200.00f);
+//                    for (YarnRunningPrice _c : _pqList.values()) {
+//                        LOG.info(_c.toString());
+//                        Assert.assertEquals(YarnRunningPrice.PriceType.VARIABLE , _c.getId().VARIABLE);
+//                        Assert.assertEquals( 123456l, _c.getTime());
+//                        Assert.assertEquals( 200.00f, _c.getPrice());
+//                    }                   
+                    connector.commit();
+                    return null;
+                }
+            };
+            bomb2.handle();
+
+        } catch (Exception e) {
+            LOG.error(e);
+        }
+
+    }
 
     @Test
     public void TestProjectQuotaCRUD() throws StorageException, IOException {
@@ -489,9 +549,9 @@ public class TestContainerUsage {
              */
 
             final List<ContainerStatus> hopContainersStatus = new ArrayList<ContainerStatus>();
-            hopContainersStatus.add(new ContainerStatus("container_1450009406746_0001_01_000001", TablesDef.ContainerStatusTableDef.STATE_RUNNING, "", -1000, "Andromeda3:51028", 10));
-            hopContainersStatus.add(new ContainerStatus("container_1450009406746_0001_02_000001", TablesDef.ContainerStatusTableDef.STATE_RUNNING, "", -1000, "Andromeda3:51028", 10));
-            hopContainersStatus.add(new ContainerStatus("container_1450009406746_0001_03_000001", TablesDef.ContainerStatusTableDef.STATE_RUNNING, "", -1000, "Andromeda3:51028", 10));
+            hopContainersStatus.add(new ContainerStatus("container_1450009406746_0001_01_000001", TablesDef.ContainerStatusTableDef.STATE_RUNNING, "", -1000, "Andromeda3:51028", 10, ContainerStatus.Type.JUST_LAUNCHED));
+            hopContainersStatus.add(new ContainerStatus("container_1450009406746_0001_02_000001", TablesDef.ContainerStatusTableDef.STATE_RUNNING, "", -1000, "Andromeda3:51028", 10, ContainerStatus.Type.JUST_LAUNCHED));
+            hopContainersStatus.add(new ContainerStatus("container_1450009406746_0001_03_000001", TablesDef.ContainerStatusTableDef.STATE_RUNNING, "", -1000, "Andromeda3:51028", 10, ContainerStatus.Type.JUST_LAUNCHED));
 
             //hopContainersStatus.add(new ContainerStatus("container8",TablesDef.ContainerStatusTableDef.STATE_RUNNING,"cont.. from riz", 0, "70", DEFAULT_PENDIND_ID));
             /*          
