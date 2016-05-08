@@ -26,13 +26,12 @@ import io.hops.metadata.yarn.dal.ContainerDataAccess;
 import io.hops.metadata.yarn.dal.ContainerIdToCleanDataAccess;
 import io.hops.metadata.yarn.dal.ContainerStatusDataAccess;
 import io.hops.metadata.yarn.dal.FiCaSchedulerAppLastScheduledContainerDataAccess;
-import io.hops.metadata.yarn.dal.FiCaSchedulerAppLiveContainersDataAccess;
-import io.hops.metadata.yarn.dal.FiCaSchedulerAppNewlyAllocatedContainersDataAccess;
 import io.hops.metadata.yarn.dal.FiCaSchedulerAppReservationsDataAccess;
 import io.hops.metadata.yarn.dal.FiCaSchedulerAppSchedulingOpportunitiesDataAccess;
 import io.hops.metadata.yarn.dal.FiCaSchedulerNodeDataAccess;
 import io.hops.metadata.yarn.dal.FinishedApplicationsDataAccess;
 import io.hops.metadata.yarn.dal.FullRMNodeDataAccess;
+import io.hops.metadata.yarn.dal.JustFinishedContainersDataAccess;
 import io.hops.metadata.yarn.dal.JustLaunchedContainersDataAccess;
 import io.hops.metadata.yarn.dal.LaunchedContainersDataAccess;
 import io.hops.metadata.yarn.dal.NextHeartbeatDataAccess;
@@ -49,8 +48,7 @@ import io.hops.metadata.yarn.dal.ResourceDataAccess;
 import io.hops.metadata.yarn.dal.ResourceRequestDataAccess;
 import io.hops.metadata.yarn.dal.SchedulerApplicationDataAccess;
 import io.hops.metadata.yarn.dal.UpdatedContainerInfoDataAccess;
-import io.hops.metadata.yarn.dal.capacity.CSLeafQueueUserInfoDataAccess;
-import io.hops.metadata.yarn.dal.capacity.CSQueueDataAccess;
+import io.hops.metadata.yarn.dal.capacity.CSLeafQueuesPendingAppsDataAccess;
 import io.hops.metadata.yarn.dal.capacity.FiCaSchedulerAppReservedContainersDataAccess;
 import io.hops.metadata.yarn.dal.fair.AppSchedulableDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
@@ -75,10 +73,10 @@ import io.hops.metadata.yarn.entity.Container;
 import io.hops.metadata.yarn.entity.ContainerId;
 import io.hops.metadata.yarn.entity.ContainerStatus;
 import io.hops.metadata.yarn.entity.FiCaSchedulerAppLastScheduledContainer;
-import io.hops.metadata.yarn.entity.FiCaSchedulerAppContainer;
 import io.hops.metadata.yarn.entity.FiCaSchedulerAppSchedulingOpportunities;
 import io.hops.metadata.yarn.entity.FiCaSchedulerNode;
 import io.hops.metadata.yarn.entity.FinishedApplications;
+import io.hops.metadata.yarn.entity.JustFinishedContainer;
 import io.hops.metadata.yarn.entity.JustLaunchedContainers;
 import io.hops.metadata.yarn.entity.LaunchedContainers;
 import io.hops.metadata.yarn.entity.Load;
@@ -99,8 +97,6 @@ import io.hops.metadata.yarn.entity.UpdatedContainerInfo;
 import io.hops.metadata.yarn.entity.appmasterrpc.AllocateRPC;
 import io.hops.metadata.yarn.entity.appmasterrpc.HeartBeatRPC;
 import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
-import io.hops.metadata.yarn.entity.capacity.CSLeafQueueUserInfo;
-import io.hops.metadata.yarn.entity.capacity.CSQueue;
 import io.hops.metadata.yarn.entity.capacity.FiCaSchedulerAppReservedContainers;
 import io.hops.metadata.yarn.entity.rmstatestore.AllocateResponse;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationAttemptState;
@@ -543,77 +539,6 @@ public class RMUtilities {
     return DA.getAll();
   }
 
-  //For testing TODO move to test
-  public static List<FiCaSchedulerAppContainer> getNewlyAllocatedContainers(
-      final String ficaId) throws IOException {
-    LightWeightRequestHandler getNewlyAllocatedContainersHandler =
-        new LightWeightRequestHandler(YARNOperationType.TEST) {
-          @Override
-          public Object performTask() throws StorageException {
-            connector.beginTransaction();
-            connector.writeLock();
-            FiCaSchedulerAppNewlyAllocatedContainersDataAccess DA =
-                (FiCaSchedulerAppNewlyAllocatedContainersDataAccess) RMStorageFactory
-                    .getDataAccess(
-                        FiCaSchedulerAppNewlyAllocatedContainersDataAccess.class);
-            List<FiCaSchedulerAppContainer>
-                hopNewlyAllocatedContainers = DA.findById(ficaId);
-            connector.commit();
-            return hopNewlyAllocatedContainers;
-          }
-        };
-    return (List<FiCaSchedulerAppContainer>) getNewlyAllocatedContainersHandler
-        .handle();
-  }
-
-  public static Map<String, List<FiCaSchedulerAppContainer>> getAllNewlyAllocatedContainers()
-      throws IOException {
-    LightWeightRequestHandler getNewlyAllocatedContainersHandler =
-        new LightWeightRequestHandler(YARNOperationType.TEST) {
-          @Override
-          public Object performTask() throws IOException {
-            connector.beginTransaction();
-            connector.writeLock();
-            FiCaSchedulerAppNewlyAllocatedContainersDataAccess DA =
-                (FiCaSchedulerAppNewlyAllocatedContainersDataAccess) RMStorageFactory
-                    .
-                        getDataAccess(
-                            FiCaSchedulerAppNewlyAllocatedContainersDataAccess.class);
-            Map<String, List<FiCaSchedulerAppContainer>>
-                hopNewlyAllocatedContainers = DA.getAll();
-            connector.commit();
-            return hopNewlyAllocatedContainers;
-          }
-        };
-    return (Map<String, List<FiCaSchedulerAppContainer>>) getNewlyAllocatedContainersHandler
-        .
-            handle();
-  }
-  
-
-  public static Map<String, List<FiCaSchedulerAppContainer>> getAllLiveContainers()
-      throws IOException {
-    LightWeightRequestHandler getLiveContainersHandler =
-        new LightWeightRequestHandler(YARNOperationType.TEST) {
-          @Override
-          public Object performTask() throws StorageException {
-            connector.beginTransaction();
-            connector.writeLock();
-            FiCaSchedulerAppLiveContainersDataAccess DA =
-                (FiCaSchedulerAppLiveContainersDataAccess) RMStorageFactory.
-                    getDataAccess(
-                        FiCaSchedulerAppLiveContainersDataAccess.class);
-            Map<String, List<FiCaSchedulerAppContainer>>
-                hopLiveContainers = DA.getAll();
-            connector.commit();
-            return hopLiveContainers;
-          }
-        };
-    return (Map<String, List<FiCaSchedulerAppContainer>>) getLiveContainersHandler
-        .
-            handle();
-  }
-  
 
   public static Map<String, List<ResourceRequest>> getAllResourceRequests()
           throws IOException {
@@ -644,6 +569,14 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
         .handle();
   }
 
+  public static Map<String, Set<String>> getCSLeafQueuesPendingApps()
+          throws IOException {
+    CSLeafQueuesPendingAppsDataAccess DA
+            = (CSLeafQueuesPendingAppsDataAccess) YarnAPIStorageFactory
+            .getDataAccess(CSLeafQueuesPendingAppsDataAccess.class);
+    return DA.getAll();
+  }
+  
   public static Map<String, List<AppSchedulingInfoBlacklist>> getAllBlackLists()
           throws IOException {
     AppSchedulingInfoBlacklistDataAccess DA
@@ -902,6 +835,13 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
                                   hopRMNodeFull.getHopResource().
                                   getVirtualCores()),
                           hopRMNodeFull.getHopRMNode().getOvercommittimeout());
+        }else{
+          //TORECOVER find out why we sometime get this
+          LOG.error("resource option should not be null");
+          resourceOption = ResourceOption.
+                  newInstance(org.apache.hadoop.yarn.api.records.Resource.
+                          newInstance(0, 0), hopRMNodeFull.getHopRMNode().
+                          getOvercommittimeout());
         }
         //Create RMNode from HopRMNode
         rmNode = new RMNodeImpl(nodeId, rmContext,
@@ -1049,6 +989,12 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
                     org.apache.hadoop.yarn.api.records.Resource
                         .newInstance(res.getMemory(), res.getVirtualCores()),
                     hopRMNode.getOvercommittimeout());
+              } else {
+                LOG.error("resource option should not be null");
+                resourceOption = ResourceOption.
+                        newInstance(org.apache.hadoop.yarn.api.records.Resource.
+                                newInstance(0, 0), hopRMNode.
+                                getOvercommittimeout());
               }
               rmNode = new RMNodeImpl(nodeId, context, hopRMNode.getHostName(),
                   hopRMNode.getCommandPort(), hopRMNode.getHttpPort(), node,
@@ -1059,7 +1005,7 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
               ((RMNodeImpl) rmNode).setState(hopRMNode.getCurrentState());
               // *** Recover maps/lists of RMNode ***
               //Use a cache for retrieved ContainerStatus
-              Map<String, ContainerStatus> hopContainerStatuses =
+              Map<String, ContainerStatus> hopJustLaunchedContainerStatuses =
                   new HashMap<String, ContainerStatus>();
               //1. Recover JustLaunchedContainers
               JustLaunchedContainersDataAccess jlcDA =
@@ -1078,19 +1024,20 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
                   org.apache.hadoop.yarn.api.records.ContainerId cid =
                       ConverterUtils.toContainerId(hop.getContainerId());
                   //Find and create ContainerStatus
-                  if (!hopContainerStatuses.containsKey(hop.getContainerId())) {
-                    hopContainerStatuses.put(hop.getContainerId(),
+                  if (!hopJustLaunchedContainerStatuses.containsKey(hop.getContainerId())) {
+                    hopJustLaunchedContainerStatuses.put(hop.getContainerId(),
                         (ContainerStatus) containerStatusDA
-                            .findEntry(hop.getContainerId(), id));
+                            .findEntry(hop.getContainerId(), id, 
+                                    ContainerStatus.Type.JUST_LAUNCHED.toString()));
                   }
                   org.apache.hadoop.yarn.api.records.ContainerStatus conStatus =
                       org.apache.hadoop.yarn.api.records.ContainerStatus
                           .newInstance(cid, ContainerState.valueOf(
-                                  hopContainerStatuses.get(hop.getContainerId())
+                              hopJustLaunchedContainerStatuses.get(hop.getContainerId())
                                       .getState()),
-                              hopContainerStatuses.get(hop.getContainerId())
+                              hopJustLaunchedContainerStatuses.get(hop.getContainerId())
                                   .getDiagnostics(),
-                              hopContainerStatuses.get(hop.getContainerId())
+                              hopJustLaunchedContainerStatuses.get(hop.getContainerId())
                                   .getExitstatus());
                   justLaunchedContainers.put(cid, conStatus);
                 }
@@ -1137,63 +1084,72 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
               //Retrieve all UpdatedContainerInfo entries for this particular RMNode
               Map<Integer, List<UpdatedContainerInfo>>
                   hopUpdatedContainerInfoMap = uciDA.findByRMNode(id);
-              if (hopUpdatedContainerInfoMap != null &&
-                  !hopUpdatedContainerInfoMap.isEmpty()) {
-                ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>
-                    updatedContainerInfoQueue =
-                    new ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>();
+              if (hopUpdatedContainerInfoMap != null
+                      && !hopUpdatedContainerInfoMap.isEmpty()) {
+                ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo> updatedContainerInfoQueue
+                        = new ConcurrentLinkedQueue<org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>();
+                Map<Integer, org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo> ucis
+                        = new HashMap<Integer, org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo>();
+                Map<String, ContainerStatus> hopUCIContainerStatuses
+                        = new HashMap<String, ContainerStatus>();
                 for (int uciId : hopUpdatedContainerInfoMap.keySet()) {
+                  ucis.put(uciId,
+                          new org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo(
+                                  new ArrayList<org.apache.hadoop.yarn.api.records.ContainerStatus>(),
+                                  new ArrayList<org.apache.hadoop.yarn.api.records.ContainerStatus>(),
+                                  uciId));
+
                   for (UpdatedContainerInfo hopUCI : hopUpdatedContainerInfoMap
-                      .get(uciId)) {
-                    List<org.apache.hadoop.yarn.api.records.ContainerStatus>
-                        newlyAllocated =
-                        new ArrayList<org.apache.hadoop.yarn.api.records.ContainerStatus>();
-                    List<org.apache.hadoop.yarn.api.records.ContainerStatus>
-                        completed =
-                        new ArrayList<org.apache.hadoop.yarn.api.records.ContainerStatus>();
-                    //Retrieve containerstatus entries for the particular updatedcontainerinfo
-                    org.apache.hadoop.yarn.api.records.ContainerId cid =
-                        ConverterUtils.toContainerId(hopUCI.getContainerId());
-                    if (!hopContainerStatuses
-                        .containsKey(hopUCI.getContainerId())) {
-                      hopContainerStatuses.put(hopUCI.getContainerId(),
-                          (ContainerStatus) containerStatusDA
-                              .findEntry(hopUCI.getContainerId(), id));
+                          .get(uciId)) {
+
+                    org.apache.hadoop.yarn.api.records.ContainerId cid
+                            = ConverterUtils.toContainerId(hopUCI.
+                                    getContainerId());
+                    ContainerStatus hopContainerStatus
+                            = hopUCIContainerStatuses.get(hopUCI.
+                                    getContainerId());
+                    if (hopContainerStatus == null) {
+                      hopContainerStatus = (ContainerStatus) containerStatusDA
+                              .findEntry(hopUCI.getContainerId(), id,
+                                      ContainerStatus.Type.UCI.toString());
+                      hopUCIContainerStatuses.put(hopUCI.getContainerId(),
+                              hopContainerStatus);
                     }
-                    org.apache.hadoop.yarn.api.records.ContainerStatus
-                        conStatus =
-                        org.apache.hadoop.yarn.api.records.ContainerStatus
-                            .newInstance(cid, ContainerState.valueOf(
-                                    hopContainerStatuses
-                                        .get(hopUCI.getContainerId())
-                                        .getState()), hopContainerStatuses
-                                    .get(hopUCI.getContainerId())
-                                    .getDiagnostics(), hopContainerStatuses
-                                    .get(hopUCI.getContainerId())
-                                    .getExitstatus());
+
+                    org.apache.hadoop.yarn.api.records.ContainerStatus conStatus
+                            = org.apache.hadoop.yarn.api.records.ContainerStatus.
+                            newInstance(cid, ContainerState.valueOf(
+                                    hopContainerStatus.getState()),
+                                    hopContainerStatus.getDiagnostics(),
+                                    hopContainerStatus.getExitstatus());
                     //Check ContainerStatus state to add it to appropriate list
                     if (conStatus != null) {
-                      if (conStatus.getState().toString()
-                          .equals(TablesDef.ContainerStatusTableDef.STATE_RUNNING)) {
-                        newlyAllocated.add(conStatus);
-                      } else if (conStatus.getState().toString()
-                          .equals(TablesDef.ContainerStatusTableDef.STATE_COMPLETED)) {
-                        completed.add(conStatus);
+                      LOG.debug("add uci for container " + conStatus.
+                              getContainerId()
+                              + " status " + conStatus.getState());
+                      if (conStatus.getState().equals(ContainerState.RUNNING)) {
+                        ucis.get(hopUCI.getUpdatedContainerInfoId()).
+                                getNewlyLaunchedContainers().add(conStatus);
+                      } else if (conStatus.getState().equals(
+                              ContainerState.COMPLETE)) {
+                        ucis.get(hopUCI.getUpdatedContainerInfoId()).
+                                getCompletedContainers().add(conStatus);
                       }
                     }
-                    org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo
-                        uci =
-                        new org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo(
-                            newlyAllocated, completed,
-                            hopUCI.getUpdatedContainerInfoId());
-                    updatedContainerInfoQueue.add(uci);
-                    ((RMNodeImpl) rmNode)
-                        .setUpdatedContainerInfo(updatedContainerInfoQueue);
-                    //Update uci counter
-                    ((RMNodeImpl) rmNode)
-                        .setUpdatedContainerInfoId(hopRMNode.getUciId());
                   }
                 }
+                int maxUciId = 0;
+                for (org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo uci
+                        : ucis.values()) {
+                  updatedContainerInfoQueue.add(uci);
+                  if (uci.getUpdatedContainerInfoId() > maxUciId) {
+                    maxUciId = uci.getUpdatedContainerInfoId();
+                  }
+                }
+
+                ((RMNodeImpl) rmNode).setUpdatedContainerInfoId(maxUciId);
+                ((RMNodeImpl) rmNode).setUpdatedContainerInfo(
+                        updatedContainerInfoQueue);
               }
 
               //5. Retrieve latestNodeHeartBeatResponse
@@ -1527,13 +1483,21 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
     return DA.getAll();
   }
 
-   public static Map<String, List<RanNode>> getAllRanNodes()
+  public static Map<String, List<RanNode>> getAllRanNodes()
           throws IOException {
     RanNodeDataAccess DA = (RanNodeDataAccess) RMStorageFactory
             .getDataAccess(RanNodeDataAccess.class);
     return DA.getAll();
   }
-    
+
+  public static Map<String, List<JustFinishedContainer>> getAllJustFinishedContainers()
+          throws IOException {
+    JustFinishedContainersDataAccess DA
+            = (JustFinishedContainersDataAccess) RMStorageFactory
+            .getDataAccess(JustFinishedContainersDataAccess.class);
+    return DA.getAll();
+  }
+
   public static Map<String, List<UpdatedNode>> getAllUpdatedNodes()
           throws IOException {
 
@@ -1975,12 +1939,12 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
     return qDA.findAll();
   }
 
-  static Map<String, Queue<TransactionState>> transactionStateForRMNode = 
-          new ConcurrentHashMap<String, Queue<TransactionState>>();
+  static Map<NodeId, Queue<TransactionState>> transactionStateForRMNode = 
+          new ConcurrentHashMap<NodeId, Queue<TransactionState>>();
   static Map<String, Map<Integer, TransactionState>> finishedTransactionStateForRMNode =
           new HashMap<String, Map<Integer, TransactionState>>();
-  public static void putTransactionStateInNodeQueue(TransactionState ts, Set<String> nodeIds){
-    for(String nodeId: nodeIds){
+  public static void putTransactionStateInNodeQueue(TransactionState ts, Set<NodeId> nodeIds){
+    for(NodeId nodeId: nodeIds){
     Queue<TransactionState> nodeQueue = transactionStateForRMNode.get(nodeId);
     if(nodeQueue==null){
       nodeQueue = new ConcurrentLinkedQueue<TransactionState>();
@@ -2005,7 +1969,8 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
     }
   }
   
-  public static void putTransactionStateInQueues(TransactionState ts, Set<String> nodeIds, Set<ApplicationId> appIds){
+  public static void putTransactionStateInQueues(TransactionState ts, 
+          Set<NodeId> nodeIds, Set<ApplicationId> appIds){
     nextRPCLock.lock();
     putTransactionStateInNodeQueue(ts, nodeIds);
     putTransactionStateInAppQueue(ts, appIds);
@@ -2036,8 +2001,7 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
       }
       nextRPCLock.lock();
       int oldid = ts.getId();
-      for (String nodeId : ((TransactionStateImpl) ts).getRMNodesToUpdate().
-              keySet()) {
+      for (NodeId nodeId : ((TransactionStateImpl) ts).getNodesIds()) {
         transactionStateForRMNode.get(nodeId).poll();
       }
       for (ApplicationId appId : ts.getAppIds()) {
@@ -2055,10 +2019,10 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
           toCommit.add(transactionState);
         }
       }
-      Iterator<String> itNodes = ((TransactionStateImpl) ts).
-              getRMNodesToUpdate().keySet().iterator();
+      Iterator<NodeId> itNodes = 
+              ((TransactionStateImpl) ts).getNodesIds().iterator();
       while (itNodes.hasNext()) {
-        String nodeId = itNodes.next();
+        NodeId nodeId = itNodes.next();
         TransactionState transactionState
                 = (TransactionStateImpl) transactionStateForRMNode.get(nodeId).
                 peek();
@@ -2102,7 +2066,7 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
 
   private static boolean canCommitNode(TransactionStateImpl ts) {
     nextRPCLock.lock();
-    for (String nodeId : ts.getRMNodesToUpdate().keySet()) {
+    for (NodeId nodeId : ts.getNodesIds()) {
       if (transactionStateForRMNode.get(nodeId).peek() != ts) {
         LOG.debug("cannot commit rpc " + ts.getId() + " head for " + nodeId
                 + " is "
@@ -2187,11 +2151,6 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
             NextHeartbeatDataAccess nextHeartbeatDA =
                 (NextHeartbeatDataAccess) RMStorageFactory
                     .getDataAccess(NextHeartbeatDataAccess.class);
-            CSQueueDataAccess csQDA = (CSQueueDataAccess) RMStorageFactory.
-                    getDataAccess(CSQueueDataAccess.class);
-            CSLeafQueueUserInfoDataAccess csLQDA
-                    = (CSLeafQueueUserInfoDataAccess) RMStorageFactory.
-                    getDataAccess(CSLeafQueueUserInfoDataAccess.class);
             AppSchedulableDataAccess appSDA
                     = (AppSchedulableDataAccess) RMStorageFactory.getDataAccess(
                             AppSchedulableDataAccess.class);
@@ -2209,7 +2168,7 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
              ts.persistRmcontextInfo(rmnodeDA, resourceDA, nodeDA,
                 rmctxInactiveNodesDA);
              connector.flush();
-            ts.persistCSQueueInfo(csQDA, csLQDA);
+            ts.persistCSQueueInfo(connector);
             connector.flush();
             ts.persistRMNodeToUpdate(rmnodeDA);
             connector.flush();
@@ -2240,7 +2199,8 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
     if(ts.getManager()!=null){
       if(commitAndQueueDuration>commitAndQueueThreshold || getQueueLength()>commitQueueMaxLength){
         if(ts.getManager().blockNonHB()){
-          LOG.info("blocking non priority duration: " + commitAndQueueDuration + " length: " + commitQueueMaxLength);
+          LOG.info("blocking non priority duration: " + commitAndQueueDuration 
+                  + " length: " + getQueueLength());
         }
       }else{
         ts.getManager().unblockNonHB();
@@ -2366,53 +2326,4 @@ public static Map<String, List<ResourceRequest>> getAllResourceRequestsFullTrans
     return DA.getAll();
   }
 
-  public static Map<String, CSQueue> getAllCSQueues() throws IOException {
-    CSQueueDataAccess csqDA = (CSQueueDataAccess) RMStorageFactory.
-            getDataAccess(CSQueueDataAccess.class);
-    return csqDA.getAll();
-  }
-
-  public static Map<String, CSLeafQueueUserInfo> getAllCSLeafQueueUserInfo()
-          throws IOException {
-    CSLeafQueueUserInfoDataAccess csqLUIDA
-            = (CSLeafQueueUserInfoDataAccess) RMStorageFactory.
-            getDataAccess(CSLeafQueueUserInfoDataAccess.class);
-    return csqLUIDA.findAll();
-  }
-
-  public static Map<String, CSLeafQueueUserInfo> getAllCSLeafQueueUserInfoFullTransaction()
-          throws IOException {
-    LightWeightRequestHandler handler = new LightWeightRequestHandler(
-            YARNOperationType.TEST) {
-              @Override
-              public Object performTask() throws StorageException, IOException {
-                connector.readCommitted();
-                CSLeafQueueUserInfoDataAccess csqLUIDA
-                = (CSLeafQueueUserInfoDataAccess) RMStorageFactory.
-                getDataAccess(CSLeafQueueUserInfoDataAccess.class);
-                return csqLUIDA.findAll();
-              }
-            };
-    return (Map<String, CSLeafQueueUserInfo>) handler.handle();
-  }
-   
-  //for testing
-  public static CSQueue getCSQueue(final String queuepath) throws IOException {
-    LightWeightRequestHandler getCSQueueInfoHandler
-            = new LightWeightRequestHandler(YARNOperationType.TEST) {
-              @Override
-              public Object performTask() throws StorageException, IOException {
-                connector.beginTransaction();
-                connector.writeLock();
-                CSQueueDataAccess CSQDA = (CSQueueDataAccess) RMStorageFactory.
-                getDataAccess(CSQueueDataAccess.class);
-                CSQueue found = (CSQueue) CSQDA.findById(queuepath);
-                LOG.debug("HOP :: getCSQueueInfo() - got HopSCSQueueInfo:"
-                        + queuepath);
-                connector.commit();
-                return found;
-              }
-            };
-    return (CSQueue) getCSQueueInfoHandler.handle();
-  }
 }

@@ -179,11 +179,12 @@ public class ResourceTrackerService extends AbstractService
             "starting ResourceTrackerService server on "
             + resourceTrackerAddress);
     
-    if (rmContext.isDistributedEnabled() && !rmContext.
-            getGroupMembershipService().isLeader()) {
+    if (rmContext.isDistributedEnabled() && !rmContext.isLeader()) {
         LOG.info("streaming porcessor is straring for resource tracker");
         RMStorageFactory.kickTheNdbEventStreamingAPI(false, conf);
-        new Thread(rtStreamingProcessor).start();
+        Thread rtStreamingProcessorThread = new Thread(rtStreamingProcessor);
+        rtStreamingProcessorThread.setName("rt streaming processor");
+        rtStreamingProcessorThread.start();
 
     }
     
@@ -278,12 +279,16 @@ public class ResourceTrackerService extends AbstractService
   @Override
   public RegisterNodeManagerResponse registerNodeManager(
           RegisterNodeManagerRequest request) throws YarnException, IOException {
-    return registerNodeManager(request, null);
+    try {
+      return registerNodeManager(request, null);
+    } catch (InterruptedException ex) {
+      throw new YarnException(ex);
+    }
   }
 
   public RegisterNodeManagerResponse registerNodeManager(
           RegisterNodeManagerRequest request, Integer rpcID) 
-          throws YarnException, IOException {
+          throws YarnException, IOException, InterruptedException {
     
     RegisterNodeManagerResponse response = recordFactory.newRecordInstance(
             RegisterNodeManagerResponse.class);
@@ -456,11 +461,15 @@ public class ResourceTrackerService extends AbstractService
   @Override
   public NodeHeartbeatResponse nodeHeartbeat(NodeHeartbeatRequest request)
           throws YarnException, IOException {
-    return nodeHeartbeat(request, null);
+    try {
+      return nodeHeartbeat(request, null);
+    } catch (InterruptedException ex) {
+      throw new YarnException(ex);
+    }
   }
 
   public NodeHeartbeatResponse nodeHeartbeat(NodeHeartbeatRequest request,
-          Integer rpcID) throws YarnException, IOException {
+          Integer rpcID) throws YarnException, IOException, InterruptedException {
 
     NodeStatus remoteNodeStatus = request.getNodeStatus();
     NodeId nodeId = remoteNodeStatus.getNodeId();
@@ -584,7 +593,7 @@ public class ResourceTrackerService extends AbstractService
       rmNode = RMUtilities.getRMNode(nodeId.toString(), rmContext, conf);
       if (rmNode != null) {
         this.rmContext.getActiveRMNodes().put(nodeId, rmNode);
-        this.nmLivelinessMonitor.register(nodeId);
+        lastNodeHeartbeatResponse = rmNode.getLastNodeHeartBeatResponse();
       }
       if (lastNodeHeartbeatResponse.getResponseId() < remoteNodeStatus.
             getResponseId()) {

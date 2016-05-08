@@ -65,6 +65,7 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 
 public class QuotaService extends AbstractService {
 
+
 private Thread quotaSchedulingThread;
 private volatile boolean stopped = false;
 //private long ticksPerCredit = 1;
@@ -99,6 +100,7 @@ protected void serviceStop() throws Exception {
         if (quotaSchedulingThread != null) {
                 quotaSchedulingThread.interrupt();
         }
+
         super.serviceStop();
         LOG.info("Stopping the quota schedular service.");
 }
@@ -164,17 +166,17 @@ protected void computeAndApplyCharge(final Collection<ContainersLogs> hopContain
                         YarnProjectsQuotaDataAccess _pqDA = (YarnProjectsQuotaDataAccess) RMStorageFactory.getDataAccess(YarnProjectsQuotaDataAccess.class );
                         Map<String, YarnProjectsQuota> hopYarnProjectsQuotaMap = _pqDA.getAll();
                         //Get Data  ** YarnApplicationsQuota **
-                        YarnApplicationsQuotaDataAccess _aqDA = (YarnApplicationsQuotaDataAccess)RMStorageFactory.getDataAccess(YarnApplicationsQuotaDataAccess.class);
+                        YarnApplicationsQuotaDataAccess _aqDA = (YarnApplicationsQuotaDataAccess)RMStorageFactory.getDataAccess(YarnApplicationsQuotaDataAccess.class );
                         Map<String,YarnApplicationsQuota> hopYarnApplicationsQuotaMap = _aqDA.getAll();
-                    
+
                         long _miliSec = System.currentTimeMillis();
                         final long _day = TimeUnit.DAYS.convert(_miliSec, TimeUnit.MILLISECONDS);
                         Map<String, YarnApplicationsQuota> chargedYarnApplicationsQuota = new HashMap<String, YarnApplicationsQuota>();
                         Map<String, YarnApplicationsToKill> toBeKilledApplicationsList = new HashMap<String, YarnApplicationsToKill>();
                         Map<String, PendingEvent> toBeKilledAppPendingEvents = new HashMap<String, PendingEvent>();
-                        Map<String, YarnProjectsQuota> chargedYarnProjectsQuota = new HashMap<String, YarnProjectsQuota>();                                                
+                        Map<String, YarnProjectsQuota> chargedYarnProjectsQuota = new HashMap<String, YarnProjectsQuota>();
                         Map<YarnProjectsDailyId, YarnProjectsDailyCost> chargedYarnProjectsDailyCost = new HashMap<YarnProjectsDailyId, YarnProjectsDailyCost>();
-                        
+
 
                         List<ContainersLogs> toBeRemovedContainersLogs = new ArrayList<ContainersLogs>();
                         List<ContainerCheckPoint> toBeAddedContainerCheckPoint = new ArrayList<ContainerCheckPoint>();
@@ -201,11 +203,11 @@ protected void computeAndApplyCharge(final Collection<ContainersLogs> hopContain
                                         } else {
                                                 if (applicationStateCache.size() > 100000) {
                                                         applicationStateCache = new HashMap<String, ApplicationState>();
-                                                }                                                
+                                                }
                                                 applicationStateCache.put(_appId.toString(), _appStat);
                                         }
                                 }
-                                
+
                                 String _appUser = _appStat.getUser();
                                 String _projectName = HopsWorksHelper.getProjectName(_appUser);
                                 String _user = HopsWorksHelper.getUserName(_appUser);
@@ -223,7 +225,7 @@ protected void computeAndApplyCharge(final Collection<ContainersLogs> hopContain
                                 }else{
                                         checkpoint = checkpointObj.getCheckPoint();
                                         currentPrice = checkpointObj.getPrice();
-                                }                                  
+                                }
                                 long currentTicks = _ycl.getStop() - checkpoint;
 
                                 // Decide what to do with the charge
@@ -258,14 +260,14 @@ protected void computeAndApplyCharge(final Collection<ContainersLogs> hopContain
                                                 //chargeYarnProjectsDailyCost(chargedYarnProjectsDailyCost, _projectName, _user, _day, currentTicks, currentPrice);
 
                                         }
-                                        
+
                                         //** YarnApplicationsQuota charging**
                                         chargeYarnApplicationsQuota(chargedYarnApplicationsQuota, toBeKilledApplicationsList,toBeKilledAppPendingEvents,  hopYarnApplicationsQuotaMap, _appStat, currentTicks, currentPrice);
                                         //** YarnProjectsQuota charging**
                                         chargeYarnProjectsQuota(chargedYarnProjectsQuota, hopYarnProjectsQuotaMap, _projectName, _user, currentTicks, _ycl.getContainerid(), _ycl.getExitstatus(), currentPrice);
                                         //** YarnProjectsDailyCost charging**
                                         chargeYarnProjectsDailyCost(chargedYarnProjectsDailyCost, _projectName, _user, _day, currentTicks, currentPrice);
-                                        
+
                                 }
                         }
                         // Delet the finished ContainersLogs
@@ -289,27 +291,28 @@ protected void computeAndApplyCharge(final Collection<ContainersLogs> hopContain
                         YarnApplicationsToKillDataAccess _appsKillDA = (YarnApplicationsToKillDataAccess) RMStorageFactory.getDataAccess(YarnApplicationsToKillDataAccess.class );
                         _appsKillDA.addAll(toBeKilledApplicationsList.values());
                         PendingEventDataAccess _pendingEventDA =(PendingEventDataAccess) RMStorageFactory.getDataAccess(PendingEventDataAccess.class );
-                        _pendingEventDA.addAll(toBeKilledAppPendingEvents.values());                        
-                        _pqDA.addAll(chargedYarnProjectsQuota.values());                        
+                        _pendingEventDA.addAll(toBeKilledAppPendingEvents.values());
+                        _pqDA.addAll(chargedYarnProjectsQuota.values());
                         YarnProjectsDailyCostDataAccess _pdcDA = (YarnProjectsDailyCostDataAccess) RMStorageFactory.getDataAccess(YarnProjectsDailyCostDataAccess.class );
                         _pdcDA.addAll(chargedYarnProjectsDailyCost.values());
                         connector.commit();
                         return null;
                 }
 
-            
+
 
         };
         quotaSchedulerHandler.handle();
 }
 
+
 Map<YarnProjectsDailyId, YarnProjectsDailyCost> projectsDailyCostCache;
 long cashDay = -1;
 
 private void chargeYarnProjectsDailyCost(Map<YarnProjectsDailyId, YarnProjectsDailyCost> chargedYarnProjectsDailyCost,
-        String _projectid, String _user, long _day, long ticks,float price ) {        
-        
-        float charge = computeCharge(ticks, price);        
+                                         String _projectid, String _user, long _day, long ticks,float price ) {
+
+        float charge = computeCharge(ticks, price);
         LOG.debug("Quota: project " + _projectid + " user " + _user + " has used " + charge + " credits");
         if (cashDay != _day) {
                 projectsDailyCostCache = new HashMap<YarnProjectsDailyId, YarnProjectsDailyCost>();
@@ -334,7 +337,7 @@ private void chargeYarnProjectsQuota(
         Map<String, YarnProjectsQuota> hopYarnProjectsQuotaList,
         String _projectid, String _user, long ticks, String containerId,
         int exitStatus, float price) {
-          
+
         float charge = computeCharge(ticks, price);
         LOG.info("Quota: project " + _projectid + " user " + _user + " has ticks " + ticks + " [" + charge + " kronor ]  (container: " + containerId + ", exit status: " + exitStatus + ")");
         YarnProjectsQuota _tempPq = (YarnProjectsQuota) hopYarnProjectsQuotaList.get(_projectid);
@@ -349,46 +352,46 @@ private void chargeYarnProjectsQuota(
 }
 
 private void chargeYarnApplicationsQuota(Map<String, YarnApplicationsQuota> chargedYarnApplicationsQuota,
-                                        Map<String, YarnApplicationsToKill> toBeKilledApplicationsList,
-                                        Map<String, PendingEvent> toBeKilledAppPendingEvents,
-                                        Map<String, YarnApplicationsQuota> hopYarnApplicationsQuotaList,
-                                        ApplicationState _appStat, 
-                                        long ticks, 
-                                        float price) {
+                                         Map<String, YarnApplicationsToKill> toBeKilledApplicationsList,
+                                         Map<String, PendingEvent> toBeKilledAppPendingEvents,
+                                         Map<String, YarnApplicationsQuota> hopYarnApplicationsQuotaList,
+                                         ApplicationState _appStat,
+                                         long ticks,
+                                         float price) {
 
-    float charge = computeCharge(ticks, price);
-    LOG.info("Quota: Application " + _appStat.getApplicationId() + " used ticks " + ticks + " [" + charge + " kronor ]");
-    YarnApplicationsQuota _oldAppQta = (YarnApplicationsQuota) hopYarnApplicationsQuotaList.get(_appStat.getApplicationId());
-    YarnApplicationsQuota _modifiedAppQta;
-    if (_oldAppQta != null) {
-                _modifiedAppQta = new YarnApplicationsQuota(_appStat.getApplicationId(), _oldAppQta.getTimeUsed() + (long) ticks, _oldAppQta.getBudgetUsed() + (float) charge);                
+        float charge = computeCharge(ticks, price);
+        LOG.info("Quota: Application " + _appStat.getApplicationId() + " used ticks " + ticks + " [" + charge + " kronor ]");
+        YarnApplicationsQuota _oldAppQta = (YarnApplicationsQuota) hopYarnApplicationsQuotaList.get(_appStat.getApplicationId());
+        YarnApplicationsQuota _modifiedAppQta;
+        if (_oldAppQta != null) {
+                _modifiedAppQta = new YarnApplicationsQuota(_appStat.getApplicationId(), _oldAppQta.getTimeUsed() + (long) ticks, _oldAppQta.getBudgetUsed() + (float) charge);
         } else {
-                _modifiedAppQta = new YarnApplicationsQuota(_appStat.getApplicationId(), ticks, charge);                
+                _modifiedAppQta = new YarnApplicationsQuota(_appStat.getApplicationId(), ticks, charge);
         }
-    chargedYarnApplicationsQuota.put(_appStat.getApplicationId(), _modifiedAppQta);
-    hopYarnApplicationsQuotaList.put(_appStat.getApplicationId(), _modifiedAppQta);
-    
-    // Check weather to kill the application    
-    if (_appStat.getPriceLimit() > 0 && price > _appStat.getPriceLimit()){
-          toBeKilledApplicationsList.put(_appStat.getApplicationId(), new YarnApplicationsToKill(-1,"killAppNodeId",_appStat.getApplicationId()));
-          toBeKilledAppPendingEvents.put(_appStat.getApplicationId(), new PendingEvent("killAppNodeId",-1, 0, -1));
-    }            
-    if (_appStat.getTimeLimit() > 0 && _modifiedAppQta.getTimeUsed() > _appStat.getTimeLimit()){
-        toBeKilledApplicationsList.put(_appStat.getApplicationId(), new YarnApplicationsToKill(-1,"killAppNodeId",_appStat.getApplicationId()));
-        toBeKilledAppPendingEvents.put(_appStat.getApplicationId(), new PendingEvent("killAppNodeId",-1, 0, -1));
-    }
-    if (_appStat.getBudgetLimit() > 0 && _modifiedAppQta.getBudgetUsed() > _appStat.getBudgetLimit()){
-        toBeKilledApplicationsList.put(_appStat.getApplicationId(), new YarnApplicationsToKill(-1,"killAppNodeId",_appStat.getApplicationId()));
-        toBeKilledAppPendingEvents.put(_appStat.getApplicationId(), new PendingEvent("killAppNodeId",-1, 0, -1));
-    }
+        chargedYarnApplicationsQuota.put(_appStat.getApplicationId(), _modifiedAppQta);
+        hopYarnApplicationsQuotaList.put(_appStat.getApplicationId(), _modifiedAppQta);
+
+        // Check weather to kill the application
+        if (_appStat.getPriceLimit() > 0 && price > _appStat.getPriceLimit()) {
+                toBeKilledApplicationsList.put(_appStat.getApplicationId(), new YarnApplicationsToKill(-1,"killAppNodeId",_appStat.getApplicationId()));
+                toBeKilledAppPendingEvents.put(_appStat.getApplicationId(), new PendingEvent("killAppNodeId",-1, 0, -1));
+        }
+        if (_appStat.getTimeLimit() > 0 && _modifiedAppQta.getTimeUsed() > _appStat.getTimeLimit()) {
+                toBeKilledApplicationsList.put(_appStat.getApplicationId(), new YarnApplicationsToKill(-1,"killAppNodeId",_appStat.getApplicationId()));
+                toBeKilledAppPendingEvents.put(_appStat.getApplicationId(), new PendingEvent("killAppNodeId",-1, 0, -1));
+        }
+        if (_appStat.getBudgetLimit() > 0 && _modifiedAppQta.getBudgetUsed() > _appStat.getBudgetLimit()) {
+                toBeKilledApplicationsList.put(_appStat.getApplicationId(), new YarnApplicationsToKill(-1,"killAppNodeId",_appStat.getApplicationId()));
+                toBeKilledAppPendingEvents.put(_appStat.getApplicationId(), new PendingEvent("killAppNodeId",-1, 0, -1));
+        }
 }
 
 
 private float computeCharge(long ticks, float pricePerTick) {
         if (ticks < minNumberOfTicks) {
                 ticks = minNumberOfTicks;
-        }        
-        float credit = (float)ticks * pricePerTick;         
+        }
+        float credit = (float)ticks * pricePerTick;
         return credit;
 }
 

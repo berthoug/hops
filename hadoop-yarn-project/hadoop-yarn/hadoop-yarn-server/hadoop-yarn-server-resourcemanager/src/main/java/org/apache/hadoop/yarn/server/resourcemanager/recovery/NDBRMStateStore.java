@@ -15,12 +15,14 @@
  */
 package org.apache.hadoop.yarn.server.resourcemanager.recovery;
 
+import com.google.protobuf.ByteString;
 import io.hops.exception.StorageException;
 import io.hops.metadata.util.RMUtilities;
 import io.hops.metadata.yarn.dal.util.YARNOperationType;
 import io.hops.metadata.yarn.entity.AppSchedulingInfo;
 import io.hops.metadata.yarn.entity.ContainerId;
 import io.hops.metadata.yarn.entity.FinishedApplications;
+import io.hops.metadata.yarn.entity.JustFinishedContainer;
 import io.hops.metadata.yarn.entity.NodeHBResponse;
 import io.hops.metadata.yarn.entity.appmasterrpc.HeartBeatRPC;
 import io.hops.metadata.yarn.entity.rmstatestore.UpdatedNode;
@@ -59,7 +61,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.api.records.impl.pb.ContainerStatusPBImpl;
+import org.apache.hadoop.yarn.proto.YarnProtos;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 
 /**
@@ -196,9 +201,6 @@ public class NDBRMStateStore extends RMStateStore {
                 connector.flush();
                 loadAllJustLaunchedContainers(rmState);
                 connector.flush();
-                loadAllCSQueues(rmState);
-                connector.flush();
-                loadAllCSLeafQueueUserInfo(rmState);
                 LOG.info("loaded rmState");
                 connector.commit();
                 return null;
@@ -380,9 +382,12 @@ public class NDBRMStateStore extends RMStateStore {
   private void loadAppSchedulingInfos(RMState rmState) throws IOException {
     List<AppSchedulingInfo> appSchedulingInfosList =
         RMUtilities.getAppSchedulingInfos();
-    rmState.appSchedulingInfos = new HashMap<String, AppSchedulingInfo>();
+    rmState.appSchedulingInfos = new HashMap<String, Map<String,AppSchedulingInfo>>();
     for (AppSchedulingInfo info : appSchedulingInfosList) {
-      rmState.appSchedulingInfos.put(info.getAppId(), info);
+      if(rmState.appSchedulingInfos.get(info.getAppId())==null){
+        rmState.appSchedulingInfos.put(info.getAppId(), new HashMap<String, AppSchedulingInfo>());
+      }
+      rmState.appSchedulingInfos.get(info.getAppId()).put(info.getSchedulerAppId(), info);
     }
   }
   
@@ -424,6 +429,10 @@ public class NDBRMStateStore extends RMStateStore {
   
   private void loadAllQueueMetrics(RMState rmState) throws IOException {
     rmState.allQueueMetrics = RMUtilities.getAllQueueMetrics();
+  }
+  
+  private void loadCSLeafQueuesPendingApps(RMState rmState) throws IOException{
+    rmState.csLeafQueuesPendingApps = RMUtilities.getCSLeafQueuesPendingApps();
   }
   
   private void loadNodeHeartBeatResponses(RMState rmState) throws IOException {
@@ -518,13 +527,6 @@ public class NDBRMStateStore extends RMStateStore {
         getAllJustLaunchedContainers();
   }
   
-  private void loadAllCSQueues(RMState rmState) throws IOException{
-    rmState.allCSQueues = RMUtilities.getAllCSQueues();
-  }
-  
-  private void loadAllCSLeafQueueUserInfo(RMState rmState) throws IOException{
-    rmState.allCSLeafQueueUserInfo = RMUtilities.getAllCSLeafQueueUserInfo();
-  }
   private void loadRMDelegationKeyState(RMState rmState) throws IOException {
     //Retrieve all DelegationKeys from NDB
     List<DelegationKey> delKeys = RMUtilities.getDelegationKeys();
@@ -593,6 +595,7 @@ public class NDBRMStateStore extends RMStateStore {
   private Map<String, List<io.hops.metadata.yarn.entity.rmstatestore.ApplicationAttemptState>>
       allHopApplicationAttemptStates;
   private Map<String, List<RanNode>> ranNodes;
+  private Map<String, List<JustFinishedContainer>> justFinishedContainers;
   /**
    * Load ApplicationAttemptId for particular ApplicationState
    *
@@ -608,6 +611,9 @@ public class NDBRMStateStore extends RMStateStore {
     }
     if(ranNodes == null){
       ranNodes = RMUtilities.getAllRanNodes();
+    }
+    if(justFinishedContainers==null){
+      justFinishedContainers = RMUtilities.getAllJustFinishedContainers();
     }
     
     LOG.debug("loadApplicationAttemptState for app " + appState.getAppId() +
@@ -636,10 +642,22 @@ public class NDBRMStateStore extends RMStateStore {
           }
           
           Set<NodeId> attemptRanNodes = new HashSet<NodeId>();
-          List<RanNode> ranNodeList = ranNodes.get(attemptId);
+          List<RanNode> ranNodeList = ranNodes.get(attemptId.toString());
           if (ranNodeList != null) {
             for (RanNode node : ranNodeList) {
               attemptRanNodes.add(ConverterUtils.toNodeId(node.getNodeId()));
+            }
+          }
+          
+          List<ContainerStatus> attemptJustFinishedContainers
+                  = new ArrayList<ContainerStatus>();
+          List<JustFinishedContainer> justFinishedContainersList
+                  = justFinishedContainers.get(attemptId.toString());
+          if (justFinishedContainersList != null) {
+            for (JustFinishedContainer container : justFinishedContainersList) {
+              attemptJustFinishedContainers.add(new ContainerStatusPBImpl(
+                      YarnProtos.ContainerStatusProto.
+                      parseFrom(container.getContainer())));
             }
           }
           
@@ -653,7 +671,7 @@ public class NDBRMStateStore extends RMStateStore {
                   attemptStateData.getProgress(), attemptStateData.getHost(),
                   attemptStateData.getRpcPort(), 
                   attemptRanNodes,
-                  attemptStateData.getJustFinishedContainers());
+                  attemptJustFinishedContainers);
 
           appState.attempts.put(attemptState.getAttemptId(), attemptState);
         }

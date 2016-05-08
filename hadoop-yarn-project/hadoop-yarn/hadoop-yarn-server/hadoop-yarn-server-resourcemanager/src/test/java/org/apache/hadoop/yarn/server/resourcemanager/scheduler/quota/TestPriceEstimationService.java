@@ -40,8 +40,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -58,13 +60,18 @@ import org.apache.hadoop.yarn.server.resourcemanager.MockAM;
 import org.apache.hadoop.yarn.server.resourcemanager.MockNM;
 import org.apache.hadoop.yarn.server.resourcemanager.MockRM;
 import org.apache.hadoop.yarn.server.resourcemanager.NdbRtStreamingProcessor;
+
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContextImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
+
+import org.apache.hadoop.yarn.server.resourcemanager.RMContextImpl;
+
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.junit.Before;
 import org.junit.Test;
+
 
 
 /**
@@ -423,7 +430,7 @@ private void generateRMContainersToAdd(int nbContainers,int startNo, List<RMNode
                 RMContainer container = new RMContainer("container_1450009406746_0001_01_00000" + i, "appAttemptId",randomRMNode.getNodeId(), "user", "reservedNodeId", i, i, i, i, i, "state", "finishedStatusState", i);
                 rmContainers.add(container);
 
-                ContainerStatus status = new ContainerStatus(container.getContainerIdID(),ContainerState.RUNNING.toString(),null,ContainerExitStatus.SUCCESS,randomRMNode.getNodeId(),randomRMNode.getPendingEventId());
+                ContainerStatus status = new ContainerStatus(container.getContainerId(),ContainerState.RUNNING.toString(),null,ContainerExitStatus.SUCCESS,randomRMNode.getNodeId(),randomRMNode.getPendingEventId());
                 containersStatus.add(status);
         }
 }
@@ -438,6 +445,7 @@ private List<RMNode> generateRMNodesToAdd(int nbNodes) {
         }
         return toAdd;
 }
+
 
 
 

@@ -20,10 +20,12 @@ import io.hops.metadata.util.HopYarnAPIUtilities;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.yarn.dal.ContainerStatusDataAccess;
 import io.hops.metadata.yarn.dal.ContainersLogsDataAccess;
+import io.hops.metadata.yarn.dal.YarnRunningPriceDataAccess;
 import io.hops.metadata.yarn.dal.YarnVariablesDataAccess;
 import io.hops.metadata.yarn.dal.util.YARNOperationType;
 import io.hops.metadata.yarn.entity.ContainerStatus;
 import io.hops.metadata.yarn.entity.ContainersLogs;
+import io.hops.metadata.yarn.entity.YarnRunningPrice;
 import io.hops.metadata.yarn.entity.YarnVariables;
 import io.hops.transaction.handler.LightWeightRequestHandler;
 
@@ -158,8 +160,6 @@ public void insertPriceEvent(float currentPrice, long currentPriceTick) {
 private List<ContainerStatus> getLatestEvents() {
         List<ContainerStatus> oldEvents = new ArrayList<ContainerStatus>();
 
-        while (!eventContainers.isEmpty()) {
-                oldEvents.add(eventContainers.poll());
         }
 
         return oldEvents;
@@ -204,133 +204,8 @@ public void recover() {
         } catch (Exception ex) {
                 LOG.warn("Unable to finish containers logs recovery", ex);
         }
-}
-
-private void checkEventContainerStatuses(
-        List<ContainerStatus> latestEvents
-        ) {
-        for (ContainerStatus cs : latestEvents) {
-                ContainersLogs cl;
-                boolean updatable = false;
-                if(cs.getState().equals(ContainerState.NEW)) {
-                        continue;
-                }
-                if (activeContainers.get(cs.getContainerid()) == null) {
-                        // TODO(RIZ) : the price should come from NDB or streaming service
-                        cl = new ContainersLogs(cs.getContainerid(),tickCounter.getValue(),ContainersLogs.DEFAULT_STOP_TIMESTAMP,ContainersLogs.CONTAINER_RUNNING_STATE, currentPrice);
-
-                        // Unable to capture start use case,
-                        if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
-                                cl.setExitstatus(ContainersLogs.UNKNOWN_CONTAINER_EXIT);
-                        }
-
-                        activeContainers.put(cl.getContainerid(), cl);
-                        updatable = true;
-                } else {
-                        cl = activeContainers.get(cs.getContainerid());
-                }
-
-                if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
-                        cl.setStop(tickCounter.getValue());
-                        cl.setExitstatus(cs.getExitstatus());
-                        activeContainers.remove(cl.getContainerid());
-                        updatable = true;
-                }
-
-                if (updatable) {
-                        updateContainers.put(cl.getContainerid(), cl);
-                }
-        }
-}
-
-/**
- * Go through container status list that is passed(containers statuses or
- * events). Ignore the states which are completed and not known or known,
- * completed and previously were completed.
- *
- * @param recoveryStatuses
- * @param ticks
- */
-private void recoverContainerStatuses(
-        List<ContainerStatus> recoveryStatuses,
-        YarnVariables ticks
-        ) {
-        for (ContainerStatus cs : recoveryStatuses) {
-
-                if (activeContainers.get(cs.getContainerid()) == null) {
-
-                        // Only care about the ones that are not finished when recovering
-                        if (!cs.getState().equals(ContainerState.COMPLETE.toString())) {
-                          
-                                // TODO(RIZ) : the price should come from NDB or streaming service
-                                ContainersLogs cl = new ContainersLogs(
-                                        cs.getContainerid(),
-                                        ticks.getValue(),
-                                        ContainersLogs.DEFAULT_STOP_TIMESTAMP,
-                                        ContainersLogs.CONTAINER_RUNNING_STATE,
-                                        currentPrice
-                                        );
-
-                                activeContainers.put(cl.getContainerid(), cl);
-                        }
-                } else {
-                        ContainersLogs cl = activeContainers.get(cs.getContainerid());
-
-                        // If COMPLETE, either transition happened or and old entry
-                        if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
-                                if (cl.getExitstatus() == ContainersLogs.CONTAINER_RUNNING_STATE) {
-                                        cl.setStop(ticks.getValue());
-                                        cl.setExitstatus(cs.getExitstatus());
-                                } else {
-                                        activeContainers.remove(cl.getContainerid());
-                                }
-                        }
-                }
-        }
-}
-
-/**
- * Updates containers logs table with container status information in update
- * list Also update tick counter in YARN variables table
- */
-private void updateContainersLogs(final boolean updatetTick) {
-
-        try {
-                LightWeightRequestHandler containersLogsHandler = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                        @Override
-                        public Object performTask() throws StorageException {
-                                connector.beginTransaction();
-                                connector.writeLock();
-
-                                // Update containers logs table if necessary
-                                if (updateContainers.size() > 0) {
-                                        LOG.debug("CL :: Update containers logs size: "+ updateContainers.size());
-                                        try {
-                                                containersLogsDA.addAll(updateContainers.values());
-                                        } catch (StorageException ex) {
-                                                LOG.warn("Unable to update containers logs table", ex);
-                                        }
-                                }
-
-                                // Update tick counter
-                                if (updatetTick) {
-                                        yarnVariablesDA.add(tickCounter);
-                                }
-
-                                connector.commit();
-                                return null;
-                        }
-                };
-                containersLogsHandler.handle();
-
-                QuotaService quotaService = rMContext.getQuotaService();
-                if(quotaService!=null) {
-                        quotaService.insertEvents(updateContainers.values());
-                }
-                updateContainers.clear();
-
-        } catch (IOException ex) {
-                LOG.warn("Unable to update containers logs and tick counter", ex);
+        while (!eventContainers.isEmpty()) {
+                oldEvents.add(eventContainers.poll());
         }
 }
 
@@ -538,9 +413,130 @@ public void run() {
                 }
         }
 }
+
+private void checkEventContainerStatuses(
+        List<ContainerStatus> latestEvents
+        ) {
+        for (ContainerStatus cs : latestEvents) {
+                ContainersLogs cl;
+                boolean updatable = false;
+                if(cs.getState().equals(ContainerState.NEW)) {
+                        continue;
+                }
+                if (activeContainers.get(cs.getContainerid()) == null) {
+                        // TODO(RIZ) : the price should come from NDB or streaming service
+                        cl = new ContainersLogs(cs.getContainerid(),tickCounter.getValue(),ContainersLogs.DEFAULT_STOP_TIMESTAMP,ContainersLogs.CONTAINER_RUNNING_STATE, currentPrice);
+
+                        // Unable to capture start use case,
+                        if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
+                                cl.setExitstatus(ContainersLogs.UNKNOWN_CONTAINER_EXIT);
+                        }
+
+                        activeContainers.put(cl.getContainerid(), cl);
+                        updatable = true;
+                } else {
+                        cl = activeContainers.get(cs.getContainerid());
+                }
+
+                if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
+                        cl.setStop(tickCounter.getValue());
+                        cl.setExitstatus(cs.getExitstatus());
+                        activeContainers.remove(cl.getContainerid());
+                        updatable = true;
+                }
+
+                if (updatable) {
+                        updateContainers.put(cl.getContainerid(), cl);
+                }
+        }
 }
 
-public int getCurrentTick(){
-        return tickCounter.getValue();
+/**
+ * Go through container status list that is passed(containers statuses or
+ * events). Ignore the states which are completed and not known or known,
+ * completed and previously were completed.
+ *
+ * @param recoveryStatuses
+ * @param ticks
+ */
+private void recoverContainerStatuses(
+        List<ContainerStatus> recoveryStatuses,
+        YarnVariables ticks
+        ) {
+        for (ContainerStatus cs : recoveryStatuses) {
+
+                if (activeContainers.get(cs.getContainerid()) == null) {
+
+                        // Only care about the ones that are not finished when recovering
+                        if (!cs.getState().equals(ContainerState.COMPLETE.toString())) {
+                          
+                                // TODO(RIZ) : the price should come from NDB or streaming service
+                                ContainersLogs cl = new ContainersLogs(
+                                        cs.getContainerid(),
+                                        ticks.getValue(),
+                                        ContainersLogs.DEFAULT_STOP_TIMESTAMP,
+                                        ContainersLogs.CONTAINER_RUNNING_STATE,
+                                        currentPrice
+                                        );
+
+                                activeContainers.put(cl.getContainerid(), cl);
+                        }
+                } else {
+                        ContainersLogs cl = activeContainers.get(cs.getContainerid());
+
+                        // If COMPLETE, either transition happened or and old entry
+                        if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
+                                if (cl.getExitstatus() == ContainersLogs.CONTAINER_RUNNING_STATE) {
+                                        cl.setStop(ticks.getValue());
+                                        cl.setExitstatus(cs.getExitstatus());
+                                } else {
+                                        activeContainers.remove(cl.getContainerid());
+                                }
+                        }
+                }
+        }
 }
+
+/**
+ * Updates containers logs table with container status information in update
+ * list Also update tick counter in YARN variables table
+ */
+private void updateContainersLogs(final boolean updatetTick) {
+
+        try {
+                LightWeightRequestHandler containersLogsHandler = new LightWeightRequestHandler(YARNOperationType.TEST) {
+                        @Override
+                        public Object performTask() throws StorageException {
+                                connector.beginTransaction();
+                                connector.writeLock();
+
+                                // Update containers logs table if necessary
+                                if (updateContainers.size() > 0) {
+                                        LOG.debug("CL :: Update containers logs size: "+ updateContainers.size());
+                                        try {
+                                                containersLogsDA.addAll(updateContainers.values());
+                                        } catch (StorageException ex) {
+                                                LOG.warn("Unable to update containers logs table", ex);
+                                        }
+                                }
+
+                                // Update tick counter
+                                if (updatetTick) {
+                                        yarnVariablesDA.add(tickCounter);
+                                }
+
+                                connector.commit();
+                                return null;
+                        }
+                };
+                containersLogsHandler.handle();
+
+                QuotaService quotaService = rMContext.getQuotaService();
+                if(quotaService!=null) {
+                        quotaService.insertEvents(updateContainers.values());
+                }
+                updateContainers.clear();
+
+        } catch (IOException ex) {
+                LOG.warn("Unable to update containers logs and tick counter", ex);
 }

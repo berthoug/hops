@@ -48,7 +48,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.security.RMDelegationTokenS
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.quota.QuotaService;
 
 public class RMContextImpl implements RMContext {
@@ -71,26 +70,41 @@ public class RMContextImpl implements RMContext {
     Map<NodeId, RMNode> activeNodesRecovered = state.
         recoverRMContextActiveNodes(this);
     this.activesNodes.putAll(activeNodesRecovered);
-    this.resyncAfterRolback.addAll(activeNodesRecovered.keySet());
-    for (NodeId nodeId : activesNodes.keySet()) {
-      if (resourceTrackerService != null) {
+    for(int i=0;i<activesNodes.size();i++){
+       ClusterMetrics.getMetrics().incrNumActiveNodes(); 
+    }
+    if (resourceTrackerService != null && !isDistributedEnabled) {
+      for (NodeId nodeId : activesNodes.keySet()) {
         resourceTrackerService.getNmLivelinessMonitor().register(nodeId);
       }
     }
     nmTokenSecretManager.recover(state);
     containerTokenSecretManager.recover(state);
-    //Recover rmNode state
+
     //2. Recover inactiveNodes map
     this.inactiveNodes.
         putAll(state.getRMContextInactiveNodes(this, state));
+      for (RMNode node : inactiveNodes.values()) {
+          switch (node.getState()) {
+              case DECOMMISSIONED:
+                  ClusterMetrics.getMetrics().incrDecommisionedNMs();
+                  break;
+              case LOST:
+                  ClusterMetrics.getMetrics().incrNumLostNMs();
+                  break;
+              case REBOOTED:
+                  ClusterMetrics.getMetrics().incrNumRebootedNMs();
+                  break;
+              case UNHEALTHY:
+                  ClusterMetrics.getMetrics().incrNumUnhealthyNMs();
+          }
+      }
   }
 
   private Dispatcher rmDispatcher;
   private final ConcurrentMap<ApplicationId, RMApp> applications =
       new ConcurrentHashMap<ApplicationId, RMApp>();
       //recovered when rmappManager is recovered
-  private final ConcurrentSkipListSet<NodeId> resyncAfterRolback =
-      new ConcurrentSkipListSet<NodeId>();
   private final ConcurrentMap<NodeId, RMNode> activesNodes =
       new ConcurrentHashMap<NodeId, RMNode>();
       //recovered, pushed and removed everywhere
@@ -229,11 +243,6 @@ public class RMContextImpl implements RMContext {
   @Override
   public ConcurrentMap<NodeId, RMNode> getActiveRMNodes() {
     return this.activesNodes;
-  }
-
-  @Override
-  public ConcurrentSkipListSet<NodeId> getRMNodesToResyncAfterRolback() {
-    return this.resyncAfterRolback;
   }
 
   @Override
@@ -460,6 +469,14 @@ public class RMContextImpl implements RMContext {
     return groupMembershipService.isLeadingRT();
   }
   
+  @Override
+  public boolean isLeader(){
+    if(!isHAEnabled){
+      return true;
+    }
+    return groupMembershipService.isLeader();
+  }
+
   @Override
   public boolean isDistributedEnabled(){
     return isDistributedEnabled;
