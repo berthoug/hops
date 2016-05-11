@@ -105,6 +105,14 @@ public class INodeFile extends INode implements BlockCollection {
   public short getBlockReplication() {
     return getBlockReplication(header);
   }
+  
+  /**
+   * @return the storage policy ID.
+   */
+  public byte getStoragePolicyID() {
+    return blockStoragePolicyID;
+  }
+
 
   /**
    * @return preferred block size (in bytes) of the file.

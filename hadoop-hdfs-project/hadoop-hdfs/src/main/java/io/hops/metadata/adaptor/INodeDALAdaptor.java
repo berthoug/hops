@@ -194,6 +194,7 @@ public class INodeDALAdaptor
       hopINode.setIsDir(inode.isDirectory());
       hopINode.setPartitionId(inode.getPartitionId());
       hopINode.setLogicalTime(inode.getLogicalTime());
+      hopINode.setStoragePolicy(inode.getStoragePolicyID());
 
       if (inode.isDirectory()) {
         hopINode.setUnderConstruction(false);
