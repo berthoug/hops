@@ -366,4 +366,29 @@ public abstract class ApplicationSubmissionContext {
   @Public
   @Stable
   public abstract void setApplicationTags(Set<String> tags);
+    
+  @Public
+  @Stable
+  public abstract long getApplicationTimeLimit();
+  
+  @Public
+  @Stable
+  public abstract float getApplicationBudgetLimit();
+  
+  @Public
+  @Stable
+  public abstract float getApplicationPriceLimit();
+  
+  @Public
+  @Stable
+  public abstract void setApplicationTimeLimit(long time);
+  
+  @Public
+  @Stable
+  public abstract void setApplicationBudgetLimit(float budget);
+  
+  @Public
+  @Stable
+  public abstract void setApplicationPriceLimit(float price);
+  
 }
