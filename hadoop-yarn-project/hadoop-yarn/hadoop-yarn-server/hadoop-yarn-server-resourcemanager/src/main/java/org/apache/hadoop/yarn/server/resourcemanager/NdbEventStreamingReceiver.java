@@ -74,6 +74,7 @@ public class NdbEventStreamingReceiver {
   private int hopRMNodeOvercommittimeout = 0;
   private int hopRMNodePendingEventId = 0;
   private String applicationToKillId = "";
+  //the two next variable are useless
   private int applicationToKillPendingEventId = 0;
   private String applicationRMNodeId = "";
   
@@ -93,7 +94,7 @@ public class NdbEventStreamingReceiver {
   }
   
   public void buildApplicationToKillEvent() {
-    
+    //look at how it is done for the other lists and do the same
     if (this.hopApplicationsToKillList == null ){
         this.hopApplicationsToKillList = new ArrayList<String>();
         this.hopApplicationsToKillList.add(this.applicationToKillId);
@@ -174,7 +175,6 @@ public class NdbEventStreamingReceiver {
   private int hopPendingEventId = 0;
 
   public void setHopPendingEventRmnodeId(String hopPendingEventRmnodeId) {
-    LOG.debug("RIZ::setHopPendingEventRmnodeId " + hopPendingEventRmnodeId);
     this.hopPendingEventRmnodeId = hopPendingEventRmnodeId;
   }
 
@@ -187,7 +187,6 @@ public class NdbEventStreamingReceiver {
   }
 
   public void setHopPendingEventId(int hopPendingEventId) {
-    LOG.debug("RIZ::setHopPendingEventId " + hopPendingEventId);
     this.hopPendingEventId = hopPendingEventId;
   }
 
@@ -205,7 +204,6 @@ public class NdbEventStreamingReceiver {
   private int hopResourcePendingEventId = 0;
 
   public void setHopResourceId(String hopResourceId) {
-    LOG.debug("RIZ:: setHopResourceId " + hopResourceId);
     this.hopResourceId = hopResourceId;
   }
 
@@ -365,7 +363,6 @@ public class NdbEventStreamingReceiver {
 
   //This will be called by c++ shared library, libhopsndbevent.so
   public void onEventMethod() throws InterruptedException {
-    LOG.debug("RIZ::onEventMethod");
     RMNodeComps hopRMNodeBDBObject
             = new RMNodeComps(hopRMNode, hopNextHeartbeat, hopNode,
                     hopNodeHBResponse, hopResource,

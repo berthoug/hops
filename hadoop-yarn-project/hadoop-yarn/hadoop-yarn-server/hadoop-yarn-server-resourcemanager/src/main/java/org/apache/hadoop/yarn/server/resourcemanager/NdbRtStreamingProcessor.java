@@ -99,7 +99,9 @@ public class NdbRtStreamingProcessor implements Runnable {
                 context.getContainersLogsService()
                         .insertEvent(hopContainersStatusList);
               }
+              //the tick are useless here why check them
               if(streamingRTComps.getCurrentPrice() > 0 && streamingRTComps.getCurrentPriceTick()> 0){
+                //the fuction is seting the price, why renaming it "insertPrice"
                 context.getContainersLogsService().insertPriceEvent(streamingRTComps.getCurrentPrice(),streamingRTComps.getCurrentPriceTick());
               }
             }
@@ -119,9 +121,7 @@ public class NdbRtStreamingProcessor implements Runnable {
             if(streamingRTComps.getNextNMMasterKey()!=null){
               context.getContainerTokenSecretManager().setCurrentMasterKey(
                       streamingRTComps.getNextNMMasterKey());
-
             }
-            
           }
         } catch (InterruptedException ex) {
           LOG.error(ex, ex);

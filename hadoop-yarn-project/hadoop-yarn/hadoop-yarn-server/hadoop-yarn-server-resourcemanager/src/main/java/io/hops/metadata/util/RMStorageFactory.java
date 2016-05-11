@@ -67,9 +67,10 @@ public class RMStorageFactory {
   private static DalNdbEventStreaming dNdbEventStreaming;
   private static boolean ndbStreaingRunning = false;
 
-  public static boolean isNdbStreaingRunning() {
+  public static boolean isNdbStreamingRunning() {
     return ndbStreaingRunning;
   }
+  
   public static StorageConnector getConnector() {
     return dStorageFactory.getConnector();
   }

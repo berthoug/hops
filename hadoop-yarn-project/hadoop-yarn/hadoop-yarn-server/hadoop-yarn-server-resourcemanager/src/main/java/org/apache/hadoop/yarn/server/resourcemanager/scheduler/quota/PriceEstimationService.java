@@ -36,6 +36,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.ContainersLogsService;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 
+//the service is fixing the price, why the renaming?
 public class PriceEstimationService extends AbstractService {
 
   private Configuration conf;

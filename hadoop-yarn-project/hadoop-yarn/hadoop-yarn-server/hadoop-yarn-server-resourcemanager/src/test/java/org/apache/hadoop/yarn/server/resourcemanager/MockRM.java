@@ -252,11 +252,9 @@ public class MockRM extends ResourceManager {
       int maxAppAttempts, Credentials ts, String appType,
       boolean waitForAccepted, boolean keepContainers, boolean isAppIdProvided,
       ApplicationId applicationId) throws Exception {
-      
       return submitApp(masterMemory, name, user, acls, unmanaged, queue,
         maxAppAttempts, ts, appType, waitForAccepted, keepContainers, isAppIdProvided,
         applicationId, 0l, 0.0f, 0.0f);
-  
   }
 
   public RMApp submitApp(int masterMemory, String name, String user,

@@ -206,6 +206,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
   private DelegationTokenRenewer delegationTokenRenewer;
   private ResourceTrackingServices resourceTrackingService;
   private Lock resourceTrackingServiceStartStopLock = new ReentrantLock(true);
+  //the service is fixing the price, not estimating it, why the renaming?
   private PriceEstimationService priceEstimationService;
 
   /**

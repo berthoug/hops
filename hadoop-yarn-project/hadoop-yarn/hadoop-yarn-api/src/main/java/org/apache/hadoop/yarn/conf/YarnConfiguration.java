@@ -181,7 +181,9 @@ public class YarnConfiguration extends Configuration {
   /**
    * The maximum percentage of the resource after which price will start increasing.
    */
-
+//Either you remove or you let but you do not comment out for a commit.
+//How come we don't need this anymore?!
+  
 //  public static final String MAXIMUM_PERCENTAGE_OF_MEMORY_USAGE_WITH_MINIMUM_PRICE = 
 //          YARN_PREFIX + "quotas.price-estimation.max-MB-usage";
 //  public static final float DEFAULT_MAXIMUM_PERCENTAGE_OF_MEMORY_USAGE_WITH_MINIMUM_PRICE = 0.5f;
@@ -198,7 +200,6 @@ public class YarnConfiguration extends Configuration {
           YARN_PREFIX + "quotas.overpricing-threshold.vc";
   public static final float DEFAULT_OVERPRICING_THRESHOLD_VC = 0.5f;
 
-  
   
   /**
    * Price per tick, the the minimum price for resource usage. 
@@ -222,7 +223,6 @@ public class YarnConfiguration extends Configuration {
           YARN_PREFIX + "quotas.price-estimation.min-price-per-tick-VC";
   public static final float DEFAULT_BASE_PRICE_PER_TICK_FOR_VIRTUAL_CORE = 1f/60/2;
 
-  
   
   /**
    * The the price increment factor over the minimum price.
@@ -257,7 +257,6 @@ public class YarnConfiguration extends Configuration {
           1000;
           
 
-  
   /**
    * Time in ms between container status checks.
    */

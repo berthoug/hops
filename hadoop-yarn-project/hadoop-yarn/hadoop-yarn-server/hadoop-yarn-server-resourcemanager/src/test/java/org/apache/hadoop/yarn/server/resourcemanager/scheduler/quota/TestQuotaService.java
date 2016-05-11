@@ -1,3 +1,4 @@
+//correct formating before I review it
 /*
  * Copyright 2015 Apache Software Foundation.
  *
@@ -86,7 +87,6 @@ public class TestQuotaService {
   }
 
   public void PrepareScenario() throws StorageException, IOException {
-
         LOG.info("--- START: TestContainerUsage ---");
         LOG.info("--- Checking ContainerStatus ---");
 

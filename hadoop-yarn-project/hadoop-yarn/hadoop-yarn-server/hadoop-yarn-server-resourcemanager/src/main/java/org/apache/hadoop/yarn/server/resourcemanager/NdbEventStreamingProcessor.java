@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 package org.apache.hadoop.yarn.server.resourcemanager;
-
+//check your import, some of them should probably not be there.
 import io.hops.ha.common.TransactionState;
 import io.hops.metadata.util.HopYarnAPIUtilities;
 import io.hops.metadata.util.RMUtilities;
@@ -152,6 +152,7 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
             }
             // Kill the applications form the applications_to_be_killed list
             List<String> appsToKill = hopRMNodeCompObject.getHopApplicationsToKillList();
+            //The list can be null which would result in a npe
             for (String app: appsToKill){
                 // kill the app
                 LOG.debug("RIZ:: Killing app " + app); 
@@ -171,6 +172,7 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
 
     }
     
+    //we should look at this together 
     private void KillApplication(String app) throws Exception{
         //String app = application.getApplicationId().toString();
         String parts[] = app.split("_");
