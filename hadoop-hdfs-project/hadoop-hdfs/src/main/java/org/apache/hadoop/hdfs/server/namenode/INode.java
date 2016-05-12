@@ -727,9 +727,6 @@ public abstract class INode implements Comparable<byte[]> {
 
   public void setBlockStoragePolicyID(byte blockStoragePolicyID)
       throws TransactionContextException, StorageException {
-    LogFactory.getLog("inode").debug("Setting policy of node " + this + " to " + blockStoragePolicyID);
-    (new Throwable()).printStackTrace();
-
     setBlockStoragePolicyIDNoPersistance(blockStoragePolicyID);
     save();
   }
