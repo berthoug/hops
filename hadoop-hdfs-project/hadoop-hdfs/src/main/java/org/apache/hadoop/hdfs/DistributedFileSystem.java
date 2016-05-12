@@ -28,7 +28,6 @@ import org.apache.hadoop.fs.BlockStorageLocation;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.CreateFlag;
 import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileSystemLinkResolver;
@@ -41,11 +40,13 @@ import org.apache.hadoop.fs.Options.ChecksumOpt;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.UnresolvedLinkException;
 import org.apache.hadoop.fs.VolumeId;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.client.HdfsDataInputStream;
 import org.apache.hadoop.hdfs.client.HdfsDataOutputStream;
+import org.apache.hadoop.hdfs.protocol.BlockStoragePolicy;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.DirectoryListing;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
@@ -477,6 +478,25 @@ public class DistributedFileSystem extends FileSystem {
       throws IOException {
     statistics.incrementWriteOps(1);
     return dfs.setReplication(getPathName(src), replication);
+  }
+
+  /**
+   * Set the source path to the specified storage policy.
+   *
+   * @param src The source path referring to either a directory or a file.
+   * @param policyName The name of the storage policy.
+   */
+  public void setStoragePolicy(final Path src, final String policyName)
+      throws IOException {
+    statistics.incrementWriteOps(1);
+
+    dfs.setStoragePolicy(getPathName(src), policyName);
+  }
+
+  /** Get all the existing storage policies */
+  public BlockStoragePolicy[] getStoragePolicies() throws IOException {
+    statistics.incrementReadOps(1);
+    return dfs.getStoragePolicies();
   }
 
   public void setMetaEnabled(Path src, boolean metaEnabled)
