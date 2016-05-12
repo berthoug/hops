@@ -2114,7 +2114,7 @@ public class MiniDFSCluster {
    * @return
    */
   private static String getStorageDirPath(int dnIndex, int dirIndex) {
-    return "data/data" + (2 * dnIndex + 1 + dirIndex);
+    return "data/data_" + dnIndex + "_" + dirIndex;
   }
 
   /**
