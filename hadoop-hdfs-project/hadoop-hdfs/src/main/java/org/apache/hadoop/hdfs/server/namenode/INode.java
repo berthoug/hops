@@ -35,7 +35,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.fs.permission.PermissionStatus;
 import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.protocol.Block;
-import org.apache.hadoop.hdfs.protocol.BlockStoragePolicy;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockStoragePolicySuite;
 import org.apache.hadoop.util.StringUtils;
 
@@ -60,7 +59,7 @@ public abstract class INode implements Comparable<byte[]> {
       Collections.unmodifiableList(new ArrayList<INode>());
 
 
-  public static enum Finder implements FinderType<INode> {
+  public enum Finder implements FinderType<INode> {
 
     ByINodeIdFTIS,//FTIS full table index scan
     ByParentIdFTIS,
@@ -96,7 +95,7 @@ public abstract class INode implements Comparable<byte[]> {
 
   }
 
-  public static enum Order implements Comparator<INode> {
+  public enum Order implements Comparator<INode> {
 
     ByName() {
       @Override
@@ -108,14 +107,6 @@ public abstract class INode implements Comparable<byte[]> {
 
     @Override
     public abstract int compare(INode o1, INode o2);
-
-    public Comparator acsending() {
-      return this;
-    }
-
-    public Comparator descending() {
-      return Collections.reverseOrder(this);
-    }
   }
 
 
@@ -217,22 +208,14 @@ public abstract class INode implements Comparable<byte[]> {
    */
   INode(INode other) throws IOException {
     setLocalNameNoPersistance(other.getLocalName());
-    this.parent = other.getParent();
+    setParentNoPersistance(other.getParent());
+    setIdNoPersistance(other.getId());
     setPermissionStatusNoPersistance(other.getPermissionStatus());
     setModificationTimeNoPersistance(other.getModificationTime());
     setAccessTimeNoPersistance(other.getAccessTime());
     setLogicalTimeNoPersistance(other.getLogicalTime());
 
-    // TODO for some reason, this is always 0
-    byte op = other.getLocalStoragePolicyID();
-    setBlockStoragePolicyID(op);
-
-    if(other.getLocalStoragePolicyID() == 0) {
-      LogFactory.getLog(INode.class).debug("noooooooooo");
-    }
-
-    this.parentId = other.getParentId();
-    this.id = other.getId();
+    setBlockStoragePolicyIDNoPersistance(other.getLocalStoragePolicyID());
   }
 
   /**
@@ -747,8 +730,13 @@ public abstract class INode implements Comparable<byte[]> {
     LogFactory.getLog("inode").debug("Setting policy of node " + this + " to " + blockStoragePolicyID);
     (new Throwable()).printStackTrace();
 
-    this.blockStoragePolicyID = blockStoragePolicyID;
+    setBlockStoragePolicyIDNoPersistance(blockStoragePolicyID);
     save();
+  }
+
+  public void setBlockStoragePolicyIDNoPersistance(byte blockStoragePolicyID)
+      throws TransactionContextException, StorageException {
+    this.blockStoragePolicyID = blockStoragePolicyID;
   }
 
   void setModificationTimeForce(long modtime)
@@ -797,7 +785,6 @@ public abstract class INode implements Comparable<byte[]> {
       if (status != null) {
         status.setStatus(EncodingStatus.Status.DELETED);
         EntityManager.update(status);
-        return;
       }
     }
   }
@@ -850,7 +837,7 @@ public abstract class INode implements Comparable<byte[]> {
   }
 
   boolean isPathMetaEnabled() throws TransactionContextException, StorageException {
-    return getMetaEnabledParent() != null ? true : false;
+    return getMetaEnabledParent() != null;
   }
 
   INodeDirectory getMetaEnabledParent()
