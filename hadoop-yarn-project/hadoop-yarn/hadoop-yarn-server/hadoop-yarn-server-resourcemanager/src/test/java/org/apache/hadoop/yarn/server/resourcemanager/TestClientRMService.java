@@ -560,7 +560,7 @@ public class TestClientRMService {
     rmService.renewDelegationToken(request);
   }
 
-  @Test//(timeout = 30000)
+  @Test(timeout = 30000)
   @SuppressWarnings("rawtypes")
   public void testAppSubmit() throws Exception {
     YarnScheduler yarnScheduler = mockYarnScheduler();

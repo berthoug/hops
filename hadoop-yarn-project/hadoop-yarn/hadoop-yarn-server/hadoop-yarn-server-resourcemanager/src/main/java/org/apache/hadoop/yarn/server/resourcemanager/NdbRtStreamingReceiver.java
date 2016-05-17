@@ -56,10 +56,6 @@ public class NdbRtStreamingReceiver {
   private float currentPrice = 0.0f;
   private long currentPriceTick = 0;
 
-  public void setId(int id) {
-    //Do nothing
-  }
-  
   public void setCurrentPriceTick(long CurrentPriceTick) {
     this.currentPriceTick = CurrentPriceTick;
   }  
@@ -67,7 +63,6 @@ public class NdbRtStreamingReceiver {
   public void setCurrentPrice(float CurrentPrice) {
     this.currentPrice = CurrentPrice;
   }
-
 
   public void setPriceName(String priceName){
     //not usefull so far
@@ -185,7 +180,6 @@ public class NdbRtStreamingReceiver {
             hopContainersStatusList, currentNMMasterKey, nextNMMasterKey,
             currentRMContainerMasterKey, nextRMContainerMasterKey,
             currentPrice, currentPriceTick);
-
     blockingRTQueue.put(streamingRTComps);
   }
   
@@ -244,7 +238,6 @@ public class NdbRtStreamingReceiver {
             hopContainersStatusList, currentNMMasterKey, nextNMMasterKey,
             currentRMContainerMasterKey, nextRMContainerMasterKey, currentPrice,
             currentPriceTick);
-
   }
 
   public void onEventMethodMultiThread(StreamingRTComps streamingRTComps) throws

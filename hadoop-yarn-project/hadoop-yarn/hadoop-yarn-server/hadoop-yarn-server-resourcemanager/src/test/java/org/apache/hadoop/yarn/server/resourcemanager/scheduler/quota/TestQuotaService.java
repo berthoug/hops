@@ -24,8 +24,6 @@ import io.hops.metadata.util.YarnAPIStorageFactory;
 import io.hops.metadata.yarn.dal.RMNodeDataAccess;
 import io.hops.metadata.yarn.dal.ContainersLogsDataAccess;
 import io.hops.metadata.yarn.dal.PendingEventDataAccess;
-import io.hops.metadata.yarn.dal.ResourceDataAccess;
-import io.hops.metadata.yarn.dal.ResourceRequestDataAccess;
 import io.hops.metadata.yarn.dal.YarnApplicationsToKillDataAccess;
 import io.hops.metadata.yarn.dal.YarnProjectsDailyCostDataAccess;
 import io.hops.metadata.yarn.dal.YarnProjectsQuotaDataAccess;
@@ -34,8 +32,6 @@ import io.hops.metadata.yarn.dal.util.YARNOperationType;
 import io.hops.metadata.yarn.entity.RMNode;
 import io.hops.metadata.yarn.entity.ContainersLogs;
 import io.hops.metadata.yarn.entity.PendingEvent;
-import io.hops.metadata.yarn.entity.Resource;
-import io.hops.metadata.yarn.entity.ResourceRequest;
 import io.hops.metadata.yarn.entity.YarnApplicationsToKill;
 import io.hops.metadata.yarn.entity.YarnProjectsDailyCost;
 import io.hops.metadata.yarn.entity.YarnProjectsQuota;
@@ -50,16 +46,11 @@ import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.server.resourcemanager.GroupMembershipService;
 import org.apache.hadoop.yarn.server.resourcemanager.MockRM;
-import org.apache.hadoop.yarn.server.resourcemanager.NdbEventStreamingProcessor;
-import org.apache.hadoop.yarn.server.resourcemanager.RMContextImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppState;
-import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -86,58 +77,74 @@ public class TestQuotaService {
   }
 
   public void PrepareScenario() throws StorageException, IOException {
+    LOG.info("--- START: TestContainerUsage ---");
+    LOG.info("--- Checking ContainerStatus ---");
 
-        LOG.info("--- START: TestContainerUsage ---");
-        LOG.info("--- Checking ContainerStatus ---");
+    try {
 
-        try {
+      final List<RMNode> hopRMNode = new ArrayList<RMNode>();
+      hopRMNode.add(new RMNode("Andromeda3:51028"));
 
-                final List<RMNode> hopRMNode = new ArrayList<RMNode>();
-                hopRMNode.add(new RMNode("Andromeda3:51028"));
+      final List<ApplicationState> hopApplicationState
+              = new ArrayList<ApplicationState>();
+      hopApplicationState.add(new ApplicationState(
+              "application_1450009406746_0001", new byte[0], "Project07__rizvi",
+              "DistributedShell", "FINISHING", 100000l, 0f, 12.5f));
 
-                final List<ApplicationState> hopApplicationState = new ArrayList<ApplicationState>();
-                hopApplicationState.add(new ApplicationState("application_1450009406746_0001", new byte[0], "Project07__rizvi","DistributedShell", "FINISHING",100000l, 0f, 12.5f));
+      final List<ContainersLogs> hopContainersLogs
+              = new ArrayList<ContainersLogs>();
+      hopContainersLogs.add(new ContainersLogs(
+              "container_1450009406746_0001_01_000001", 10, 11,
+              ContainerExitStatus.SUCCESS, (float) 2.5));
+      hopContainersLogs.add(new ContainersLogs(
+              "container_1450009406746_0001_02_000001", 10, 11,
+              ContainerExitStatus.ABORTED, (float) 2.5));
+      hopContainersLogs.add(new ContainersLogs(
+              "container_1450009406746_0001_03_000001", 10, 110,
+              ContainerExitStatus.CONTAINER_RUNNING_STATE, (float) 2.5));
 
-                final List<ContainersLogs> hopContainersLogs = new ArrayList<ContainersLogs>();
-                hopContainersLogs.add(new ContainersLogs("container_1450009406746_0001_01_000001",10, 11, ContainerExitStatus.SUCCESS,(float)2.5));
-                hopContainersLogs.add(new ContainersLogs("container_1450009406746_0001_02_000001",10, 11, ContainerExitStatus.ABORTED,(float)2.5));
-                hopContainersLogs.add(new ContainersLogs("container_1450009406746_0001_03_000001",10, 110, ContainerExitStatus.CONTAINER_RUNNING_STATE,(float)2.5));
+      final List<YarnProjectsQuota> hopYarnProjectsQuota
+              = new ArrayList<YarnProjectsQuota>();
+      hopYarnProjectsQuota.add(new YarnProjectsQuota("Project07", 300, 0));
 
-                final List<YarnProjectsQuota> hopYarnProjectsQuota = new ArrayList<YarnProjectsQuota>();
-                hopYarnProjectsQuota.add(new YarnProjectsQuota("Project07", 300, 0));
+      LightWeightRequestHandler bomb;
+      bomb = new LightWeightRequestHandler(YARNOperationType.TEST) {
+        @Override
+        public Object performTask() throws IOException {
+          connector.beginTransaction();
+          connector.writeLock();
 
-                LightWeightRequestHandler bomb;
-                bomb = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                        @Override
-                        public Object performTask() throws IOException {
-                                connector.beginTransaction();
-                                connector.writeLock();
+          RMNodeDataAccess _rmDA = (RMNodeDataAccess) RMStorageFactory.
+                  getDataAccess(RMNodeDataAccess.class);
+          _rmDA.addAll(hopRMNode);
 
-                                RMNodeDataAccess _rmDA = (RMNodeDataAccess) RMStorageFactory.getDataAccess(RMNodeDataAccess.class );
-                                _rmDA.addAll(hopRMNode);
+          ApplicationStateDataAccess<ApplicationState> _appState
+                  = (ApplicationStateDataAccess) RMStorageFactory.getDataAccess(
+                          ApplicationStateDataAccess.class);
+          _appState.addAll(hopApplicationState);
 
-                                ApplicationStateDataAccess<ApplicationState> _appState = (ApplicationStateDataAccess) RMStorageFactory.getDataAccess(ApplicationStateDataAccess.class );
-                                _appState.addAll(hopApplicationState);
+          ContainersLogsDataAccess<ContainersLogs> _clDA
+                  = (ContainersLogsDataAccess) RMStorageFactory.getDataAccess(
+                          ContainersLogsDataAccess.class);
+          _clDA.addAll(hopContainersLogs);
 
-                                ContainersLogsDataAccess<ContainersLogs> _clDA = (ContainersLogsDataAccess) RMStorageFactory.getDataAccess(ContainersLogsDataAccess.class );
-                                _clDA.addAll(hopContainersLogs);
+          YarnProjectsQuotaDataAccess<YarnProjectsQuota> _pqDA
+                  = (YarnProjectsQuotaDataAccess) RMStorageFactory.
+                  getDataAccess(YarnProjectsQuotaDataAccess.class);
+          _pqDA.addAll(hopYarnProjectsQuota);
 
-                                YarnProjectsQuotaDataAccess<YarnProjectsQuota> _pqDA = (YarnProjectsQuotaDataAccess) RMStorageFactory.getDataAccess(YarnProjectsQuotaDataAccess.class );
-                                _pqDA.addAll(hopYarnProjectsQuota);
-
-                                connector.commit();
-                                return null;
-                        }
-                };
-                bomb.handle();
-
-        } catch (StorageInitializtionException ex) {
-                //LOG.error(ex);
-        } catch (StorageException ex) {
-                //LOG.error(ex);
+          connector.commit();
+          return null;
         }
-}
+      };
+      bomb.handle();
 
+    } catch (StorageInitializtionException ex) {
+      //LOG.error(ex);
+    } catch (StorageException ex) {
+      //LOG.error(ex);
+    }
+  }
 
   public void CheckProject(float credits, float used) throws IOException {
 
@@ -221,7 +228,7 @@ public class TestQuotaService {
     Configuration conf = new YarnConfiguration();
     //conf.setInt(YarnConfiguration.QUOTAS_TICKS_PER_CREDIT, 10);
     conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 10);
-    
+
     // Run the Quota Service
     QuotaService qs = new QuotaService();
     qs.init(conf);
@@ -229,22 +236,22 @@ public class TestQuotaService {
     Thread.currentThread().sleep(1000);
     qs.serviceStop();
 
-    CheckProject(0,300);
+    CheckProject(0, 300);
     CheckProjectDailyCost(300);
 
   }
-
+  
   @Test
-//<<<<<<< HEAD
-  public void TestQuotaServiceChargingProjects() throws Exception {
-    int initialCredits = 100;
-    int totalCost =0;
+//        (timeout = 6000)
+  public void TestStream() throws Exception {
+    int initialCredits = 50;
+    int totalCost = 0;
     //prepare database
     final List<ApplicationState> hopApplicationState
             = new ArrayList<ApplicationState>();
     hopApplicationState.add(new ApplicationState(
             "application_1450009406746_0001", new byte[0], "Project07__rizvi",
-            "DistributedShell", "FINISHING",10l, 0f, 12.5f));
+            "DistributedShell", "FINISHING"));
     final List<YarnProjectsQuota> hopYarnProjectsQuota
             = new ArrayList<YarnProjectsQuota>();
     hopYarnProjectsQuota.add(new YarnProjectsQuota("Project07", initialCredits,
@@ -275,126 +282,265 @@ public class TestQuotaService {
 
     QuotaService qs = new QuotaService();
     Configuration conf = new YarnConfiguration();
+    conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 10);
+    qs.init(conf);
+    qs.serviceStart();
+    //add containers
+    for (int i = 0; i < 10; i++) {
+      List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
+
+      for (int j = 0; j < i; j++) {
+        logs.add(new ContainersLogs("container_1450009406746_0001_0" + i
+                + "_00000" + j, i, i,
+                ContainerExitStatus.CONTAINER_RUNNING_STATE,(float)0.1));
+      }
+      qs.insertEvents(logs);
+    }
+    Thread.sleep(1000);
+    //finish some containers
+    for (int i = 0; i < 3; i++) {
+    List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
+
+      for (int j = 0; j < i; j++) {
+        logs.add(new ContainersLogs("container_1450009406746_0001_0" + i
+                + "_00000" + j, i, i + 5, ContainerExitStatus.SUCCESS,(float) 0.1));
+        totalCost+=1;
+      }
+    qs.insertEvents(logs);
+    }
+    Thread.sleep(1000);
+    //checkpoint remaining containers
+    for (int i = 3; i < 10; i++) {
+      List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
+
+      for (int j = 0; j < i; j++) {
+        logs.add(new ContainersLogs("container_1450009406746_0001_0" + i
+                + "_00000" + j, i, i + 10,
+                ContainerExitStatus.CONTAINER_RUNNING_STATE,(float) 0.1));
+        totalCost+=1;
+      }
+      qs.insertEvents(logs);
+    }
+    Thread.sleep(1000);
+    //finish some checkpointed containers
+    for (int i = 3; i < 6; i++) {
+      List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
+
+      for (int j = 0; j < i; j++) {
+        logs.add(new ContainersLogs("container_1450009406746_0001_0" + i
+                + "_00000" + j, i, i + 15, ContainerExitStatus.SUCCESS,(float) 0.1));
+        totalCost+=1;
+      }
+      qs.insertEvents(logs);
+    }
+    Thread.sleep(1000);
+    //preempt some containers
+    for (int i = 6; i < 9; i++) {
+      List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
+
+      for (int j = 0; j < i; j++) {
+        logs.add(new ContainersLogs("container_1450009406746_0001_0" + i
+                + "_00000" + j, i, i + 16, ContainerExitStatus.PREEMPTED,(float) 0.1));
+        totalCost+=1;
+      }
+      qs.insertEvents(logs);
+    }
+    Thread.sleep(2000);
+    CheckProject(initialCredits - totalCost, totalCost);
+    CheckProjectDailyCost(totalCost);
+  }
+
+  @Test
+  public void TestQuotaServiceChargingProjects() throws Exception {
+    int initialCredits = 100;
+    int totalCost = 0;
+    //prepare database
+    final List<ApplicationState> hopApplicationState
+            = new ArrayList<ApplicationState>();
+    hopApplicationState.add(new ApplicationState(
+            "application_1450009406746_0001", new byte[0], "Project07__rizvi",
+            "DistributedShell", "FINISHING", 10l, 0f, 12.5f));
+    final List<YarnProjectsQuota> hopYarnProjectsQuota
+            = new ArrayList<YarnProjectsQuota>();
+    hopYarnProjectsQuota.add(new YarnProjectsQuota("Project07", initialCredits,
+            0));
+
+    LightWeightRequestHandler prepareHandler = new LightWeightRequestHandler(
+            YARNOperationType.TEST) {
+              @Override
+              public Object performTask() throws IOException {
+                connector.beginTransaction();
+                connector.writeLock();
+
+                ApplicationStateDataAccess<ApplicationState> _appState
+                = (ApplicationStateDataAccess) RMStorageFactory.getDataAccess(
+                        ApplicationStateDataAccess.class);
+                _appState.addAll(hopApplicationState);
+
+                YarnProjectsQuotaDataAccess<YarnProjectsQuota> _pqDA
+                = (YarnProjectsQuotaDataAccess) RMStorageFactory.
+                getDataAccess(YarnProjectsQuotaDataAccess.class);
+                _pqDA.addAll(hopYarnProjectsQuota);
+
+                connector.commit();
+                return null;
+              }
+            };
+    prepareHandler.handle();
+
+    QuotaService qs = new QuotaService();
+    Configuration conf = new YarnConfiguration();
     //conf.setInt(YarnConfiguration.QUOTAS_TICKS_PER_CREDIT, 5);
     conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 10);
     qs.init(conf);
     qs.serviceStart();
-    
+
     // Small test
     List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
-    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1+ "_00000" + 1, 10, 10,ContainerExitStatus.CONTAINER_RUNNING_STATE,(float)(2.5) ));
-    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1+ "_00000" + 2, 10, 10,ContainerExitStatus.CONTAINER_RUNNING_STATE,(float)(2.5) ));
-    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1+ "_00000" + 3, 10, 10,ContainerExitStatus.CONTAINER_RUNNING_STATE,(float)(2.5) ));
+    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+            + 1, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
+            (float) (2.5)));
+    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+            + 2, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
+            (float) (2.5)));
+    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+            + 3, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
+            (float) (2.5)));
     qs.insertEvents(logs);
     Thread.sleep(1000);
-    
+
     List<ContainersLogs> logs2 = new ArrayList<ContainersLogs>();
-    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1+ "_00000" + 1, 10, 20,ContainerExitStatus.CONTAINER_RUNNING_STATE,(float)(2.5) ));
-    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1+ "_00000" + 2, 10, 15,ContainerExitStatus.SUCCESS,(float)(2.5) ));
-    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1+ "_00000" + 3, 10, 15,ContainerExitStatus.SUCCESS,(float)(2.5) ));
+    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+            + 1, 10, 20, ContainerExitStatus.CONTAINER_RUNNING_STATE,
+            (float) (2.5)));
+    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+            + 2, 10, 15, ContainerExitStatus.SUCCESS, (float) (2.5)));
+    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+            + 3, 10, 15, ContainerExitStatus.SUCCESS, (float) (2.5)));
     totalCost += (25 + 25 + 25);
     qs.insertEvents(logs2);
     Thread.sleep(1000);
-    
-    
+
     List<ContainersLogs> logs3 = new ArrayList<ContainersLogs>();
-    logs3.add(new ContainersLogs("container_1450009406746_0001_0" + 1+ "_00000" + 1, 10, 30,ContainerExitStatus.CONTAINER_RUNNING_STATE,(float)(2.5) ));
+    logs3.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+            + 1, 10, 30, ContainerExitStatus.CONTAINER_RUNNING_STATE,
+            (float) (2.5)));
     totalCost += (25);
     qs.insertEvents(logs3);
     Thread.sleep(2000);
-    
-    CheckProject(initialCredits-totalCost, totalCost);
+
+    CheckProject(initialCredits - totalCost, totalCost);
     CheckProjectDailyCost(totalCost);
   }
-  
+
   @Test
   public void TestApplicationKillingWithStreamingSrv() throws Exception {
-        Configuration conf = new YarnConfiguration();
-        int monitorInterval = 1000;      
-        conf.set(YarnConfiguration.EVENT_RT_CONFIG_PATH,"target/test-classes/RT_EventAPIConfig.ini");
-        conf.set(YarnConfiguration.EVENT_SHEDULER_CONFIG_PATH,"target/test-classes/RM_EventAPIConfig.ini");
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL,monitorInterval);
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
-        conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_ENABLED, true);
-        conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 10);
-        conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_MINTICKS,1);
-        conf.setBoolean(YarnConfiguration.DISTRIBUTED_RM, true);
-        conf.setBoolean(YarnConfiguration.QUOTAS_ENABLED, true);
-
+    Configuration conf = new YarnConfiguration();
+    int monitorInterval = 1000;
+    conf.set(YarnConfiguration.EVENT_RT_CONFIG_PATH,
+            "target/test-classes/RT_EventAPIConfig.ini");
+    conf.set(YarnConfiguration.EVENT_SHEDULER_CONFIG_PATH,
+            "target/test-classes/RM_EventAPIConfig.ini");
+    conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL,
+            monitorInterval);
+    conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
+    conf.
+            setBoolean(
+                    YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_ENABLED,
+                    true);
+    conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 10);
+    conf.
+            setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_MINTICKS,
+                    1);
+    conf.setBoolean(YarnConfiguration.DISTRIBUTED_RM, true);
+    conf.setBoolean(YarnConfiguration.QUOTAS_ENABLED, true);
 
         // When RM_HA_ENABLED is disabled the ResourceManager is itself a ResourceTracker.
-        // Otherwise the ResourceManager and ResourceTracker are two different nodes.
-        conf.setBoolean(YarnConfiguration.RM_HA_ENABLED, true);
-                
-        // A new RM will then be a Leader/Schedular
-        MockRM rm = new MockRM(conf);
-        rm.start();        
-        // Give some time to start the streaming service.
-        Thread.sleep(5000);        
-        
-        // Check leadership with groupmembership service
-        Assert.assertTrue(rm.getRMContext().getGroupMembershipService().isLeader());
-        // Check streaming service is started and running
-        Assert.assertTrue(RMStorageFactory.isNdbStreaingRunning());
+    // Otherwise the ResourceManager and ResourceTracker are two different nodes.
+    conf.setBoolean(YarnConfiguration.RM_HA_ENABLED, true);
+
+    // A new RM will then be a Leader/Schedular
+    MockRM rm = new MockRM(conf);
+    rm.start();
+    // Give some time to start the streaming service.
+    Thread.sleep(5000);
+
+    // Check leadership with groupmembership service
+    Assert.assertTrue(rm.getRMContext().getGroupMembershipService().isLeader());
+    // Check streaming service is started and running
+    Assert.assertTrue(RMStorageFactory.isNdbStreaingRunning());
+
+    Assert.assertTrue(rm.getRMContext().isHAEnabled());
+    Assert.assertTrue(rm.getRMContext().isDistributedEnabled());
+    Assert.assertTrue(rm.getRMContext().isLeadingRT());
+    Assert.assertTrue(rm.getRMContext().getGroupMembershipService().isLeader()); // It means this is a Leader/Schedular
+
+    // Start a application 
+    RMApp application = rm.submitApp(1 * 1024, "My App", "Riju", null, false,
+            null, YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS, null, null, true,
+            false, false, null, 5555l, 500.99f, 5.5f);
+    Thread.sleep(1000);
+    Assert.assertNotNull(application);
+    Assert.assertEquals(rm.getRMContext().getRMApps().get(application.
+            getApplicationId()).getState(), RMAppState.ACCEPTED);
+
+    LOG.info("RIZ:: submitted application " + application.getApplicationId());
+    String app = application.getApplicationId().toString();
+
+    Thread.sleep(2000);
+    commitDummyPendingEvent(-1, app);
+    Thread.sleep(2000);
+    commitDummyPendingEvent(-1, app);
+    Thread.sleep(2000);   // This sleep in important for the test to see the streaming functionality      
+
+    Assert.assertEquals(rm.getRMContext().getRMApps().get(application.
+            getApplicationId()).getState(), RMAppState.KILLED);
+    
+    Thread.sleep(10000);
+    rm.stop();
+  }
+
+  private void commitDummyPendingEvent(final int pendingEvent, final String app) {
+    try {
+      LightWeightRequestHandler bomb = new LightWeightRequestHandler(
+              YARNOperationType.TEST) {
+                @Override
+                public Object performTask() throws IOException {
+                  connector.beginTransaction();
+                  connector.writeLock();
+                  //int pendingId = pendingEvent;
+
+                  //Insert Pending Event
+                  List<PendingEvent> pendingEventsToAdd
+                  = new ArrayList<PendingEvent>();
+                  pendingEventsToAdd.add(
+                          new PendingEvent("killAppNodeId:808", -1, 0, pendingEvent));
+                  PendingEventDataAccess pendingEventDA
+                  = (PendingEventDataAccess) RMStorageFactory.getDataAccess(
+                          PendingEventDataAccess.class);
+                  pendingEventDA.addAll(pendingEventsToAdd);
+
+                  final List<YarnApplicationsToKill> applicationListToKill
+                  = new ArrayList<YarnApplicationsToKill>();
+                  applicationListToKill.add(new YarnApplicationsToKill(
+                                  pendingEvent, "killAppNodeId:808", app));
+
+                  YarnApplicationsToKillDataAccess<YarnApplicationsToKill> _appsDA
+                  = (YarnApplicationsToKillDataAccess) RMStorageFactory.
+                  getDataAccess(YarnApplicationsToKillDataAccess.class);
+                  Assert.assertNotNull(_appsDA);
+                  _appsDA.addAll(applicationListToKill);
                   
-        Assert.assertTrue(rm.getRMContext().isHAEnabled());
-        Assert.assertTrue(rm.getRMContext().isDistributedEnabled());
-        Assert.assertTrue(rm.getRMContext().isLeadingRT()); // ** Why - when its a Leader Schedular?
-        Assert.assertTrue(rm.getRMContext().getGroupMembershipService().isLeader()); // It means this is a Leader/Schedular
-        
-        // Start a application 
-        RMApp application = rm.submitApp(1 * 1024, "My App", "Riju", null, false, null, YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS, null, null, true, false, false, null, 5555l, 500.99f, 5.5f);
-        Thread.sleep(1000);
-        Assert.assertNotNull(application);
-        Assert.assertEquals(rm.getRMContext().getRMApps().get(application.getApplicationId()).getState(),RMAppState.ACCEPTED);
-        
-        LOG.info("RIZ:: submitted application " + application.getApplicationId());        
-        String app = application.getApplicationId().toString();
-        
-        Thread.sleep(2000);
-        commitDummyPendingEvent(-1,app);        
-        Thread.sleep(2000);
-        commitDummyPendingEvent(-1,app);
-        Thread.sleep(2000);   // This sleep in important for the test to see the streaming functionality      
-        
-        Assert.assertEquals(rm.getRMContext().getRMApps().get(application.getApplicationId()).getState(),RMAppState.KILLED);
-        rm.stop();
+                  connector.commit();
+                  return null;
+                }
+              };
+      bomb.handle();
+    } catch (IOException ex) {
+      LOG.warn("Unable to update container statuses table", ex);
+    }
   }
   
-  private void commitDummyPendingEvent(final int pendingEvent,final String app) {
-        try {
-                LightWeightRequestHandler bomb = new LightWeightRequestHandler(
-                        YARNOperationType.TEST) {
-                        @Override
-                        public Object performTask() throws IOException {
-                                connector.beginTransaction();
-                                connector.writeLock();
-                                //int pendingId = pendingEvent;
-
-                                //Insert Pending Event
-                                List<PendingEvent> pendingEventsToAdd = new ArrayList<PendingEvent>();
-                                pendingEventsToAdd.add(new PendingEvent("killAppNodeId", -1,0, pendingEvent));                                
-                                PendingEventDataAccess pendingEventDA =(PendingEventDataAccess) RMStorageFactory.getDataAccess(PendingEventDataAccess.class );
-                                pendingEventDA.addAll(pendingEventsToAdd);
-                                
-                                final List<YarnApplicationsToKill> applicationListToKill = new ArrayList<YarnApplicationsToKill>();
-                                applicationListToKill.add(new YarnApplicationsToKill( pendingEvent,"killAppNodeId" ,app));                                
-                                
-
-                                YarnApplicationsToKillDataAccess<YarnApplicationsToKill> _appsDA = (YarnApplicationsToKillDataAccess) RMStorageFactory.getDataAccess(YarnApplicationsToKillDataAccess.class);
-                                if ( _appsDA != null) {
-                                    _appsDA.addAll(applicationListToKill);
-                                } else {
-                                    LOG.info("DataAccess failed!");
-                                }
-                                connector.commit();
-                                return null;
-                        }
-                };
-                bomb.handle();
-        } catch (IOException ex) {
-                LOG.warn("Unable to update container statuses table", ex);
-        }
-  }
   
+
 }

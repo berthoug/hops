@@ -36,7 +36,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.ContainersLogsService;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 
-public class PriceEstimationService extends AbstractService {
+public class PriceFixerService extends AbstractService {
 
   private Configuration conf;
   private RMContext rmcontext;
@@ -54,9 +54,9 @@ public class PriceEstimationService extends AbstractService {
 
   private YarnRunningPriceDataAccess runningPriceDA;
   private YarnHistoryPriceDataAccess historyPriceDA;
-  private static final Log LOG = LogFactory.getLog(PriceEstimationService.class);
+  private static final Log LOG = LogFactory.getLog(PriceFixerService.class);
 
-  public PriceEstimationService(RMContext rmctx) {
+  public PriceFixerService(RMContext rmctx) {
     super("Price estimation service");
     rmcontext = rmctx;
   }
@@ -178,7 +178,7 @@ public class PriceEstimationService extends AbstractService {
         } catch (IOException ex) {
           LOG.error(ex, ex);
         } catch (InterruptedException ex) {
-          Logger.getLogger(PriceEstimationService.class.getName()).
+          Logger.getLogger(PriceFixerService.class.getName()).
                   log(Level.SEVERE, null, ex);
         }
 
