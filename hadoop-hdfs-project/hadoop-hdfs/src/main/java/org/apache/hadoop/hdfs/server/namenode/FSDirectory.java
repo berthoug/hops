@@ -63,6 +63,7 @@ import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfoUnderConstruction;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockManager;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockStoragePolicySuite;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeStorageInfo;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
@@ -2617,7 +2618,8 @@ public class FSDirectory implements Closeable {
     return createFileStatus(path, node, size);
   }
 
-  private HdfsFileStatus createFileStatus(byte[] path, INode node, long size) throws IOException {
+  private HdfsFileStatus createFileStatus(byte[] path, INode node, long size)
+      throws IOException {
     short replication = 0;
     long blocksize = 0;
     boolean isStoredInDB = false;
@@ -2628,10 +2630,20 @@ public class FSDirectory implements Closeable {
       isStoredInDB = fileNode.isFileStoredInDB();
     }
     // TODO Add encoding status
-    return new HdfsFileStatus(node.getId(), size, node.isDirectory(), replication, blocksize,
-        node.getModificationTime(), node.getAccessTime(),
-        node.getFsPermission(), node.getUserName(), node.getGroupName(),
-        node.isSymlink() ? ((INodeSymlink) node).getSymlink() : null, path,isStoredInDB);
+    return new HdfsFileStatus(node.getId(),
+        size,
+        node.isDirectory(),
+        replication,
+        blocksize,
+        node.getModificationTime(),
+        node.getAccessTime(),
+        node.getFsPermission(),
+        node.getUserName(),
+        node.getGroupName(),
+        node.isSymlink() ? ((INodeSymlink) node).getSymlink() : null,
+        path,
+        isStoredInDB,
+        node.getStoragePolicyID());
   }
 
   /**
@@ -2672,7 +2684,7 @@ public class FSDirectory implements Closeable {
         blocksize, node.getModificationTime(), node.getAccessTime(),
         node.getFsPermission(), node.getUserName(), node.getGroupName(),
         node.isSymlink() ? ((INodeSymlink) node).getSymlink() : null, path,
-        loc, isFileStoredInDB);
+        loc, isFileStoredInDB, node.getStoragePolicyID());
   }
 
 
@@ -2758,6 +2770,8 @@ public class FSDirectory implements Closeable {
                     INodeDirectory.ROOT_PARENT_ID, INodeDirectory.getRootDirPartitionKey());
             if (rootInode == null || overwrite == true) {
               newRootINode = INodeDirectoryWithQuota.createRootDir(ps);
+              // Set the block storage policy to DEFAULT
+              newRootINode.setBlockStoragePolicyIDNoPersistance(BlockStoragePolicySuite.getDefaultPolicy().getId());
               List<INode> newINodes = new ArrayList();
               newINodes.add(newRootINode);
               da.prepare(INode.EMPTY_LIST, newINodes, INode.EMPTY_LIST);
@@ -2773,7 +2787,7 @@ public class FSDirectory implements Closeable {
               ida.prepare(attrList, null);
               LOG.info("Added new root inode");
             }
-            return (Object) newRootINode;
+            return newRootINode;
           }
         };
     return (INodeDirectoryWithQuota) addRootINode.handle();

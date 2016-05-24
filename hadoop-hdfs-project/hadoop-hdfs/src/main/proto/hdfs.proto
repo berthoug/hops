@@ -259,6 +259,7 @@ message HdfsFileStatusProto {
   optional LocatedBlocksProto locations = 12; // suppled only if asked by client
   optional uint64 fileId = 13;
   optional bool isFileStoredInDB = 14; // false if not supplied
+  optional uint32 storagePolicy = 15 [default = 0]; // block storage policy id
 }
 
 /**

@@ -106,6 +106,7 @@ import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.security.token.block.DataEncryptionKey;
 import org.apache.hadoop.hdfs.security.token.block.ExportedBlockKeys;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockStoragePolicySuite;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.NamenodeRole;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
@@ -1145,15 +1146,22 @@ public class PBHelper {
     if (fs == null) {
       return null;
     }
-    return new HdfsLocatedFileStatus(fs.getFileId(), fs.getLength(),
-        fs.getFileType().equals(FileType.IS_DIR), fs.getBlockReplication(),
-        fs.getBlocksize(), fs.getModificationTime(), fs.getAccessTime(),
-        PBHelper.convert(fs.getPermission()), fs.getOwner(), fs.getGroup(),
-        fs.getFileType().equals(FileType.IS_SYMLINK) ?
-            fs.getSymlink().toByteArray() : null, fs.getPath().toByteArray(),
+    return new HdfsLocatedFileStatus(
+        fs.getFileId(),
+        fs.getLength(),
+        fs.getFileType().equals(FileType.IS_DIR),
+        fs.getBlockReplication(),
+        fs.getBlocksize(),
+        fs.getModificationTime(),
+        fs.getAccessTime(),
+        PBHelper.convert(fs.getPermission()),
+        fs.getOwner(),
+        fs.getGroup(),
+        fs.getFileType().equals(FileType.IS_SYMLINK) ? fs.getSymlink().toByteArray() : null,
+        fs.getPath().toByteArray(),
         fs.hasLocations() ? PBHelper.convert(fs.getLocations()) : null,
-            fs.hasIsFileStoredInDB() ? fs.getIsFileStoredInDB() : false);
-
+        fs.hasIsFileStoredInDB() ? fs.getIsFileStoredInDB() : false,
+        fs.hasStoragePolicy() ? (byte) fs.getStoragePolicy(): BlockStoragePolicySuite.ID_UNSPECIFIED);
   }
 
   public static HdfsFileStatusProto convert(HdfsFileStatus fs) {
@@ -1180,7 +1188,7 @@ public class PBHelper {
         setGroup(fs.getGroup()).
         setPath(ByteString.copyFrom(fs.getLocalNameInBytes())).
         setIsFileStoredInDB(fs.isFileStoredInDB()).
-        setIsFileStoredInDB(fs.isFileStoredInDB());
+        setStoragePolicy(fs.getStoragePolicy());
     if (fs.isSymlink()) {
       builder.setSymlink(ByteString.copyFrom(fs.getSymlinkInBytes()));
     }

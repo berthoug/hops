@@ -34,6 +34,7 @@ import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.server.namenode.INode;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockStoragePolicySuite;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -293,7 +294,7 @@ public class JsonUtil {
 
     return new HdfsFileStatus(fileId, len, type == PathType.DIRECTORY, replication,
         blockSize, mTime, aTime, permission, owner, group, symlink,
-        DFSUtil.string2Bytes(localName),isFileStoredInDB);
+        DFSUtil.string2Bytes(localName),isFileStoredInDB, storagePolicy);
   }
 
   /**
