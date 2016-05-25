@@ -7757,9 +7757,7 @@ public class FSNamesystem
       }
     }
 
-    // We always want to store Erasure Coded files on RAID5 volumes, but can
-    // fall back to DISK
-    byte storagePolicyID = HdfsConstants.RAID5_STORAGE_POLICY_ID;
+    byte storagePolicyID = getINode(sourcePath).getLocalStoragePolicyID();
     BlockStoragePolicy policy = BlockStoragePolicySuite.getPolicy(storagePolicyID);
 
     BlockPlacementPolicyDefault placementPolicy = (BlockPlacementPolicyDefault)
