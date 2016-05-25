@@ -99,10 +99,9 @@ public class NdbRtStreamingProcessor implements Runnable {
                 context.getContainersLogsService()
                         .insertEvent(hopContainersStatusList);
               }
-              //the tick are useless here why check them
-              if(streamingRTComps.getCurrentPrice() > 0 && streamingRTComps.getCurrentPriceTick()> 0){
-                //the fuction is seting the price, why renaming it "insertPrice"
-                context.getContainersLogsService().insertPriceEvent(streamingRTComps.getCurrentPrice(),streamingRTComps.getCurrentPriceTick());
+              if (streamingRTComps.getCurrentPrice() > 0) {
+                context.getContainersLogsService().setCurrentPrice(
+                        streamingRTComps.getCurrentPrice());
               }
             }
             

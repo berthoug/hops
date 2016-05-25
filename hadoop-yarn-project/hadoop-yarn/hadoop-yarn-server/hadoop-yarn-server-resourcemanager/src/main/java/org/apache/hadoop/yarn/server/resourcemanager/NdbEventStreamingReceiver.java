@@ -73,19 +73,14 @@ public class NdbEventStreamingReceiver {
   private String hopRMNodeNodemanagerVersion = "";
   private int hopRMNodeOvercommittimeout = 0;
   private int hopRMNodePendingEventId = 0;
-  private String applicationToKillId = "";
-  //the two next variable are useless
-  private int applicationToKillPendingEventId = 0;
-  private String applicationRMNodeId = "";
+  private String applicationToKillId = "";  
   
   public void setApplicationRMNodeId(String applicationRMNodeId) {
-    LOG.debug("RIZ::setApplicationRMNodeId ");
-    this.applicationRMNodeId = applicationRMNodeId;
+    LOG.debug("RIZ::setApplicationRMNodeId ");    
   }
           
   public void setApplicationPendingEventId(int pendingeventid) {
-    LOG.debug("RIZ::setApplicationPendingEventId ");
-    this.applicationToKillPendingEventId = pendingeventid;
+    LOG.debug("RIZ::setApplicationPendingEventId ");    
   }
           
   public void setApplicationId(String applicationId) {
@@ -402,6 +397,8 @@ public class NdbEventStreamingReceiver {
     hopContainerIdsToCleanList = null;
     hopFinishedApplicationsList = null;
     hopContainersStatusList = null;
+    applicationToKillId = null;
+    hopApplicationsToKillList = null;
 
   }
 }

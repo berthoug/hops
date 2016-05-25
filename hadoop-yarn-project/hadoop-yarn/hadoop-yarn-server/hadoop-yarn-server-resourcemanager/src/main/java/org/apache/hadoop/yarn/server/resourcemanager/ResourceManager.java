@@ -143,7 +143,7 @@ import org.apache.hadoop.yarn.proto.YarnServerCommonProtos;
 import org.apache.hadoop.yarn.server.api.records.impl.pb.MasterKeyPBImpl;
 import org.apache.hadoop.yarn.server.api.records.impl.pb.NodeHealthStatusPBImpl;
 import org.apache.hadoop.yarn.server.api.records.impl.pb.NodeStatusPBImpl;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.quota.PriceEstimationService;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.quota.PriceFixerService;
 
 /**
  * The ResourceManager is the main class that is a set of components. "I am the
@@ -206,8 +206,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
   private DelegationTokenRenewer delegationTokenRenewer;
   private ResourceTrackingServices resourceTrackingService;
   private Lock resourceTrackingServiceStartStopLock = new ReentrantLock(true);
-  //the service is fixing the price, not estimating it, why the renaming?
-  private PriceEstimationService priceEstimationService;
+  private PriceFixerService priceFixerService;
 
   /**
    * End of Active services
@@ -586,8 +585,8 @@ public class ResourceManager extends CompositeService implements Recoverable {
         delegationTokenRenewer.setRMContext(rmContext);
       }
 
-      priceEstimationService = new PriceEstimationService(rmContext);
-      addService(priceEstimationService);
+      priceFixerService = new PriceFixerService(rmContext);
+      addService(priceFixerService);
       
       new RMNMInfo(rmContext, scheduler);
 

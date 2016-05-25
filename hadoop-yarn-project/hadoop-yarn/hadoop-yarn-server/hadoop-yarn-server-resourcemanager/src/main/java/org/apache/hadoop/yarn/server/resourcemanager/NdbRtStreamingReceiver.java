@@ -56,11 +56,6 @@ public class NdbRtStreamingReceiver {
   private float currentPrice = 0.0f;
   private long currentPriceTick = 0;
 
-  //what is this for?
-  public void setId(int id) {
-    //Do nothing
-  }
-  
   public void setCurrentPriceTick(long CurrentPriceTick) {
     this.currentPriceTick = CurrentPriceTick;
   }  
