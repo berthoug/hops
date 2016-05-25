@@ -413,6 +413,7 @@ public class TestDecommission {
     // Restart the cluster and ensure recommissioned datanodes
     // are allowed to register with the namenode
     cluster.shutdown();
+
     startCluster(numNamenodes, numDatanodes, conf);
     cluster.shutdown();
   }
