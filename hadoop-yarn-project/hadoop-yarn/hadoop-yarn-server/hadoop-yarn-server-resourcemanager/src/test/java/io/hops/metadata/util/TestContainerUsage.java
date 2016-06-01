@@ -241,14 +241,16 @@ public class TestContainerUsage {
                     if (_appsDA != null) {
 
                         Map<String, YarnApplicationsToKill> _appList = _appsDA.getAll();
-                        if (_appList == null) {
-                            LOG.info("RIZ: No Project quota found!");
-                        } else {
-                            for (YarnApplicationsToKill _c : _appList.values()) {
+                        for (YarnApplicationsToKill _c : _appList.values()) {
                                 LOG.info(_c.toString());
                                 Assert.assertEquals("application_1450009406746_0001", _c.getApplicationId());                                
-                            }
                         }
+                        
+//                    final List<YarnApplicationsToKill> applicationListToKill2 = new ArrayList<YarnApplicationsToKill>();
+//                    applicationListToKill2.add(new YarnApplicationsToKill("application_1450009406746_0001"));
+//                    _appsDA.removeAll(applicationListToKill2);
+                    //_appsDA.removeAll(_appList.values());
+                        
                     } else {
                         LOG.info("DataAccess failed!");
                     }
@@ -317,6 +319,9 @@ public class TestContainerUsage {
                                 Assert.assertEquals((long) 10, _c.getTimeUsed());
                                 Assert.assertEquals((float) 99.99, _c.getBudgetUsed());
                             }
+                            List<YarnApplicationsQuota> _list2 = new ArrayList<YarnApplicationsQuota>();
+                            _list2.add(new YarnApplicationsQuota("application_1450009406746_0001"));
+                            _pqDA.removeAll(_list2);
                         }
                     } else {
                         LOG.info("DataAccess failed!");

@@ -519,17 +519,18 @@ public class TestQuotaService {
                   = (PendingEventDataAccess) RMStorageFactory.getDataAccess(
                           PendingEventDataAccess.class);
                   pendingEventDA.addAll(pendingEventsToAdd);
-
+                  
                   final List<YarnApplicationsToKill> applicationListToKill
                   = new ArrayList<YarnApplicationsToKill>();
                   applicationListToKill.add(new YarnApplicationsToKill(
                                   pendingEvent, "killAppNodeId:808", app));
-
                   YarnApplicationsToKillDataAccess<YarnApplicationsToKill> _appsDA
                   = (YarnApplicationsToKillDataAccess) RMStorageFactory.
                   getDataAccess(YarnApplicationsToKillDataAccess.class);
                   Assert.assertNotNull(_appsDA);
                   _appsDA.addAll(applicationListToKill);
+                  
+                  
                   
                   connector.commit();
                   return null;

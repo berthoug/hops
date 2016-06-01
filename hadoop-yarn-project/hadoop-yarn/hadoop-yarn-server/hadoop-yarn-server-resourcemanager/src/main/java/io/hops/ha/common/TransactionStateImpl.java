@@ -37,6 +37,8 @@ import io.hops.metadata.yarn.dal.RMContextInactiveNodesDataAccess;
 import io.hops.metadata.yarn.dal.RMNodeDataAccess;
 import io.hops.metadata.yarn.dal.ResourceDataAccess;
 import io.hops.metadata.yarn.dal.UpdatedContainerInfoDataAccess;
+import io.hops.metadata.yarn.dal.YarnApplicationsQuotaDataAccess;
+import io.hops.metadata.yarn.dal.YarnApplicationsToKillDataAccess;
 import io.hops.metadata.yarn.dal.fair.FSSchedulerNodeDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocateResponseDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.AllocatedContainersDataAccess;
@@ -55,6 +57,8 @@ import io.hops.metadata.yarn.entity.RMContainer;
 import io.hops.metadata.yarn.entity.RMNode;
 import io.hops.metadata.yarn.entity.RMNodeToAdd;
 import io.hops.metadata.yarn.entity.Resource;
+import io.hops.metadata.yarn.entity.YarnApplicationsQuota;
+import io.hops.metadata.yarn.entity.YarnApplicationsToKill;
 import io.hops.metadata.yarn.entity.rmstatestore.AllocateResponse;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationAttemptState;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationState;
@@ -137,6 +141,8 @@ public class TransactionStateImpl extends TransactionState {
           new ConcurrentHashMap<ApplicationId, Set<String>>();
   private final Queue<ApplicationId> applicationsStateToRemove =
       new ConcurrentLinkedQueue<ApplicationId>();
+  private final Queue<String> applicationToKillToRemove =
+      new ConcurrentLinkedQueue<String>();  
   private final Map<String, ApplicationAttemptState> appAttempts =
       new ConcurrentHashMap<String, ApplicationAttemptState>();
   private final Map<ApplicationAttemptId, Map<Integer, RanNode>>ranNodeToAdd =
@@ -365,6 +371,14 @@ public class TransactionStateImpl extends TransactionState {
     appIds.add(appId);
     //TODO remove JustFinishedContainers when removing appAttempt (to be done when merging with branch that remove foreign keys)
   }
+  
+  public void addApplicationToKillToRemove(String appId) {
+    if(!applicationToKillToRemove.contains(appId)){
+      LOG.debug("RIZ: Aggregating killed application " + appId);
+      applicationToKillToRemove.add(appId);      
+    }    
+  }
+  
 
   private void persistApplicationStateToRemove() throws StorageException {
     if (!applicationsStateToRemove.isEmpty()) {
@@ -378,6 +392,26 @@ public class TransactionStateImpl extends TransactionState {
       DA.removeAll(appToRemove);
       //TODO remove appattempts
     }
+    
+    if (!applicationToKillToRemove.isEmpty()) {
+      YarnApplicationsToKillDataAccess killDa =
+          (YarnApplicationsToKillDataAccess) RMStorageFactory
+              .getDataAccess(YarnApplicationsToKillDataAccess.class);      
+      YarnApplicationsQuotaDataAccess AppQtaDa =
+          (YarnApplicationsQuotaDataAccess) RMStorageFactory
+              .getDataAccess(YarnApplicationsQuotaDataAccess.class);
+      
+      List<YarnApplicationsToKill> appsKilled = new ArrayList<YarnApplicationsToKill>();
+      List<YarnApplicationsQuota> appsKilledQt = new ArrayList<YarnApplicationsQuota>();                            
+      for (String app : applicationToKillToRemove) {
+        LOG.debug("RIZ: Removing killed application " + app);
+        appsKilled.add(new YarnApplicationsToKill(app));
+        appsKilledQt.add(new YarnApplicationsQuota(app));        
+      }
+      
+      killDa.removeAll(appsKilled);
+      AppQtaDa.removeAll(appsKilledQt);      
+    }    
   }
   
   public void addAppAttempt(RMAppAttempt appAttempt) {
