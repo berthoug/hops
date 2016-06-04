@@ -173,8 +173,7 @@ public class TestDecommission {
     // need a raw stream
     assertTrue("Not HDFS:" + fileSys.getUri(),
         fileSys instanceof DistributedFileSystem);
-    HdfsDataInputStream dis =
-        (HdfsDataInputStream) ((DistributedFileSystem) fileSys).open(name);
+    HdfsDataInputStream dis = (HdfsDataInputStream) fileSys.open(name);
     Collection<LocatedBlock> dinfo = dis.getAllBlocks();
     for (LocatedBlock blk : dinfo) { // for each block
       int hasdown = 0;
@@ -379,6 +378,8 @@ public class TestDecommission {
       throws IOException {
     LOG.info("Starting test testDecommission");
     startCluster(numNamenodes, numDatanodes, conf);
+
+    DFSTestUtil.createRootFolder();
     
     ArrayList<ArrayList<DatanodeInfo>> namenodeDecomList =
         new ArrayList<>(numNamenodes);
