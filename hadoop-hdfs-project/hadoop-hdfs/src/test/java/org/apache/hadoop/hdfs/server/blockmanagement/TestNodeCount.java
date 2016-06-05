@@ -139,7 +139,6 @@ public class TestNodeCount {
               }
               return nonExcessDN;
             }
-
           };
       
       DatanodeDescriptor nonExcessDN =
@@ -172,7 +171,9 @@ public class TestNodeCount {
       }
 
     } finally {
-      cluster.shutdown();
+      if(cluster != null) {
+        cluster.shutdown();
+      }
     }
   }
   
