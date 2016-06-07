@@ -1,4 +1,3 @@
-//I don't want to review this, remove all the modifications that are just due to formating
 /*
  * Copyright 2015 Apache Software Foundation.
  *

@@ -293,7 +293,7 @@ public class TestPriceEstimationService {
             rmRT.getRMContext());
     RMStorageFactory.kickTheNdbEventStreamingAPI(false, conf);
     new Thread(rtStreamingProcessor).start();
-    Assert.assertTrue(RMStorageFactory.isNdbStreaingRunning());
+    Assert.assertTrue(RMStorageFactory.isNdbStreamingRunning());
     Thread.sleep(1000);
 
     // Change the global running price, Streaming Service will trigger the 'setCurrentPrice' in the containerLogServie

@@ -36,6 +36,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
 import org.apache.hadoop.yarn.ipc.RPCUtil;
 import io.hops.ha.common.TransactionState;
+import io.hops.ha.common.TransactionStateImpl;
 import io.hops.metadata.util.HopYarnAPIUtilities;
 import io.hops.metadata.util.RMStorageFactory;
 import io.hops.metadata.yarn.dal.YarnApplicationsQuotaDataAccess;
@@ -194,32 +195,13 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
         //ApplicationId applicationId = application.getApplicationId();
         KillApplicationRequest killRequest = KillApplicationRequest.newInstance(applicationId);
         
-        
-        // Get Caller UGI
-        UserGroupInformation callerUGI;
-        try {
-          callerUGI = UserGroupInformation.getCurrentUser();
-        } catch (IOException ie) {
-          LOG.info("Error getting UGI ", ie);
-          RMAuditLogger.logFailure("UNKNOWN", RMAuditLogger.AuditConstants.KILL_APP_REQUEST, "UNKNOWN","ClientRMService", "Error getting UGI", applicationId);
-          throw RPCUtil.getRemoteException(ie);
-        }
-        
-        
-        
-        Integer rpcID = null;
-        rpcID = HopYarnAPIUtilities.getRPCID();
-        byte[] forceKillAppData = ((KillApplicationRequestPBImpl) killRequest).getProto().toByteArray();
-
-        RMUtilities.persistAppMasterRPC(rpcID, RPC.Type.ForceKillApplication,forceKillAppData, callerUGI.getUserName());
-        LOG.info("RIZ:: rpc Id" + rpcID);
-        
-        TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(rpcID,"forceKillApplication");
-
+                        
+        TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(-1,"forceKillApplication");
+        ((TransactionStateImpl) transactionState).addApplicationToKillToRemove(applicationId);
         RMApp application = rmContext.getRMApps().get(applicationId);
         
         if (application == null) {
-          RMAuditLogger.logFailure(callerUGI.getUserName(), RMAuditLogger.AuditConstants.KILL_APP_REQUEST,"UNKNOWN", "ClientRMService", "Trying to kill an absent application", applicationId);
+          RMAuditLogger.logFailure("Quota service", RMAuditLogger.AuditConstants.KILL_APP_REQUEST,"UNKNOWN", "ClientRMService", "Trying to kill an absent application", applicationId);
           transactionState.decCounter(TransactionState.TransactionType.INIT);
           throw new ApplicationNotFoundException("Trying to kill an absent" + " application " + applicationId);
         }
@@ -230,40 +212,40 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
         
     }
 
-    private void ClearApplicationsRecordes(List<String> apps) {
-      final List<YarnApplicationsToKill> appsKilled = new ArrayList<YarnApplicationsToKill>();
-      final List<YarnApplicationsQuota> appsKilledQt = new ArrayList<YarnApplicationsQuota>();                            
-                            
-      for(String app: apps){
-        appsKilled.add(new YarnApplicationsToKill(app));
-        appsKilledQt.add(new YarnApplicationsQuota(app));
-      }
-      
-      final YarnApplicationsToKillDataAccess<YarnApplicationsToKill> appsKilledDA = (YarnApplicationsToKillDataAccess) RMStorageFactory.getDataAccess(YarnApplicationsToKillDataAccess.class);
-      final YarnApplicationsQuotaDataAccess<YarnApplicationsQuota> appsKilledQtDA  = (YarnApplicationsQuotaDataAccess) RMStorageFactory.getDataAccess(YarnApplicationsQuotaDataAccess.class);
-      
-      try {
-      LightWeightRequestHandler clearApplicationsHandler;
-        clearApplicationsHandler
-                = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                  @Override
-                  public Object performTask() throws StorageException {
-                    connector.beginTransaction();
-                    connector.writeLock();
-                    
-                    appsKilledDA.removeAll(appsKilled);
-                    appsKilledQtDA.removeAll(appsKilledQt);
-
-                    connector.commit();
-                    return null;
-                  }
-                };
-      clearApplicationsHandler.handle();
-    } catch (IOException ex) {
-      LOG.warn("Unable to retrieve container statuses", ex);
-    }
-      
-    }
+//    private void ClearApplicationsRecordes(List<String> apps) {
+//      final List<YarnApplicationsToKill> appsKilled = new ArrayList<YarnApplicationsToKill>();
+//      final List<YarnApplicationsQuota> appsKilledQt = new ArrayList<YarnApplicationsQuota>();                            
+//                            
+//      for(String app: apps){
+//        appsKilled.add(new YarnApplicationsToKill(app));
+//        appsKilledQt.add(new YarnApplicationsQuota(app));
+//      }
+//      
+//      final YarnApplicationsToKillDataAccess<YarnApplicationsToKill> appsKilledDA = (YarnApplicationsToKillDataAccess) RMStorageFactory.getDataAccess(YarnApplicationsToKillDataAccess.class);
+//      final YarnApplicationsQuotaDataAccess<YarnApplicationsQuota> appsKilledQtDA  = (YarnApplicationsQuotaDataAccess) RMStorageFactory.getDataAccess(YarnApplicationsQuotaDataAccess.class);
+//      
+//      try {
+//      LightWeightRequestHandler clearApplicationsHandler;
+//        clearApplicationsHandler
+//                = new LightWeightRequestHandler(YARNOperationType.TEST) {
+//                  @Override
+//                  public Object performTask() throws StorageException {
+//                    connector.beginTransaction();
+//                    connector.writeLock();
+//                    
+//                    appsKilledDA.removeAll(appsKilled);
+//                    appsKilledQtDA.removeAll(appsKilledQt);
+//
+//                    connector.commit();
+//                    return null;
+//                  }
+//                };
+//      clearApplicationsHandler.handle();
+//    } catch (IOException ex) {
+//      LOG.warn("Unable to retrieve container statuses", ex);
+//    }
+//      
+//    }
     
   }
 
