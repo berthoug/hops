@@ -77,6 +77,7 @@ public class QuotaService extends AbstractService {
   Map<String, ApplicationState> applicationStateCache 
           = new HashMap<String, ApplicationState>();
   Map<String, ContainerCheckPoint> containersCheckPoints;
+  Map<String, YarnApplicationsQuota> yarnApplicationsQuotaMapCache;
   Set<String> recovered = new HashSet<String>();
 
   BlockingQueue<ContainersLogs> eventContainersLogs
@@ -172,14 +173,8 @@ public class QuotaService extends AbstractService {
                 YarnProjectsQuotaDataAccess _pqDA
                 = (YarnProjectsQuotaDataAccess) RMStorageFactory.getDataAccess(
                         YarnProjectsQuotaDataAccess.class);
-                Map<String, YarnProjectsQuota> hopYarnProjectsQuotaMap = _pqDA.getAll();
-                //Get Data  ** YarnApplicationsQuota **
-                YarnApplicationsQuotaDataAccess _aqDA
-                = (YarnApplicationsQuotaDataAccess) RMStorageFactory.
-                getDataAccess(YarnApplicationsQuotaDataAccess.class);
-                Map<String, YarnApplicationsQuota> hopYarnApplicationsQuotaMap
-                = _aqDA.getAll();
-
+                Map<String, YarnProjectsQuota> hopYarnProjectsQuotaMap = _pqDA.getAll(); 
+                
                 long _miliSec = System.currentTimeMillis();
                 final long _day = TimeUnit.DAYS.convert(_miliSec, TimeUnit.MILLISECONDS);
                 Map<String, YarnApplicationsQuota> chargedYarnApplicationsQuota
@@ -203,9 +198,12 @@ public class QuotaService extends AbstractService {
                 // Calculate the quota
                 LOG.debug("RIZ:: ContainersLogs count : " + hopContainersLogs.size());
                 for (ContainersLogs _ycl : hopContainersLogs) {
-                  if (!isRecover && recovered.remove(_ycl.
-                          getContainerid())) {
+                  // Filter out the recovered containers from the current ContainerLogs
+                  if (!isRecover && recovered.remove(_ycl)) {
                     continue;
+                  }
+                  if (isRecover) {
+                        recovered.add(_ycl);
                   }
                   // Get ApplicationId from ContainerId
                   LOG.debug(
@@ -216,6 +214,7 @@ public class QuotaService extends AbstractService {
                   ApplicationId _appId = _cId.getApplicationAttemptId().
                   getApplicationId();
 
+                  //Get ProjectName and User from ApplicationId in ** ApplicationState Table ** 
                   ApplicationState _appStat = null;
                   _appStat = applicationStateCache.get(_appId.toString());
                   if (_appStat == null) {
@@ -284,10 +283,7 @@ public class QuotaService extends AbstractService {
                     } else {
                       //>> Delete log entry + Increase Quota
                       toBeRemovedContainersLogs.add(
-                              (ContainersLogs) _ycl);
-                      if (isRecover) {
-                        recovered.add(_ycl.getContainerid());
-                      }
+                              (ContainersLogs) _ycl);                      
                       if (checkpoint != _ycl.getStart()) {
                         toBeRemovedContainerCheckPoint.add(
                                 new ContainerCheckPoint(_ycl.
@@ -307,7 +303,7 @@ public class QuotaService extends AbstractService {
                     chargeYarnApplicationsQuota(chargedYarnApplicationsQuota,
                             toBeKilledApplicationsList,
                             toBeKilledAppPendingEvents,
-                            hopYarnApplicationsQuotaMap, _appStat, currentTicks,
+                            yarnApplicationsQuotaMapCache, _appStat, currentTicks,
                             currentPrice);
                     //** YarnProjectsQuota charging**
                     chargeYarnProjectsQuota(chargedYarnProjectsQuota,
@@ -315,10 +311,21 @@ public class QuotaService extends AbstractService {
                             currentTicks, _ycl.getContainerid(), _ycl.
                             getExitstatus(), currentPrice);
                     //** YarnProjectsDailyCost charging**
-                    chargeYarnProjectsDailyCost(chargedYarnProjectsDailyCost,
-                            _projectName, _user, _day, currentTicks,
-                            currentPrice);
+                    chargeYarnProjectsDailyCost(
+                            chargedYarnProjectsDailyCost, _projectName,
+                            _user, _day, currentTicks, currentPrice);
 
+                  } else if(_ycl.getExitstatus()
+                            == ContainerExitStatus.CONTAINER_RUNNING_STATE) {
+                    //create a checkPoint at start to store the price.
+                    ContainerCheckPoint _tempCheckpointObj
+                              = new ContainerCheckPoint(_ycl.
+                                      getContainerid(), _ycl.getStart(),
+                                      currentPrice);
+                      containersCheckPoints.put(_ycl.getContainerid(),
+                              _tempCheckpointObj);
+                      toBeAddedContainerCheckPoint.add(
+                              _tempCheckpointObj);
                   }
                 }
                 // Delet the finished ContainersLogs
@@ -343,6 +350,9 @@ public class QuotaService extends AbstractService {
                 }
 
                 // Add all the changed project quota to NDB
+                YarnApplicationsQuotaDataAccess _aqDA
+                  = (YarnApplicationsQuotaDataAccess) RMStorageFactory.
+                  getDataAccess(YarnApplicationsQuotaDataAccess.class);
                 _aqDA.addAll(chargedYarnApplicationsQuota.values());
                 YarnApplicationsToKillDataAccess _appsKillDA
                 = (YarnApplicationsToKillDataAccess) RMStorageFactory.
@@ -391,7 +401,7 @@ public class QuotaService extends AbstractService {
 
     YarnProjectsDailyCost _incrementedPdc
             = new YarnProjectsDailyCost(_projectid, _user, _day, _tempPdc.
-                    getCreditsUsed() + (int) charge);
+                    getCreditsUsed() + charge);
     chargedYarnProjectsDailyCost.put(_key, _incrementedPdc);
     projectsDailyCostCache.put(_key, _incrementedPdc);
   }
@@ -410,8 +420,8 @@ public class QuotaService extends AbstractService {
             get(_projectid);
     if (_tempPq != null) {
       YarnProjectsQuota _modifiedPq = new YarnProjectsQuota(_projectid, _tempPq.
-              getRemainingQuota() - (int) charge, _tempPq.getTotalUsedQuota()
-              + (int) charge);
+              getRemainingQuota() - charge, _tempPq.getTotalUsedQuota()
+              + charge);
 
       chargedYarnProjectsQuota.put(_projectid, _modifiedPq);
       hopYarnProjectsQuotaList.put(_projectid, _modifiedPq);
@@ -500,6 +510,13 @@ public class QuotaService extends AbstractService {
                   = (ContainersCheckPointsDataAccess) RMStorageFactory.
                   getDataAccess(ContainersCheckPointsDataAccess.class);
                   containersCheckPoints = ccpDA.getAll();
+                  
+                  //Get Data  ** YarnApplicationsQuota **
+                  YarnApplicationsQuotaDataAccess _aqDA
+                  = (YarnApplicationsQuotaDataAccess) RMStorageFactory.
+                  getDataAccess(YarnApplicationsQuotaDataAccess.class);
+                  yarnApplicationsQuotaMapCache = _aqDA.getAll();
+                
                   connector.commit();
                   return null;
                 }

@@ -15,38 +15,18 @@
  */
 package org.apache.hadoop.yarn.server.resourcemanager;
 
-import io.hops.exception.StorageException;
 import io.hops.metadata.util.RMUtilities;
 import io.hops.metadata.yarn.entity.ContainerStatus;
-import io.hops.metadata.yarn.entity.JustLaunchedContainers;
 import io.hops.metadata.yarn.entity.RMNodeComps;
 import io.hops.metadata.yarn.entity.UpdatedContainerInfo;
-import java.io.IOException;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
-import io.hops.metadata.yarn.entity.appmasterrpc.RPC;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.yarn.api.protocolrecords.KillApplicationRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.KillApplicationRequestPBImpl;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
-import org.apache.hadoop.yarn.ipc.RPCUtil;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
-import io.hops.metadata.util.HopYarnAPIUtilities;
-import io.hops.metadata.util.RMStorageFactory;
-import io.hops.metadata.yarn.dal.YarnApplicationsQuotaDataAccess;
-import io.hops.metadata.yarn.dal.YarnApplicationsToKillDataAccess;
-import io.hops.metadata.yarn.dal.util.YARNOperationType;
-import io.hops.metadata.yarn.entity.YarnApplicationsQuota;
-import io.hops.metadata.yarn.entity.YarnApplicationsToKill;
-import io.hops.transaction.handler.LightWeightRequestHandler;
-import java.util.ArrayList;
-import java.util.Map;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEventType;
@@ -162,26 +142,22 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
             }
             // Kill the applications form the applications_to_be_killed list
             List<String> appsToKill = hopRMNodeCompObject.getHopApplicationsToKillList();
-            //The list can be null which would result in a npe
-            for (String app: appsToKill){
-                // kill the app
-                LOG.debug("RIZ:: Killing app " + app); 
-                try {
-                  KillApplication(app); 
-                  
-                } catch (Exception e) {
-                   LOG.error(e); 
-                }
-                
-            }
-            ClearApplicationsRecordes(appsToKill);
+            if (appsToKill != null ){            
+              for (String app: appsToKill){
+                  // kill the app
+                  LOG.debug("RIZ:: Killing app " + app); 
+                  try {
+                    KillApplication(app);
+                  } catch (Exception e) {
+                     LOG.error(e); 
+                  }
+              }
+            }            
           }
         } catch (InterruptedException ex) {
           LOG.error(ex, ex);
         }
-
       }
-
     }
     
     //we should look at this together 
@@ -192,12 +168,9 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
         
         // Get ApplicationId and KillApplicationRequest
         ApplicationId applicationId =  ApplicationId.newInstance(Long.parseLong(parts[1],10) ,Integer.parseInt(parts[2]));
-        //ApplicationId applicationId = application.getApplicationId();
-        KillApplicationRequest killRequest = KillApplicationRequest.newInstance(applicationId);
         
-                        
         TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(-1,"forceKillApplication");
-        ((TransactionStateImpl) transactionState).addApplicationToKillToRemove(applicationId);
+        ((TransactionStateImpl) transactionState).addApplicationToKillToRemove(app);
         RMApp application = rmContext.getRMApps().get(applicationId);
         
         if (application == null) {
@@ -210,43 +183,7 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
         // For UnmanagedAMs, return true so they don't retry
         transactionState.decCounter(TransactionState.TransactionType.INIT);
         
-    }
-
-//    private void ClearApplicationsRecordes(List<String> apps) {
-//      final List<YarnApplicationsToKill> appsKilled = new ArrayList<YarnApplicationsToKill>();
-//      final List<YarnApplicationsQuota> appsKilledQt = new ArrayList<YarnApplicationsQuota>();                            
-//                            
-//      for(String app: apps){
-//        appsKilled.add(new YarnApplicationsToKill(app));
-//        appsKilledQt.add(new YarnApplicationsQuota(app));
-//      }
-//      
-//      final YarnApplicationsToKillDataAccess<YarnApplicationsToKill> appsKilledDA = (YarnApplicationsToKillDataAccess) RMStorageFactory.getDataAccess(YarnApplicationsToKillDataAccess.class);
-//      final YarnApplicationsQuotaDataAccess<YarnApplicationsQuota> appsKilledQtDA  = (YarnApplicationsQuotaDataAccess) RMStorageFactory.getDataAccess(YarnApplicationsQuotaDataAccess.class);
-//      
-//      try {
-//      LightWeightRequestHandler clearApplicationsHandler;
-//        clearApplicationsHandler
-//                = new LightWeightRequestHandler(YARNOperationType.TEST) {
-//                  @Override
-//                  public Object performTask() throws StorageException {
-//                    connector.beginTransaction();
-//                    connector.writeLock();
-//                    
-//                    appsKilledDA.removeAll(appsKilled);
-//                    appsKilledQtDA.removeAll(appsKilledQt);
-//
-//                    connector.commit();
-//                    return null;
-//                  }
-//                };
-//      clearApplicationsHandler.handle();
-//    } catch (IOException ex) {
-//      LOG.warn("Unable to retrieve container statuses", ex);
-//    }
-//      
-//    }
-    
+    }   
   }
 
 }
