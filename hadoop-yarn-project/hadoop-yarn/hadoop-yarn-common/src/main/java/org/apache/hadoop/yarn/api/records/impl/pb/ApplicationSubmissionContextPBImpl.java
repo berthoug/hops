@@ -434,6 +434,15 @@ public class ApplicationSubmissionContextPBImpl
         }
         return (p.getApplicationPriceLimit());
     }
+    
+    @Override
+    public String getApplicationPriceType() {
+        ApplicationSubmissionContextProtoOrBuilder p = viaProto ? proto : builder;
+        if (!p.hasApplicationPriceType()) {
+          return "";
+        }
+        return (p.getApplicationPriceType());
+    }
 
     @Override
     public void setApplicationTimeLimit(long applicationTimeLimit) {        
@@ -464,4 +473,16 @@ public class ApplicationSubmissionContextPBImpl
         }
         builder.setApplicationPriceLimit(applicationPriceLimit);
     }
+    
+    @Override
+    public void setApplicationPriceType(String applicationPriceType) {
+        maybeInitBuilder();
+        if (applicationPriceType.isEmpty()) {
+          builder.clearApplicationPriceType();
+          return;
+        }
+        builder.setApplicationPriceType(applicationPriceType);
+    }
+    
+    
 }  

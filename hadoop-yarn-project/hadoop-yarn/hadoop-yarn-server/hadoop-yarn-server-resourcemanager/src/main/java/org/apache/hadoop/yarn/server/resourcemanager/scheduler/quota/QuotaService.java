@@ -1,11 +1,13 @@
-/*
- * Copyright 2015 Apache Software Foundation.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,6 +27,7 @@ import io.hops.metadata.yarn.dal.YarnApplicationsQuotaDataAccess;
 import io.hops.metadata.yarn.dal.YarnApplicationsToKillDataAccess;
 import io.hops.metadata.yarn.dal.YarnProjectsDailyCostDataAccess;
 import io.hops.metadata.yarn.dal.YarnProjectsQuotaDataAccess;
+import io.hops.metadata.yarn.dal.YarnRunningPriceDataAccess;
 import io.hops.metadata.yarn.dal.rmstatestore.ApplicationStateDataAccess;
 import io.hops.metadata.yarn.dal.util.YARNOperationType;
 import io.hops.metadata.yarn.entity.ContainerCheckPoint;
@@ -35,6 +38,7 @@ import io.hops.metadata.yarn.entity.YarnApplicationsToKill;
 import io.hops.metadata.yarn.entity.YarnProjectsDailyCost;
 import io.hops.metadata.yarn.entity.YarnProjectsDailyId;
 import io.hops.metadata.yarn.entity.YarnProjectsQuota;
+import io.hops.metadata.yarn.entity.YarnRunningPrice;
 import io.hops.metadata.yarn.entity.rmstatestore.ApplicationState;
 import io.hops.transaction.handler.LightWeightRequestHandler;
 import io.hops.util.HopsWorksHelper;
@@ -76,7 +80,7 @@ public class QuotaService extends AbstractService {
   Map<String, ApplicationState> applicationStateCache = new HashMap<String, ApplicationState>();
   Map<String, ContainerCheckPoint> containersCheckPoints;
   Map<String, YarnApplicationsQuota> yarnApplicationsQuotaMapCache;
-  Set<String> recovered = new HashSet<String>();
+  Set<ContainersLogs> recovered = new HashSet<ContainersLogs>();
 
   BlockingQueue<ContainersLogs> eventContainersLogs
           = new LinkedBlockingQueue<ContainersLogs>();
@@ -171,7 +175,16 @@ public class QuotaService extends AbstractService {
                 YarnProjectsQuotaDataAccess _pqDA
                 = (YarnProjectsQuotaDataAccess) RMStorageFactory.getDataAccess(
                         YarnProjectsQuotaDataAccess.class);
-                Map<String, YarnProjectsQuota> hopYarnProjectsQuotaMap = _pqDA.getAll();                
+                Map<String, YarnProjectsQuota> hopYarnProjectsQuotaMap 
+                        = _pqDA.getAll(); 
+                
+                // Get all fixed price
+                YarnRunningPriceDataAccess _rpDA
+                = (YarnRunningPriceDataAccess) RMStorageFactory.getDataAccess(
+                        YarnRunningPriceDataAccess.class);
+                Map<YarnRunningPrice.PriceType, YarnRunningPrice> priceList 
+                        = _rpDA.getAll();
+                
                 long _miliSec = System.currentTimeMillis();
                 final long _day = TimeUnit.DAYS.convert(_miliSec, TimeUnit.MILLISECONDS);
                 Map<String, YarnApplicationsQuota> chargedYarnApplicationsQuota
@@ -196,12 +209,11 @@ public class QuotaService extends AbstractService {
                 LOG.debug("RIZ:: ContainersLogs count : " + hopContainersLogs.size());
                 for (ContainersLogs _ycl : hopContainersLogs) {
                   // Filter out the recovered containers from the current ContainerLogs
-                  if (!isRecover && recovered.remove(_ycl.
-                          getContainerid())) {
+                  if (!isRecover && recovered.remove(_ycl)) {
                     continue;
                   }
                   if (isRecover) {
-                        recovered.add(_ycl.getContainerid());
+                        recovered.add(_ycl);
                   }
                   // Get ApplicationId from ContainerId
                   LOG.debug(
@@ -234,15 +246,13 @@ public class QuotaService extends AbstractService {
                   }
 
                   String _appUser = _appStat.getUser();
-                  String _projectName = HopsWorksHelper.
-                          getProjectName(_appUser);
-                  String _user = HopsWorksHelper.
-                          getUserName(
-                                  _appUser);
-                  LOG.debug("RIZ:: App : " + _appId.
-                          toString()
-                          + " User : " + _appUser);
-
+                  String _projectName = HopsWorksHelper.getProjectName(_appUser);
+                  String _user = HopsWorksHelper.getUserName(_appUser);
+                  String _priceType = _appStat.getPriceType();
+                  
+                  LOG.debug("RIZ:: App : " + _appId.toString()
+                          + " User : " + _appUser
+                          + "PriceType: " + _priceType);
 
                   Long checkpoint = (long) 0;
                   float currentPrice = (float) 0;
@@ -255,8 +265,21 @@ public class QuotaService extends AbstractService {
                     checkpoint = checkpointObj.getCheckPoint();
                     currentPrice = checkpointObj.getPrice();
                   }
+                  
+                  // Check if the price is fixed price
+                  LOG.info("Current Pricetype: "+ _priceType  );
+                  if (_priceType.equals(YarnRunningPrice.PriceType.FIXED_HIGN.name())){
+                    currentPrice = priceList
+                            .get(YarnRunningPrice.PriceType.FIXED_HIGN)
+                            .getPrice();
+                  }
+                  if (_priceType.equals(YarnRunningPrice.PriceType.FIXED_LOW.name())){
+                    currentPrice = priceList
+                            .get(YarnRunningPrice.PriceType.FIXED_LOW)
+                            .getPrice();
+                  }
                   long currentTicks = _ycl.getStop() - checkpoint;
-
+                  
                   // Decide what to do with the charge
                   if (currentTicks > 0) {
                     if (_ycl.getExitstatus()

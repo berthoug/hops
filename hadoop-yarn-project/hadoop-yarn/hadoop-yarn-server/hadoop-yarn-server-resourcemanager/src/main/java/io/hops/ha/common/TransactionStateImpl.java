@@ -346,7 +346,8 @@ public class TransactionStateImpl extends TransactionState {
                   app.getState().toString(),
             app.getApplicationSubmissionContext().getApplicationTimeLimit(),
             app.getApplicationSubmissionContext().getApplicationBudgetLimit(),
-            app.getApplicationSubmissionContext().getApplicationPriceLimit());
+            app.getApplicationSubmissionContext().getApplicationPriceLimit(),
+            app.getApplicationSubmissionContext().getApplicationPriceType());
     applicationsToAdd.put(app.getApplicationId(), hop);
     applicationsStateToRemove.remove(app.getApplicationId());
     callsAddApplicationToAdd++;
@@ -385,11 +386,20 @@ public class TransactionStateImpl extends TransactionState {
       ApplicationStateDataAccess DA =
           (ApplicationStateDataAccess) RMStorageFactory
               .getDataAccess(ApplicationStateDataAccess.class);
-      Queue<ApplicationState> appToRemove = new ConcurrentLinkedQueue<ApplicationState>();
+      YarnApplicationsQuotaDataAccess AppQtaDa =
+          (YarnApplicationsQuotaDataAccess) RMStorageFactory
+              .getDataAccess(YarnApplicationsQuotaDataAccess.class);
+      
+      List<YarnApplicationsQuota> appsKilledQt = 
+              new ArrayList<YarnApplicationsQuota>();
+      Queue<ApplicationState> appToRemove = 
+              new ConcurrentLinkedQueue<ApplicationState>();
       for (ApplicationId appId : applicationsStateToRemove) {
         appToRemove.add(new ApplicationState(appId.toString()));
+        appsKilledQt.add(new YarnApplicationsQuota(appId.toString()));
       }
-      DA.removeAll(appToRemove);
+      AppQtaDa.removeAll(appsKilledQt);      
+      DA.removeAll(appToRemove);      
       //TODO remove appattempts
     }
     
@@ -397,20 +407,14 @@ public class TransactionStateImpl extends TransactionState {
       YarnApplicationsToKillDataAccess killDa =
           (YarnApplicationsToKillDataAccess) RMStorageFactory
               .getDataAccess(YarnApplicationsToKillDataAccess.class);      
-      YarnApplicationsQuotaDataAccess AppQtaDa =
-          (YarnApplicationsQuotaDataAccess) RMStorageFactory
-              .getDataAccess(YarnApplicationsQuotaDataAccess.class);
       
       List<YarnApplicationsToKill> appsKilled = new ArrayList<YarnApplicationsToKill>();
-      List<YarnApplicationsQuota> appsKilledQt = new ArrayList<YarnApplicationsQuota>();                            
+                                  
       for (String app : applicationToKillToRemove) {
         LOG.debug("RIZ: Removing killed application " + app);
-        appsKilled.add(new YarnApplicationsToKill(app));
-        appsKilledQt.add(new YarnApplicationsQuota(app));        
-      }
-      
-      killDa.removeAll(appsKilled);
-      AppQtaDa.removeAll(appsKilledQt);      
+        appsKilled.add(new YarnApplicationsToKill(app));                
+      }      
+      killDa.removeAll(appsKilled);      
     }    
   }
   

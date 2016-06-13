@@ -1,21 +1,19 @@
-/*
- * Copyright 2016 Apache Software Foundation.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
-/**
- *
- * @author rizvi
  */
 package io.hops.metadata.util;
 
@@ -138,7 +136,7 @@ public class TestContainerUsage {
          float BudgetLimit, 
          float PriceLimit
          */
-        rm.submitApp(1 * 1024, "My App", "Riju", null, false, null, YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS, null, null, true, false, false, null, 5555l, 500.99f, 5.5f);
+        rm.submitApp(1 * 1024, "My App", "Riju", null, false, null, YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS, null, null, true, false, false, null, 5555l, 500.99f, 5.5f, YarnRunningPrice.PriceType.FIXED_HIGN );
 
         Thread.sleep(3000);
         rm.stop();
@@ -151,7 +149,7 @@ public class TestContainerUsage {
         MockRM rm = new MockRM(conf);
         rm.start();
         
-        RMApp application = rm.submitApp(1 * 1024, "My App", "Riju", null, false, null, YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS, null, null, true, false, false, null, 5555l, 500.99f, 5.5f);
+        RMApp application = rm.submitApp(1 * 1024, "My App", "Riju", null, false, null, YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS, null, null, true, false, false, null, 5555l, 500.99f, 5.5f, YarnRunningPrice.PriceType.VARIABLE);
         Thread.sleep(1000);
         Assert.assertNotNull(application);
         Assert.assertEquals(rm.getRMContext().getRMApps().get(application.getApplicationId()).getState(),RMAppState.ACCEPTED);
@@ -277,7 +275,7 @@ public class TestContainerUsage {
                     connector.writeLock();
 
                     final List<ApplicationState> hopApplicationState = new ArrayList<ApplicationState>();
-                    hopApplicationState.add(new ApplicationState("application_1450009406746_0001", new byte[0], "Project07__rizvi", "DistributedShell", "FINISHING", 100000l, 0f, 12.5f));
+                    hopApplicationState.add(new ApplicationState("application_1450009406746_0001", new byte[0], "Project07__rizvi", "DistributedShell", "FINISHING", 100000l, 0f, 12.5f, YarnRunningPrice.PriceType.VARIABLE.name()));
                     ApplicationStateDataAccess<ApplicationState> _appState = (ApplicationStateDataAccess) RMStorageFactory.getDataAccess(ApplicationStateDataAccess.class);
                     _appState.addAll(hopApplicationState);
 
@@ -564,7 +562,7 @@ public class TestContainerUsage {
              'container_1450009406746_0001_01_000001', 'Andromeda3:51028', 'RUNNING', '',         '-1000',    '10'
              */
             final List<ApplicationState> hopApplicationState = new ArrayList<ApplicationState>();
-            hopApplicationState.add(new ApplicationState("application_1450009406746_0001", new byte[0], "Project07__rizvihasan", "DistributedShell", "FINISHING", 100000l, 0f, 12.5f));
+            hopApplicationState.add(new ApplicationState("application_1450009406746_0001", new byte[0], "Project07__rizvihasan", "DistributedShell", "FINISHING", 100000l, 0f, 12.5f, YarnRunningPrice.PriceType.VARIABLE.name()));
             /*
              # applicationid, appstate, appuser, appname, appsmstate
              'application_1450009406746_0001', ?, 'rizvi', 'DistributedShell', 'FINISHING'
