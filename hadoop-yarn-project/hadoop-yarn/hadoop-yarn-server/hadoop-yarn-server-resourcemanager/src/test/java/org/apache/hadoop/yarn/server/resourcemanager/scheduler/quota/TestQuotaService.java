@@ -398,40 +398,84 @@ public class TestQuotaService {
     conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 10);
     qs.init(conf);
     qs.serviceStart();
-
-    // Small test
+    
+    // Small Test with different price
     List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
     logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
             + 1, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
-            (float) (2.5)));
+            (float) (50.00)));
     logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
             + 2, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
-            (float) (2.5)));
+            (float) (50.00)));
     logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
             + 3, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
-            (float) (2.5)));
+            (float) (50.00)));
     qs.insertEvents(logs);
-    Thread.sleep(1000);
-
+    Thread.sleep(1000); 
+    
     List<ContainersLogs> logs2 = new ArrayList<ContainersLogs>();
     logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
             + 1, 10, 20, ContainerExitStatus.CONTAINER_RUNNING_STATE,
-            (float) (2.5)));
+            (float) (60.00)));
     logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
-            + 2, 10, 15, ContainerExitStatus.SUCCESS, (float) (2.5)));
+            + 2, 10, 20, ContainerExitStatus.CONTAINER_RUNNING_STATE, 
+            (float) (60.00)));
     logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
-            + 3, 10, 15, ContainerExitStatus.SUCCESS, (float) (2.5)));
-    totalCost += (25 + 25 + 25);
+            + 3, 10, 20, ContainerExitStatus.CONTAINER_RUNNING_STATE, 
+            (float) (60.00)));
+    totalCost += (500 + 500 + 500);
     qs.insertEvents(logs2);
-    Thread.sleep(1000);
+    Thread.sleep(5000);
 
     List<ContainersLogs> logs3 = new ArrayList<ContainersLogs>();
     logs3.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
             + 1, 10, 30, ContainerExitStatus.CONTAINER_RUNNING_STATE,
-            (float) (2.5)));
-    totalCost += (25);
+            (float) (70.00)));
+    logs3.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+            + 2, 10, 30, ContainerExitStatus.CONTAINER_RUNNING_STATE, 
+            (float) (70.00)));
+    logs3.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+            + 3, 10, 30, ContainerExitStatus.SUCCESS, 
+            (float) (70.00)));
+    totalCost += (600 + 600 + 600);
     qs.insertEvents(logs3);
-    Thread.sleep(2000);
+    Thread.sleep(5000);
+    //end -  Small Test with different price
+    
+    
+    // Small test
+//    List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
+//    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+//            + 1, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
+//            (float) (2.5)));
+//    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+//            + 2, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
+//            (float) (2.5)));
+//    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+//            + 3, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
+//            (float) (2.5)));
+//    qs.insertEvents(logs);
+//    Thread.sleep(1000);
+//
+//    List<ContainersLogs> logs2 = new ArrayList<ContainersLogs>();
+//    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+//            + 1, 10, 20, ContainerExitStatus.CONTAINER_RUNNING_STATE,
+//            (float) (2.5)));
+//    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+//            + 2, 10, 15, ContainerExitStatus.SUCCESS, (float) (2.5)));
+//    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+//            + 3, 10, 15, ContainerExitStatus.SUCCESS, (float) (2.5)));
+//    totalCost += (25 + 25 + 25);
+//    qs.insertEvents(logs2);
+//    Thread.sleep(1000);
+//
+//    List<ContainersLogs> logs3 = new ArrayList<ContainersLogs>();
+//    logs3.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
+//            + 1, 10, 30, ContainerExitStatus.CONTAINER_RUNNING_STATE,
+//            (float) (2.5)));
+//    totalCost += (25);
+//    qs.insertEvents(logs3);
+//    Thread.sleep(2000);
 
     CheckProject(initialCredits - totalCost, totalCost);
     CheckProjectDailyCost(totalCost);

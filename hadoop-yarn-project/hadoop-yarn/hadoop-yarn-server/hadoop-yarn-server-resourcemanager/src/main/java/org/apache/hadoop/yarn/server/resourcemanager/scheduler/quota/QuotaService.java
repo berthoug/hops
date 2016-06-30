@@ -288,7 +288,7 @@ public class QuotaService extends AbstractService {
                       ContainerCheckPoint _tempCheckpointObj
                       = new ContainerCheckPoint(_ycl.
                               getContainerid(), _ycl.getStop(),
-                              currentPrice);
+                              _ycl.getPrice());
                       containersCheckPoints.put(_ycl.getContainerid(),
                               _tempCheckpointObj);
                       toBeAddedContainerCheckPoint.add(
