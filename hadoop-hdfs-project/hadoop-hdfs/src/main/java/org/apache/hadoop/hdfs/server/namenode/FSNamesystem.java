@@ -7766,6 +7766,7 @@ public class FSNamesystem
       }
     }
 
+    // Find which storage policy is used for this file.
     byte storagePolicyID = getINode(sourcePath).getLocalStoragePolicyID();
     BlockStoragePolicy policy = BlockStoragePolicySuite.getPolicy(storagePolicyID);
 
