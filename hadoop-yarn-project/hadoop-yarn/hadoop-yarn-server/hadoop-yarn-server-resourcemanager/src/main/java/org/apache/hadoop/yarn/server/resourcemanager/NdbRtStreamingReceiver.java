@@ -58,7 +58,7 @@ public class NdbRtStreamingReceiver {
 
   public void setCurrentPriceTick(long CurrentPriceTick) {
     this.currentPriceTick = CurrentPriceTick;
-  }  
+  }
 
   public void setCurrentPrice(float CurrentPrice) {
     this.currentPrice = CurrentPrice;

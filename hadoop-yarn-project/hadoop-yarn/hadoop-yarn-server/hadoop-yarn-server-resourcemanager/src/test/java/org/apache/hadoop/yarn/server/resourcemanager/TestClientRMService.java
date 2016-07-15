@@ -590,7 +590,7 @@ public class TestClientRMService {
             mockAclsManager, mockQueueACLsManager, null);
 
     // without name and queue
-    
+
     SubmitApplicationRequest submitRequest1 =
         mockSubmitAppRequest(appId1, null, null);
     try {

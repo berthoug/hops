@@ -406,62 +406,79 @@ public class ApplicationSubmissionContextPBImpl
     return ((ResourcePBImpl) t).getProto();
   }
 
-    @Override
-    public long getApplicationTimeLimit() {     
-        
-        ApplicationSubmissionContextProtoOrBuilder p = viaProto ? proto : builder;
-        if (!p.hasApplicationTimeLimit()) {
-          return 0;
-        }
-        return (p.getApplicationTimeLimit());        
-        
+  @Override
+  public long getApplicationTimeLimit() {
+    ApplicationSubmissionContextProtoOrBuilder p = viaProto ? proto : builder;
+    if (!p.hasApplicationTimeLimit()) {
+      return 0;
     }
+    return (p.getApplicationTimeLimit());
+  }
 
-    @Override
-    public float getApplicationBudgetLimit() {
-        ApplicationSubmissionContextProtoOrBuilder p = viaProto ? proto : builder;
-        if (!p.hasApplicationBudgetLimit()) {
-          return 0;
-        }
-        return (p.getApplicationBudgetLimit());
+  @Override
+  public float getApplicationBudgetLimit() {
+    ApplicationSubmissionContextProtoOrBuilder p = viaProto ? proto : builder;
+    if (!p.hasApplicationBudgetLimit()) {
+      return 0;
     }
+    return (p.getApplicationBudgetLimit());
+  }
 
-    @Override
-    public float getApplicationPriceLimit() {
-        ApplicationSubmissionContextProtoOrBuilder p = viaProto ? proto : builder;
-        if (!p.hasApplicationPriceLimit()) {
-          return 0;
-        }
-        return (p.getApplicationPriceLimit());
+  @Override
+  public float getApplicationPriceLimit() {
+    ApplicationSubmissionContextProtoOrBuilder p = viaProto ? proto : builder;
+    if (!p.hasApplicationPriceLimit()) {
+      return 0;
     }
+    return (p.getApplicationPriceLimit());
+  }
 
-    @Override
-    public void setApplicationTimeLimit(long applicationTimeLimit) {        
-        maybeInitBuilder();
-        if (applicationTimeLimit == 0) {
-          builder.clearApplicationTimeLimit();
-          return;
-        }
-        builder.setApplicationTimeLimit(applicationTimeLimit);
+  @Override
+  public String getApplicationPriceType() {
+    ApplicationSubmissionContextProtoOrBuilder p = viaProto ? proto : builder;
+    if (!p.hasApplicationPriceType()) {
+      return "";
     }
+    return (p.getApplicationPriceType());
+  }
 
-    @Override
-    public void setApplicationBudgetLimit(float applicationBudgetLimit) {
-        maybeInitBuilder();
-        if (applicationBudgetLimit == 0) {
-          builder.clearApplicationBudgetLimit();
-          return;
-        }
-        builder.setApplicationBudgetLimit(applicationBudgetLimit);
+  @Override
+  public void setApplicationTimeLimit(long applicationTimeLimit) {
+    maybeInitBuilder();
+    if (applicationTimeLimit == 0) {
+      builder.clearApplicationTimeLimit();
+      return;
     }
+    builder.setApplicationTimeLimit(applicationTimeLimit);
+  }
 
-    @Override
-    public void setApplicationPriceLimit(float applicationPriceLimit) {
-        maybeInitBuilder();
-        if (applicationPriceLimit == 0) {
-          builder.clearApplicationPriceLimit();
-          return;
-        }
-        builder.setApplicationPriceLimit(applicationPriceLimit);
+  @Override
+  public void setApplicationBudgetLimit(float applicationBudgetLimit) {
+    maybeInitBuilder();
+    if (applicationBudgetLimit == 0) {
+      builder.clearApplicationBudgetLimit();
+      return;
     }
-}  
+    builder.setApplicationBudgetLimit(applicationBudgetLimit);
+  }
+
+  @Override
+  public void setApplicationPriceLimit(float applicationPriceLimit) {
+    maybeInitBuilder();
+    if (applicationPriceLimit == 0) {
+      builder.clearApplicationPriceLimit();
+      return;
+    }
+    builder.setApplicationPriceLimit(applicationPriceLimit);
+  }
+
+  @Override
+  public void setApplicationPriceType(String applicationPriceType) {
+    maybeInitBuilder();
+    if (applicationPriceType.isEmpty()) {
+      builder.clearApplicationPriceType();
+      return;
+    }
+    builder.setApplicationPriceType(applicationPriceType);
+  }
+}

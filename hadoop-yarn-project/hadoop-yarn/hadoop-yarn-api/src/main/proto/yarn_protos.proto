@@ -295,6 +295,7 @@ message ApplicationSubmissionContextProto {
   optional int64 ApplicationTimeLimit = 13 [default = 0];
   optional float ApplicationBudgetLimit = 14 [default = 0];
   optional float ApplicationPriceLimit = 15 [default = 0];
+  optional string ApplicationPriceType = 16 [default = "VARIABLE"];
 }
 
 enum ApplicationAccessTypeProto {

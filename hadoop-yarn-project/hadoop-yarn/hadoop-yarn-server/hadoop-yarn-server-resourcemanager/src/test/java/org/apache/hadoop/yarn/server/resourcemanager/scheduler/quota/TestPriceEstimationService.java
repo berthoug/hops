@@ -91,9 +91,9 @@ public class TestPriceEstimationService {
   public void TestPriceEstimation() throws Exception {
 
     //Configure price estimation service
-    int monitorIntervel = 2000;
+    int monitorInterval = 2000;
     conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL,
-            monitorIntervel);
+            monitorInterval);
     conf.setFloat(YarnConfiguration.OVERPRICING_THRESHOLD_MB, 0.2f);
     conf.setFloat(YarnConfiguration.OVERPRICING_THRESHOLD_VC, 0.2f);
     conf.setFloat(YarnConfiguration.BASE_PRICE_PER_TICK_FOR_MEMORY, 50f);
@@ -114,7 +114,7 @@ public class TestPriceEstimationService {
     ps.start();
 
     ConsumeSomeResources(rm);
-    Thread.sleep(monitorIntervel + monitorIntervel);
+    Thread.sleep(monitorInterval + monitorInterval);
     CheckCurrentRunningPrice(116.00f);
   }
 

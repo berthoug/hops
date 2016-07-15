@@ -75,32 +75,25 @@ public class NdbEventStreamingReceiver {
   private int hopRMNodePendingEventId = 0;
   private String applicationToKillId = "";  
   
-  public void setApplicationRMNodeId(String applicationRMNodeId) {
+  public void buildApplicationsToKill() {
+    hopApplicationsToKillList = new ArrayList<String>();
+  }
+    
+  public void setApplicationToKillRMNodeId(String applicationRMNodeId) {
     LOG.debug("RIZ::setApplicationRMNodeId ");    
   }
           
-  public void setApplicationPendingEventId(int pendingeventid) {
+  public void setApplicationToKillPendingEventId(int pendingeventid) {
     LOG.debug("RIZ::setApplicationPendingEventId ");    
   }
           
-  public void setApplicationId(String applicationId) {
+  public void setApplicationToKillId(String applicationId) {
     LOG.debug("RIZ::setApplicationId :" + applicationId);
     this.applicationToKillId = applicationId;
   }
   
-  public void buildApplicationToKillEvent() {
-    //look at how it is done for the other lists and do the same
-    if (this.hopApplicationsToKillList == null ){
-        this.hopApplicationsToKillList = new ArrayList<String>();
-        this.hopApplicationsToKillList.add(this.applicationToKillId);
-    }else{
-     this.hopApplicationsToKillList.add(this.applicationToKillId);
-    }     
-    String apps = "";
-    for(String app :this.hopApplicationsToKillList ){
-        apps = apps +  " " + app ;
-    }
-    LOG.debug("RIZ::buildApplicationToKillEvent apps:" + apps);
+  public void addApplicationToKill() {
+    this.hopApplicationsToKillList.add(this.applicationToKillId);
   }
           
   public void setHopRMNodeNodeId(String hopRMNodeNodeId) {
@@ -397,7 +390,6 @@ public class NdbEventStreamingReceiver {
     hopContainerIdsToCleanList = null;
     hopFinishedApplicationsList = null;
     hopContainersStatusList = null;
-    applicationToKillId = null;
     hopApplicationsToKillList = null;
 
   }

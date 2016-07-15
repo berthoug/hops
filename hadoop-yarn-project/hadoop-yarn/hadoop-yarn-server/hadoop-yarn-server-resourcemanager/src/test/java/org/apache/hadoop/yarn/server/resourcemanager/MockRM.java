@@ -20,6 +20,7 @@ package org.apache.hadoop.yarn.server.resourcemanager;
 
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
+import io.hops.metadata.yarn.entity.YarnRunningPrice;
 import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -254,14 +255,17 @@ public class MockRM extends ResourceManager {
       ApplicationId applicationId) throws Exception {
       return submitApp(masterMemory, name, user, acls, unmanaged, queue,
         maxAppAttempts, ts, appType, waitForAccepted, keepContainers, isAppIdProvided,
-        applicationId, 0l, 0.0f, 0.0f);
+        applicationId, 0l, 0.0f, 0.0f,YarnRunningPrice.PriceType.VARIABLE);
   }
 
   public RMApp submitApp(int masterMemory, String name, String user,
       Map<ApplicationAccessType, String> acls, boolean unmanaged, String queue,
       int maxAppAttempts, Credentials ts, String appType,
-      boolean waitForAccepted, boolean keepContainers, boolean isAppIdProvided,
-      ApplicationId applicationId, long TimeLimit, float BudgetLimit, float PriceLimit) throws Exception {
+          boolean waitForAccepted, boolean keepContainers,
+          boolean isAppIdProvided,
+          ApplicationId applicationId, long TimeLimit, float BudgetLimit,
+          float PriceLimit, YarnRunningPrice.PriceType PriceType) throws
+          Exception {
     ApplicationId appId = isAppIdProvided ? applicationId : null;
     ApplicationClientProtocol client = getClientRMService();
     if (!isAppIdProvided) {
@@ -280,6 +284,7 @@ public class MockRM extends ResourceManager {
     sub.setApplicationTimeLimit(TimeLimit);
     sub.setApplicationBudgetLimit(BudgetLimit);
     sub.setApplicationPriceLimit(PriceLimit);
+    sub.setApplicationPriceType(PriceType.name());
     if (unmanaged) {
       sub.setUnmanagedAM(true);
     }

@@ -27,14 +27,12 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
 import io.hops.ha.common.TransactionState;
 import io.hops.ha.common.TransactionStateImpl;
+import org.apache.commons.beanutils.ConvertUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEventType;
+import org.apache.hadoop.yarn.util.ConverterUtils;
 
-/**
- *
- * @author sri
- */
 public class NdbEventStreamingProcessor extends PendingEventRetrieval {
 
   public NdbEventStreamingProcessor(RMContext rmContext, Configuration conf) {
@@ -141,16 +139,16 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
                       .insertEvent(hopContainersStatusList);
             }
             // Kill the applications form the applications_to_be_killed list
-            List<String> appsToKill = hopRMNodeCompObject.getHopApplicationsToKillList();
-            if (appsToKill != null ){            
-              for (String app: appsToKill){
-                  // kill the app
-                  LOG.debug("RIZ:: Killing app " + app); 
-                  try {
-                    KillApplication(app);
-                  } catch (Exception e) {
-                     LOG.error(e); 
-                  }
+            List<String> appsToKill = hopRMNodeCompObject.
+                    getHopApplicationsToKillList();
+            if (appsToKill != null) {
+              for (String app : appsToKill) {
+                // kill the app
+                try {
+                  KillApplication(app);
+                } catch (Exception e) {
+                  LOG.error(e);
+                }
               }
             }            
           }
@@ -160,30 +158,33 @@ public class NdbEventStreamingProcessor extends PendingEventRetrieval {
       }
     }
     
-    //we should look at this together 
-    private void KillApplication(String app) throws Exception{
-        //String app = application.getApplicationId().toString();
-        String parts[] = app.split("_");
-        LOG.info("RIZ:: " + parts[1] + " " + parts[2]);
-        
-        // Get ApplicationId and KillApplicationRequest
-        ApplicationId applicationId =  ApplicationId.newInstance(Long.parseLong(parts[1],10) ,Integer.parseInt(parts[2]));
-        
-        TransactionState transactionState = rmContext.getTransactionStateManager().getCurrentTransactionStateNonPriority(-1,"forceKillApplication");
-        ((TransactionStateImpl) transactionState).addApplicationToKillToRemove(app);
-        RMApp application = rmContext.getRMApps().get(applicationId);
-        
-        if (application == null) {
-          RMAuditLogger.logFailure("Quota service", RMAuditLogger.AuditConstants.KILL_APP_REQUEST,"UNKNOWN", "ClientRMService", "Trying to kill an absent application", applicationId);
-          transactionState.decCounter(TransactionState.TransactionType.INIT);
-          throw new ApplicationNotFoundException("Trying to kill an absent" + " application " + applicationId);
-        }
-        
-        rmContext.getDispatcher().getEventHandler().handle(new RMAppEvent(applicationId, RMAppEventType.KILL, transactionState));
-        // For UnmanagedAMs, return true so they don't retry
+    private void KillApplication(String app) throws Exception {
+
+      // Get ApplicationId and KillApplicationRequest
+      ApplicationId applicationId = ConverterUtils.toApplicationId(app);
+
+      TransactionState transactionState
+              = rmContext.getTransactionStateManager().
+              getCurrentTransactionStateNonPriority(-1, "forceKillApplication");
+      ((TransactionStateImpl) transactionState).
+              addApplicationToKillToRemove(app);
+      RMApp application = rmContext.getRMApps().get(applicationId);
+
+      if (application == null) {
+        RMAuditLogger.logFailure("Quota service",
+                RMAuditLogger.AuditConstants.KILL_APP_REQUEST, "UNKNOWN",
+                "ClientRMService", "Trying to kill an absent application",
+                applicationId);
         transactionState.decCounter(TransactionState.TransactionType.INIT);
-        
-    }   
+        throw new ApplicationNotFoundException("Trying to kill an absent"
+                + " application " + applicationId);
+      }
+
+      rmContext.getDispatcher().getEventHandler().handle(new RMAppEvent(
+              applicationId, RMAppEventType.KILL, transactionState));
+      transactionState.decCounter(TransactionState.TransactionType.INIT);
+
+    }
   }
 
 }

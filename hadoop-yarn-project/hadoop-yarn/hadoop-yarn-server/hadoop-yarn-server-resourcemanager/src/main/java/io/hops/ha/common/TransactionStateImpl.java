@@ -225,6 +225,7 @@ public class TransactionStateImpl extends TransactionState {
   public void persist() throws IOException {
     persitApplicationToAdd();
     persistApplicationStateToRemove();
+    persistApplicationsToKillToRemove();
     persistAppAttempt();
     persistRandNode();
     persistAllocateResponsesToAdd();
@@ -344,9 +345,10 @@ public class TransactionStateImpl extends TransactionState {
               new ApplicationState(app.getApplicationId().toString(),
                   appStateDataBytes, app.getUser(), app.getName(),
                   app.getState().toString(),
-            app.getApplicationSubmissionContext().getApplicationTimeLimit(),
-            app.getApplicationSubmissionContext().getApplicationBudgetLimit(),
-            app.getApplicationSubmissionContext().getApplicationPriceLimit());
+                  app.getApplicationSubmissionContext().getApplicationTimeLimit(),
+                  app.getApplicationSubmissionContext().getApplicationBudgetLimit(),
+                  app.getApplicationSubmissionContext().getApplicationPriceLimit(),
+                  app.getApplicationSubmissionContext().getApplicationPriceType());
     applicationsToAdd.put(app.getApplicationId(), hop);
     applicationsStateToRemove.remove(app.getApplicationId());
     callsAddApplicationToAdd++;
@@ -374,44 +376,46 @@ public class TransactionStateImpl extends TransactionState {
   
   public void addApplicationToKillToRemove(String appId) {
     if(!applicationToKillToRemove.contains(appId)){
-      LOG.debug("RIZ: Aggregating killed application " + appId);
       applicationToKillToRemove.add(appId);      
     }    
   }
   
-
   private void persistApplicationStateToRemove() throws StorageException {
     if (!applicationsStateToRemove.isEmpty()) {
       ApplicationStateDataAccess DA =
           (ApplicationStateDataAccess) RMStorageFactory
               .getDataAccess(ApplicationStateDataAccess.class);
-      Queue<ApplicationState> appToRemove = new ConcurrentLinkedQueue<ApplicationState>();
-      for (ApplicationId appId : applicationsStateToRemove) {
-        appToRemove.add(new ApplicationState(appId.toString()));
-      }
-      DA.removeAll(appToRemove);
-      //TODO remove appattempts
-    }
-    
-    if (!applicationToKillToRemove.isEmpty()) {
-      YarnApplicationsToKillDataAccess killDa =
-          (YarnApplicationsToKillDataAccess) RMStorageFactory
-              .getDataAccess(YarnApplicationsToKillDataAccess.class);      
       YarnApplicationsQuotaDataAccess AppQtaDa =
           (YarnApplicationsQuotaDataAccess) RMStorageFactory
               .getDataAccess(YarnApplicationsQuotaDataAccess.class);
       
-      List<YarnApplicationsToKill> appsKilled = new ArrayList<YarnApplicationsToKill>();
-      List<YarnApplicationsQuota> appsKilledQt = new ArrayList<YarnApplicationsQuota>();                            
-      for (String app : applicationToKillToRemove) {
-        LOG.debug("RIZ: Removing killed application " + app);
-        appsKilled.add(new YarnApplicationsToKill(app));
-        appsKilledQt.add(new YarnApplicationsQuota(app));        
+      List<YarnApplicationsQuota> appQuotaToRemove = 
+              new ArrayList<YarnApplicationsQuota>();
+      Queue<ApplicationState> appToRemove = new ConcurrentLinkedQueue<ApplicationState>();
+      for (ApplicationId appId : applicationsStateToRemove) {
+        appToRemove.add(new ApplicationState(appId.toString()));
+        appQuotaToRemove.add(new YarnApplicationsQuota(appId.toString()));
       }
-      
+      AppQtaDa.removeAll(appQuotaToRemove);      
+      DA.removeAll(appToRemove);      
+      //TODO remove appattempts
+    }
+  }
+  
+  private void persistApplicationsToKillToRemove() throws StorageException {
+    if (!applicationToKillToRemove.isEmpty()) {
+      YarnApplicationsToKillDataAccess killDa
+              = (YarnApplicationsToKillDataAccess) RMStorageFactory
+              .getDataAccess(YarnApplicationsToKillDataAccess.class);
+
+      List<YarnApplicationsToKill> appsKilled
+              = new ArrayList<YarnApplicationsToKill>();
+
+      for (String app : applicationToKillToRemove) {
+        appsKilled.add(new YarnApplicationsToKill(app));
+      }
       killDa.removeAll(appsKilled);
-      AppQtaDa.removeAll(appsKilledQt);      
-    }    
+    }
   }
   
   public void addAppAttempt(RMAppAttempt appAttempt) {

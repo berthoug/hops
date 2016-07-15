@@ -61,7 +61,7 @@ public class ContainersLogsService extends CompositeService {
   private final RMContext rMContext;
   private float currentPrice; // This variable will be set/updated by the streaming service.
   private int priceUpdateIntervel;
-
+  
   ContainerStatusDataAccess containerStatusDA;
   ContainersLogsDataAccess containersLogsDA;
   YarnVariablesDataAccess yarnVariablesDA;
@@ -110,11 +110,11 @@ public class ContainersLogsService extends CompositeService {
             YarnConfiguration.DEFAULT_QUOTAS_CONTAINERS_LOGS_ALERT_THRESHOLD);
     // Calculate execution time warning threshold
     this.threshold = this.monitorInterval * alertThreshold;
-
+    
     this.priceUpdateIntervel = this.conf.getInt(
             YarnConfiguration.QUOTAS_PRICE_DURATIOM,
             YarnConfiguration.DEFAULT_QUOTAS_PRICE_DURATIOM)*checkpointInterval;
-
+    
     float basePricePerTickMB = this.conf.getFloat(
             YarnConfiguration.BASE_PRICE_PER_TICK_FOR_MEMORY,
             YarnConfiguration.DEFAULT_BASE_PRICE_PER_TICK_FOR_MEMORY);
@@ -268,7 +268,7 @@ public class ContainersLogsService extends CompositeService {
 
         activeContainers.put(cl.getContainerid(), cl);
         updatable = true;
-      }
+      } 
 
       if (cs.getState().equals(ContainerState.COMPLETE.toString())) {
         cl.setStop(tickCounter.getValue());
@@ -337,31 +337,31 @@ public class ContainersLogsService extends CompositeService {
     try {
       LightWeightRequestHandler containersLogsHandler
               = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                @Override
-                public Object performTask() throws StorageException {
-                  connector.beginTransaction();
-                  connector.writeLock();
+        @Override
+        public Object performTask() throws StorageException {
+          connector.beginTransaction();
+          connector.writeLock();
 
-                  // Update containers logs table if necessary
-                  if (updateContainers.size() > 0) {
-                    LOG.debug("CL :: Update containers logs size: " + updateContainers.
+          // Update containers logs table if necessary
+          if (updateContainers.size() > 0) {
+            LOG.debug("CL :: Update containers logs size: " + updateContainers.
                     size());
-                    try {
-                      containersLogsDA.addAll(updateContainers.values());
-                    } catch (StorageException ex) {
-                      LOG.warn("Unable to update containers logs table", ex);
-                    }
-                  }
+            try {
+              containersLogsDA.addAll(updateContainers.values());
+            } catch (StorageException ex) {
+              LOG.warn("Unable to update containers logs table", ex);
+            }
+          }
 
-                  // Update tick counter
-                  if (updatetTick) {
-                    yarnVariablesDA.add(tickCounter);
-                  }
+          // Update tick counter
+          if (updatetTick) {
+            yarnVariablesDA.add(tickCounter);
+          }
 
-                  connector.commit();
-                  return null;
-                }
-              };
+          connector.commit();
+          return null;
+        }
+      };
       containersLogsHandler.handle();
 
       QuotaService quotaService = rMContext.getQuotaService();
@@ -389,19 +389,19 @@ public class ContainersLogsService extends CompositeService {
       // Retrieve unfinished containers logs entries
       LightWeightRequestHandler allContainersHandler
               = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                @Override
-                public Object performTask() throws StorageException {
-                  connector.beginTransaction();
-                  connector.readCommitted();
+        @Override
+        public Object performTask() throws StorageException {
+          connector.beginTransaction();
+          connector.readCommitted();
 
-                  Map<String, ContainersLogs> allContainersLogs
+          Map<String, ContainersLogs> allContainersLogs
                   = containersLogsDA.getAll();
 
-                  connector.commit();
+          connector.commit();
 
-                  return allContainersLogs;
-                }
-              };
+          return allContainersLogs;
+        }
+      };
       allContainersLogs = (Map<String, ContainersLogs>) allContainersHandler.
               handle();
 
@@ -428,19 +428,19 @@ public class ContainersLogsService extends CompositeService {
 
       LightWeightRequestHandler tickCounterHandler
               = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                @Override
-                public Object performTask() throws StorageException {
-                  connector.beginTransaction();
-                  connector.readCommitted();
+        @Override
+        public Object performTask() throws StorageException {
+          connector.beginTransaction();
+          connector.readCommitted();
 
           YarnVariables tickCounterVariable = (YarnVariables) yarnVariablesDA.
                   findById(HopYarnAPIUtilities.CONTAINERSTICKCOUNTER);
 
-                  connector.commit();
+          connector.commit();
 
-                  return tickCounterVariable;
-                }
-              };
+          return tickCounterVariable;
+        }
+      };
       found = (YarnVariables) tickCounterHandler.handle();
 
       if (found != null) {
@@ -465,19 +465,19 @@ public class ContainersLogsService extends CompositeService {
     try {
       LightWeightRequestHandler containerStatusHandler
               = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                @Override
-                public Object performTask() throws StorageException {
-                  connector.beginTransaction();
-                  connector.readCommitted();
+        @Override
+        public Object performTask() throws StorageException {
+          connector.beginTransaction();
+          connector.readCommitted();
 
-                  Map<String, ContainerStatus> containerStatuses
+          Map<String, ContainerStatus> containerStatuses
                   = containerStatusDA.getAll();
 
-                  connector.commit();
+          connector.commit();
 
-                  return containerStatuses;
-                }
-              };
+          return containerStatuses;
+        }
+      };
       allContainerStatuses
               = (Map<String, ContainerStatus>) containerStatusHandler.handle();
     } catch (IOException ex) {
@@ -490,23 +490,23 @@ public class ContainersLogsService extends CompositeService {
     try {
       LightWeightRequestHandler currentPriceHandler
               = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                @Override
-                public Object performTask() throws StorageException {
-                  connector.beginTransaction();
-                  connector.readCommitted();
+        @Override
+        public Object performTask() throws StorageException {
+          connector.beginTransaction();
+          connector.readCommitted();
 
-                  YarnRunningPriceDataAccess da
+          YarnRunningPriceDataAccess da
                   = (YarnRunningPriceDataAccess) RMStorageFactory.getDataAccess(
                           YarnRunningPriceDataAccess.class);
 
-                  Map<YarnRunningPrice.PriceType, YarnRunningPrice> currentPrices = da.
+          Map<YarnRunningPrice.PriceType, YarnRunningPrice> currentPrices = da.
                   getAll();
 
-                  connector.commit();
+          connector.commit();
 
-                  return currentPrices;
-                }
-              };
+          return currentPrices;
+        }
+      };
       return (Map<YarnRunningPrice.PriceType, YarnRunningPrice>) currentPriceHandler.
               handle();
     } catch (IOException ex) {
@@ -514,7 +514,7 @@ public class ContainersLogsService extends CompositeService {
     }
     return null;
   }
-
+  
 //TODO optimisation
   /**
    * Loop active list and add all found & not completed container statuses to

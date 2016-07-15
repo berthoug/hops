@@ -381,6 +381,11 @@ public abstract class ApplicationSubmissionContext {
   
   @Public
   @Stable
+  public abstract String getApplicationPriceType();
+    
+  
+  @Public
+  @Stable
   public abstract void setApplicationTimeLimit(long time);
   
   @Public
@@ -390,5 +395,10 @@ public abstract class ApplicationSubmissionContext {
   @Public
   @Stable
   public abstract void setApplicationPriceLimit(float price);
+  
+  @Public
+  @Stable
+  public abstract void setApplicationPriceType(String priceType);
+  
   
 }
