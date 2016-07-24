@@ -354,6 +354,9 @@ public class TestQuotaService {
     CheckProjectDailyCost(totalCost);
   }
 
+  /*
+   * Test if the projects are charging properly.   
+   */
   @Test
   public void TestQuotaServiceChargingProjects() throws Exception {
     int initialCredits = 100;
@@ -441,42 +444,7 @@ public class TestQuotaService {
     qs.insertEvents(logs3);
     Thread.sleep(5000);
     //end -  Small Test with different price
-    
-    
-    // Small test
-//    List<ContainersLogs> logs = new ArrayList<ContainersLogs>();
-//    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
-//            + 1, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
-//            (float) (2.5)));
-//    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
-//            + 2, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
-//            (float) (2.5)));
-//    logs.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
-//            + 3, 10, 10, ContainerExitStatus.CONTAINER_RUNNING_STATE,
-//            (float) (2.5)));
-//    qs.insertEvents(logs);
-//    Thread.sleep(1000);
-//
-//    List<ContainersLogs> logs2 = new ArrayList<ContainersLogs>();
-//    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
-//            + 1, 10, 20, ContainerExitStatus.CONTAINER_RUNNING_STATE,
-//            (float) (2.5)));
-//    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
-//            + 2, 10, 15, ContainerExitStatus.SUCCESS, (float) (2.5)));
-//    logs2.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
-//            + 3, 10, 15, ContainerExitStatus.SUCCESS, (float) (2.5)));
-//    totalCost += (25 + 25 + 25);
-//    qs.insertEvents(logs2);
-//    Thread.sleep(1000);
-//
-//    List<ContainersLogs> logs3 = new ArrayList<ContainersLogs>();
-//    logs3.add(new ContainersLogs("container_1450009406746_0001_0" + 1 + "_00000"
-//            + 1, 10, 30, ContainerExitStatus.CONTAINER_RUNNING_STATE,
-//            (float) (2.5)));
-//    totalCost += (25);
-//    qs.insertEvents(logs3);
-//    Thread.sleep(2000);
-
+        
     CheckProject(initialCredits - totalCost, totalCost);
     CheckProjectDailyCost(totalCost);
   }
@@ -576,6 +544,9 @@ public class TestQuotaService {
     CheckProjectDailyCost(totalCost);
   }
 
+  /*
+   * Test - if the an application is killed properly.    
+   */
   @Test
   public void TestApplicationKillingWithStreamingSrv() throws Exception {
     Configuration conf = new YarnConfiguration();
