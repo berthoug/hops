@@ -61,13 +61,13 @@ import org.apache.hadoop.yarn.server.resourcemanager.NdbRtStreamingProcessor;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContextImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
+import org.apache.jasper.tagplugins.jstl.core.ForEach;
 import org.junit.Before;
 import org.junit.Test;
 
-public class TestPriceEstimationService {
+public class TestPriceFixingService {
 
-  private static final Log LOG = LogFactory.getLog(
-          TestPriceEstimationService.class);
+  private static final Log LOG = LogFactory.getLog(TestPriceFixingService.class);
   private StorageConnector connector = null;
   private Configuration conf = null;
   private final static int WAIT_SLEEP_MS = 100;
@@ -201,7 +201,7 @@ public class TestPriceEstimationService {
     Thread.sleep(1000);
   }
 
-  @Test //(timeout=30000)
+  @Test 
   public void TestContainerLogServiceUpdatesPrice() throws Exception {
 
     // Insert first batch of 10 dummy containers
@@ -211,10 +211,10 @@ public class TestPriceEstimationService {
     generateRMContainersToAdd(10, 0, rmNodes1, rmContainers1, containerStatuses1);
     populateDB(rmNodes1, rmContainers1, containerStatuses1);
 
-        //Configure resource manager to run in non-distributed mode 
+    //Configure resource manager to run in non-distributed mode 
     //so that container log service start with price estimation service
     conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL, 1000);
-        // When RM_HA_ENABLED is disabled the ResourceManager is itself a ResourceTracker.
+    // When RM_HA_ENABLED is disabled the ResourceManager is itself a ResourceTracker.
     // Otherwise the ResourceManager and ResourceTracker are two different nodes.
     conf.setBoolean(YarnConfiguration.RM_HA_ENABLED, false);
     MockRM rm = new MockRM(conf);
@@ -238,8 +238,11 @@ public class TestPriceEstimationService {
     ps.start();
 
     Thread.sleep(2000);
-        // Todo: Check in the log that 'setCurrentPrice()' is called in 'ContainersLogsService' 
-    // TODO: Improve the test to use Assert.assertEquals();
+    //Aditional check:: Check in the log that 'setCurrentPrice()' is called in 'ContainersLogsService' 
+    float _currentPrice = FetchCurrentRunningPrice();
+    Assert.assertEquals(_currentPrice, 0.016666668f);
+    //0.016666668
+    CheckConainersLogsPrice(_currentPrice);
   }
 
   @Test
@@ -249,18 +252,15 @@ public class TestPriceEstimationService {
     conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL,
             monitorInterval);
     conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
-    conf.
-            setBoolean(
-                    YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_ENABLED,
+    conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_ENABLED,
                     true);
     conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 10);
-    conf.
-            setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_MINTICKS,
+    conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_MINTICKS,
                     1);
     conf.setBoolean(YarnConfiguration.DISTRIBUTED_RM, true);
     conf.setBoolean(YarnConfiguration.QUOTAS_ENABLED, true);
 
-        // When RM_HA_ENABLED is disabled the ResourceManager is itself a ResourceTracker.
+    // When RM_HA_ENABLED is disabled the ResourceManager is itself a ResourceTracker.
     // Otherwise the ResourceManager and ResourceTracker are two different nodes.
     conf.setBoolean(YarnConfiguration.RM_HA_ENABLED, true);
 
@@ -504,6 +504,73 @@ public class TestPriceEstimationService {
     } catch (Exception e) {
     }
 
+  }
+
+  private float FetchCurrentRunningPrice() {
+    YarnRunningPrice _Price = null;
+    try {
+      
+      LightWeightRequestHandler allContainersHandler
+              = new LightWeightRequestHandler(YARNOperationType.TEST) {
+                @Override
+                public Object performTask() throws StorageException {
+                  
+                YarnRunningPriceDataAccess runningPriceDA 
+                  = (YarnRunningPriceDataAccess) RMStorageFactory.getDataAccess(
+                          YarnRunningPriceDataAccess.class);
+                  
+                  connector.beginTransaction();
+                  connector.readCommitted();
+
+                  Map<YarnRunningPrice.PriceType, YarnRunningPrice> priceList 
+                          = runningPriceDA.getAll();
+
+                  connector.commit();
+
+                  Assert.assertTrue(priceList.size() > 0);
+                  return priceList.get(YarnRunningPrice.PriceType.VARIABLE);
+                }
+              };
+              _Price = (YarnRunningPrice)allContainersHandler.handle();
+    } catch (IOException ex) {
+      LOG.warn("Unable to retrieve containers logs", ex);
+    }
+    return _Price.getPrice(); 
+  }
+
+  private void CheckConainersLogsPrice(final float _currentPrice) {
+    try {
+      
+      LightWeightRequestHandler allContainersHandler
+              = new LightWeightRequestHandler(YARNOperationType.TEST) {
+                @Override
+                public Object performTask() throws StorageException {
+                  
+                ContainersLogsDataAccess containersLogsDA
+                  = (ContainersLogsDataAccess) RMStorageFactory.getDataAccess(
+                          ContainersLogsDataAccess.class);
+                  connector.beginTransaction();
+                  connector.readCommitted();
+
+                  Map<String, ContainersLogs> allContainersLogs
+                  = containersLogsDA.getAll();
+
+                  connector.commit();
+
+                  for (ContainersLogs _log : allContainersLogs.values())
+                  {
+                      Assert.assertEquals(_log.getPrice(), _currentPrice);
+                  }
+                  return null;
+                  
+                }
+              };
+              allContainersHandler.handle();
+              
+              
+    } catch (IOException ex) {
+      LOG.warn("Unable to retrieve containers logs", ex);
+    }
   }
 
 }
