@@ -1,13 +1,11 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+/*
+ * Copyright 2015 Apache Software Foundation.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -93,7 +91,8 @@ public class TestQuotaService {
               = new ArrayList<ApplicationState>();
       hopApplicationState.add(new ApplicationState(
               "application_1450009406746_0001", new byte[0], "Project07__rizvi",
-              "DistributedShell", "FINISHING", 100000l, 0f, 12.5f, YarnRunningPrice.PriceType.VARIABLE.name()));
+              "DistributedShell", "FINISHING", 100000l, 0f, 12.5f,
+              YarnRunningPrice.PriceType.VARIABLE.name()));
 
       final List<ContainersLogs> hopContainersLogs
               = new ArrayList<ContainersLogs>();
@@ -223,7 +222,7 @@ public class TestQuotaService {
     }
   }
 
-  @Test //(timeout = 6000)
+  @Test (timeout = 6000)
   public void TestRecover() throws IOException, Exception {
 
     // Prepare the scenario

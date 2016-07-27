@@ -120,27 +120,28 @@ public class TestPriceFixingService {
 
   private void CheckCurrentRunningPrice(float value) throws Exception {
     try {
-      LightWeightRequestHandler currentPriceHandler 
+      LightWeightRequestHandler currentPriceHandler
               = new LightWeightRequestHandler(
-              YARNOperationType.TEST) {
-                @Override
-                public Object performTask() throws IOException {
-                  connector.beginTransaction();
-                  connector.writeLock();
+                      YARNOperationType.TEST) {
+        @Override
+        public Object performTask() throws IOException {
+          connector.beginTransaction();
+          connector.writeLock();
 
-                  //Insert Pending Event
-                  List<PendingEvent> pendingEventsToAdd = new ArrayList<PendingEvent>();
-                  pendingEventsToAdd.add(new PendingEvent("nodeid", -1, 0, pendingId++));
-                  //PendingEventDataAccess pendingEventDA =(PendingEventDataAccess) RMStorageFactory.getDataAccess(PendingEventDataAccess.class );
-                  YarnRunningPriceDataAccess runningPriceDA
+          //Insert Pending Event
+          List<PendingEvent> pendingEventsToAdd = new ArrayList<PendingEvent>();
+          pendingEventsToAdd.add(new PendingEvent("nodeid", -1, 0, pendingId++));
+          //PendingEventDataAccess pendingEventDA =(PendingEventDataAccess) RMStorageFactory.getDataAccess(PendingEventDataAccess.class );
+          YarnRunningPriceDataAccess runningPriceDA
                   = (YarnRunningPriceDataAccess) RMStorageFactory.getDataAccess(
                           YarnRunningPriceDataAccess.class);
-                  Map<YarnRunningPrice.PriceType, YarnRunningPrice> priceList = runningPriceDA.getAll();
+          Map<YarnRunningPrice.PriceType, YarnRunningPrice> priceList
+                  = runningPriceDA.getAll();
 
-                  connector.commit();
-                  return priceList.get(YarnRunningPrice.PriceType.VARIABLE).getPrice();
-                }
-              };
+          connector.commit();
+          return priceList.get(YarnRunningPrice.PriceType.VARIABLE).getPrice();
+        }
+      };
       float currentRunningPrice = (Float) currentPriceHandler.handle();
       Assert.assertEquals(currentRunningPrice, value);
     } catch (IOException ex) {
@@ -201,7 +202,7 @@ public class TestPriceFixingService {
     Thread.sleep(1000);
   }
 
-  @Test 
+  @Test
   public void TestContainerLogServiceUpdatesPrice() throws Exception {
 
     // Insert first batch of 10 dummy containers
@@ -252,11 +253,13 @@ public class TestPriceFixingService {
     conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_MONITOR_INTERVAL,
             monitorInterval);
     conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_TICK_INCREMENT, 1);
-    conf.setBoolean(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_ENABLED,
+    conf.
+            setBoolean(
+                    YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_ENABLED,
                     true);
     conf.setInt(YarnConfiguration.QUOTAS_MIN_TICKS_CHARGE, 10);
     conf.setInt(YarnConfiguration.QUOTAS_CONTAINERS_LOGS_CHECKPOINTS_MINTICKS,
-                    1);
+            1);
     conf.setBoolean(YarnConfiguration.DISTRIBUTED_RM, true);
     conf.setBoolean(YarnConfiguration.QUOTAS_ENABLED, true);
 
@@ -360,22 +363,22 @@ public class TestPriceFixingService {
     try {
       LightWeightRequestHandler allContainersHandler
               = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                @Override
-                public Object performTask() throws StorageException {
-                  ContainersLogsDataAccess containersLogsDA
+        @Override
+        public Object performTask() throws StorageException {
+          ContainersLogsDataAccess containersLogsDA
                   = (ContainersLogsDataAccess) RMStorageFactory.getDataAccess(
                           ContainersLogsDataAccess.class);
-                  connector.beginTransaction();
-                  connector.readCommitted();
+          connector.beginTransaction();
+          connector.readCommitted();
 
-                  Map<String, ContainersLogs> allContainersLogs
+          Map<String, ContainersLogs> allContainersLogs
                   = containersLogsDA.getAll();
 
-                  connector.commit();
+          connector.commit();
 
-                  return allContainersLogs;
-                }
-              };
+          return allContainersLogs;
+        }
+      };
       containersLogs = (Map<String, ContainersLogs>) allContainersHandler.
               handle();
     } catch (IOException ex) {
@@ -394,44 +397,44 @@ public class TestPriceFixingService {
     try {
       LightWeightRequestHandler bomb = new LightWeightRequestHandler(
               YARNOperationType.TEST) {
-                @Override
-                public Object performTask() throws IOException {
-                  connector.beginTransaction();
-                  connector.writeLock();
-                  //Insert Pending Event
-                  List<PendingEvent> pendingEventsToAdd
+        @Override
+        public Object performTask() throws IOException {
+          connector.beginTransaction();
+          connector.writeLock();
+          //Insert Pending Event
+          List<PendingEvent> pendingEventsToAdd
                   = new ArrayList<PendingEvent>();
-                  for (RMNode node : rmNodesToAdd) {
-                    pendingEventsToAdd.add(new PendingEvent(node.getNodeId(), 0,
-                                    0, node.getPendingEventId()));
-                  }
-                  PendingEventDataAccess pendingEventDA
+          for (RMNode node : rmNodesToAdd) {
+            pendingEventsToAdd.add(new PendingEvent(node.getNodeId(), 0,
+                    0, node.getPendingEventId()));
+          }
+          PendingEventDataAccess pendingEventDA
                   = (PendingEventDataAccess) RMStorageFactory.getDataAccess(
                           PendingEventDataAccess.class);
-                  pendingEventDA.addAll(pendingEventsToAdd);
+          pendingEventDA.addAll(pendingEventsToAdd);
 
-                  // Insert RM nodes
-                  RMNodeDataAccess rmNodesDA
+          // Insert RM nodes
+          RMNodeDataAccess rmNodesDA
                   = (RMNodeDataAccess) RMStorageFactory.getDataAccess(
                           RMNodeDataAccess.class);
-                  rmNodesDA.addAll(rmNodesToAdd);
+          rmNodesDA.addAll(rmNodesToAdd);
 
-                  // Insert RM Containers
-                  RMContainerDataAccess rmcontainerDA
+          // Insert RM Containers
+          RMContainerDataAccess rmcontainerDA
                   = (RMContainerDataAccess) RMStorageFactory.getDataAccess(
                           RMContainerDataAccess.class);
-                  rmcontainerDA.addAll(rmContainersToAdd);
+          rmcontainerDA.addAll(rmContainersToAdd);
 
-                  // Insert container statuses
-                  ContainerStatusDataAccess containerStatusDA
+          // Insert container statuses
+          ContainerStatusDataAccess containerStatusDA
                   = (ContainerStatusDataAccess) RMStorageFactory.getDataAccess(
                           ContainerStatusDataAccess.class);
-                  containerStatusDA.addAll(containerStatusToAdd);
+          containerStatusDA.addAll(containerStatusToAdd);
 
-                  connector.commit();
-                  return null;
-                }
-              };
+          connector.commit();
+          return null;
+        }
+      };
       LOG.info("populating DB");
       bomb.handle();
       LOG.info("populated DB");
@@ -454,7 +457,6 @@ public class TestPriceFixingService {
               "state", "finishedStatusState", i);
       rmContainers.add(container);
 
-      //ContainerStatus status = new ContainerStatus(container.getContainerId(),ContainerState.RUNNING.toString(), null,ContainerExitStatus.SUCCESS, randomRMNode.getNodeId(),randomRMNode.getPendingEventId(),ContainerStatus.Type.JUST_LAUNCHED);
       ContainerStatus status = new ContainerStatus(container.getContainerId(),
               ContainerState.RUNNING.toString(), null,
               ContainerExitStatus.SUCCESS, randomRMNode.getNodeId(),
@@ -509,65 +511,63 @@ public class TestPriceFixingService {
   private float FetchCurrentRunningPrice() {
     YarnRunningPrice _Price = null;
     try {
-      
+
       LightWeightRequestHandler allContainersHandler
               = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                @Override
-                public Object performTask() throws StorageException {
-                  
-                YarnRunningPriceDataAccess runningPriceDA 
+        @Override
+        public Object performTask() throws StorageException {
+
+          YarnRunningPriceDataAccess runningPriceDA
                   = (YarnRunningPriceDataAccess) RMStorageFactory.getDataAccess(
                           YarnRunningPriceDataAccess.class);
-                  
-                  connector.beginTransaction();
-                  connector.readCommitted();
 
-                  Map<YarnRunningPrice.PriceType, YarnRunningPrice> priceList 
-                          = runningPriceDA.getAll();
+          connector.beginTransaction();
+          connector.readCommitted();
 
-                  connector.commit();
+          Map<YarnRunningPrice.PriceType, YarnRunningPrice> priceList
+                  = runningPriceDA.getAll();
 
-                  Assert.assertTrue(priceList.size() > 0);
-                  return priceList.get(YarnRunningPrice.PriceType.VARIABLE);
-                }
-              };
-              _Price = (YarnRunningPrice)allContainersHandler.handle();
+          connector.commit();
+
+          Assert.assertTrue(priceList.size() > 0);
+          return priceList.get(YarnRunningPrice.PriceType.VARIABLE);
+        }
+      };
+      _Price = (YarnRunningPrice) allContainersHandler.handle();
     } catch (IOException ex) {
       LOG.warn("Unable to retrieve containers logs", ex);
     }
-    return _Price.getPrice(); 
+    return _Price.getPrice();
   }
 
   private void CheckConainersLogsPrice(final float _currentPrice) {
     try {
-      
+
       LightWeightRequestHandler allContainersHandler
               = new LightWeightRequestHandler(YARNOperationType.TEST) {
-                @Override
-                public Object performTask() throws StorageException {
-                  
-                ContainersLogsDataAccess containersLogsDA
+        @Override
+        public Object performTask() throws StorageException {
+
+          ContainersLogsDataAccess containersLogsDA
                   = (ContainersLogsDataAccess) RMStorageFactory.getDataAccess(
                           ContainersLogsDataAccess.class);
-                  connector.beginTransaction();
-                  connector.readCommitted();
+          connector.beginTransaction();
+          connector.readCommitted();
 
-                  Map<String, ContainersLogs> allContainersLogs
+          Map<String, ContainersLogs> allContainersLogs
                   = containersLogsDA.getAll();
 
-                  connector.commit();
+          connector.commit();
 
-                  for (ContainersLogs _log : allContainersLogs.values())
-                  {
-                      Assert.assertEquals(_log.getPrice(), _currentPrice);
-                  }
-                  return null;
-                  
-                }
-              };
-              allContainersHandler.handle();
-              
-              
+          for (ContainersLogs _log : allContainersLogs.values()) {
+            Assert.assertEquals(_log.getPrice(), _currentPrice);
+          }
+          return null;
+
+        }
+      };
+      allContainersHandler.handle();
+
     } catch (IOException ex) {
       LOG.warn("Unable to retrieve containers logs", ex);
     }
