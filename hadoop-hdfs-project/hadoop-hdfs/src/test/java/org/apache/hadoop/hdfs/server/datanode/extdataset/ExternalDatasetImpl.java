@@ -241,6 +241,9 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   @Override
   public void handleVolumeFailures(Set<FsVolumeSpi> failedVolumes) {
   }
+
+
+
   @Override
   public void shutdown() {
   }

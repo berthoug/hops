@@ -255,6 +255,12 @@ public abstract class Storage extends StorageInfo {
       this(dir, null, true);
     }
 
+    public StorageDirectory(StorageLocation location) {
+      // default dirType is null
+      this(location.getFile(), null, false, location); // TODO: GABRIEL - Still keep location.getFile() ?
+    }
+
+
     public StorageDirectory(File dir, StorageDirType dirType) {
       this(dir, dirType, true);
     }

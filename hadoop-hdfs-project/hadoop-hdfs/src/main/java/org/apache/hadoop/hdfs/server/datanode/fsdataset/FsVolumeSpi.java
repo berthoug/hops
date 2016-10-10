@@ -54,6 +54,7 @@ public interface FsVolumeSpi  {
   URI getBaseURI();
 
   DF getUsageStats(Configuration conf);
+
   /** @return the {@link StorageLocation} to the volume */
   StorageLocation getStorageLocation();
 

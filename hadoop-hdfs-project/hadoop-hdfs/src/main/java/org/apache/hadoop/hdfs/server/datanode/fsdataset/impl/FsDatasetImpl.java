@@ -218,9 +218,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
 
   private void addVolume(Collection<StorageLocation> dataLocations,
       Storage.StorageDirectory sd) throws IOException {
-    final File dir = sd.getCurrentDir();
-    final StorageType storageType =
-        getStorageTypeFromLocations(dataLocations, sd.getRoot());
+    final StorageLocation storageLocation = sd.getStorageLocation();
 
     // If IOException raises from FsVolumeImpl() or getVolumeMap(), there is
     // nothing needed to be rolled back to make various data structures, e.g.,
@@ -238,11 +236,12 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       storageMap.put(sd.getStorageUuid(),
           new DatanodeStorage(sd.getStorageUuid(),
               DatanodeStorage.State.NORMAL,
-              storageType));
+              storageLocation.getStorageType()));
       asyncDiskService.addVolume(sd.getCurrentDir());
       volumes.addVolume(fsVolume);
     }
-    LOG.info("Added volume - " + dir + ", StorageType: " + storageType);
+    LOG.info("Added volume - " + storageLocation + ", StorageType: " +
+            storageLocation.getStorageType());
   }
 
   @VisibleForTesting
@@ -256,16 +255,6 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
             .setFileIoProvider(datanode.getFileIoProvider())
             .setConf(conf)
             .build();
-  }
-
-  private StorageType getStorageTypeFromLocations(
-      Collection<StorageLocation> dataLocations, File dir) {
-    for (StorageLocation dataLocation : dataLocations) {
-      if (dataLocation.getFile().equals(dir)) {
-        return dataLocation.getStorageType();
-      }
-    }
-    return StorageType.DEFAULT;
   }
 
   /**
@@ -495,7 +484,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     dcs.update(b, 0, lastchunksize);
     dcs.writeValue(b, 0, false);
 
-    //update metaFile 
+    //update metaFile
     RandomAccessFile metaRAF = new RandomAccessFile(metaFile, "rw");
     try {
       metaRAF.setLength(newmetalen);
@@ -1226,11 +1215,12 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     long totalBlocks = 0, removedBlocks = 0;
     List<FsVolumeImpl> failedVols = volumes.checkDirs();
 
+    // TODO: cross check with volumes.checkDirs()
     // If there no failed volumes return
     if (failedVols == null) {
       return;
     }
-
+    StringBuilder sb = new StringBuilder();
     // Otherwise remove blocks for the failed volumes
     long mlsec = Time.now();
     synchronized (this) {
@@ -1243,7 +1233,9 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
             // check if the volume block belongs to still valid
             if (b.getVolume() == fv) {
               LOG.warn("Removing replica " + bpid + ":" + b.getBlockId() +
-                  " on failed volume " + fv.getCurrentDir().getAbsolutePath());
+                  " on failed volume " + fv.getPath(bpid));
+              // report the error
+              sb.append(fv.getPath(bpid) + ";");
               ib.remove();
               removedBlocks++;
             }
@@ -1255,11 +1247,6 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     LOG.warn("Removed " + removedBlocks + " out of " + totalBlocks +
         "(took " + mlsec + " millisecs)");
 
-    // report the error
-    StringBuilder sb = new StringBuilder();
-    for (FsVolumeImpl fv : failedVols) {
-      sb.append(fv.getCurrentDir().getAbsolutePath() + ";");
-    }
     throw new DiskErrorException("DataNode failed volumes:" + sb);
   }
 

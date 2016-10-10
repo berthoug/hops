@@ -303,8 +303,11 @@ public class FsVolumeImpl implements FsVolumeSpi {
     return storageLocation;
   }
 
-  // @Override Kept for backwards compability
-  public String getPath(String bpid) throws IOException {
+  /**
+   * Use {@link FsVolumeImpl#getBaseURI()} instead. Kept for backwards compatibility for now.
+   */
+  @Deprecated
+  public String getPath(String bpid) throws IOException { // TODO: GABRIEL - check and remove usage
     return getBlockPoolSlice(bpid).getDirectory().getAbsolutePath();
   }
 
@@ -813,7 +816,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
 
   @Override
   public String toString() {
-    return currentDir.getAbsolutePath();
+    return currentDir != null ? currentDir.getParent() : "NULL";
   }
 
   void shutdown() {
@@ -844,10 +847,12 @@ public class FsVolumeImpl implements FsVolumeSpi {
     File finalizedDir =
         new File(bpCurrentDir, DataStorage.STORAGE_DIR_FINALIZED);
     File rbwDir = new File(bpCurrentDir, DataStorage.STORAGE_DIR_RBW);
-    if (finalizedDir.exists() && FileUtil.list(finalizedDir).length != 0) {
+    if (fileIoProvider.exists(this, finalizedDir) &&
+        !DatanodeUtil.dirNoFilesRecursive(this, finalizedDir, fileIoProvider)) {
       return false;
     }
-    if (rbwDir.exists() && FileUtil.list(rbwDir).length != 0) {
+    if (fileIoProvider.exists(this, rbwDir) &&
+        fileIoProvider.list(this, rbwDir).length != 0) {
       return false;
     }
     return true;

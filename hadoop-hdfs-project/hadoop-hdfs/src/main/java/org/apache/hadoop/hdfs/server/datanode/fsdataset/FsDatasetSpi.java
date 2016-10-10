@@ -31,19 +31,17 @@ import org.apache.hadoop.hdfs.server.datanode.*;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetFactory;
 import org.apache.hadoop.hdfs.server.datanode.metrics.FSDatasetMBean;
 import org.apache.hadoop.hdfs.server.protocol.BlockRecoveryCommand.RecoveringBlock;
-import org.apache.hadoop.hdfs.server.protocol.BlockReport;
-import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
-import org.apache.hadoop.hdfs.server.protocol.ReplicaRecoveryInfo;
-import org.apache.hadoop.hdfs.server.protocol.StorageReport;
-import org.apache.hadoop.util.DiskChecker.DiskErrorException;
+import org.apache.hadoop.hdfs.server.protocol.*;
 import org.apache.hadoop.util.ReflectionUtils;
 
 import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This is a service provider interface for the underlying storage that
@@ -95,6 +93,31 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    * @return a list of volumes.
    */
   public List<V> getVolumes();
+
+  /**
+   * Add a new volume to the FsDataset.<p/>
+   *
+   * If the FSDataset supports block scanning, this function registers
+   * the new volume with the block scanner.
+   *
+   * @param location      The storage location for the new volume.
+   * @param nsInfos       Namespace information for the new volume.
+   */
+  void addVolume( // TODO: GABRIEL - check if needed and used
+      final StorageLocation location,
+      final List<NamespaceInfo> nsInfos) throws IOException;
+
+  /**
+   * Removes a collection of volumes from FsDataset.
+   *
+   * If the FSDataset supports block scanning, this function removes
+   * the volumes from the block scanner.
+   *
+   * @param volumes  The paths of the volumes to be removed.
+   * @param clearFailure set true to clear the failure information about the
+   *                     volumes.
+   */  // TODO: GABRIEL - check if needed and used
+  void removeVolumes(Collection<StorageLocation> volumes, boolean clearFailure);
 
   /** @return a storage with the given storage ID */
   public DatanodeStorage getStorage(final String storageUuid);
@@ -357,12 +380,12 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    */
   public void invalidate(String bpid, Block invalidBlks[]) throws IOException;
 
+
   /**
    * Check if all the data directories are healthy
-   *
-   * @throws DiskErrorException
+   * @return A set of unhealthy data directories.
    */
-  public void checkDataDir() throws DiskErrorException;
+  Set<StorageLocation> checkDataDir();
 
   /**
    * Shutdown the FSDataset

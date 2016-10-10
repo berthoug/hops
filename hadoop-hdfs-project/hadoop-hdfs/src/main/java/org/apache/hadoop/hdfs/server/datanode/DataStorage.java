@@ -20,8 +20,10 @@ package org.apache.hadoop.hdfs.server.datanode;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import org.apache.hadoop.HadoopIllegalArgumentException;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -37,24 +39,14 @@ import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
+import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DiskChecker;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.channels.FileLock;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
-import org.apache.hadoop.io.IOUtils;
+import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * Data storage information file.
@@ -222,11 +214,12 @@ public class DataStorage extends Storage {
   }
 
   private StorageDirectory loadStorageDirectory(DataNode datanode,
-      NamespaceInfo nsInfo, File dataDir, StartupOption startOpt)
-      throws IOException {
-    StorageDirectory sd = new StorageDirectory(dataDir, null, false);
+      NamespaceInfo nsInfo, File dataDir, StorageLocation location,
+      StartupOption startOpt, List<Callable<StorageDirectory>> callables)
+          throws IOException {
+    StorageDirectory sd = new StorageDirectory(dataDir, null, false, location);
     try {
-      StorageState curState = sd.analyzeStorage(startOpt, this);
+      StorageState curState = sd.analyzeStorage(startOpt, this, true);
       // sd is locked but not opened
       switch (curState) {
         case NORMAL:
@@ -236,9 +229,9 @@ public class DataStorage extends Storage {
           throw new IOException("Storage directory " + dataDir
               + " does not exist");
         case NOT_FORMATTED: // format
-          LOG.info("Storage directory " + dataDir + " is not formatted for "
-              + nsInfo.getBlockPoolID());
-          LOG.info("Formatting ...");
+        LOG.info("Storage directory " + dataDir
+            + " is not formatted for namespace " + nsInfo.getNamespaceID()
+            + ". Formatting...");
           format(sd, nsInfo, datanode.getDatanodeUuid());
           break;
         default:  // recovery part is common
@@ -249,11 +242,12 @@ public class DataStorage extends Storage {
       // Each storage directory is treated individually.
       // During startup some of them can upgrade or roll back
       // while others could be up-to-date for the regular startup.
-      doTransition(datanode, sd, nsInfo, startOpt, datanode.getConf());
+      if (!doTransition(sd, nsInfo, startOpt, callables, datanode.getConf())) {
 
       // 3. Update successfully loaded storage.
       setServiceLayoutVersion(getServiceLayoutVersion());
       writeProperties(sd);
+      }
 
       return sd;
     } catch (IOException ioe) {
@@ -261,6 +255,7 @@ public class DataStorage extends Storage {
       throw ioe;
     }
   }
+
 
   /**
    * Create physical directory for block pools on the data node

@@ -24,8 +24,11 @@ import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.datanode.ReplicaInfo;
 import org.apache.hadoop.hdfs.server.protocol.BlockCommand;
+import org.apache.hadoop.io.nativeio.NativeIO;
+import org.apache.hadoop.io.nativeio.NativeIOException;
 
 import java.io.File;
+import java.io.FileDescriptor;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -61,7 +64,7 @@ class FsDatasetAsyncDiskService {
   private final DataNode datanode;
   private final FsDatasetImpl fsdatasetImpl;
   private final ThreadGroup threadGroup;
-  private Map<File, ThreadPoolExecutor> executors
+  private Map<String, ThreadPoolExecutor> executors
           = new HashMap<>();
 
   /**
@@ -113,8 +116,12 @@ class FsDatasetAsyncDiskService {
     if (executors == null) {
       throw new RuntimeException("AsyncDiskService is already shutdown");
     }
-    if (executors.containsKey(volume)) {
-      throw new RuntimeException("Volume " + volume + " already exists.");
+    if (volume == null) {
+      throw new RuntimeException("Attempt to add a null volume");
+    }
+    ThreadPoolExecutor executor = executors.get(volume.getStorageID());
+    if (executor != null) {
+      throw new RuntimeException("Volume " + volume + " is already existed.");
     }
     addExecutorForVolume(volume);
   }
@@ -124,17 +131,17 @@ class FsDatasetAsyncDiskService {
    *
    * @param volume the root of the volume.
    */
-  synchronized void removeVolume(File volume) {
+  synchronized void removeVolume(String storageId) {
     if (executors == null) {
       throw new RuntimeException("AsyncDiskService is already shutdown");
     }
-    ThreadPoolExecutor executor = executors.get(volume);
+    ThreadPoolExecutor executor = executors.get(storageId);
     if (executor == null) {
-      throw new RuntimeException("Can not find volume " + volume
-              + " to remove.");
+      throw new RuntimeException("Can not find volume with storageId "
+          + storageId + " to remove.");
     } else {
       executor.shutdown();
-      executors.remove(volume);
+      executors.remove(storageId);
     }
   }
 
@@ -149,14 +156,17 @@ class FsDatasetAsyncDiskService {
   /**
    * Execute the task sometime in the future, using ThreadPools.
    */
-  synchronized void execute(File root, Runnable task) {
+  synchronized void execute(FsVolumeImpl volume, Runnable task) {
     if (executors == null) {
       throw new RuntimeException("AsyncDiskService is already shutdown");
     }
-    ThreadPoolExecutor executor = executors.get(root);
+    if (volume == null) {
+      throw new RuntimeException("A null volume does not have a executor");
+    }
+    ThreadPoolExecutor executor = executors.get(volume.getStorageID());
     if (executor == null) {
-      throw new RuntimeException(
-              "Cannot find root " + root + " for execution of task " + task);
+      throw new RuntimeException("Cannot find volume " + volume
+          + " for execution of task " + task);
     } else {
       executor.execute(task);
     }
@@ -172,7 +182,7 @@ class FsDatasetAsyncDiskService {
     } else {
       LOG.info("Shutting down all async disk service threads");
 
-      for (Map.Entry<File, ThreadPoolExecutor> e : executors.entrySet()) {
+      for (Map.Entry<String, ThreadPoolExecutor> e : executors.entrySet()) {
         e.getValue().shutdown();
       }
       // clear the executor map so that calling execute again will fail.
@@ -180,6 +190,21 @@ class FsDatasetAsyncDiskService {
 
       LOG.info("All async disk service threads have been shut down");
     }
+  }
+
+  public void submitSyncFileRangeRequest(FsVolumeImpl volume,
+                                         final FileDescriptor fd, final long offset, final long nbytes,
+                                         final int flags) {
+    execute(volume, new Runnable() {
+      @Override
+      public void run() {
+        try {
+          NativeIO.POSIX.syncFileRangeIfPossible(fd, offset, nbytes, flags);
+        } catch (NativeIOException e) {
+          LOG.warn("sync_file_range error", e);
+        }
+      }
+    });
   }
 
   /**
@@ -191,8 +216,8 @@ class FsDatasetAsyncDiskService {
     LOG.info("Scheduling " + block.getLocalBlock()
             + " replica " + replicaToDelete + " for deletion");
     ReplicaFileDeleteTask deletionTask = new ReplicaFileDeleteTask(
-            volume, replicaToDelete, block);
-    execute(volume.getCurrentDir(), deletionTask);
+            volume, replicaToDelete, block); // TODO: is volumeRef needed in ReplicaFileDeleteTask?
+    execute(volume, deletionTask);
   }
 
   /**

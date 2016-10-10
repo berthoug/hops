@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -31,11 +32,13 @@ import org.apache.hadoop.hdfs.server.common.GenerationStamp;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetTestUtil;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsVolumeImpl;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.util.LinkedList;
 import java.util.List;
@@ -132,6 +135,43 @@ public class TestDirectoryScanner {
   /**
    * Get a random blockId that is not used already
    */
+  private void duplicateBlock(long blockId) throws IOException {
+      ReplicaInfo b = FsDatasetTestUtil.fetchReplicaInfo(fds, bpid, blockId);
+      for (FsVolumeSpi v : fds.getVolumes()) {
+        if (v.getStorageID().equals(b.getVolume().getStorageID())) {
+          continue;
+        }
+
+        // Volume without a copy of the block. Make a copy now.
+        File sourceBlock = new File(b.getBlockURI());
+        File sourceMeta = new File(b.getMetadataURI());
+        URI sourceRoot = b.getVolume().getStorageLocation().getFile().toURI();
+        URI destRoot = v.getStorageLocation().getFile().toURI();
+
+        String relativeBlockPath =
+            sourceRoot.relativize(sourceBlock.toURI())
+                .getPath();
+        String relativeMetaPath =
+            sourceRoot.relativize(sourceMeta.toURI())
+                .getPath();
+
+        File destBlock = new File(new File(destRoot).toString(),
+            relativeBlockPath);
+        File destMeta = new File(new File(destRoot).toString(),
+            relativeMetaPath);
+
+        destBlock.getParentFile().mkdirs();
+        FileUtils.copyFile(sourceBlock, destBlock);
+        FileUtils.copyFile(sourceMeta, destMeta);
+
+        if (destBlock.exists() && destMeta.exists()) {
+          LOG.info("Copied " + sourceBlock + " ==> " + destBlock);
+          LOG.info("Copied " + sourceMeta + " ==> " + destMeta);
+        }
+    }
+  }
+
+  /** Get a random blockId that is not used already */
   private long getFreeBlockId() {
     long id = rand.nextLong();
     while (true) {
@@ -159,7 +199,7 @@ public class TestDirectoryScanner {
     List<? extends FsVolumeSpi> volumes = fds.getVolumes();
     int index = rand.nextInt(volumes.size() - 1);
     long id = getFreeBlockId();
-    File finalizedDir = volumes.get(index).getFinalizedDir(bpid);
+    File finalizedDir = ((FsVolumeImpl) volumes.get(index)).getFinalizedDir(bpid);
     File file = new File(finalizedDir, getBlockFile(id));
     if (file.createNewFile()) {
       LOG.info("Created block file " + file.getName());
@@ -174,7 +214,7 @@ public class TestDirectoryScanner {
     List<? extends FsVolumeSpi> volumes = fds.getVolumes();
     int index = rand.nextInt(volumes.size() - 1);
     long id = getFreeBlockId();
-    File finalizedDir = volumes.get(index).getFinalizedDir(bpid);
+    File finalizedDir =  ((FsVolumeImpl)volumes.get(index)).getFinalizedDir(bpid);
     File file = new File(finalizedDir, getMetaFile(id));
     if (file.createNewFile()) {
       LOG.info("Created metafile " + file.getName());
@@ -189,7 +229,7 @@ public class TestDirectoryScanner {
     List<? extends FsVolumeSpi> volumes = fds.getVolumes();
     int index = rand.nextInt(volumes.size() - 1);
     long id = getFreeBlockId();
-    File finalizedDir = volumes.get(index).getFinalizedDir(bpid);
+    File finalizedDir = ((FsVolumeImpl) volumes.get(index)).getFinalizedDir(bpid);
     File file = new File(finalizedDir, getBlockFile(id));
     if (file.createNewFile()) {
       LOG.info("Created block file " + file.getName());
