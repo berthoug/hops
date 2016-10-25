@@ -174,12 +174,12 @@ public class DataStorage extends Storage {
     final String bpid = nsInfo.getBlockPoolID();
     List<StorageLocation> successVolumes = Lists.newArrayList();
     for (StorageLocation dataDir : dataDirs) {
-      File root = dataDir.getFile();
-      if (!containsStorageDir(root)) {
+      StorageDirectory sd = null;
+      if (!containsStorageDir(dataDir)) {
         try {
           // It first ensures the datanode level format is completed.
-          StorageDirectory sd = loadStorageDirectory(
-              datanode, nsInfo, root, startOpt);
+          sd = loadStorageDirectory(
+              datanode, nsInfo, dataDir, startOpt);
           addStorageDir(sd);
         } catch (IOException e) {
           LOG.warn(e);
@@ -190,8 +190,7 @@ public class DataStorage extends Storage {
       }
 
       List<File> bpDataDirs = new ArrayList<File>();
-      bpDataDirs.add(BlockPoolSliceStorage.getBpRoot(bpid, new File(root,
-          STORAGE_DIR_CURRENT)));
+      bpDataDirs.add(BlockPoolSliceStorage.getBpRoot(bpid, sd.getCurrentDir())); // TODO: GABRIEL - test with sd.getCurrentDir() instead of File
       try {
         makeBlockPoolDataDir(bpDataDirs, null);
         BlockPoolSliceStorage bpStorage = this.bpStorageMap.get(bpid);
@@ -214,22 +213,21 @@ public class DataStorage extends Storage {
   }
 
   private StorageDirectory loadStorageDirectory(DataNode datanode,
-      NamespaceInfo nsInfo, File dataDir, StorageLocation location,
-      StartupOption startOpt, List<Callable<StorageDirectory>> callables)
-          throws IOException {
-    StorageDirectory sd = new StorageDirectory(dataDir, null, false, location);
+                                                NamespaceInfo nsInfo, StorageLocation location, StartupOption startOpt) throws IOException {
+    StorageDirectory sd = new StorageDirectory(null, false, location);
     try {
-      StorageState curState = sd.analyzeStorage(startOpt, this, true);
+      StorageState curState = sd.analyzeStorage(startOpt, this);
       // sd is locked but not opened
       switch (curState) {
-        case NORMAL:
-          break;
-        case NON_EXISTENT:
-          LOG.info("Storage directory " + dataDir + " does not exist");
-          throw new IOException("Storage directory " + dataDir
-              + " does not exist");
-        case NOT_FORMATTED: // format
-        LOG.info("Storage directory " + dataDir
+      case NORMAL:
+        break;
+      case NON_EXISTENT:
+        LOG.info("Storage directory with location " + location
+            + " does not exist");
+        throw new IOException("Storage directory with location " + location
+            + " does not exist");
+      case NOT_FORMATTED: // format
+        LOG.info("Storage directory with location " + location
             + " is not formatted for namespace " + nsInfo.getNamespaceID()
             + ". Formatting...");
           format(sd, nsInfo, datanode.getDatanodeUuid());
@@ -242,13 +240,11 @@ public class DataStorage extends Storage {
       // Each storage directory is treated individually.
       // During startup some of them can upgrade or roll back
       // while others could be up-to-date for the regular startup.
-      if (!doTransition(sd, nsInfo, startOpt, callables, datanode.getConf())) {
+      doTransition(datanode, sd, nsInfo, startOpt, datanode.getConf());
 
       // 3. Update successfully loaded storage.
       setServiceLayoutVersion(getServiceLayoutVersion());
       writeProperties(sd);
-      }
-
       return sd;
     } catch (IOException ioe) {
       sd.unlock();

@@ -38,8 +38,6 @@ import java.net.URISyntaxException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static java.util.regex.Pattern.compile;
-
 /**
  * Encapsulates the URI and storage medium that together describe a
  * storage directory.
@@ -54,7 +52,6 @@ public class StorageLocation implements Comparable<StorageLocation> {
    *  e.g. [Disk]/storages/storage1/
    */
   private static final Pattern regex = Pattern.compile("^\\[(\\w*)\\](.+)$");
-  private File file;
 
   private StorageLocation(StorageType storageType, URI uri) {
     this.storageType = storageType;
@@ -62,12 +59,8 @@ public class StorageLocation implements Comparable<StorageLocation> {
     if (uri.getScheme() == null || uri.getScheme().equals("file")) {
       // make sure all URIs that point to a file have the same scheme
       uri = normalizeFileURI(uri);
-      this.file = new File(uri.getPath()); // TODO: do we need file? not used in JIRA-9806, only uri
-      baseURI = uri;
-      }
-    else {
-      throw new IllegalArgumentException("Unsupported URI schema in " + uri);
     }
+    baseURI = uri;
   }
 
   public static URI normalizeFileURI(URI uri) {
@@ -94,6 +87,27 @@ public class StorageLocation implements Comparable<StorageLocation> {
 
   public URI getNormalizedUri() {
     return baseURI.normalize();
+  }
+
+  public boolean matchesStorageDirectory(Storage.StorageDirectory sd)
+      throws IOException {
+    return this.equals(sd.getStorageLocation());
+  }
+
+  public boolean matchesStorageDirectory(Storage.StorageDirectory sd,
+      String bpid) throws IOException {
+    if (sd.getStorageLocation().getStorageType() == StorageType.PROVIDED &&
+        storageType == StorageType.PROVIDED) {
+      return matchesStorageDirectory(sd);
+    }
+    if (sd.getStorageLocation().getStorageType() == StorageType.PROVIDED ||
+        storageType == StorageType.PROVIDED) {
+      // only one PROVIDED storage directory can exist; so this cannot match!
+      return false;
+    }
+    // both storage directories are local
+    return this.getBpURI(bpid, Storage.STORAGE_DIR_CURRENT).normalize()
+        .equals(sd.getRoot().toURI().normalize());
   }
 
   /**
@@ -210,10 +224,6 @@ public class StorageLocation implements Comparable<StorageLocation> {
       DataStorage.LOG.warn("Invalid directory in: " + data.getCanonicalPath() +
           ": " + e.getMessage());
     }
-  }
-
-  public File getFile() {
-    return file;
   }
 
   /**
