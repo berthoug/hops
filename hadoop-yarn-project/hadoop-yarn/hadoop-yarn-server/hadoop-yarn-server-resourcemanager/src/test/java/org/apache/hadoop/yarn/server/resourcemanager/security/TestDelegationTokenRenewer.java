@@ -106,6 +106,9 @@ import com.google.common.base.Supplier;
 import io.hops.util.DBUtility;
 import io.hops.util.RMStorageFactory;
 import io.hops.util.YarnAPIStorageFactory;
+import java.io.File;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.FileSystemRMStateStore;
 
 /**
  * unit test - 
@@ -989,86 +992,91 @@ public class TestDelegationTokenRenewer {
     yarnConf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION,
         "kerberos");
     yarnConf.setBoolean(YarnConfiguration.RECOVERY_ENABLED, true);
-    yarnConf
-        .set(YarnConfiguration.RM_STORE, MemoryRMStateStore.class.getName());
-    UserGroupInformation.setConfiguration(yarnConf);
+    FileSystem fs;
+    Path tmpDir;
+    fs = FileSystem.get(new Configuration());
+    tmpDir = new Path(new File("target", this.getClass().getSimpleName()
+        + "-tmpDir").getAbsolutePath());
+    fs.delete(tmpDir, true);
+    fs.mkdirs(tmpDir);
+    try {
+      conf.set(YarnConfiguration.FS_RM_STATE_STORE_URI, tmpDir.toString());
+      conf.set(YarnConfiguration.RM_STORE, FileSystemRMStateStore.class.getName());
+      UserGroupInformation.setConfiguration(yarnConf);
 
-    // create Token1:
-    Text userText1 = new Text("user1");
-    DelegationTokenIdentifier dtId1 = new DelegationTokenIdentifier(userText1,
-        new Text("renewer1"), userText1);
-    final Token<DelegationTokenIdentifier> originalToken =
-        new Token<>(dtId1.getBytes(), "password1".getBytes(), dtId1.getKind(),
-            new Text("service1"));
-    Credentials credentials = new Credentials();
-    credentials.addToken(userText1, originalToken);
+      // create Token1:
+      Text userText1 = new Text("user1");
+      DelegationTokenIdentifier dtId1 = new DelegationTokenIdentifier(userText1,
+          new Text("renewer1"), userText1);
+      final Token<DelegationTokenIdentifier> originalToken = new Token<>(dtId1.getBytes(), "password1".getBytes(),
+          dtId1.getKind(),
+          new Text("service1"));
+      Credentials credentials = new Credentials();
+      credentials.addToken(userText1, originalToken);
 
-    MemoryRMStateStore memStore = new MemoryRMStateStore();
-    memStore.init(yarnConf);
-    MockRM rm1 = new TestSecurityMockRM(yarnConf, memStore);
-    rm1.start();
-    RMApp app = rm1.submitApp(200, "name", "user",
-        new HashMap<ApplicationAccessType, String>(), false, "default", 1,
-        credentials);
+      MockRM rm1 = new TestSecurityMockRM(yarnConf);
+      rm1.start();
+      RMApp app = rm1.submitApp(200, "name", "user",
+          new HashMap<ApplicationAccessType, String>(), false, "default", 1,
+          credentials);
 
-    // create token2
-    Text userText2 = new Text("user1");
-    DelegationTokenIdentifier dtId2 =
-        new DelegationTokenIdentifier(userText1, new Text("renewer2"),
-            userText2);
-    final Token<DelegationTokenIdentifier> updatedToken =
-        new Token<DelegationTokenIdentifier>(dtId2.getBytes(),
-            "password2".getBytes(), dtId2.getKind(), new Text("service2"));
-    final AtomicBoolean firstRenewInvoked = new AtomicBoolean(false);
-    final AtomicBoolean secondRenewInvoked = new AtomicBoolean(false);
-    MockRM rm2 = new TestSecurityMockRM(yarnConf, memStore) {
-      @Override
-      protected DelegationTokenRenewer createDelegationTokenRenewer() {
-        return new DelegationTokenRenewer() {
+      // create token2
+      Text userText2 = new Text("user1");
+      DelegationTokenIdentifier dtId2 = new DelegationTokenIdentifier(userText1, new Text("renewer2"),
+          userText2);
+      final Token<DelegationTokenIdentifier> updatedToken = new Token<DelegationTokenIdentifier>(dtId2.getBytes(),
+          "password2".getBytes(), dtId2.getKind(), new Text("service2"));
+      final AtomicBoolean firstRenewInvoked = new AtomicBoolean(false);
+      final AtomicBoolean secondRenewInvoked = new AtomicBoolean(false);
+      MockRM rm2 = new TestSecurityMockRM(yarnConf) {
+        @Override
+        protected DelegationTokenRenewer createDelegationTokenRenewer() {
+          return new DelegationTokenRenewer() {
 
-          @Override
-          protected void renewToken(final DelegationTokenToRenew dttr)
-              throws IOException {
+            @Override
+            protected void renewToken(final DelegationTokenToRenew dttr)
+                throws IOException {
 
-            if (dttr.token.equals(updatedToken)) {
-              secondRenewInvoked.set(true);
-              super.renewToken(dttr);
-            } else if (dttr.token.equals(originalToken)){
-              firstRenewInvoked.set(true);
-              throw new InvalidToken("Failed to renew");
-            } else {
-              throw new IOException("Unexpected");
+              if (dttr.token.equals(updatedToken)) {
+                secondRenewInvoked.set(true);
+                super.renewToken(dttr);
+              } else if (dttr.token.equals(originalToken)) {
+                firstRenewInvoked.set(true);
+                throw new InvalidToken("Failed to renew");
+              } else {
+                throw new IOException("Unexpected");
+              }
             }
-          }
 
-          @Override
-          protected Token<?>[] obtainSystemTokensForUser(String user,
-              final Credentials credentials) throws IOException {
-            credentials.addToken(updatedToken.getService(), updatedToken);
-            return new Token<?>[] { updatedToken };
-          }
-        };
-      }
-    };
+            @Override
+            protected Token<?>[] obtainSystemTokensForUser(String user,
+                final Credentials credentials) throws IOException {
+              credentials.addToken(updatedToken.getService(), updatedToken);
+              return new Token<?>[]{updatedToken};
+            }
+          };
+        }
+      };
 
-    // simulating restart the rm
-    rm2.start();
+      // simulating restart the rm
+      rm2.start();
 
-    // check nm can retrieve the token
-    final MockNM nm1 =
-        new MockNM("127.0.0.1:1234", 15120, rm2.getResourceTrackerService());
-    nm1.registerNode();
-    NodeHeartbeatResponse response = nm1.nodeHeartbeat(true);
-    ByteBuffer tokenBuffer =
-        response.getSystemCredentialsForApps().get(app.getApplicationId());
-    Assert.assertNotNull(tokenBuffer);
-    Credentials appCredentials = new Credentials();
-    DataInputByteBuffer buf = new DataInputByteBuffer();
-    tokenBuffer.rewind();
-    buf.reset(tokenBuffer);
-    appCredentials.readTokenStorageStream(buf);
-    Assert.assertTrue(firstRenewInvoked.get() && secondRenewInvoked.get());
-    Assert.assertTrue(appCredentials.getAllTokens().contains(updatedToken));
+      // check nm can retrieve the token
+      final MockNM nm1 = new MockNM("127.0.0.1:1234", 15120, rm2.getResourceTrackerService());
+      nm1.registerNode();
+      NodeHeartbeatResponse response = nm1.nodeHeartbeat(true);
+      ByteBuffer tokenBuffer = response.getSystemCredentialsForApps().get(app.getApplicationId());
+      Assert.assertNotNull(tokenBuffer);
+      Credentials appCredentials = new Credentials();
+      DataInputByteBuffer buf = new DataInputByteBuffer();
+      tokenBuffer.rewind();
+      buf.reset(tokenBuffer);
+      appCredentials.readTokenStorageStream(buf);
+      Assert.assertTrue(firstRenewInvoked.get() && secondRenewInvoked.get());
+      Assert.assertTrue(appCredentials.getAllTokens().contains(updatedToken));
+    } finally {
+      fs.delete(tmpDir, true);
+    }
   }
 
   // YARN will get the token for the app submitted without the delegation token.

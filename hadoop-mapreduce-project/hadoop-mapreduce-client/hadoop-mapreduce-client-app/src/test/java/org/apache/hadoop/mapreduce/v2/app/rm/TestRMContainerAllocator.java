@@ -145,6 +145,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.base.Supplier;
+import io.hops.util.DBUtility;
+import io.hops.util.RMStorageFactory;
+import io.hops.util.YarnAPIStorageFactory;
 import org.mockito.InOrder;
 
 @SuppressWarnings("unchecked")
@@ -156,7 +159,11 @@ public class TestRMContainerAllocator {
       .getRecordFactory(null);
 
   @Before
-  public void setup() {
+  public void setup() throws IOException {
+    YarnConfiguration conf = new YarnConfiguration();
+    RMStorageFactory.setConfiguration(conf);
+    YarnAPIStorageFactory.setConfiguration(conf);
+    DBUtility.InitializeDB();
     MyContainerAllocator.getJobUpdatedNodeEvents().clear();
     MyContainerAllocator.getTaskAttemptKillEvents().clear();
 

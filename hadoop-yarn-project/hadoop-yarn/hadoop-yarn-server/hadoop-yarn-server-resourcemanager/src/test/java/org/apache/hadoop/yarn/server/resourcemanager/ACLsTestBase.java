@@ -64,7 +64,6 @@ public abstract class ACLsTestBase {
   @Before
   public void setup() throws InterruptedException, IOException {
     conf = createConfiguration();
-        YarnConfiguration conf = new YarnConfiguration();
     RMStorageFactory.setConfiguration(conf);
     YarnAPIStorageFactory.setConfiguration(conf);
     DBUtility.InitializeDB();

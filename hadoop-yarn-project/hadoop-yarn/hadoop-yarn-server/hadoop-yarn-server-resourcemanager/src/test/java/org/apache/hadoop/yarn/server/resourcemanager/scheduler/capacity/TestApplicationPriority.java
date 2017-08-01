@@ -21,6 +21,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity;
 import io.hops.util.DBUtility;
 import io.hops.util.RMStorageFactory;
 import io.hops.util.YarnAPIStorageFactory;
+import java.io.File;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -32,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -45,6 +48,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.MockAM;
 import org.apache.hadoop.yarn.server.resourcemanager.MockNM;
 import org.apache.hadoop.yarn.server.resourcemanager.MockNodes;
 import org.apache.hadoop.yarn.server.resourcemanager.MockRM;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.FileSystemRMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.MemoryRMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.RMState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationStateData;
@@ -401,65 +405,70 @@ public class TestApplicationPriority {
     conf.setBoolean(YarnConfiguration.RECOVERY_ENABLED, true);
     conf.setBoolean(YarnConfiguration.RM_WORK_PRESERVING_RECOVERY_ENABLED,
         false);
-    conf.set(YarnConfiguration.RM_STORE, MemoryRMStateStore.class.getName());
-    conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
-        YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
-    conf.setInt(YarnConfiguration.MAX_CLUSTER_LEVEL_APPLICATION_PRIORITY, 10);
+    FileSystem fs;
+    Path tmpDir;
+    fs = FileSystem.get(conf);
+    tmpDir = new Path(new File("target", this.getClass().getSimpleName()
+        + "-tmpDir").getAbsolutePath());
+    fs.delete(tmpDir, true);
+    fs.mkdirs(tmpDir);
+    try {
+      conf.set(YarnConfiguration.FS_RM_STATE_STORE_URI, tmpDir.toString());
+      conf.set(YarnConfiguration.RM_STORE, FileSystemRMStateStore.class.getName());
+      conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
+          YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
+      conf.setInt(YarnConfiguration.MAX_CLUSTER_LEVEL_APPLICATION_PRIORITY, 10);
 
-    MemoryRMStateStore memStore = new MemoryRMStateStore();
-    memStore.init(conf);
-    RMState rmState = memStore.getState();
-    Map<ApplicationId, ApplicationStateData> rmAppState = rmState
-        .getApplicationState();
+      // PHASE 1: create state in an RM
+      // start RM
+      MockRM rm1 = new MockRM(conf);
+      rm1.start();
 
-    // PHASE 1: create state in an RM
+      MockNM nm1 = new MockNM("127.0.0.1:1234", 15120,
+          rm1.getResourceTrackerService());
+      nm1.registerNode();
 
-    // start RM
-    MockRM rm1 = new MockRM(conf, memStore);
-    rm1.start();
+      Priority appPriority1 = Priority.newInstance(5);
+      RMApp app1 = rm1.submitApp(1 * GB, appPriority1);
 
-    MockNM nm1 = new MockNM("127.0.0.1:1234", 15120,
-        rm1.getResourceTrackerService());
-    nm1.registerNode();
+      // kick the scheduler, 1 GB given to AM1, remaining 15GB on nm1
+      MockAM am1 = MockRM.launchAM(app1, rm1, nm1);
+      am1.registerAppAttempt();
 
-    Priority appPriority1 = Priority.newInstance(5);
-    RMApp app1 = rm1.submitApp(1 * GB, appPriority1);
+      // get scheduler
+      CapacityScheduler cs = (CapacityScheduler) rm1.getResourceScheduler();
 
-    // kick the scheduler, 1 GB given to AM1, remaining 15GB on nm1
-    MockAM am1 = MockRM.launchAM(app1, rm1, nm1);
-    am1.registerAppAttempt();
+      // Change the priority of App1 to 8
+      Priority appPriority2 = Priority.newInstance(8);
+      cs.updateApplicationPriority(appPriority2, app1.getApplicationId());
 
-    // get scheduler
-    CapacityScheduler cs = (CapacityScheduler) rm1.getResourceScheduler();
+      // let things settle down
+      Thread.sleep(1000);
 
-    // Change the priority of App1 to 8
-    Priority appPriority2 = Priority.newInstance(8);
-    cs.updateApplicationPriority(appPriority2, app1.getApplicationId());
+      // create new RM to represent restart and recover state
+      MockRM rm2 = new MockRM(conf);
 
-    // let things settle down
-    Thread.sleep(1000);
+      // start new RM
+      rm2.start();
+      // change NM to point to new RM
+      nm1.setResourceTrackerService(rm2.getResourceTrackerService());
 
-    // create new RM to represent restart and recover state
-    MockRM rm2 = new MockRM(conf, memStore);
+      // Verify RM Apps after this restart
+      Assert.assertEquals(1, rm2.getRMContext().getRMApps().size());
 
-    // start new RM
-    rm2.start();
-    // change NM to point to new RM
-    nm1.setResourceTrackerService(rm2.getResourceTrackerService());
+      // get scheduler app
+      RMApp loadedApp = rm2.getRMContext().getRMApps()
+          .get(app1.getApplicationId());
 
-    // Verify RM Apps after this restart
-    Assert.assertEquals(1, rm2.getRMContext().getRMApps().size());
+      // Verify whether priority 15 is reset to 10
+      Assert.assertEquals(appPriority2, loadedApp.getCurrentAppAttempt()
+          .getSubmissionContext().getPriority());
 
-    // get scheduler app
-    RMApp loadedApp = rm2.getRMContext().getRMApps()
-        .get(app1.getApplicationId());
-
-    // Verify whether priority 15 is reset to 10
-    Assert.assertEquals(appPriority2, loadedApp.getCurrentAppAttempt()
-        .getSubmissionContext().getPriority());
-
-    rm2.stop();
-    rm1.stop();
+      rm2.stop();
+      rm1.stop();
+    } finally {
+      fs.delete(tmpDir, true);
+    }
   }
 
   @Test
@@ -602,145 +611,151 @@ public class TestApplicationPriority {
       throws Exception {
     conf.setBoolean(YarnConfiguration.RECOVERY_ENABLED, true);
     conf.setBoolean(YarnConfiguration.RM_WORK_PRESERVING_RECOVERY_ENABLED, true);
-    conf.set(YarnConfiguration.RM_STORE, MemoryRMStateStore.class.getName());
-    conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
-        YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
-    conf.setInt(YarnConfiguration.MAX_CLUSTER_LEVEL_APPLICATION_PRIORITY, 10);
-    final DrainDispatcher dispatcher = new DrainDispatcher();
+    FileSystem fs;
+    Path tmpDir;
+    fs = FileSystem.get(conf);
+    tmpDir = new Path(new File("target", this.getClass().getSimpleName()
+        + "-tmpDir").getAbsolutePath());
+    fs.delete(tmpDir, true);
+    fs.mkdirs(tmpDir);
+    try {
+      conf.set(YarnConfiguration.FS_RM_STATE_STORE_URI, tmpDir.toString());
+      conf.set(YarnConfiguration.RM_STORE, FileSystemRMStateStore.class.getName());
+      conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
+          YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
+      conf.setInt(YarnConfiguration.MAX_CLUSTER_LEVEL_APPLICATION_PRIORITY, 10);
 
-    MemoryRMStateStore memStore = new MemoryRMStateStore();
-    memStore.init(conf);
 
-    MockRM rm1 = new MockRM(conf, memStore) {
-      @Override
-      protected Dispatcher createDispatcher() {
-        return dispatcher;
-      }
-    };
-    rm1.start();
+      MockRM rm1 = new MockRM(conf) {
+        @Override
+        protected Dispatcher createDispatcher() {
+          return new DrainDispatcher();
+        }
+      };
+      rm1.start();
 
-    MockNM nm1 =
-        new MockNM("127.0.0.1:1234", 16384, rm1.getResourceTrackerService());
-    nm1.registerNode();
+      MockNM nm1 = new MockNM("127.0.0.1:1234", 16384, rm1.getResourceTrackerService());
+      nm1.registerNode();
 
-    dispatcher.await();
+      ((DrainDispatcher)rm1.getRMContext().getDispatcher()).await();
 
-    ResourceScheduler scheduler = rm1.getRMContext().getScheduler();
-    LeafQueue defaultQueue =
-        (LeafQueue) ((CapacityScheduler) scheduler).getQueue("default");
-    int memory = (int) (defaultQueue.getAMResourceLimit().getMemorySize() / 2);
+      ResourceScheduler scheduler = rm1.getRMContext().getScheduler();
+      LeafQueue defaultQueue = (LeafQueue) ((CapacityScheduler) scheduler).getQueue("default");
+      int memory = (int) (defaultQueue.getAMResourceLimit().getMemorySize() / 2);
 
-    // App-1 with priority 5 submitted and running
-    Priority appPriority1 = Priority.newInstance(5);
-    RMApp app1 = rm1.submitApp(memory, appPriority1);
-    MockAM am1 = MockRM.launchAM(app1, rm1, nm1);
-    am1.registerAppAttempt();
+      // App-1 with priority 5 submitted and running
+      Priority appPriority1 = Priority.newInstance(5);
+      RMApp app1 = rm1.submitApp(memory, appPriority1);
+      MockAM am1 = MockRM.launchAM(app1, rm1, nm1);
+      am1.registerAppAttempt();
 
-    // App-2 with priority 6 submitted and running
-    Priority appPriority2 = Priority.newInstance(6);
-    RMApp app2 = rm1.submitApp(memory, appPriority2);
-    MockAM am2 = MockRM.launchAM(app2, rm1, nm1);
-    am2.registerAppAttempt();
+      // App-2 with priority 6 submitted and running
+      Priority appPriority2 = Priority.newInstance(6);
+      RMApp app2 = rm1.submitApp(memory, appPriority2);
+      MockAM am2 = MockRM.launchAM(app2, rm1, nm1);
+      am2.registerAppAttempt();
 
-    dispatcher.await();
-    Assert.assertEquals(2, defaultQueue.getNumActiveApplications());
-    Assert.assertEquals(0, defaultQueue.getNumPendingApplications());
+      ((DrainDispatcher)rm1.getRMContext().getDispatcher()).await();
+      Assert.assertEquals(2, defaultQueue.getNumActiveApplications());
+      Assert.assertEquals(0, defaultQueue.getNumPendingApplications());
 
-    // App-3 with priority 7 submitted and scheduled. But not activated since
-    // AMResourceLimit threshold
-    Priority appPriority3 = Priority.newInstance(7);
-    RMApp app3 = rm1.submitApp(memory, appPriority3);
+      // App-3 with priority 7 submitted and scheduled. But not activated since
+      // AMResourceLimit threshold
+      Priority appPriority3 = Priority.newInstance(7);
+      RMApp app3 = rm1.submitApp(memory, appPriority3);
 
-    dispatcher.await();
-    Assert.assertEquals(2, defaultQueue.getNumActiveApplications());
-    Assert.assertEquals(1, defaultQueue.getNumPendingApplications());
+      ((DrainDispatcher)rm1.getRMContext().getDispatcher()).await();
+      Assert.assertEquals(2, defaultQueue.getNumActiveApplications());
+      Assert.assertEquals(1, defaultQueue.getNumPendingApplications());
 
-    Iterator<FiCaSchedulerApp> iterator =
+      Iterator<FiCaSchedulerApp> iterator =
         defaultQueue.getOrderingPolicy().getSchedulableEntities().iterator();
-    FiCaSchedulerApp fcApp2 = iterator.next();
-    Assert.assertEquals(app2.getCurrentAppAttempt().getAppAttemptId(),
-        fcApp2.getApplicationAttemptId());
+      FiCaSchedulerApp fcApp2 = iterator.next();
+      Assert.assertEquals(app2.getCurrentAppAttempt().getAppAttemptId(),
+          fcApp2.getApplicationAttemptId());
 
-    FiCaSchedulerApp fcApp1 = iterator.next();
-    Assert.assertEquals(app1.getCurrentAppAttempt().getAppAttemptId(),
-        fcApp1.getApplicationAttemptId());
+      FiCaSchedulerApp fcApp1 = iterator.next();
+      Assert.assertEquals(app1.getCurrentAppAttempt().getAppAttemptId(),
+          fcApp1.getApplicationAttemptId());
 
-    iterator = defaultQueue.getPendingApplications().iterator();
-    FiCaSchedulerApp fcApp3 = iterator.next();
-    Assert.assertEquals(app3.getCurrentAppAttempt().getAppAttemptId(),
-        fcApp3.getApplicationAttemptId());
+      iterator = defaultQueue.getPendingApplications().iterator();
+      FiCaSchedulerApp fcApp3 = iterator.next();
+      Assert.assertEquals(app3.getCurrentAppAttempt().getAppAttemptId(),
+          fcApp3.getApplicationAttemptId());
 
-    final DrainDispatcher dispatcher1 = new DrainDispatcher();
-    // create new RM to represent restart and recover state
-    MockRM rm2 = new MockRM(conf, memStore) {
-      @Override
-      protected Dispatcher createDispatcher() {
-        return dispatcher1;
-      }
-    };
+      // create new RM to represent restart and recover state
+      MockRM rm2 = new MockRM(conf) {
+        @Override
+        protected Dispatcher createDispatcher() {
+          return new DrainDispatcher();
+        }
+      };
 
-    // start new RM
-    rm2.start();
-    // change NM to point to new RM
-    nm1.setResourceTrackerService(rm2.getResourceTrackerService());
+      // start new RM
+      rm2.start();
+      // change NM to point to new RM
+      nm1.setResourceTrackerService(rm2.getResourceTrackerService());
 
-    // Verify RM Apps after this restart
-    Assert.assertEquals(3, rm2.getRMContext().getRMApps().size());
+      // Verify RM Apps after this restart
+      Assert.assertEquals(3, rm2.getRMContext().getRMApps().size());
 
-    dispatcher1.await();
-    scheduler = rm2.getRMContext().getScheduler();
-    defaultQueue =
+      ((DrainDispatcher)rm2.getRMContext().getDispatcher()).await();
+      scheduler = rm2.getRMContext().getScheduler();
+      defaultQueue =
         (LeafQueue) ((CapacityScheduler) scheduler).getQueue("default");
 
-    // wait for all applications to get added to scheduler
-    int count = 50;
-    while (count-- > 0) {
-      if (defaultQueue.getNumPendingApplications() == 3) {
-        break;
+      // wait for all applications to get added to scheduler
+      int count = 50;
+      while (count-- > 0) {
+        if (defaultQueue.getNumPendingApplications() == 3) {
+          break;
+        }
+        Thread.sleep(50);
       }
-      Thread.sleep(50);
-    }
 
-    // Before NM registration, AMResourceLimit threshold is 0. So no
-    // applications get activated.
-    Assert.assertEquals(0, defaultQueue.getNumActiveApplications());
-    Assert.assertEquals(3, defaultQueue.getNumPendingApplications());
+      // Before NM registration, AMResourceLimit threshold is 0. So no
+      // applications get activated.
+      Assert.assertEquals(0, defaultQueue.getNumActiveApplications());
+      Assert.assertEquals(3, defaultQueue.getNumPendingApplications());
 
-    // NM resync to new RM
-    nm1.registerNode();
-    dispatcher1.await();
+      // NM resync to new RM
+      nm1.registerNode();
+      ((DrainDispatcher)rm2.getRMContext().getDispatcher()).await();
 
-    // wait for activating applications
-    count = 50;
-    while (count-- > 0) {
-      if (defaultQueue.getNumActiveApplications() == 2) {
-        break;
+      // wait for activating applications
+      count = 50;
+      while (count-- > 0) {
+        if (defaultQueue.getNumActiveApplications() == 2) {
+          break;
+        }
+        Thread.sleep(50);
       }
-      Thread.sleep(50);
-    }
 
-    Assert.assertEquals(2, defaultQueue.getNumActiveApplications());
-    Assert.assertEquals(1, defaultQueue.getNumPendingApplications());
+      Assert.assertEquals(2, defaultQueue.getNumActiveApplications());
+      Assert.assertEquals(1, defaultQueue.getNumPendingApplications());
 
-    // verify for order of activated applications iterator
-    iterator =
+      // verify for order of activated applications iterator
+      iterator =
         defaultQueue.getOrderingPolicy().getSchedulableEntities().iterator();
-    fcApp2 = iterator.next();
-    Assert.assertEquals(app2.getCurrentAppAttempt().getAppAttemptId(),
-        fcApp2.getApplicationAttemptId());
+      fcApp2 = iterator.next();
+      Assert.assertEquals(app2.getCurrentAppAttempt().getAppAttemptId(),
+          fcApp2.getApplicationAttemptId());
 
-    fcApp1 = iterator.next();
-    Assert.assertEquals(app1.getCurrentAppAttempt().getAppAttemptId(),
-        fcApp1.getApplicationAttemptId());
+      fcApp1 = iterator.next();
+      Assert.assertEquals(app1.getCurrentAppAttempt().getAppAttemptId(),
+          fcApp1.getApplicationAttemptId());
 
-    // verify for pending application iterator. It should be app-3 attempt
-    iterator = defaultQueue.getPendingApplications().iterator();
-    fcApp3 = iterator.next();
-    Assert.assertEquals(app3.getCurrentAppAttempt().getAppAttemptId(),
-        fcApp3.getApplicationAttemptId());
+      // verify for pending application iterator. It should be app-3 attempt
+      iterator = defaultQueue.getPendingApplications().iterator();
+      fcApp3 = iterator.next();
+      Assert.assertEquals(app3.getCurrentAppAttempt().getAppAttemptId(),
+          fcApp3.getApplicationAttemptId());
 
-    rm2.stop();
-    rm1.stop();
+      rm2.stop();
+      rm1.stop();
+    } finally {
+      fs.delete(tmpDir, true);
+    }
   }
 
   @Test(timeout = 120000)

@@ -600,7 +600,7 @@ public class TestRM extends ParameterizedSchedulerTestBase {
       }
     };*/
 
-    MockRM rm = new MockRM(conf) {
+    final MockRM rm = new MockRM(conf) {
       @Override
       protected Dispatcher createDispatcher() {
         return new AsyncDispatcher() {
@@ -629,7 +629,7 @@ public class TestRM extends ParameterizedSchedulerTestBase {
     };
     Assume.assumeFalse(rm.getResourceScheduler() instanceof FairScheduler);
     // test metrics
-    final QueueMetrics metrics = rm.getResourceScheduler().getRootQueueMetrics();
+    QueueMetrics metrics = rm.getResourceScheduler().getRootQueueMetrics();
     final int appsKilled = metrics.getAppsKilled();
     final int appsSubmitted = metrics.getAppsSubmitted();
 
@@ -672,10 +672,12 @@ public class TestRM extends ParameterizedSchedulerTestBase {
     GenericTestUtils.waitFor(new Supplier<Boolean>() {
       @Override
       public Boolean get() {
+        QueueMetrics metrics = rm.getResourceScheduler().getRootQueueMetrics();
         return appsKilled + 1 == metrics.getAppsKilled()
             && appsSubmitted + 1 == metrics.getAppsSubmitted();
       }
     }, 100, 10000);
+    metrics = rm.getResourceScheduler().getRootQueueMetrics();
     Assert.assertEquals(appsKilled + 1, metrics.getAppsKilled());
     Assert.assertEquals(appsSubmitted + 1, metrics.getAppsSubmitted());
   }

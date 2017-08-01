@@ -39,6 +39,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableSet;
+import io.hops.util.DBUtility;
+import io.hops.util.RMStorageFactory;
+import io.hops.util.YarnAPIStorageFactory;
 
 public class TestQueueParsing {
 
@@ -924,6 +927,9 @@ public class TestQueueParsing {
     conf.setCapacityByLabel(A, "x", 100);
     conf.setCapacityByLabel(A, "y", 100);
     conf.setCapacityByLabel(A, "z", 70);
+    RMStorageFactory.setConfiguration(conf);
+    YarnAPIStorageFactory.setConfiguration(conf);
+    DBUtility.InitializeDB();
     MockRM rm = null;
     try {
       rm = new MockRM(conf) {

@@ -65,7 +65,7 @@ import org.junit.Test;
 public class TestRMDelegationTokens {
 
   private YarnConfiguration conf;
-
+  
   private FileSystem fs;
   private Path tmpDir;
   
@@ -78,6 +78,7 @@ public class TestRMDelegationTokens {
     YarnAPIStorageFactory.setConfiguration(conf);
     RMStorageFactory.setConfiguration(conf);
     DBUtility.InitializeDB();
+    UserGroupInformation.setLoginUser(null);
     UserGroupInformation.setConfiguration(conf);
     fs = FileSystem.get(conf);
     tmpDir = new Path(new File("target", this.getClass().getSimpleName()
@@ -87,26 +88,15 @@ public class TestRMDelegationTokens {
     conf.setBoolean(YarnConfiguration.RECOVERY_ENABLED, true);
     conf.set(YarnConfiguration.FS_RM_STATE_STORE_URI,tmpDir.toString());
     conf.set(YarnConfiguration.RM_STORE, FileSystemRMStateStore.class.getName());
-    conf.set(YarnConfiguration.RM_SCHEDULER, FairScheduler.class.getName());
-  }
-
-    @After
-  public void tearDown() throws IOException {
-    fs.delete(tmpDir, true);
   }
   
   // Test the DT mast key in the state-store when the mast key is being rolled.
-  @Test(timeout = 15000)
+  @Test(timeout = 1500000)
   public void testRMDTMasterKeyStateOnRollingMasterKey() throws Exception {
     Configuration conf = new Configuration(this.conf);
     conf.set("hadoop.security.authentication", "kerberos");
+    UserGroupInformation.setLoginUser(null);
     UserGroupInformation.setConfiguration(conf);
-    MemoryRMStateStore memStore = new MemoryRMStateStore();
-    memStore.init(conf);
-    RMState rmState = memStore.getState();
-
-    Set<DelegationKey> rmDTMasterKeyState =
-        rmState.getRMDTSecretManagerState().getMasterKeyState();
 
     MockRM rm1 = new MyMockRM(conf);
     rm1.start();
@@ -118,7 +108,20 @@ public class TestRMDelegationTokens {
     RMDelegationTokenSecretManager dtSecretManager =
         rm1.getRMContext().getRMDelegationTokenSecretManager();
     // assert all master keys are saved
-    Assert.assertEquals(dtSecretManager.getAllMasterKeys(), rmDTMasterKeyState);
+    RMState rmState = rm1.getRMContext().getStateStore().loadState();
+    Set<DelegationKey> rmDTMasterKeyState =
+        rmState.getRMDTSecretManagerState().getMasterKeyState();
+    for(DelegationKey expectedKey:dtSecretManager.getAllMasterKeys()){
+      boolean foundIt=false;
+      for(DelegationKey gotKey:rmDTMasterKeyState){
+        if(expectedKey.getKeyId()== gotKey.getKeyId() &&
+                Arrays.equals(expectedKey.getEncodedKey(),gotKey.getEncodedKey())){
+          foundIt=true;
+          break;
+        }
+      }
+      Assert.assertTrue(foundIt);
+    }
 
     // request to generate a RMDelegationToken
     GetDelegationTokenRequest request = mock(GetDelegationTokenRequest.class);
