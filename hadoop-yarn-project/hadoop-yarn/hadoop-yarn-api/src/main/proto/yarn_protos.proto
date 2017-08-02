@@ -185,6 +185,7 @@ message ApplicationResourceUsageReportProto {
   optional float cluster_usage_percentage = 10;
   optional int64 preempted_memory_seconds = 11;
   optional int64 preempted_vcore_seconds = 12;
+  optional int64 preempted_gpu_seconds = 13;
 }
 
 message ApplicationReportProto {
@@ -411,9 +412,13 @@ message QueueStatisticsProto {
   optional int64 allocatedVCores = 13;
   optional int64 pendingVCores = 14;
   optional int64 reservedVCores = 15;
-  optional int64 allocatedContainers = 16;
-  optional int64 pendingContainers = 17;
-  optional int64 reservedContainers = 18;
+  optional int64 availableGPUs = 16;
+  optional int64 allocatedGPUs = 17;
+  optional int64 pendingGPUs = 18;
+  optional int64 reservedGPUs = 19;
+  optional int64 allocatedContainers = 20;
+  optional int64 pendingContainers = 21;
+  optional int64 reservedContainers = 22;
 }
 
 message QueueInfoProto {

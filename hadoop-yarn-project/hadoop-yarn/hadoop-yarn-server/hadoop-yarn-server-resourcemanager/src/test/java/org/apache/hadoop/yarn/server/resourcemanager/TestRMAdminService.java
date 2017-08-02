@@ -348,7 +348,7 @@ public class TestRMAdminService {
 
   @Test
   public void testResourcePersistentForNMRegistrationWithNewResource()
-      throws IOException, YarnException {
+      throws IOException, YarnException, InterruptedException {
     configuration.set(YarnConfiguration.RM_CONFIGURATION_PROVIDER_CLASS,
         "org.apache.hadoop.yarn.FileSystemBasedConfigurationProvider");
 
@@ -372,7 +372,7 @@ public class TestRMAdminService {
     DynamicResourceConfiguration drConf =
         new DynamicResourceConfiguration();
     drConf.set("yarn.resource.dynamic.nodes", "h1:1234");
-    drConf.set("yarn.resource.dynamic.h1:1234.vcores", "4");
+    drConf.set("yarn.resource.dynamic.h1:1234.vcores", "6");
     drConf.set("yarn.resource.dynamic.h1:1234.memory", "4096");
     uploadConfiguration(drConf, "dynamic-resources.xml");
 
@@ -389,7 +389,7 @@ public class TestRMAdminService {
 
     RMNode niAfter = rm.getRMContext().getRMNodes().get(nid);
     Resource resourceAfter = niAfter.getTotalCapability();
-    Assert.assertEquals("<memory:4096, vCores:4, gpus:0>", resourceAfter.toString());
+    Assert.assertEquals("<memory:4096, vCores:6, gpus:0>", resourceAfter.toString());
 
     // Replace original dr file with an empty dr file, and validate node
     // registration with new resources will take effective now.
@@ -407,7 +407,7 @@ public class TestRMAdminService {
     } catch (Exception ex) {
       fail("Should not get any exceptions");
     }
-
+    Thread.sleep(500);
     niAfter = rm.getRMContext().getRMNodes().get(nid);
     resourceAfter = niAfter.getTotalCapability();
     // new resource in registration should take effective as we empty

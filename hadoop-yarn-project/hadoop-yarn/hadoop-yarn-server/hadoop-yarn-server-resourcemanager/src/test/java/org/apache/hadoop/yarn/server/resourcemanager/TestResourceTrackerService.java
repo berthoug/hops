@@ -94,6 +94,7 @@ import org.apache.hadoop.yarn.util.Records;
 import org.apache.hadoop.yarn.util.YarnVersionInfo;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 public class TestResourceTrackerService extends NodeLabelTestBase {
@@ -103,6 +104,13 @@ public class TestResourceTrackerService extends NodeLabelTestBase {
   private final File hostFile = new File(TEMP_DIR + File.separator + "hostFile.txt");
   private MockRM rm;
 
+  @Before
+  public void setup() throws IOException{
+    Configuration conf = new YarnConfiguration();
+    RMStorageFactory.setConfiguration(conf);
+    YarnAPIStorageFactory.setConfiguration(conf);
+    DBUtility.InitializeDB();
+  }
   /**
    * Test RM read NM next heartBeat Interval correctly from Configuration file,
    * and NM get next heartBeat Interval from RM correctly
@@ -870,9 +878,6 @@ public class TestResourceTrackerService extends NodeLabelTestBase {
     conf.set(YarnConfiguration.RM_NODES_INCLUDE_FILE_PATH, hostFile
         .getAbsolutePath());
     conf.setBoolean(YarnConfiguration.DISTRIBUTED_RM, true);
-    RMStorageFactory.setConfiguration(conf);
-    YarnAPIStorageFactory.setConfiguration(conf);
-    DBUtility.InitializeDB();
     
     rm = new MockRM(conf);
     rm.start();

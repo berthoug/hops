@@ -66,6 +66,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.sun.jersey.api.client.ClientResponse.Status;
+import io.hops.util.DBUtility;
+import io.hops.util.RMStorageFactory;
+import io.hops.util.YarnAPIStorageFactory;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -98,6 +101,10 @@ public class TestRMWebServicesDelegationTokenAuthentication {
   @BeforeClass
   public static void setUp() {
     try {
+      YarnConfiguration conf = new YarnConfiguration();
+      RMStorageFactory.setConfiguration(conf);
+      YarnAPIStorageFactory.setConfiguration(conf);
+      DBUtility.InitializeDB();
       testMiniKDC = new MiniKdc(MiniKdc.createConf(), testRootDir);
       setupKDC();
       setupAndStartRM();

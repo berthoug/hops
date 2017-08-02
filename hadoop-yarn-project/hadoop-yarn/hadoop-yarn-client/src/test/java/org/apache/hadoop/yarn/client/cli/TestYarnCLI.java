@@ -146,7 +146,7 @@ public class TestYarnCLI {
       pw.println("\tAggregate Resource Allocation : " +
           (i == 0 ? "N/A" : "123456 MB-seconds, 4567 vcore-seconds, 4567 gpu-seconds"));
       pw.println("\tAggregate Resource Preempted : " +
-          (i == 0 ? "N/A" : "1111 MB-seconds, 2222 vcore-seconds, 2222 gpu-seconds"));
+          (i == 0 ? "N/A" : "1111 MB-seconds, 2222 vcore-seconds, 0 gpu-seconds"));
       pw.println("\tLog Aggregation Status : SUCCEEDED");
       pw.println("\tDiagnostics : diagnostics");
       pw.println("\tUnmanaged Application : false");
@@ -154,6 +154,7 @@ public class TestYarnCLI {
       pw.println("\tAM container Node Label Expression : high-mem");
       pw.close();
       String appReportStr = baos.toString("UTF-8");
+      String out = sysOutStream.toString();
       Assert.assertEquals(appReportStr, sysOutStream.toString());
       sysOutStream.reset();
       verify(sysOut, times(1 + i)).println(isA(String.class));
@@ -1105,16 +1106,16 @@ public class TestYarnCLI {
     pw.print("         host0:0\t        RUNNING\t       host1:8888\t");
     pw.println("                           0");
     pw.println("Detailed Node Information :");
-    pw.println("\tConfigured Resources : <memory:0, vCores:0>");
-    pw.println("\tAllocated Resources : <memory:0, vCores:0>");
+    pw.println("\tConfigured Resources : <memory:0, vCores:0, gpus:0>");
+    pw.println("\tAllocated Resources : <memory:0, vCores:0, gpus:0>");
     pw.println("\tResource Utilization by Node : PMem:2048 MB, VMem:4096 MB, VCores:8.0");
     pw.println("\tResource Utilization by Containers : PMem:1024 MB, VMem:2048 MB, VCores:4.0");
     pw.println("\tNode-Labels : ");
     pw.print("         host1:0\t        RUNNING\t       host1:8888\t");
     pw.println("                           0");
     pw.println("Detailed Node Information :");
-    pw.println("\tConfigured Resources : <memory:0, vCores:0>");
-    pw.println("\tAllocated Resources : <memory:0, vCores:0>");
+    pw.println("\tConfigured Resources : <memory:0, vCores:0, gpus:0>");
+    pw.println("\tAllocated Resources : <memory:0, vCores:0, gpus:0>");
     pw.println("\tResource Utilization by Node : PMem:2048 MB, VMem:4096 MB, VCores:8.0");
     pw.println("\tResource Utilization by Containers : PMem:1024 MB, VMem:2048 MB, VCores:4.0");
     pw.println("\tNode-Labels : ");
@@ -1396,6 +1397,8 @@ public class TestYarnCLI {
     pw.println("\tMemory-Capacity : 0MB");
     pw.println("\tCPU-Used : 0 vcores");
     pw.println("\tCPU-Capacity : 0 vcores");
+    pw.println("\tGPU-Used : 0 gpus");
+    pw.println("\tGPU-Capacity : 0 gpus");
     pw.println("\tNode-Labels : a,b,c,x,y,z");
     pw.println("\tResource Utilization by Node : ");
     pw.println("\tResource Utilization by Containers : ");

@@ -184,9 +184,10 @@ public class TestRMWebServiceAppsNodelabel extends JerseyTestBase {
   @Test
   public void testAppsRunning() throws JSONException, Exception {
     rm.start();
+    rm.getRMContext().setNodeLabelManager(nodeLabelManager);
     MockNM nm1 = rm.registerNode("h1:1234", 2048);
     MockNM nm2 = rm.registerNode("h2:1235", 2048);
-
+  
     nodeLabelManager.addLabelsToNode(
         ImmutableMap.of(NodeId.newInstance("h2", 1235), toSet("X")));
 
@@ -215,17 +216,17 @@ public class TestRMWebServiceAppsNodelabel extends JerseyTestBase {
 
     // Default partition resource
     JSONObject defaultPartition = jsonArray.getJSONObject(0);
-    verifyResource(defaultPartition, "", getResource(1024, 1),
-        getResource(1024, 1), getResource(0, 0));
+    verifyResource(defaultPartition, "", getResource(1024, 1, 0),
+        getResource(1024, 1, 0), getResource(0, 0, 0));
     // verify resource used for parition x
     JSONObject paritionX = jsonArray.getJSONObject(1);
-    verifyResource(paritionX, "X", getResource(0, 0), getResource(1024, 1),
-        getResource(0, 0));
+    verifyResource(paritionX, "X", getResource(0, 0, 0), getResource(1024, 1, 0),
+        getResource(0, 0, 0));
     rm.stop();
   }
 
-  private String getResource(int memory, int vcore) {
-    return "{\"memory\":" + memory + ",\"vCores\":" + vcore + "}";
+  private String getResource(int memory, int vcore, int gpu) {
+    return "{\"memory\":" + memory + ",\"vCores\":" + vcore + ",\"gpus\":" + gpu + "}";
   }
 
   private void verifyResource(JSONObject partition, String partitionName,

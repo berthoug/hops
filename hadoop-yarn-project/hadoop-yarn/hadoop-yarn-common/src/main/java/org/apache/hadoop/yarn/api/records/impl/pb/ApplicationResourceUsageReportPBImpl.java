@@ -266,16 +266,16 @@ extends ApplicationResourceUsageReport {
 
   @Override
   public synchronized void setPreemptedGPUSeconds(
-      long vcoreSeconds) {
+      long gpuSeconds) {
     maybeInitBuilder();
-    builder.setPreemptedVcoreSeconds(vcoreSeconds);
+    builder.setPreemptedGpuSeconds(gpuSeconds);
   }
 
   @Override
   public synchronized long getPreemptedGPUSeconds() {
     ApplicationResourceUsageReportProtoOrBuilder p =
         viaProto ? proto : builder;
-    return (p.getPreemptedVcoreSeconds());
+    return (p.getPreemptedGpuSeconds());
   }
 
   private ResourcePBImpl convertFromProtoFormat(ResourceProto p) {

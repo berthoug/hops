@@ -64,7 +64,6 @@ public class TestRMNMSecretKeys {
   private void validateRMNMKeyExchange(YarnConfiguration conf) throws Exception {
     // Default rolling and activation intervals are large enough, no need to
     // intervene
-    final DrainDispatcher dispatcher = new DrainDispatcher();
     ResourceManager rm = new ResourceManager() {
 
       @Override
@@ -74,7 +73,7 @@ public class TestRMNMSecretKeys {
 
       @Override
       protected Dispatcher createDispatcher() {
-        return dispatcher;
+        return new DrainDispatcher();
       }
       @Override
       protected void startWepApp() {
@@ -99,7 +98,7 @@ public class TestRMNMSecretKeys {
     Assert.assertNotNull(nmToken
         + "Registration should cause a key-update!", nmTokenMasterKey);
     
-    dispatcher.await();
+    ((DrainDispatcher)rm.getRMContext().getDispatcher()).await();
 
     NodeHeartbeatResponse response = nm.nodeHeartbeat(true);
     Assert.assertNull(containerToken +
@@ -108,7 +107,7 @@ public class TestRMNMSecretKeys {
     Assert.assertNull(nmToken +
         "First heartbeat after registration shouldn't get any key updates!",
         response.getNMTokenMasterKey());
-    dispatcher.await();
+    ((DrainDispatcher)rm.getRMContext().getDispatcher()).await();
 
     response = nm.nodeHeartbeat(true);
     Assert.assertNull(containerToken +
@@ -118,7 +117,7 @@ public class TestRMNMSecretKeys {
         "Even second heartbeat after registration shouldn't get any key updates!",
         response.getContainerTokenMasterKey());
     
-    dispatcher.await();
+    ((DrainDispatcher)rm.getRMContext().getDispatcher()).await();
 
     // Let's force a roll-over
     rm.getRMContext().getContainerTokenSecretManager().rollMasterKey();
@@ -141,7 +140,7 @@ public class TestRMNMSecretKeys {
         "Roll-over should have incremented the key-id only by one!",
         nmTokenMasterKey.getKeyId() + 1,
         response.getNMTokenMasterKey().getKeyId());
-    dispatcher.await();
+    ((DrainDispatcher)rm.getRMContext().getDispatcher()).await();
 
     response = nm.nodeHeartbeat(true);
     Assert.assertNull(containerToken +
@@ -150,7 +149,7 @@ public class TestRMNMSecretKeys {
     Assert.assertNull(nmToken +
         "Second heartbeat after roll-over shouldn't get any key updates!",
         response.getNMTokenMasterKey());
-    dispatcher.await();
+    ((DrainDispatcher)rm.getRMContext().getDispatcher()).await();
 
     // Let's force activation
     rm.getRMContext().getContainerTokenSecretManager().activateNextMasterKey();
@@ -163,7 +162,7 @@ public class TestRMNMSecretKeys {
     Assert.assertNull(nmToken
         + "Activation shouldn't cause any key updates!",
         response.getNMTokenMasterKey());
-    dispatcher.await();
+    ((DrainDispatcher)rm.getRMContext().getDispatcher()).await();
 
     response = nm.nodeHeartbeat(true);
     Assert.assertNull(containerToken +
@@ -172,7 +171,7 @@ public class TestRMNMSecretKeys {
     Assert.assertNull(nmToken +
         "Even second heartbeat after activation shouldn't get any key updates!",
         response.getNMTokenMasterKey());
-    dispatcher.await();
+    ((DrainDispatcher)rm.getRMContext().getDispatcher()).await();
 
     rm.stop();
   }
