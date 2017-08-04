@@ -51,7 +51,7 @@ public class TestReduceFetchFromPartialMem {
     Configuration conf = new Configuration();
     dfsCluster = new MiniDFSCluster.Builder(conf).numDataNodes(2).build();
     mrCluster = new MiniMRCluster(2,
-      dfsCluster.getFileSystem().getUri().toString(), 1);
+      dfsCluster.getFileSystem().getUri().toString(), 1, false);
   }
 
   @After

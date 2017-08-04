@@ -21,6 +21,7 @@ package org.apache.hadoop.yarn.server;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,6 +36,7 @@ import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.ha.HAServiceProtocol;
 import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
+import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.service.CompositeService;
@@ -326,9 +328,9 @@ public class MiniYARNCluster extends CompositeService {
 
   private void setHARMConfigurationWithEphemeralPorts(final int index, Configuration conf) {
     String hostname = MiniYARNCluster.getHostname();
-      for (String confKey : YarnConfiguration.getServiceAddressConfKeys(conf)) {
-        conf.set(HAUtil.addSuffix(confKey, rmIds[index]), hostname + ":0");
-      }
+    for (String confKey : YarnConfiguration.getServiceAddressConfKeys(conf)) {
+      conf.set(HAUtil.addSuffix(confKey, rmIds[index]), hostname + ":0");
+    }
   }
 
   private synchronized void initResourceManager(int index, Configuration conf) {
@@ -354,10 +356,6 @@ public class MiniYARNCluster extends CompositeService {
 
   private synchronized void startResourceManager(final int index) {
     try {
-      Configuration conf = getConfig();
-      if (HAUtil.isHAEnabled(conf)) {
-        conf.set(YarnConfiguration.RM_HA_ID, rmIds[index]);
-      }
       resourceManagers[index].start();
       if (resourceManagers[index].getServiceState() != STATE.STARTED) {
         // RM could have failed.
@@ -394,16 +392,6 @@ public class MiniYARNCluster extends CompositeService {
     }
     resourceManagers[index] = new ResourceManager();
     initResourceManager(index, getConfig());
-    startResourceManager(index);
-  }
-
-  public synchronized void initAndStartResourceManager(int index) throws InterruptedException {
-    if (resourceManagers[index] != null) {
-      return;
-    }
-    Configuration conf = getConfig();
-    resourceManagers[index] = new ResourceManager();
-    initResourceManager(index, conf);
     startResourceManager(index);
   }
 
@@ -472,7 +460,16 @@ public class MiniYARNCluster extends CompositeService {
 
   public static String getHostname() {
     try {
-      return InetAddress.getLocalHost().getHostName();
+      String hostname = InetAddress.getLocalHost().getHostName();
+      // Create InetSocketAddress to see whether it is resolved or not.
+      // If not, just return "localhost".
+      InetSocketAddress addr =
+          NetUtils.createSocketAddrForHost(hostname, 1);
+      if (addr.isUnresolved()) {
+        return "localhost";
+      } else {
+        return hostname;
+      }
     }
     catch (UnknownHostException ex) {
       throw new RuntimeException(ex);

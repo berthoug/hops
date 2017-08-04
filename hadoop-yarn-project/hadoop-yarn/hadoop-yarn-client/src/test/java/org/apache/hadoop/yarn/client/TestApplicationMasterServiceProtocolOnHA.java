@@ -43,27 +43,18 @@ import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-@RunWith(Parameterized.class)
+
 public class TestApplicationMasterServiceProtocolOnHA
     extends ProtocolHATestBase {
   private ApplicationMasterProtocol amClient;
   private ApplicationAttemptId attemptId ;
-  private HA_MODE haMode = HA_MODE.MANUAL_HA;
-
-  public TestApplicationMasterServiceProtocolOnHA(HA_MODE haMode) {
-    this.haMode = haMode;
-  }
 
   @Before
   public void initialize() throws Exception {
-    startHACluster(0, false, false, true, true, haMode);
+    startHACluster(0, false, false, true, true);
     attemptId = this.cluster.createFakeApplicationAttemptId();
-    amClient = ClientRMProxy
-        .createRMProxy(this.conf, ApplicationMasterProtocol.class, true);
-
+    
     appToken =
         this.cluster.getResourceManager().getRMContext()
           .getAMRMTokenSecretManager().createAndGetAMRMToken(attemptId);
@@ -71,11 +62,11 @@ public class TestApplicationMasterServiceProtocolOnHA
     UserGroupInformation.setLoginUser(UserGroupInformation
         .createRemoteUser(UserGroupInformation.getCurrentUser().getUserName()));
     UserGroupInformation.getCurrentUser().addToken(appToken);
-    // In AUTO_HA mode we sync the token in startCluster, before performing
-    // the first failover
-    if (haMode.equals(HA_MODE.MANUAL_HA)) {
-      syncToken(appToken);
-    }
+    syncToken(appToken);
+    
+    amClient = ClientRMProxy
+        .createRMProxy(this.conf, ApplicationMasterProtocol.class, true);
+
   }
 
   @After

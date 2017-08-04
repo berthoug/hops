@@ -148,6 +148,10 @@ import com.google.common.base.Supplier;
 import io.hops.util.DBUtility;
 import io.hops.util.RMStorageFactory;
 import io.hops.util.YarnAPIStorageFactory;
+import java.io.File;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.FileSystemRMStateStore;
 import org.mockito.InOrder;
 
 @SuppressWarnings("unchecked")
@@ -157,6 +161,9 @@ public class TestRMContainerAllocator {
       .getLog(TestRMContainerAllocator.class);
   static final RecordFactory recordFactory = RecordFactoryProvider
       .getRecordFactory(null);
+
+  private FileSystem fs;
+  private Path tmpDir;
 
   @Before
   public void setup() throws IOException {
@@ -172,7 +179,10 @@ public class TestRMContainerAllocator {
   }
 
   @After
-  public void tearDown() {
+  public void tearDown() throws IOException {
+    if (fs != null && tmpDir != null) {
+      fs.delete(tmpDir, true);
+    }
     DefaultMetricsSystem.shutdown();
   }
 
@@ -2436,7 +2446,6 @@ public class TestRMContainerAllocator {
 
     Configuration conf = new Configuration();
     conf.set(YarnConfiguration.RECOVERY_ENABLED, "true");
-    conf.set(YarnConfiguration.RM_STORE, MemoryRMStateStore.class.getName());
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
         YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
     conf.setBoolean(YarnConfiguration.RM_WORK_PRESERVING_RECOVERY_ENABLED, true);
@@ -2446,10 +2455,15 @@ public class TestRMContainerAllocator {
     conf.setInt(
         MRJobConfig.MR_AM_IGNORE_BLACKLISTING_BLACKLISTED_NODE_PERECENT, -1);
 
-    MemoryRMStateStore memStore = new MemoryRMStateStore();
-    memStore.init(conf);
+    conf.set(YarnConfiguration.RM_STORE, FileSystemRMStateStore.class.getName());
+    fs = FileSystem.get(conf);
+    tmpDir = new Path(new File("target", this.getClass().getSimpleName()
+            + "-tmpDir").getAbsolutePath());
+    fs.delete(tmpDir, true);
+    fs.mkdirs(tmpDir);
+    conf.set(YarnConfiguration.FS_RM_STATE_STORE_URI, tmpDir.toString());
 
-    MyResourceManager rm1 = new MyResourceManager(conf, memStore);
+    MyResourceManager rm1 = new MyResourceManager(conf, null);
     rm1.start();
     DrainDispatcher dispatcher =
         (DrainDispatcher) rm1.getRMContext().getDispatcher();
@@ -2538,7 +2552,7 @@ public class TestRMContainerAllocator {
     assertBlacklistAdditionsAndRemovals(0, 0, rm1);
 
     // Phase-2 start 2nd RM is up
-    MyResourceManager rm2 = new MyResourceManager(conf, memStore);
+    MyResourceManager rm2 = new MyResourceManager(conf, null);
     rm2.start();
     nm1.setResourceTrackerService(rm2.getResourceTrackerService());
     allocator.updateSchedulerProxy(rm2);

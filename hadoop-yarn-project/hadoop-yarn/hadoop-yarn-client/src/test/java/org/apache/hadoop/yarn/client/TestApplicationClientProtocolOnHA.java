@@ -41,26 +41,17 @@ import org.apache.hadoop.yarn.api.records.YarnClusterMetrics;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Records;
-import org.junit.*;
-import org.junit.rules.TestName;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
-@RunWith(Parameterized.class)
 public class TestApplicationClientProtocolOnHA extends ProtocolHATestBase {
-  @Rule
-  public TestName testName = new TestName();
   private YarnClient client = null;
-  private HA_MODE haMode = HA_MODE.MANUAL_HA;
-
-  public TestApplicationClientProtocolOnHA(HA_MODE haMode) {
-    this.haMode = haMode;
-  }
 
   @Before
   public void initiate() throws Exception {
-    LOG.info(">>> Running test " + testName.getMethodName());
-    startHACluster(1, true, false, false, true, haMode);
+    startHACluster(1, true, false, false, true);
     Configuration conf = new YarnConfiguration(this.conf);
     client = createAndStartYarnClient(conf);
   }
