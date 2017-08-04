@@ -74,7 +74,8 @@ public class NodesListManager extends CompositeService implements
   private Resolver resolver;
   private Timer removalTimer;
   private int nodeRemovalCheckInterval;
-
+  private int nodeRemovalTimeout;
+  
   public NodesListManager(RMContext rmContext) {
     super(NodesListManager.class.getName());
     this.rmContext = rmContext;
@@ -111,7 +112,7 @@ public class NodesListManager extends CompositeService implements
       disableHostsFileReader(ioe);
     }
 
-    final int nodeRemovalTimeout =
+    nodeRemovalTimeout =
         conf.getInt(
             YarnConfiguration.RM_NODEMANAGER_UNTRACKED_REMOVAL_TIMEOUT_MSEC,
             YarnConfiguration.
@@ -120,6 +121,31 @@ public class NodesListManager extends CompositeService implements
         600000));
     removalTimer = new Timer("Node Removal Timer");
 
+    super.serviceInit(conf);
+  }
+
+  private void decrInactiveNMMetrics(RMNode rmNode) {
+    ClusterMetrics clusterMetrics = ClusterMetrics.getMetrics();
+    switch (rmNode.getState()) {
+    case SHUTDOWN:
+      clusterMetrics.decrNumShutdownNMs();
+      break;
+    case DECOMMISSIONED:
+      clusterMetrics.decrDecommisionedNMs();
+      break;
+    case LOST:
+      clusterMetrics.decrNumLostNMs();
+      break;
+    case REBOOTED:
+      clusterMetrics.decrNumRebootedNMs();
+      break;
+    default:
+      LOG.debug("Unexpected node state");
+    }
+  }
+
+  @Override
+  public void serviceStart(){
     removalTimer.schedule(new TimerTask() {
       @Override
       public void run() {
@@ -147,30 +173,8 @@ public class NodesListManager extends CompositeService implements
         }
       }
     }, nodeRemovalCheckInterval, nodeRemovalCheckInterval);
-
-    super.serviceInit(conf);
   }
-
-  private void decrInactiveNMMetrics(RMNode rmNode) {
-    ClusterMetrics clusterMetrics = ClusterMetrics.getMetrics();
-    switch (rmNode.getState()) {
-    case SHUTDOWN:
-      clusterMetrics.decrNumShutdownNMs();
-      break;
-    case DECOMMISSIONED:
-      clusterMetrics.decrDecommisionedNMs();
-      break;
-    case LOST:
-      clusterMetrics.decrNumLostNMs();
-      break;
-    case REBOOTED:
-      clusterMetrics.decrNumRebootedNMs();
-      break;
-    default:
-      LOG.debug("Unexpected node state");
-    }
-  }
-
+  
   @Override
   public void serviceStop() {
     removalTimer.cancel();

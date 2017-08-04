@@ -73,6 +73,7 @@ public class TestPriceMultiplicationFactorService {
     rm.start();
 
     ConsumeSomeResources(rm);
+    Thread.sleep(1000);
     //all the resources are allocated: 1AM and 14 Containers 
     //so cluster utilisation is 1, overpricing is 1-0.2(threshold)=0,8
     //multiplicator is 1+0,8*10(increment factor) = 9

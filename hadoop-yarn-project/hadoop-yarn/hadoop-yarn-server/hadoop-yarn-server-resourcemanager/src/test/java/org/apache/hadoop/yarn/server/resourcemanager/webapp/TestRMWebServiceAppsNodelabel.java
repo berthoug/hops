@@ -75,14 +75,12 @@ public class TestRMWebServiceAppsNodelabel extends JerseyTestBase {
 
   private static final int AM_CONTAINER_MB = 1024;
 
-  private static RMNodeLabelsManager nodeLabelManager;
 
   private static MockRM rm;
   private static CapacitySchedulerConfiguration csConf;
   private static YarnConfiguration conf;
 
   public Injector injector = Guice.createInjector(new ServletModule() {
-    private static final String LABEL_X = "X";
 
     @Override
     protected void configureServlets() {
@@ -99,14 +97,7 @@ public class TestRMWebServiceAppsNodelabel extends JerseyTestBase {
         YarnAPIStorageFactory.setConfiguration(conf);
         DBUtility.InitializeDB();
         rm = new MockRM(conf);
-        Set<NodeLabel> labels = new HashSet<NodeLabel>();
-        labels.add(NodeLabel.newInstance(LABEL_X));
-        try {
-          nodeLabelManager = rm.getRMContext().getNodeLabelManager();
-          nodeLabelManager.addToCluserNodeLabels(labels);
-        } catch (Exception e) {
-          Assert.fail();
-        }
+        
         bind(ResourceManager.class).toInstance(rm);
         serve("/*").with(GuiceContainer.class);
       } catch (IOException ex) {
@@ -184,44 +175,54 @@ public class TestRMWebServiceAppsNodelabel extends JerseyTestBase {
   @Test
   public void testAppsRunning() throws JSONException, Exception {
     rm.start();
-    rm.getRMContext().setNodeLabelManager(nodeLabelManager);
-    MockNM nm1 = rm.registerNode("h1:1234", 2048);
-    MockNM nm2 = rm.registerNode("h2:1235", 2048);
-  
-    nodeLabelManager.addLabelsToNode(
-        ImmutableMap.of(NodeId.newInstance("h2", 1235), toSet("X")));
+    String LABEL_X = "X";
+    RMNodeLabelsManager nodeLabelManager;
+    Set<NodeLabel> labels = new HashSet<NodeLabel>();
+    labels.add(NodeLabel.newInstance(LABEL_X));
+    try {
+      nodeLabelManager = rm.getRMContext().getNodeLabelManager();
+      nodeLabelManager.addToCluserNodeLabels(labels);
+    
+      rm.getRMContext().setNodeLabelManager(nodeLabelManager);
+      MockNM nm1 = rm.registerNode("h1:1234", 2048);
+      MockNM nm2 = rm.registerNode("h2:1235", 2048);
 
-    RMApp app1 = rm.submitApp(AM_CONTAINER_MB, "app", "user", null, "default");
-    MockAM am1 = MockRM.launchAndRegisterAM(app1, rm, nm1);
-    nm1.nodeHeartbeat(true);
+      nodeLabelManager.addLabelsToNode(
+          ImmutableMap.of(NodeId.newInstance("h2", 1235), toSet("X")));
 
-    // AM request for resource in partition X
-    am1.allocate("*", 1024, 1, new ArrayList<ContainerId>(), "X");
-    nm2.nodeHeartbeat(true);
+      RMApp app1 = rm.submitApp(AM_CONTAINER_MB, "app", "user", null, "default");
+      MockAM am1 = MockRM.launchAndRegisterAM(app1, rm, nm1);
+      nm1.nodeHeartbeat(true);
 
-    WebResource r = resource();
+      // AM request for resource in partition X
+      am1.allocate("*", 1024, 1, new ArrayList<ContainerId>(), "X");
+      Thread.sleep(500);
+      nm2.nodeHeartbeat(true);
 
-    ClientResponse response =
-        r.path("ws").path("v1").path("cluster").path("apps")
-            .accept(MediaType.APPLICATION_JSON).get(ClientResponse.class);
-    JSONObject json = response.getEntity(JSONObject.class);
+      WebResource r = resource();
 
-    // Verify apps resource
-    JSONObject apps = json.getJSONObject("apps");
-    assertEquals("incorrect number of elements", 1, apps.length());
-    JSONObject jsonObject =
-        apps.getJSONArray("app").getJSONObject(0).getJSONObject("resourceInfo");
-    JSONArray jsonArray = jsonObject.getJSONArray("resourceUsagesByPartition");
-    assertEquals("Partition expected is 2", 2, jsonArray.length());
+      ClientResponse response = r.path("ws").path("v1").path("cluster").path("apps")
+          .accept(MediaType.APPLICATION_JSON).get(ClientResponse.class);
+      JSONObject json = response.getEntity(JSONObject.class);
 
-    // Default partition resource
-    JSONObject defaultPartition = jsonArray.getJSONObject(0);
-    verifyResource(defaultPartition, "", getResource(1024, 1, 0),
-        getResource(1024, 1, 0), getResource(0, 0, 0));
-    // verify resource used for parition x
-    JSONObject paritionX = jsonArray.getJSONObject(1);
-    verifyResource(paritionX, "X", getResource(0, 0, 0), getResource(1024, 1, 0),
-        getResource(0, 0, 0));
+      // Verify apps resource
+      JSONObject apps = json.getJSONObject("apps");
+      assertEquals("incorrect number of elements", 1, apps.length());
+      JSONObject jsonObject = apps.getJSONArray("app").getJSONObject(0).getJSONObject("resourceInfo");
+      JSONArray jsonArray = jsonObject.getJSONArray("resourceUsagesByPartition");
+      assertEquals("Partition expected is 2", 2, jsonArray.length());
+
+      // Default partition resource
+      JSONObject defaultPartition = jsonArray.getJSONObject(0);
+      verifyResource(defaultPartition, "", getResource(1024, 1, 0),
+          getResource(1024, 1, 0), getResource(0, 0, 0));
+      // verify resource used for parition x
+      JSONObject paritionX = jsonArray.getJSONObject(1);
+      verifyResource(paritionX, "X", getResource(0, 0, 0), getResource(1024, 1, 0),
+          getResource(0, 0, 0));
+    } catch (Exception e) {
+      Assert.fail();
+    }
     rm.stop();
   }
 
