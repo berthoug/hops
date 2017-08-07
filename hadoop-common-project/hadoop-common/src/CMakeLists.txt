@@ -22,42 +22,12 @@
 
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 
-# Default to release builds
-set(CMAKE_BUILD_TYPE, Release)
-include(JNIFlags.cmake NO_POLICY_SCOPE)
-
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/..)
 include(HadoopCommon)
 
+# Source and test locations.
 set(SRC main/native/src/org/apache/hadoop)
 set(TST main/native/src/test/org/apache/hadoop)
-
-# Compile a library with both shared and static variants
-function(add_dual_library LIBNAME)
-    add_library(${LIBNAME} SHARED ${ARGN})
-    add_library(${LIBNAME}_static STATIC ${ARGN})
-    set_target_properties(${LIBNAME}_static PROPERTIES OUTPUT_NAME ${LIBNAME})
-endfunction(add_dual_library)
-
-# Link both a static and a dynamic target against some libraries
-function(target_link_dual_libraries LIBNAME)
-    target_link_libraries(${LIBNAME} ${ARGN})
-    target_link_libraries(${LIBNAME}_static ${ARGN})
-endfunction(target_link_dual_libraries)
-
-function(output_directory TGT DIR)
-    SET_TARGET_PROPERTIES(${TGT} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${DIR}")
-    SET_TARGET_PROPERTIES(${TGT} PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${DIR}")
-    SET_TARGET_PROPERTIES(${TGT} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${DIR}")
-endfunction(output_directory TGT DIR)
-
-function(dual_output_directory TGT DIR)
-    output_directory(${TGT} "${DIR}")
-    output_directory(${TGT}_static "${DIR}")
-endfunction(dual_output_directory TGT DIR)
 
 #
 # Main configuration.
@@ -233,7 +203,7 @@ include_directories(
     ${BZIP2_INCLUDE_DIR}
     ${SNAPPY_INCLUDE_DIR}
     ${OPENSSL_INCLUDE_DIR}
-	${ISAL_INCLUDE_DIR}
+    ${ISAL_INCLUDE_DIR}
     ${SRC}/util
 )
 configure_file(${CMAKE_SOURCE_DIR}/config.h.cmake ${CMAKE_BINARY_DIR}/config.h)
@@ -244,8 +214,7 @@ hadoop_add_dual_library(hadoop
     ${SRC}/io/compress/lz4/Lz4Compressor.c
     ${SRC}/io/compress/lz4/Lz4Decompressor.c
     ${SRC}/io/compress/lz4/lz4.c
-    ${SRC}/io/compress/lz4/lz4hc.c${ISAL_SOURCE_FILES}
-    ${SRC}/io/erasurecode/coder/erasure_code_native.c
+    ${SRC}/io/compress/lz4/lz4hc.c
     ${ISAL_SOURCE_FILES}
     ${SNAPPY_SOURCE_FILES}
     ${OPENSSL_SOURCE_FILES}

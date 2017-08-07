@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import org.junit.After;
 
 public class TestDistCpViewFs {
   private static final Log LOG = LogFactory.getLog(TestDistCpViewFs.class);
@@ -64,14 +65,14 @@ public class TestDistCpViewFs {
               fs.getWorkingDirectory());
       target = new Path("target/tmp/root/target").makeQualified(fs.getUri(),
               fs.getWorkingDirectory()); 
-      root = new Path("target/root/tmp").makeQualified(fs.getUri(),
+      root = new Path("target/tmp/root").makeQualified(fs.getUri(),
               fs.getWorkingDirectory()).toString();
       TestDistCpUtils.delete(fs, root);
     } catch (IOException e) {
       LOG.error("Exception encountered ", e);
     }
   }
-
+ 
   @Test
   public void testSingleFileMissingTarget() throws IOException {
     caseSingleFileMissingTarget(false);

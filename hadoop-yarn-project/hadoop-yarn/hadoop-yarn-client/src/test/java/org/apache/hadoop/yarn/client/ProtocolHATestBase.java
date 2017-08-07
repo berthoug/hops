@@ -310,6 +310,7 @@ public abstract class ProtocolHATestBase extends ClientBaseWithFixes {
   protected void syncToken(org.apache.hadoop.security.token.Token<AMRMTokenIdentifier> token)
           throws IOException {
     for (int i = 0; i < this.cluster.getNumOfResourceManager(); i++) {
+      LOG.warn("sync token for " + i);
       cluster.getResourceManager(i).getRMContext()
           .getAMRMTokenSecretManager().addPersistedPassword(token);
     }

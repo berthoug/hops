@@ -78,7 +78,7 @@ public class TestIntegration {
               fs.getWorkingDirectory());
       target = new Path("target/tmp/root/target").makeQualified(fs.getUri(),
               fs.getWorkingDirectory());
-      root = new Path("target/root/tmp").makeQualified(fs.getUri(),
+      root = new Path("target/tmp/root").makeQualified(fs.getUri(),
               fs.getWorkingDirectory()).toString();
       TestDistCpUtils.delete(fs, root);
     } catch (IOException e) {

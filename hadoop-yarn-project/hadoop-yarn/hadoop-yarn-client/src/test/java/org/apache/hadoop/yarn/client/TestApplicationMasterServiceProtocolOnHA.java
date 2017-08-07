@@ -25,6 +25,7 @@ import org.junit.Assert;
 
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;
@@ -100,13 +101,26 @@ public class TestApplicationMasterServiceProtocolOnHA
   }
 
   @Test(timeout = 15000)
-  public void testAllocateOnHA() throws YarnException, IOException {
+  public void testAllocateOnHA() throws YarnException, IOException, InterruptedException {
     AllocateRequest request = AllocateRequest.newInstance(0, 50f,
         new ArrayList<ResourceRequest>(),
         new ArrayList<ContainerId>(),
         ResourceBlacklistRequest.newInstance(new ArrayList<String>(),
             new ArrayList<String>()));
-    AllocateResponse response = amClient.allocate(request);
+    int nbTry = 0;
+    AllocateResponse response = null;
+    while (nbTry < 10) {
+      try {
+        response = amClient.allocate(request);
+        break;
+      } catch (IOException ex) {
+        if (!(ex instanceof SecretManager.InvalidToken)) {
+          throw ex;
+        }
+      }
+      Thread.sleep(200);
+      nbTry++;
+    }
     Assert.assertEquals(response, this.cluster.createFakeAllocateResponse());
   }
 }

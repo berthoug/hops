@@ -152,7 +152,16 @@ public class TestPriceMultiplicationFactorService {
           return priceList.get(PriceMultiplicator.MultiplicatorType.VARIABLE).getValue();
         }
       };
-      float currentMultiplicator = (Float) currentMultiplicatorHandler.handle();
+      int nbTry=0;
+      float currentMultiplicator = -1;
+      while(nbTry<10){
+       currentMultiplicator = (Float) currentMultiplicatorHandler.handle();
+       if(currentMultiplicator==value){
+         break;
+       }
+       Thread.sleep(500);
+       nbTry++;
+      }
       Assert.assertEquals(value, currentMultiplicator,0);
   }
 }
