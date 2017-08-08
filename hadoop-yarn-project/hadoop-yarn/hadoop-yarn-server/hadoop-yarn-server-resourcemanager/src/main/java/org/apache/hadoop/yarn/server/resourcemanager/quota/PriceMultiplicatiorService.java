@@ -195,6 +195,7 @@ public class PriceMultiplicatiorService extends AbstractService {
                 currentMultiplicator));
 
         connector.commit();
+        LOG.debug("Commited new multiplicator: " + currentMultiplicator + "for VARIABLE");
         return null;
       }
     };

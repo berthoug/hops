@@ -149,6 +149,8 @@ public class TestPriceMultiplicationFactorService {
           Map<PriceMultiplicator.MultiplicatorType, PriceMultiplicator> priceList = pmDA.getAll();
 
           connector.commit();
+          LOG.debug("got new multiplicator: " + priceList.get(PriceMultiplicator.MultiplicatorType.VARIABLE).getValue()
+              + "for VARIABLE");
           return priceList.get(PriceMultiplicator.MultiplicatorType.VARIABLE).getValue();
         }
       };

@@ -330,6 +330,7 @@ public class TestNMClient {
       ContainerLaunchContext clc =
           Records.newRecord(ContainerLaunchContext.class);
       clc.setTokens(securityTokens);
+      clc.setCommands(Arrays.asList(new String[]{"sleep 1m"}));
       try {
         nmClient.startContainer(container, clc);
       } catch (YarnException e) {
