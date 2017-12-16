@@ -197,19 +197,19 @@ public class DatanodeStorageInfo {
     };
     return (List<BlockInfo>) findBlocksHandler.handle();
   }
-  
+
   public void setState(State s) {
     this.state = s;
   }
-  
+
   boolean areBlocksOnFailedStorage() throws IOException {
     return getState() == State.FAILED && numBlocks() != 0;
   }
-  
+
   public State getState() {
     return this.state;
   }
-  
+
   public String getStorageID() {
     return storageID;
   }
@@ -297,7 +297,7 @@ public class DatanodeStorageInfo {
     final DatanodeStorageInfo that = (DatanodeStorageInfo)obj;
     return this.storageID.equals(that.storageID);
   }
-  
+
   @Override
   public String toString() {
     return getDatanodeDescriptor().toString() + "[" + storageType + "]" +

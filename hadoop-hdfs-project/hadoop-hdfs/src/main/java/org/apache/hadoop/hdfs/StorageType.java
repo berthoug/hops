@@ -35,7 +35,8 @@ public enum StorageType {
   DISK,
   SSD,
   RAID5,
-  ARCHIVE;
+  ARCHIVE,
+  PROVIDED;
 
   public static StorageType DEFAULT = DISK;
 

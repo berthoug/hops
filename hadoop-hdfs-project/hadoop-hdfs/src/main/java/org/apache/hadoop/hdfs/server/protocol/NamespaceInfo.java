@@ -23,7 +23,10 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
+import org.apache.hadoop.hdfs.server.namenode.NNStorage;
 import org.apache.hadoop.util.VersionInfo;
+
+import java.io.IOException;
 
 /**
  * NamespaceInfo is returned by the name-node in reply
@@ -53,7 +56,7 @@ public class NamespaceInfo extends StorageInfo {
     this(nsID, clusterID, bpID, cT, Storage.getBuildVersion(),
         VersionInfo.getVersion());
   }
-  
+
   public String getBuildVersion() {
     return buildVersion;
   }
@@ -66,8 +69,38 @@ public class NamespaceInfo extends StorageInfo {
     return softwareVersion;
   }
 
+  public void setClusterID(String clusterID) {
+    this.clusterID = clusterID;
+  }
+
+  public void setBlockPoolID(String blockPoolID) {
+    this.blockPoolID = blockPoolID;
+  }
+
   @Override
   public String toString() {
     return super.toString() + ";bpid=" + blockPoolID;
+  }
+
+  public void validateStorage(NNStorage storage) throws IOException {
+    if (layoutVersion != storage.getLayoutVersion() ||
+            namespaceID != storage.getNamespaceID() ||
+            cTime != storage.cTime ||
+            !clusterID.equals(storage.getClusterID()) ||
+            !blockPoolID.equals(storage.getBlockPoolID())) {
+      throw new IOException("Inconsistent namespace information:\n" +
+              "NamespaceInfo has:\n" +
+              "LV=" + layoutVersion + ";" +
+              "NS=" + namespaceID + ";" +
+              "cTime=" + cTime + ";" +
+              "CID=" + clusterID + ";" +
+              "BPID=" + blockPoolID +
+              ".\nStorage has:\n" +
+              "LV=" + storage.getLayoutVersion() + ";" +
+              "NS=" + storage.getNamespaceID() + ";" +
+              "cTime=" + storage.getCTime() + ";" +
+              "CID=" + storage.getClusterID() + ";" +
+              "BPID=" + storage.getBlockPoolID() + ".");
+    }
   }
 }

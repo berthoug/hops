@@ -49,7 +49,7 @@ import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
  */
 @InterfaceAudience.Private
 public class BlockInfo extends Block {
-  
+
   public static final BlockInfo[] EMPTY_ARRAY = {};
   private static final List<Replica> EMPTY_REPLICAS_ARRAY =
       new ArrayList<>();
@@ -61,7 +61,7 @@ public class BlockInfo extends Block {
     ByINodeIds,
     ByMaxBlockIndexForINode,
     ByBlockIdsAndINodeIds;
-    
+
     @Override
     public Class getType() {
       return BlockInfo.class;
@@ -85,9 +85,9 @@ public class BlockInfo extends Block {
       }
     }
   }
-  
+
   public static enum Order implements Comparator<BlockInfo> {
-    
+
     ByBlockIndex() {
       @Override
       public int compare(BlockInfo o1, BlockInfo o2) {
@@ -131,14 +131,14 @@ public class BlockInfo extends Block {
         }
       }
     };
-    
+
     @Override
     public abstract int compare(BlockInfo o1, BlockInfo o2);
-    
+
     public Comparator acsending() {
       return this;
     }
-    
+
     public Comparator descending() {
       return Collections.reverseOrder(this);
     }
@@ -147,9 +147,9 @@ public class BlockInfo extends Block {
   private BlockCollection bc;
   private int blockIndex = -1;
   private long timestamp = 1;
-  
+
   protected int inodeId = INode.NON_EXISTING_ID;
-  
+
   public BlockInfo(Block blk, int inodeId) {
     super(blk);
     this.inodeId = inodeId;
@@ -162,7 +162,7 @@ public class BlockInfo extends Block {
       }
     }
   }
-  
+
   public BlockInfo() {
     this.bc = null;
   }
@@ -180,11 +180,11 @@ public class BlockInfo extends Block {
     this.timestamp = from.timestamp;
     this.inodeId = from.inodeId;
   }
-  
+
   public BlockCollection getBlockCollection()
       throws StorageException, TransactionContextException {
     //Every time get block collection is called, get it from DB
-    //Why? some times it happens that the inode is deleted and copy 
+    //Why? some times it happens that the inode is deleted and copy
     //of the block is lying around is some secondary data structure ( not block_info )
     //if we call get block collection op of that copy then it should return null
 
@@ -196,7 +196,7 @@ public class BlockInfo extends Block {
     }
     return bc;
   }
-  
+
   public void setBlockCollection(BlockCollection bc)
       throws StorageException, TransactionContextException {
     this.bc = bc;
@@ -234,7 +234,7 @@ public class BlockInfo extends Block {
     List<Replica> replicas = getReplicas(datanodeMgr);
     return getStorages(datanodeMgr, replicas, state);
   }
-  
+
   /**
    * Returns the storage on the given node which stores this block, or null
    * if it can't find such a storage.
@@ -274,7 +274,7 @@ public class BlockInfo extends Block {
     return replicas;
   }
 
-  
+
   /**
    * Adds new replica for this block.
    * @return the replica stored, or null if it is already stored on this storage
@@ -285,7 +285,7 @@ public class BlockInfo extends Block {
     if (isReplicatedOnDatanode(storage.getDatanodeDescriptor())) {
       return false;
     }
- 
+
     Replica replica =
         new Replica(storage.getSid(), getBlockId(), getInodeId(), HashBuckets
             .getInstance().getBucketForBlock(this));
@@ -338,7 +338,7 @@ public class BlockInfo extends Block {
 
     return da.existsOnAnyStorage(getBlockId(), sids);
   }
-  
+
   boolean isReplicatedOnStorage(DatanodeStorageInfo storage)
       throws StorageException, TransactionContextException {
     Replica replica = EntityManager
@@ -386,43 +386,43 @@ public class BlockInfo extends Block {
     ucBlock.setExpectedLocations(targets);
     return ucBlock;
   }
-  
+
   public int getInodeId() {
     return inodeId;
   }
-  
+
   public void setINodeIdNoPersistance(int id) {
     this.inodeId = id;
   }
-  
+
   public void setINodeId(int id)
       throws StorageException, TransactionContextException {
     setINodeIdNoPersistance(id);
     save();
   }
-  
+
   public int getBlockIndex() {
     return this.blockIndex;
   }
-  
+
   public void setBlockIndexNoPersistance(int bindex) {
     this.blockIndex = bindex;
   }
-  
+
   public void setBlockIndex(int bindex)
       throws StorageException, TransactionContextException {
     setBlockIndexNoPersistance(bindex);
     save();
   }
-  
+
   public long getTimestamp() {
     return this.timestamp;
   }
-  
+
   public void setTimestampNoPersistance(long ts) {
     this.timestamp = ts;
   }
-  
+
   public void setTimestamp(long ts)
       throws StorageException, TransactionContextException {
     setTimestampNoPersistance(ts);
@@ -466,7 +466,7 @@ public class BlockInfo extends Block {
     DatanodeStorageInfo[] storages = new DatanodeStorageInfo[set.size()];
     return set.toArray(storages);
   }
-  
+
   protected DatanodeDescriptor[] getDatanodes(DatanodeManager datanodeMgr,
       List<? extends ReplicaBase> replicas) {
     int numLocations = replicas.size();
@@ -483,37 +483,37 @@ public class BlockInfo extends Block {
     DatanodeDescriptor[] locations = new DatanodeDescriptor[datanodes.size()];
     return datanodes.toArray(locations);
   }
-  
+
   protected void update(Replica replica)
       throws TransactionContextException, StorageException {
     EntityManager.update(replica);
   }
 
   public static final Log LOG = LogFactory.getLog(BlockInfo.class);
-  
+
   protected void remove(Replica replica)
       throws StorageException, TransactionContextException {
     EntityManager.remove(replica);
   }
-  
+
   @Override
   public int hashCode() {
     // Super implementation is sufficient
     return super.hashCode();
   }
-  
+
   @Override
   public boolean equals(Object obj) {
     // Sufficient to rely on super's implementation
     return (this == obj) || super.equals(obj);
   }
-  
+
   @Override
   public String toString() {
     return "bid= " + getBlockId() + "  State = " + getBlockUCState();
   }
 
-  
+
   public void setBlockId(long bid)
       throws StorageException, TransactionContextException {
     setBlockIdNoPersistance(bid);
@@ -547,7 +547,7 @@ public class BlockInfo extends Block {
       throws StorageException, TransactionContextException {
     EntityManager.remove(this);
   }
-  
+
   public static BlockInfo cloneBlock(BlockInfo block) throws StorageException {
     if (block == null){
       throw new StorageException("Unable to create a clone of the Block");

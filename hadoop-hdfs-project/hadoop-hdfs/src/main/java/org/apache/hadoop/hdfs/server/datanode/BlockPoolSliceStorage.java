@@ -22,8 +22,10 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.HardLink;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdfs.protocol.LayoutVersion;
 import org.apache.hadoop.hdfs.protocol.LayoutVersion.Feature;
+import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.NodeType;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.StartupOption;
 import org.apache.hadoop.hdfs.server.common.InconsistentFSStateException;
@@ -260,11 +262,10 @@ public class BlockPoolSliceStorage extends Storage {
   private void doTransition(DataNode dn, StorageDirectory sd, NamespaceInfo
       nsInfo,
       StartupOption startOpt) throws IOException {
-    if (startOpt == StartupOption.ROLLBACK) {
-      doRollback(sd, nsInfo); // rollback if applicable
+    if (sd.getStorageLocation().getStorageType() == StorageType.PROVIDED) {
+      return; // regular startup for PROVIDED storage directories
     }
-
-    readProperties(sd);
+      readProperties(sd);
     checkVersionUpgradable(this.layoutVersion);
     assert this.layoutVersion >=
         HdfsConstants.LAYOUT_VERSION : "Future version is not allowed";
@@ -296,7 +297,7 @@ public class BlockPoolSliceStorage extends Storage {
             this.getCTime() + " is newer than the namespace state: LV = " +
             nsInfo.getLayoutVersion() + " CTime = " + nsInfo.getCTime());
   }
- 
+
   /**
    * Upgrade to any release after 0.22 (0.22 included) release e.g. 0.22 =>
    * 0.23
@@ -330,6 +331,16 @@ public class BlockPoolSliceStorage extends Storage {
         ".\n   old LV = " + this.getLayoutVersion() + "; old CTime = " +
         this.getCTime() + ".\n   new LV = " + nsInfo.getLayoutVersion() +
         "; new CTime = " + nsInfo.getCTime());
+    // no upgrades for storage directories that are PROVIDED
+    if (bpSd.getRoot() == null) {
+      return;
+    }
+    final int oldLV = getLayoutVersion();
+    LOG.info("Upgrading block pool storage directory " + bpSd.getRoot()
+        + ".\n   old LV = " + oldLV
+        + "; old CTime = " + this.getCTime()
+       // + ".\n   new LV = " + HdfsServerConstants.DATANODE_LAYOUT_VERSION
+        + "; new CTime = " + nsInfo.getCTime());
     // get <SD>/previous directory
     String dnRoot = getDataNodeStorageRoot(bpSd.getRoot().getCanonicalPath());
     StorageDirectory dnSdStorage = new StorageDirectory(new File(dnRoot));
@@ -353,7 +364,7 @@ public class BlockPoolSliceStorage extends Storage {
     
     // 2. Rename <SD>/curernt/<bpid>/current to <SD>/curernt/<bpid>/previous.tmp
     rename(bpCurDir, bpTmpDir);
-    
+
     // 3. Create new <SD>/current with block files hardlinks and VERSION
     linkAllBlocks(bpTmpDir, bpCurDir);
     this.layoutVersion = HdfsConstants.LAYOUT_VERSION;
@@ -411,41 +422,43 @@ public class BlockPoolSliceStorage extends Storage {
     File prevDir = bpSd.getPreviousDir();
     // regular startup if previous dir does not exist
     if (!prevDir.exists()) {
-      return;
-    }
-    // read attributes out of the VERSION file of previous directory
-    BlockPoolSliceStorage prevInfo = new BlockPoolSliceStorage();
-    prevInfo.readPreviousVersionProperties(bpSd);
+      if (prevDir == null || !prevDir.exists()) {
+        return;
+      }
+      // read attributes out of the VERSION file of previous directory
+      BlockPoolSliceStorage prevInfo = new BlockPoolSliceStorage();
+      prevInfo.readPreviousVersionProperties(bpSd);
 
-    // We allow rollback to a state, which is either consistent with
-    // the namespace state or can be further upgraded to it.
-    // In another word, we can only roll back when ( storedLV >= software LV)
-    // && ( DN.previousCTime <= NN.ctime)
-    if (!(prevInfo.getLayoutVersion() >= HdfsConstants.LAYOUT_VERSION &&
-        prevInfo.getCTime() <= nsInfo.getCTime())) { // cannot rollback
-      throw new InconsistentFSStateException(bpSd.getRoot(),
-          "Cannot rollback to a newer state.\nDatanode previous state: LV = " +
-              prevInfo.getLayoutVersion() + " CTime = " + prevInfo.getCTime() +
-              " is newer than the namespace state: LV = " +
-              nsInfo.getLayoutVersion() + " CTime = " + nsInfo.getCTime());
+      // We allow rollback to a state, which is either consistent with
+      // the namespace state or can be further upgraded to it.
+      // In another word, we can only roll back when ( storedLV >= software LV)
+      // && ( DN.previousCTime <= NN.ctime)
+      if (!(prevInfo.getLayoutVersion() >= HdfsConstants.LAYOUT_VERSION &&
+              prevInfo.getCTime() <= nsInfo.getCTime())) { // cannot rollback
+        throw new InconsistentFSStateException(bpSd.getRoot(),
+                "Cannot rollback to a newer state.\nDatanode previous state: LV = " +
+                        prevInfo.getLayoutVersion() + " CTime = " + prevInfo.getCTime() +
+                        " is newer than the namespace state: LV = " +
+                        nsInfo.getLayoutVersion() + " CTime = " + nsInfo.getCTime());
+      }
+
+      LOG.info("Rolling back storage directory " + bpSd.getRoot() +
+              ".\n   target LV = " + nsInfo.getLayoutVersion() + "; target CTime = " +
+              nsInfo.getCTime());
+      File tmpDir = bpSd.getRemovedTmp();
+      assert !tmpDir.exists() : "removed.tmp directory must not exist.";
+      // 1. rename current to tmp
+      File curDir = bpSd.getCurrentDir();
+      assert curDir.exists() : "Current directory must exist.";
+      rename(curDir, tmpDir);
+
+      // 2. rename previous to current
+      rename(prevDir, curDir);
+
+      // 3. delete removed.tmp dir
+      deleteDir(tmpDir);
+      LOG.info("Rollback of " + bpSd.getRoot() + " is complete");
     }
-    
-    LOG.info("Rolling back storage directory " + bpSd.getRoot() +
-        ".\n   target LV = " + nsInfo.getLayoutVersion() + "; target CTime = " +
-        nsInfo.getCTime());
-    File tmpDir = bpSd.getRemovedTmp();
-    assert !tmpDir.exists() : "removed.tmp directory must not exist.";
-    // 1. rename current to tmp
-    File curDir = bpSd.getCurrentDir();
-    assert curDir.exists() : "Current directory must exist.";
-    rename(curDir, tmpDir);
-    
-    // 2. rename previous to current
-    rename(prevDir, curDir);
-    
-    // 3. delete removed.tmp dir
-    deleteDir(tmpDir);
-    LOG.info("Rollback of " + bpSd.getRoot() + " is complete");
   }
 
   /*

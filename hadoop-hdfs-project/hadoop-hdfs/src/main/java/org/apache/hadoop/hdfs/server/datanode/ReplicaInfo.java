@@ -60,7 +60,11 @@ abstract public class ReplicaInfo extends Block implements Replica {
   ReplicaInfo(long blockId, long genStamp, FsVolumeSpi vol, File dir) {
     this(blockId, 0L, genStamp, vol, dir);
   }
-  
+
+  /** This is used by some tests and FsDatasetUtil#computeChecksum. */
+  private static final FileIoProvider DEFAULT_FILE_IO_PROVIDER =
+      new FileIoProvider(null, null);
+
   /**
    * Constructor
    *
@@ -75,7 +79,7 @@ abstract public class ReplicaInfo extends Block implements Replica {
     this(block.getBlockId(), block.getNumBytes(), block.getGenerationStamp(),
         vol, dir);
   }
-  
+
   /**
    * Constructor
    *
@@ -98,15 +102,6 @@ abstract public class ReplicaInfo extends Block implements Replica {
   }
 
   /**
-   * Copy constructor.
-   *
-   * @param from
-   */
-  ReplicaInfo(ReplicaInfo from) {
-    this(from, from.getVolume(), from.getDir());
-  }
-  
-  /**
    * Get the full path of this replica's data file
    *
    * @return the full path of this replica's data file
@@ -114,7 +109,7 @@ abstract public class ReplicaInfo extends Block implements Replica {
   public File getBlockFile() {
     return new File(getDir(), getBlockName());
   }
-  
+
   /**
    * Get the full path of this replica's meta file
    *
@@ -124,16 +119,24 @@ abstract public class ReplicaInfo extends Block implements Replica {
     return new File(getDir(),
         DatanodeUtil.getMetaName(getBlockName(), getGenerationStamp()));
   }
-  
+
   /**
    * Get the volume where this replica is located on disk
    *
+   * Copy constructor.
+   * @param from where to copy from
+   */
+  ReplicaInfo(ReplicaInfo from) {
+    this(from, from.getVolume());
+  }
+
+  /**
    * @return the volume where this replica is located on disk
    */
   public FsVolumeSpi getVolume() {
     return volume;
   }
-  
+
   /**
    * Set the volume where this replica is located on disk
    */
@@ -148,7 +151,7 @@ abstract public class ReplicaInfo extends Block implements Replica {
   public String getStorageUuid() {
     return volume.getStorageID();
   }
-  
+
   /**
    * Return the parent directory path where this replica is located
    *
@@ -184,7 +187,7 @@ abstract public class ReplicaInfo extends Block implements Replica {
   public void setUnlinked() {
     // no need to be unlinked
   }
-  
+
   /**
    * Copy specified file into a temporary file. Then rename the
    * temporary file to the original name. This will cause any
@@ -272,7 +275,7 @@ abstract public class ReplicaInfo extends Block implements Replica {
     }
     setGenerationStampNoPersistance(newGS);
   }
-  
+
   @Override  //Object
   public String toString() {
     return getClass().getSimpleName() + ", " + super.toString() + ", " +

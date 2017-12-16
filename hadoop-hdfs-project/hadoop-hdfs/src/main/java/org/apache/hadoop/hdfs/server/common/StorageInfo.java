@@ -159,7 +159,7 @@ public class StorageInfo {
   public static void storeStorageInfoToDB(final String clusterId) throws
       IOException { // should only be called by the format function once during the life time of the cluster.
     // Solution. call format on only one namenode or every one puts the same values.
-    
+
     new HopsTransactionalRequestHandler(HDFSOperationType.ADD_STORAGE_INFO) {
       @Override
       public void acquireLock(TransactionLocks locks) throws IOException {
@@ -187,7 +187,7 @@ public class StorageInfo {
   public String getBlockPoolId() {
     return blockpoolID;
   }
-  
+
   static String newBlockPoolID() throws UnknownHostException {
     String ip = "unknownIP";
     try {
@@ -221,7 +221,7 @@ public class StorageInfo {
   public static String newClusterID() {
     return "CID-" + UUID.randomUUID().toString();
   }
-  
+
   public int getDefaultRowId() {
     return this.DEFAULT_ROW_ID;
   }

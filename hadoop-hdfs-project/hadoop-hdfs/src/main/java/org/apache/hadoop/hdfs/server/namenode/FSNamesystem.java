@@ -362,7 +362,7 @@ public class FSNamesystem
 
   // whether setStoragePolicy is allowed.
   private final boolean isStoragePolicyEnabled;
-  
+
   // Block pool ID used by this namenode
   //HOP made it final and now its value is read from the config file. all
   // namenodes should have same block pool id
@@ -517,7 +517,7 @@ public class FSNamesystem
       this.isStoragePolicyEnabled =
           conf.getBoolean(DFSConfigKeys.DFS_STORAGE_POLICY_ENABLED_KEY,
                           DFSConfigKeys.DFS_STORAGE_POLICY_ENABLED_DEFAULT);
-      
+
       this.fsOwner = UserGroupInformation.getCurrentUser();
       this.fsOwnerShortUserName = fsOwner.getShortUserName();
       this.superGroup = conf.get(DFS_PERMISSIONS_SUPERUSERGROUP_KEY,
@@ -1773,7 +1773,7 @@ public class FSNamesystem
       throw new IOException("Failed to set storage policy since "
           + DFSConfigKeys.DFS_STORAGE_POLICY_ENABLED_KEY + " is set to false.");
     }
-    
+
     final BlockStoragePolicy policy =  blockManager.getStoragePolicy(policyName);
     if (policy == null) {
       throw new HadoopIllegalArgumentException("Cannot find a block policy with the name " + policyName);
@@ -1788,7 +1788,7 @@ public class FSNamesystem
           }
 
           @Override
-          public Object performTask() throws IOException {           
+          public Object performTask() throws IOException {
             FSPermissionChecker pc = getPermissionChecker();
             if (isInSafeMode()) {
               throw new SafeModeException("Cannot set metaEnabled for " + filename, safeMode);
@@ -1810,12 +1810,12 @@ public class FSNamesystem
   BlockStoragePolicy getDefaultStoragePolicy() throws IOException {
     return blockManager.getDefaultStoragePolicy();
   }
- 
-  
+
+
   BlockStoragePolicy getStoragePolicy(byte storagePolicyID) throws IOException {
     return blockManager.getStoragePolicy(storagePolicyID);
   }
-  
+
   /**
    * @return All the existing block storage policies
    */
@@ -2268,7 +2268,7 @@ public class FSNamesystem
 
   private Configuration copyConfiguration(Configuration conf){
     Configuration newConf = new HdfsConfiguration();
-  
+
     for (Map.Entry<String, String> entry : conf) {
       newConf.set(entry.getKey(), entry.getValue());
     }
@@ -2315,13 +2315,13 @@ public class FSNamesystem
                       !holder.contains("HopsFS")) {
                 throw new HDFSClientAppendToDBFileException("HDFS can not directly append to a file stored in the database");
               }
-              
+
               LocatedBlock locatedBlock =
                   appendFileInt(src, holder, clientMachine);
-             
+
               if (locatedBlock != null && !locatedBlock.isPhantomBlock()) {
                 for (String storageID : locatedBlock.getStorageIDs()) {
-                    
+
                   int sId = blockManager.getDatanodeManager().getSid(storageID);
                   BlockInfo blockInfo =
                       EntityManager.find(BlockInfo.Finder.ByBlockIdAndINodeId,
@@ -2587,7 +2587,7 @@ public class FSNamesystem
 
     // Check if the penultimate block is minimally replicated
     if (!checkFileProgress(pendingFile, false)) {
-      throw new NotReplicatedYetException("Not replicated yet: " + src + 
+      throw new NotReplicatedYetException("Not replicated yet: " + src +
               " block " + pendingFile.getPenultimateBlock());
     }
     return inodes;
@@ -3076,7 +3076,7 @@ public class FSNamesystem
       checkParentAccess(pc, src, FsAction.WRITE);
       checkAncestorAccess(pc, actualDst, FsAction.WRITE);
     }
-  
+
     return dir.renameTo(src, dst);
   }
 
@@ -4128,6 +4128,18 @@ public class FSNamesystem
   @Metric({"CapacityRemaining", "Remaining capacity in bytes"})
   public long getCapacityRemaining() {
     return datanodeStatistics.getCapacityRemaining();
+  }
+
+  @Override // FSNamesystemMBean
+  @Metric({"ProvidedCapacityTotal",
+   "Total space used in PROVIDED storage in bytes" })
+  public long getProvidedCapacityTotal() {
+    return datanodeStatistics.getProvidedCapacity();
+  }
+
+  @Override // NameNodeMXBean
+  public long getProvidedCapacity() {
+    return this.getProvidedCapacityTotal();
   }
 
   @Metric({"CapacityRemainingGB", "Remaining capacity in GB"})
@@ -5358,7 +5370,7 @@ public class FSNamesystem
 
     final BlockInfoUnderConstruction blockInfo =
         (BlockInfoUnderConstruction) pendingFile.getLastBlock();
-    
+
     // check new GS & length: this is not expected
     if (newBlock.getGenerationStamp() <= blockInfo.getGenerationStamp() ||
         newBlock.getNumBytes() < blockInfo.getNumBytes()) {
@@ -5368,15 +5380,15 @@ public class FSNamesystem
       LOG.warn(msg);
       throw new IOException(msg);
     }
-    
-  
+
+
     //Make sure the hashes are corrected to avoid leaving stale replicas behind
     for (DatanodeStorageInfo oldLocation :
         blockInfo.getStorages(blockManager.getDatanodeManager())){
       HashBuckets.getInstance().undoHash(oldLocation.getSid(),
           HdfsServerConstants.ReplicaState.FINALIZED, oldBlock.getLocalBlock());
     }
-    
+
     // Update old block with the new generation stamp and new length
     blockInfo.setNumBytes(newBlock.getNumBytes());
     blockInfo.setGenerationStamp(newBlock.getGenerationStamp());
@@ -5962,7 +5974,7 @@ public class FSNamesystem
   public FSDirectory getFSDirectory() {
     return dir;
   }
-  
+
   /**
    * Verifies that the given identifier and password are valid and match.
    *

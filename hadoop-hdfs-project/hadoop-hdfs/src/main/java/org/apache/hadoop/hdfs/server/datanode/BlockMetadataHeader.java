@@ -144,7 +144,7 @@ public class BlockMetadataHeader {
    * @param checksum
    * @throws IOException
    */
-  static void writeHeader(DataOutputStream out, DataChecksum checksum)
+  public static void writeHeader(DataOutputStream out, DataChecksum checksum)
       throws IOException {
     writeHeader(out, new BlockMetadataHeader(VERSION, checksum));
   }

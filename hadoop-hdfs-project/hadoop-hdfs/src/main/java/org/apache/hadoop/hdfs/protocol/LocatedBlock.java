@@ -24,6 +24,8 @@ import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeStorageInfo;
 import org.apache.hadoop.security.token.Token;
 
+import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 
@@ -36,19 +38,49 @@ import java.util.HashSet;
 @InterfaceStability.Evolving
 public class LocatedBlock {
 
+  /**
+   * Comparator that ensures that a PROVIDED storage type is greater than any
+   * other storage type. Any other storage types are considered equal.
+   */
+  private static class ProvidedLastComparator
+          implements Comparator<DatanodeInfoWithStorage>, Serializable {
+
+    private static final long serialVersionUID = 6441720011443190984L;
+
+    @Override
+    public int compare(DatanodeInfoWithStorage dns1,
+                       DatanodeInfoWithStorage dns2) {
+      if (org.apache.hadoop.fs.StorageType.PROVIDED.equals(dns1.getStorageType())
+              && !org.apache.hadoop.fs.StorageType.PROVIDED.equals(dns2.getStorageType())) {
+        return 1;
+      }
+      if (!org.apache.hadoop.fs.StorageType.PROVIDED.equals(dns1.getStorageType())
+              && org.apache.hadoop.fs.StorageType.PROVIDED.equals(dns2.getStorageType())) {
+        return -1;
+      }
+      // Storage types of dns1 and dns2 are now both provided or not provided;
+      // thus, are essentially equal for the purpose of this comparator.
+      return 0;
+    }
+  }
+
   private ExtendedBlock b;
   private long offset;  // offset of the first byte of the block in the file
-  private DatanodeInfo[] locs;
+  private DatanodeInfoWithStorage[] locs;
   // Storage type for each replica, if reported.
   private StorageType[] storageTypes;
   // Storage ID for each replica, if reported.
   private String[] storageIDs;
   // corrupt flag is true if all of the replicas of a block are corrupt.
-  // else false. If block has few corrupt replicas, they are filtered and 
+  // else false. If block has few corrupt replicas, they are filtered and
   // their locations are not part of this object
   private boolean corrupt;
   private Token<BlockTokenIdentifier> blockToken =
       new Token<>();
+
+  // use one instance of the Provided comparator as it uses no state.
+  private static ProvidedLastComparator providedLastComparator =
+          new ProvidedLastComparator();
 
   private byte[] data = null;
 
@@ -177,7 +209,7 @@ public class LocatedBlock {
   public long getStartOffset() {
     return offset;
   }
-  
+
   public long getBlockSize() {
     return b.getNumBytes();
   }
@@ -189,7 +221,7 @@ public class LocatedBlock {
   void setCorrupt(boolean corrupt) {
     this.corrupt = corrupt;
   }
-  
+
   public boolean isCorrupt() {
     return this.corrupt;
   }
@@ -218,4 +250,24 @@ public class LocatedBlock {
           return 0;
         }
       };
+
+  /**
+   * Moves all locations that have {@link org.apache.hadoop.fs.StorageType}
+   * {@code PROVIDED} to the end of the locations array without
+   * changing the relative ordering of the remaining locations
+   * Only the first {@code activeLen} locations are considered.
+   * The caller must immediately invoke {updateCachedStorageInfo}
+   * to update the cached Storage ID/Type arrays.
+   * @param activeLen
+   */
+  public void moveProvidedToEnd(int activeLen) {
+
+    if (activeLen <= 0) {
+      return;
+    }
+    // as this is a stable sort, for elements that are equal,
+    // the current order of the elements is maintained
+    Arrays.sort(locs, 0, (activeLen < locs.length) ? activeLen : locs.length,
+            providedLastComparator);
+  }
 }

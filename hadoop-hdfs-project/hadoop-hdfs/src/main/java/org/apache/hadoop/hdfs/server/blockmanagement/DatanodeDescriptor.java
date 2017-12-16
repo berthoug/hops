@@ -35,10 +35,12 @@ import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.DatanodeID;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
+import org.apache.hadoop.hdfs.server.namenode.CachedBlock;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.StorageReport;
 import org.apache.hadoop.hdfs.util.EnumCounters;
 import org.apache.hadoop.hdfs.util.LightWeightHashSet;
+import org.apache.hadoop.util.IntrusiveCollection;
 import org.apache.hadoop.util.Time;
 
 import java.io.IOException;
@@ -64,7 +66,7 @@ import java.util.Set;
 public class DatanodeDescriptor extends DatanodeInfo {
   public static final Log LOG = LogFactory.getLog(DatanodeDescriptor.class);
   public static final DatanodeDescriptor[] EMPTY_ARRAY = {};
-  
+
   // Stores status of decommissioning.
   // If node is not decommissioning, do not use this object for anything.
   public DecommissioningStatus decommissioningStatus =
@@ -76,7 +78,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
    */
   private final Map<String, DatanodeStorageInfo> storageMap =
       new HashMap<String, DatanodeStorageInfo>();
-  
+
   public Map<Long,Integer> getAllMachineReplicasInBucket(final int bucketId,
           final int sid)
       throws IOException {
@@ -93,7 +95,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     };
     return (Map<Long, Integer>) findReplicasHandler.handle();
   }
-  
+
   public Map<Long,Integer> getAllMachineReplicasInBuckets(
       final List<Integer> mismatchedBuckets, final int sid) throws IOException {
     LightWeightRequestHandler findReplicasHandler = new
@@ -109,7 +111,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     };
     return (Map<Long,Integer>) findReplicasHandler.handle();
   }
-  
+
   /**
    * Block and targets pair
    */
@@ -172,9 +174,65 @@ public class DatanodeDescriptor extends DatanodeInfo {
     }
   }
 
-  public boolean isAlive = false;
-  public boolean needKeyUpdate = false;
-  
+  /**
+   * A list of CachedBlock objects on this datanode.
+   */
+  public static class CachedBlocksList extends IntrusiveCollection<CachedBlock> {
+    public enum Type {
+      PENDING_CACHED,
+      CACHED,
+      PENDING_UNCACHED
+    }
+
+    private final DatanodeDescriptor datanode;
+
+    private final Type type;
+
+    CachedBlocksList(DatanodeDescriptor datanode, Type type) {
+      this.datanode = datanode;
+      this.type = type;
+    }
+
+    public DatanodeDescriptor getDatanode() {
+      return datanode;
+    }
+
+    public Type getType() {
+      return type;
+    }
+  }
+
+  /**
+   * The blocks which we want to cache on this DataNode.
+   */
+  private final CachedBlocksList pendingCached = 
+      new CachedBlocksList(this, CachedBlocksList.Type.PENDING_CACHED);
+
+  /**
+   * The blocks which we know are cached on this datanode.
+   * This list is updated by periodic cache reports.
+   */
+  private final CachedBlocksList cached = 
+      new CachedBlocksList(this, CachedBlocksList.Type.CACHED);
+
+  /**
+   * The blocks which we want to uncache on this DataNode.
+   */
+  private final CachedBlocksList pendingUncached = 
+      new CachedBlocksList(this, CachedBlocksList.Type.PENDING_UNCACHED);
+
+  /**
+   * The time when the last batch of caching directives was sent, in
+   * monotonic milliseconds.
+   */
+  private long lastCachingDirectiveSentTimeMs;
+
+  // isAlive == heartbeats.contains(this)
+  // This is an optimization, because contains takes O(n) time on Arraylist
+  private boolean isAlive = false;
+  private boolean needKeyUpdate = false;
+  private boolean forceRegistration = false;
+
   // A system administrator can tune the balancer bandwidth parameter
   // (dfs.balance.bandwidthPerSec) dynamically by calling
   // "dfsadmin -setBalanacerBandwidth <newbandwidth>", at which point the
@@ -298,6 +356,12 @@ public class DatanodeDescriptor extends DatanodeInfo {
   boolean hasStaleStorages() {
     synchronized (storageMap) {
       for (DatanodeStorageInfo storage : storageMap.values()) {
+        if (StorageType.PROVIDED.equals(storage.getStorageType())) {
+          // to verify provided storage participated in this hb, requires
+          // check to pass DNDesc.
+          // e.g., storageInfo.verifyBlockReportId(this, curBlockReportId)
+          continue;
+        }
         if (storage.areBlockContentsStale()) {
           return true;
         }
@@ -363,6 +427,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     long totalRemaining = 0;
     long totalBlockPoolUsed = 0;
     long totalDfsUsed = 0;
+    long totalNonDfsUsed = 0;
     Set<DatanodeStorageInfo> failedStorageInfos = null;
 
     // Decide if we should check for any missing StorageReport and mark it as
@@ -407,9 +472,20 @@ public class DatanodeDescriptor extends DatanodeInfo {
         totalRemaining += report.getRemaining();
         totalBlockPoolUsed += report.getBlockPoolUsed();
         totalDfsUsed += report.getDfsUsed();
+
+        storage.receivedHeartbeat(report);
+        // skip accounting for capacity of PROVIDED storages!
+        if (StorageType.PROVIDED.equals(storage.getStorageType())) {
+          continue;
+        }
       } catch (IOException ex) {
         LOG.error("could not handle storage report for storage: " + report.getStorage().getStorageID(), ex);
       }
+      totalCapacity += report.getCapacity();
+      totalRemaining += report.getRemaining();
+      totalBlockPoolUsed += report.getBlockPoolUsed();
+      totalDfsUsed += report.getDfsUsed();
+      //totalNonDfsUsed += report.getNonDfsUsed();
     }
     rollBlocksScheduled(getLastUpdate());
 
@@ -426,6 +502,30 @@ public class DatanodeDescriptor extends DatanodeInfo {
       pruneStorageMap(reports);
     }
   }
+
+/* todo: is storage injection needed?
+  void injectStorage(DatanodeStorageInfo s) {
+    synchronized (storageMap) {
+      DatanodeStorageInfo storage = storageMap.get(s.getStorageID());
+      if (null == storage) {
+        LOG.info("Adding new storage ID {} for DN {}", s.getStorageID(),
+            getXferAddr());
+        DFSTopologyNodeImpl parent = null;
+        if (getParent() instanceof DFSTopologyNodeImpl) {
+          parent = (DFSTopologyNodeImpl) getParent();
+        }
+        StorageType type = s.getStorageType();
+        if (!hasStorageType(type) && parent != null) {
+          // we are about to add a type this node currently does not have,
+          // inform the parent that a new type is added to this datanode
+          parent.childAddStorage(getName(), type);
+        }
+        storageMap.put(s.getStorageID(), s);
+      } else {
+        assert storage == s : "found " + storage + " expected " + s;
+      }
+    }
+  }*/
 
   /**
    * Remove stale storages from storageMap. We must not remove any storages
@@ -545,7 +645,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
   Iterator<BlockInfo> getBlockIterator(final String storageID) throws IOException {
     return new BlockIterator(getStorageInfo(storageID));
   }
-  
+
   void incrementPendingReplicationWithoutTargets() {
     PendingReplicationWithoutTargets++;
   }
@@ -554,7 +654,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     PendingReplicationWithoutTargets--;
   }
 
-  
+
   /**
    * Store block replication work.
    */
@@ -626,7 +726,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     }
     return remaining;
   }
-  
+
   public List<BlockTargetPair> getReplicationCommand(int maxTransfers) {
     return replicateBlocks.poll(maxTransfers);
   }
@@ -668,7 +768,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     return (int)(currApproxBlocksScheduled.sum()
         + prevApproxBlocksScheduled.sum());
   }
-  
+
   /** Increment the number of blocks scheduled. */
   void incrementBlocksScheduled(StorageType t) {
     currApproxBlocksScheduled.add(t, 1);
@@ -700,7 +800,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     // Super implementation is sufficient
     return super.hashCode();
   }
-  
+
   @Override
   public boolean equals(Object obj) {
     // Sufficient to use super equality as datanodes are uniquely identified
@@ -806,9 +906,12 @@ public class DatanodeDescriptor extends DatanodeInfo {
 
     // must re-process IBR after re-registration
     for(DatanodeStorageInfo storage : getStorageInfos()) {
-      storage.setBlockReportCount(0);
+      if (storage.getStorageType() != StorageType.PROVIDED) {
+        storage.setBlockReportCount(0);
+      }
     }
     heartbeatedSinceRegistration = false;
+    forceRegistration = false;
   }
 
   /**

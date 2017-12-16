@@ -127,8 +127,14 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    */
   public void checkAndUpdate(String bpid, long blockId, File diskFile,
       File diskMetaFile, FsVolumeSpi vol);
-
   /**
+   * Check whether the in-memory block record matches the block on the disk,
+   * and, in case that they are not matched, update the record or mark it
+   * as corrupted.
+   */
+  void checkAndUpdate(String bpid, ScanInfo info) throws IOException;
+
+   /**
    * @param b
    *     - the block
    * @return a stream if the meta-data of the block exists;
@@ -166,7 +172,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    * @return the generation stamp stored with the block.
    */
   public Block getStoredBlock(String bpid, long blkid) throws IOException;
-  
+
   /**
    * Returns an input stream at specified offset of the specified block
    *
@@ -414,7 +420,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    *     Configuration
    */
   public void addBlockPool(String bpid, Configuration conf) throws IOException;
-  
+
   /**
    * Shutdown and remove the block pool from underlying storage.
    *
@@ -422,7 +428,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    *     Block pool Id to be removed
    */
   public void shutdownBlockPool(String bpid);
-  
+
   /**
    * Deletes the block pool directories. If force is false, directories are
    * deleted only if no block files exist for the block pool. If force
@@ -438,7 +444,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    * @throws IOException
    */
   public void deleteBlockPool(String bpid, boolean force) throws IOException;
-  
+
   /**
    * Get {@link BlockLocalPathInfo} for the given block.
    */

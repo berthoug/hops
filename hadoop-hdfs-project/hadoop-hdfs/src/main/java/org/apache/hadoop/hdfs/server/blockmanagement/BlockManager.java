@@ -148,6 +148,9 @@ public class BlockManager {
   private AtomicLong excessBlocksCount = new AtomicLong(0L);
   private AtomicLong postponedMisreplicatedBlocksCount = new AtomicLong(0L);
 
+  /** Storages accessible from multiple DNs. */
+  private final ProvidedStorageMap providedStorageMap;
+
   /**
    * Used by metrics
    */
@@ -332,6 +335,8 @@ public class BlockManager {
         1000L);
 
     blockTokenSecretManager = createBlockTokenSecretManager(conf);
+
+    providedStorageMap = new ProvidedStorageMap(namesystem, this, conf);
 
     this.maxCorruptFilesReturned =
         conf.getInt(DFSConfigKeys.DFS_DEFAULT_MAX_CORRUPT_FILES_RETURNED_KEY,
@@ -2007,10 +2012,17 @@ public class BlockManager {
     }
 
     DatanodeStorageInfo storageInfo = node.getStorageInfo(storage.getStorageID());
+
+    // To minimize startup time, we discard any second (or later) block reports
+    // that we receive while still in startup phase.
+    // Register DN with provided storage, not with storage owned by DN
+    // DN should still have a ref to the DNStorageInfo.
+    storageInfo = providedStorageMap.getStorage(node, storage);
+
     if (storageInfo == null) {
       // We handle this for backwards compatibility.
       storageInfo = node.updateStorage(storage);
-    }
+
 
     // To minimize startup time, we discard any second (or later) block reports
     // that we receive while still in startup phase.
@@ -4747,5 +4759,10 @@ public class BlockManager {
         return null;
       }
     }.handle();
+  }
+
+  @VisibleForTesting
+  public ProvidedStorageMap getProvidedStorageMap() {
+    return providedStorageMap;
   }
 }

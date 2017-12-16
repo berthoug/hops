@@ -99,6 +99,12 @@
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-fs2img</artifactId>
+      <scope>compile</scope>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>

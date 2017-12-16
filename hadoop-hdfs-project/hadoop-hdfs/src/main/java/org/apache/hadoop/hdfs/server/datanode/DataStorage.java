@@ -22,10 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FileUtil;
-import org.apache.hadoop.fs.LocalFileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
@@ -55,7 +52,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import org.apache.hadoop.fs.HardLink;
+
 import org.apache.hadoop.io.IOUtils;
 
 /**
@@ -106,17 +103,35 @@ public class DataStorage extends Storage {
   public synchronized void setDatanodeUuid(String newDatanodeUuid) {
     this.datanodeUuid = newDatanodeUuid;
   }
-  
+
   public BlockPoolSliceStorage getBPStorage(String bpid) {
     return bpStorageMap.get(bpid);
+
+  private static boolean createStorageID(StorageDirectory sd, int lv,
+      Configuration conf) {
+    // Clusters previously upgraded from layout versions earlier than
+    // ADD_DATANODE_AND_STORAGE_UUIDS failed to correctly generate a
+    // new storage ID. We check for that and fix it now.
+    final boolean haveValidStorageId = DataNodeLayoutVersion.supports(
+        LayoutVersion.Feature.ADD_DATANODE_AND_STORAGE_UUIDS, lv)
+        && DatanodeStorage.isValidStorageId(sd.getStorageUuid());
+    return createStorageID(sd, !haveValidStorageId, conf);
   }
-  
+
   /** Create an ID for this storage.
    * @return true if a new storage ID was generated.
    * */
-  public synchronized boolean createStorageID(
-      StorageDirectory sd, boolean regenerateStorageIds) {
+  public synchronized static boolean createStorageID(
+      StorageDirectory sd, boolean regenerateStorageIds, Configuration conf) {
     final String oldStorageID = sd.getStorageUuid();
+    if (sd.getStorageLocation() != null &&
+            sd.getStorageLocation().getStorageType() == StorageType.PROVIDED) {
+      // Only one provided storage id is supported.
+      // TODO support multiple provided storage ids
+      sd.setStorageUuid(conf.get(DFSConfigKeys.DFS_PROVIDER_STORAGEUUID,
+              DFSConfigKeys.DFS_PROVIDER_STORAGEUUID_DEFAULT));
+      return false;
+    }
     if (oldStorageID == null || regenerateStorageIds) {
       sd.setStorageUuid(DatanodeStorage.generateUuid());
       LOG.info("Generated new storageID " + sd.getStorageUuid() +
@@ -409,7 +424,7 @@ public class DataStorage extends Storage {
     }
     return true;
   }
-  
+
   /**
    * Analize which and whether a transition of the fs state is required
    * and perform it if necessary.
@@ -558,7 +573,7 @@ public class DataStorage extends Storage {
             nsInfo.getBlockPoolID(), nsInfo.getCTime(), nsInfo.getClusterID());
     bpStorage.format(curDir, nsInfo);
     linkAllBlocks(tmpDir, bbwDir, new File(curBpDir, STORAGE_DIR_CURRENT));
-    
+
     // 4. Write version file under <SD>/current
     layoutVersion = HdfsConstants.LAYOUT_VERSION;
     clusterID = nsInfo.getClusterID();
@@ -661,7 +676,7 @@ public class DataStorage extends Storage {
     if (!prevDir.exists()) {
       return; // already discarded
     }
-    
+
     final String dataDirPath = sd.getRoot().getCanonicalPath();
     LOG.info("Finalizing upgrade for storage directory " + dataDirPath +
         ".\n   cur LV = " + this.getLayoutVersion() + "; cur CTime = " +
@@ -695,7 +710,7 @@ public class DataStorage extends Storage {
       }
     }).start();
   }
-  
+
   /*
    * Finalize the upgrade for a block pool
    */
@@ -758,7 +773,7 @@ public class DataStorage extends Storage {
     }
     LOG.info(hardLink.linkStats.report());
   }
-  
+
   static void linkBlocks(File from, File to, int oldLV, HardLink hl)
       throws IOException {
     if (!from.exists()) {
@@ -790,7 +805,7 @@ public class DataStorage extends Storage {
     if (!to.mkdirs()) {
       throw new IOException("Cannot create directory " + to);
     }
-    
+
     String[] blockNames = from.list(new java.io.FilenameFilter() {
       @Override
       public boolean accept(File dir, String name) {

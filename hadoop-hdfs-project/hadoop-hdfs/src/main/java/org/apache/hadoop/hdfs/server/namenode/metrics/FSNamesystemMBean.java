@@ -77,6 +77,12 @@ public interface FSNamesystemMBean {
    */
   public long getCapacityUsed();
 
+  /**
+   * Total PROVIDED storage capacity.
+   * @return -  total PROVIDED storage capacity in bytes
+   */
+  public long getProvidedCapacityTotal();
+
 
   /**
    * Total number of files and directories

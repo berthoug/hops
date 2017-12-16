@@ -74,7 +74,7 @@ import java.util.UUID;
  */
 public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
   private final int NUM_BUCKETS;
-  
+
   static class Factory extends FsDatasetSpi.Factory<SimulatedFSDataset> {
     @Override
     public SimulatedFSDataset newInstance(DataNode datanode,
@@ -425,7 +425,7 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
       Configuration conf) {
     if (storage != null) {
       for (int i = 0; i < storage.getNumStorageDirs(); ++i) {
-        storage.createStorageID(storage.getStorageDir(i), false);
+         DataStorage.createStorageID(storage.getStorageDir(i), false, conf);
       }
       this.datanodeUuid = storage.getDatanodeUuid();
     } else {
@@ -785,7 +785,7 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
    * Simulated input and output streams
    */
   static private class SimulatedInputStream extends java.io.InputStream {
-    
+
 
     byte theRepeatedData = 7;
     long length; // bytes
@@ -811,7 +811,7 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
     SimulatedInputStream(byte[] iData) {
       data = iData;
       length = data.length;
-      
+
     }
     
     /**
@@ -1011,7 +1011,7 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
   public BlockLocalPathInfo getBlockLocalPathInfo(ExtendedBlock b) {
     throw new UnsupportedOperationException();
   }
-  
+
   @Override
   public HdfsBlocksMetadata getHdfsBlocksMetadata(List<ExtendedBlock> blocks)
       throws IOException {

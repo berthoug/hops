@@ -351,7 +351,24 @@ public class DatanodeManager {
       networktopology.pseudoSortByDistance(client, b.getLocations());
       // Move decommissioned/stale datanodes to the bottom
       Arrays.sort(b.getLocations(), comparator);
+
+      DatanodeInfo[] di = b.getLocations();
+      // Sort nodes by network distance only for located blocks
+      int lastActiveIndex = di.length - 1;
+      while (lastActiveIndex > 0 && isInactive(di[lastActiveIndex])) {
+        --lastActiveIndex;
+      }
+      int activeLen = lastActiveIndex + 1;
+      // move PROVIDED storage to the end to prefer local replicas.
+      b.moveProvidedToEnd(activeLen);
     }
+
+  }
+
+  private boolean isInactive(DatanodeInfo datanode) {
+    return datanode.isDecommissioned() ||
+            (avoidStaleDataNodesForRead && datanode.isStale(staleInterval));
+
   }
   
   CyclicIteration<String, DatanodeDescriptor> getDatanodeCyclicIteration(

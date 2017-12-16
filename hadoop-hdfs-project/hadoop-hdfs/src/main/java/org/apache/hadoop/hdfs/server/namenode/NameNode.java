@@ -40,6 +40,9 @@ import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.protocol.ClientProtocol;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.server.blockmanagement.BRTrackingService;
+import org.apache.hadoop.hdfs.server.aliasmap.InMemoryAliasMap;
+import org.apache.hadoop.hdfs.server.aliasmap.InMemoryLevelDBAliasMapServer;
+import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeManager;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.NamenodeRole;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.StartupOption;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
@@ -133,6 +136,8 @@ public class NameNode {
     HdfsConfiguration.init();
   }
 
+  private InMemoryLevelDBAliasMapServer levelDBAliasMapServer;
+
   /**
    * HDFS configuration can have three types of parameters:
    * <ol>
@@ -160,7 +165,7 @@ public class NameNode {
           DFS_NAMENODE_USER_NAME_KEY};
 
   private static final String USAGE =
-      "Usage: java NameNode [" + 
+      "Usage: java NameNode [" +
           //StartupOption.BACKUP.getName() + "] | [" +
           //StartupOption.CHECKPOINT.getName() + "] | [" +
           StartupOption.FORMAT.getName() + " [" +
@@ -428,7 +433,7 @@ public class NameNode {
   protected void initialize(Configuration conf) throws IOException {
     UserGroupInformation.setConfiguration(conf);
     loginAsNameNodeUser(conf);
-    
+
     HdfsStorageFactory.setConfiguration(conf);
 
     int baseWaitTime = conf.getInt(DFSConfigKeys.DFS_NAMENODE_TX_INITIAL_WAIT_TIME_BEFORE_RETRY_KEY,
@@ -453,6 +458,7 @@ public class NameNode {
 
     NameNode.initMetrics(conf, this.getRole());
     loadNamesystem(conf);
+    startAliasMapServerIfNecessary(conf);
 
     rpcServer = createRpcServer(conf);
 
@@ -464,6 +470,19 @@ public class NameNode {
     }
 
     startCommonServices(conf);
+  }
+
+  private void startAliasMapServerIfNecessary(Configuration conf)
+          throws IOException {
+    if (conf.getBoolean(DFSConfigKeys.DFS_NAMENODE_PROVIDED_ENABLED,
+            DFSConfigKeys.DFS_NAMENODE_PROVIDED_ENABLED_DEFAULT)
+            && conf.getBoolean(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_INMEMORY_ENABLED,
+            DFSConfigKeys.DFS_PROVIDED_ALIASMAP_INMEMORY_ENABLED_DEFAULT)) {
+      levelDBAliasMapServer = new InMemoryLevelDBAliasMapServer(
+              InMemoryAliasMap::init, namesystem.getBlockPoolId());
+      levelDBAliasMapServer.setConf(conf);
+      levelDBAliasMapServer.start();
+    }
   }
 
   /**
@@ -657,9 +676,12 @@ public class NameNode {
             if (namesystem != null) {
                 namesystem.shutdown();
             }
+            if (levelDBAliasMapServer != null) {
+                levelDBAliasMapServer.close();
+          }
         }
     }
-  
+
 
   synchronized boolean isStopRequested() {
     return stopRequested;
@@ -805,7 +827,7 @@ public class NameNode {
         String msg = "Specify a maximum number of blocks that the NameNodes can process for block reporting.";
             if ((i + 1) >= argsLen) {
               // if no of blks not specified then return null
-              
+
               LOG.fatal(msg);
               return null;
             }
@@ -823,7 +845,7 @@ public class NameNode {
             startOpt.setMaxBlkRptProcessSize(noOfBlks);
             return startOpt;
       }
-      
+
       if (StartupOption.FORMAT.getName().equalsIgnoreCase(cmd)) {
         startOpt = StartupOption.FORMAT;
         for (i = i + 1; i < argsLen; i++) {
@@ -847,7 +869,7 @@ public class NameNode {
             }
             startOpt.setClusterId(clusterId);
           }
-          
+
           if (args[i].equalsIgnoreCase(StartupOption.FORCE.getName())) {
             startOpt.setForceFormat(true);
           }
@@ -1158,7 +1180,7 @@ public class NameNode {
   public SortedActiveNodeList getActiveNameNodes() {
     return leaderElection.getActiveNamenodes();
   }
-  
+
   private void startLeaderElectionService() throws IOException {
     // Initialize the leader election algorithm (only once rpc server is
     // created and httpserver is started)
@@ -1186,7 +1208,7 @@ public class NameNode {
       httpAddress = httpServer.getHttpAddress().getAddress().getHostAddress() + ":" + httpServer.getHttpAddress()
           .getPort() ;
     }
-    
+
     leaderElection =
         new LeaderElection(new HdfsLeDescriptorFactory(), leadercheckInterval,
             missedHeartBeatThreshold, leIncrement, httpAddress,

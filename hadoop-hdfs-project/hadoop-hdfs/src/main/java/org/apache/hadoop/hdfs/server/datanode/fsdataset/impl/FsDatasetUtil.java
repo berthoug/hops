@@ -17,14 +17,17 @@
  */
 package org.apache.hadoop.hdfs.server.datanode.fsdataset.impl;
 
+import com.google.common.base.Preconditions;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.common.GenerationStamp;
+import org.apache.hadoop.hdfs.server.datanode.BlockMetadataHeader;
 import org.apache.hadoop.hdfs.server.datanode.DatanodeUtil;
+import org.apache.hadoop.hdfs.server.datanode.FinalizedReplica;
+import org.apache.hadoop.hdfs.server.datanode.ReplicaInfo;
+import org.apache.hadoop.util.DataChecksum;
 
-import java.io.File;
-import java.io.FilenameFilter;
-import java.io.IOException;
+import java.io.*;
 import java.util.Arrays;
 
 /**
@@ -34,6 +37,22 @@ import java.util.Arrays;
 public class FsDatasetUtil {
   static boolean isUnlinkTmpFile(File f) {
     return f.getName().endsWith(DatanodeUtil.UNLINK_BLOCK_SUFFIX);
+  }
+
+  public static byte[] createNullChecksumByteArray() {
+    DataChecksum csum =
+            DataChecksum.newDataChecksum(DataChecksum.Type.NULL, 512);
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    DataOutputStream dataOut = new DataOutputStream(out);
+    try {
+      BlockMetadataHeader.writeHeader(dataOut, csum);
+      dataOut.close();
+    } catch (IOException e) {
+      FsVolumeImpl.LOG.error(
+              "Exception in creating null checksum stream: " + e);
+      return null;
+    }
+    return out.toByteArray();
   }
 
   static File getOrigFile(File unlinkTmpFile) {

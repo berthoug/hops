@@ -386,6 +386,15 @@ message GetFileInfoResponseProto {
   optional HdfsFileStatusProto fs = 1;
 }
 
+message GetLocatedFileInfoRequestProto {
+  optional string src = 1;
+  optional bool needBlockToken = 2 [default = false];
+}
+
+message GetLocatedFileInfoResponseProto {
+  optional HdfsFileStatusProto fs = 1;
+}
+
 message GetFileLinkInfoRequestProto {
   required string src = 1;
 }

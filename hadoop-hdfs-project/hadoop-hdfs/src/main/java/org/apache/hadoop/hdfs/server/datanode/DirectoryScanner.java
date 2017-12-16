@@ -22,9 +22,11 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.protocol.Block;
+import org.apache.hadoop.hdfs.server.common.FileRegion;
 import org.apache.hadoop.hdfs.server.common.GenerationStamp;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
@@ -86,7 +88,7 @@ public class DirectoryScanner implements Runnable {
     long missingBlockFile = 0;
     long missingMemoryBlocks = 0;
     long mismatchBlocks = 0;
-    
+
     public Stats(String bpid) {
       this.bpid = bpid;
     }
@@ -100,7 +102,7 @@ public class DirectoryScanner implements Runnable {
           ", mismatched blocks:" + mismatchBlocks;
     }
   }
-  
+
   static class ScanInfoPerBlockPool
       extends HashMap<String, LinkedList<ScanInfo>> {
     
@@ -109,7 +111,7 @@ public class DirectoryScanner implements Runnable {
     ScanInfoPerBlockPool() {
       super();
     }
-    
+
     ScanInfoPerBlockPool(int sz) {
       super(sz);
     }
@@ -172,12 +174,33 @@ public class DirectoryScanner implements Runnable {
     private final File metaFile;
     private final File blockFile;
     private final FsVolumeSpi volume;
+    private final long blockLength;
+    private final FileRegion fileRegion;
 
     ScanInfo(long blockId, File blockFile, File metaFile, FsVolumeSpi vol) {
       this.blockId = blockId;
       this.metaFile = metaFile;
       this.blockFile = blockFile;
       this.volume = vol;
+    }
+
+    /**
+     * Create a ScanInfo object for a block. This constructor will examine
+     * the block data and meta-data files.
+     *
+     * @param blockId the block ID
+     * @param vol the volume that contains the block
+     * @param fileRegion the file region (for provided blocks)
+     * @param length the length of the block data
+     */
+    public ScanInfo(long blockId, FsVolumeSpi vol, FileRegion fileRegion,
+                    long length) {
+      this.blockId = blockId;
+      this.blockLength = length;
+      this.volume = vol;
+      this.fileRegion = fileRegion;
+     // this.blockSuffix = null; TODO: are thse needed?
+     // this.metaSuffix = null;
     }
 
     File getMetaFile() {
@@ -226,6 +249,14 @@ public class DirectoryScanner implements Runnable {
     public long getGenStamp() {
       return metaFile != null ? Block.getGenerationStamp(metaFile.getName()) :
           GenerationStamp.GRANDFATHER_GENERATION_STAMP;
+    }
+
+    public long getBlockLength() {
+      return blockLength;
+    }
+
+    public FileRegion getFileRegion() {
+      return fileRegion;
     }
   }
 
@@ -296,7 +327,7 @@ public class DirectoryScanner implements Runnable {
       throw er;
     }
   }
-  
+
   void shutdown() {
     if (!shouldRun) {
       LOG.warn(
@@ -450,7 +481,11 @@ public class DirectoryScanner implements Runnable {
    */
   private static boolean isValid(final FsDatasetSpi<?> dataset,
       final FsVolumeSpi volume) {
-    for (FsVolumeSpi vol : dataset.getVolumes()) {
+      for (FsVolumeSpi vol : dataset.getVolumes()) {
+      if (vol.getStorageType() == StorageType.PROVIDED) {
+        // Disable scanning PROVIDED volumes to keep overhead low
+        return false;
+      }
       if (vol == volume) {
         return true;
       }
@@ -481,7 +516,7 @@ public class DirectoryScanner implements Runnable {
         compilersInProgress.put(i, result);
       }
     }
-    
+
     for (Entry<Integer, Future<ScanInfoPerBlockPool>> report : compilersInProgress
         .entrySet()) {
       try {
@@ -583,7 +618,6 @@ public class DirectoryScanner implements Runnable {
       return report;
     }
   }
-  
 
   private static File popMetaFile(final File blkFile,
       final List<File> metaFiles) {

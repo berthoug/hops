@@ -119,8 +119,15 @@ public class MiniDFSCluster {
    * Configuration option to set the data dir: {@value}
    */
   public static final String HDFS_MINIDFS_BASEDIR = "hdfs.minidfs.basedir";
-  public static final String DFS_NAMENODE_SAFEMODE_EXTENSION_TESTING_KEY =
-      DFS_NAMENODE_SAFEMODE_EXTENSION_KEY + ".testing";
+//  public static final String DFS_NAMENODE_SAFEMODE_EXTENSION_TESTING_KEY =
+//      DFS_NAMENODE_SAFEMODE_EXTENSION_KEY + ".testing";
+  /** Configuration option to set the provided data dir: {@value} */
+  public static final String HDFS_MINIDFS_BASEDIR_PROVIDED =
+      "hdfs.minidfs.basedir.provided";
+  public static final String  DFS_NAMENODE_SAFEMODE_EXTENSION_TESTING_KEY
+      = DFS_NAMENODE_SAFEMODE_EXTENSION_KEY + ".testing";
+  public static final String  DFS_NAMENODE_DECOMMISSION_INTERVAL_TESTING_KEY
+      = DFS_NAMENODE_DECOMMISSION_INTERVAL_KEY + ".testing";
 
   // Changing this default may break some tests that assume it is 2.
   private static final int DEFAULT_STORAGES_PER_DATANODE = 2;
@@ -508,7 +515,7 @@ public class MiniDFSCluster {
   private boolean waitSafeMode = true;
   private boolean checkExitOnShutdown = true;
   protected final int storagesPerDatanode;
-  
+
   /**
    * A unique instance identifier for the cluster. This
    * is used to disambiguate HA filesystems in the case where
@@ -685,7 +692,7 @@ public class MiniDFSCluster {
     conf.unset(DFSConfigKeys.DFS_NAMENODE_HTTP_ADDRESS_KEY);
     conf.unset(DFSConfigKeys.DFS_NAMENODE_RPC_ADDRESS_KEY);
     conf.unset(DFSConfigKeys.DFS_NAMENODE_SERVICE_RPC_ADDRESS_KEY);
-    
+
     // Now format first NN and copy the storage directory from that node to the others.
     int i = 0;
     for (NNConf nn : nnTopology.getNamenodes()) {
@@ -737,7 +744,7 @@ public class MiniDFSCluster {
       nameNodeInfo.conf.set(DFSConfigKeys.DFS_NAMENODES_SERVICE_RPC_ADDRESS_KEY,
           serviceRpcAddresses);
     }
-    
+
     conf.set(DFSConfigKeys.DFS_NAMENODE_HTTP_ADDRESS_KEY,
         nnhttpAddresses.get(0));
     conf.set(DFSConfigKeys.DFS_NAMENODE_RPC_ADDRESS_KEY, nnRpcs.get(0));
@@ -770,7 +777,7 @@ public class MiniDFSCluster {
     if (operation == StartupOption.UPGRADE) {
       operation.setClusterId(clusterId);
     }
-    
+
     // Start the NameNode
     String[] args = (operation == null ||
         operation == StartupOption.FORMAT ||
@@ -865,7 +872,15 @@ public class MiniDFSCluster {
     StringBuilder sb = new StringBuilder();
     assert storageTypes == null || storageTypes.length == storagesPerDatanode;
     for (int j = 0; j < storagesPerDatanode; ++j) {
-      File dir = getInstanceStorageDir(dnIndex, j);
+      if ((storageTypes != null) && (j >= storageTypes.length)) {
+        break;
+      }
+      File dir;
+      if (storageTypes != null && storageTypes[j] == StorageType.PROVIDED) {
+        dir = getProvidedStorageDir(dnIndex, j);
+      } else {
+        dir = getInstanceStorageDir(dnIndex, j);
+      }
       dir.mkdirs();
       if (!dir.isDirectory()) {
         throw new IOException("Mkdirs failed to create directory for DataNode " + dir);
@@ -935,7 +950,7 @@ public class MiniDFSCluster {
    * @throws IllegalStateException if NameNode has been shutdown
    */
   public synchronized void startDataNodes(Configuration conf, int numDataNodes,
-      boolean manageDfsDirs, StartupOption operation, String[] racks, 
+      boolean manageDfsDirs, StartupOption operation, String[] racks,
       String[] hosts, long[] simulatedCapacities, boolean setupHostsFile)
           throws IOException {
     startDataNodes(conf, numDataNodes, null, manageDfsDirs, operation, racks, hosts,
@@ -1041,7 +1056,7 @@ public class MiniDFSCluster {
         operation != StartupOption.ROLLBACK) ?
         null : new String[] {operation.getName()};
     DataNode[] dns = new DataNode[numDataNodes];
-    
+
     for (int i = curDatanodesNum; i < curDatanodesNum + numDataNodes; i++) {
       Configuration dnConf = new HdfsConfiguration(conf);
       if (dnConfOverlays != null) {
@@ -1222,7 +1237,7 @@ public class MiniDFSCluster {
       finalizeNamenode(nnInfo.nameNode, nnInfo.conf);
     }
   }
-  
+
   public int getNumNameNodes() {
     return nameNodes.length;
   }
@@ -1266,7 +1281,7 @@ public class MiniDFSCluster {
     checkSingleNameNode();
     return NameNodeAdapter.getNamesystem(nameNodes[0].nameNode);
   }
-  
+
   public FSNamesystem getNamesystem(int nnIndex) {
     return NameNodeAdapter.getNamesystem(nameNodes[nnIndex].nameNode);
   }
@@ -1384,7 +1399,7 @@ public class MiniDFSCluster {
       nameNodes[nnIndex] = new NameNodeInfo(null, null, conf);
     }
   }
-  
+
   /**
    * Restart all namenodes.
    */
@@ -1400,9 +1415,9 @@ public class MiniDFSCluster {
   public synchronized void restartNameNode() throws IOException {
     checkSingleNameNode();
     restartNameNode(true);
-    
+
   }
-  
+
   /**
    * Restart the namenode. Optionally wait for the cluster to become active.
    */
@@ -1687,7 +1702,7 @@ public class MiniDFSCluster {
     checkSingleNameNode();
     return getFileSystem(0);
   }
-  
+
   /**
    * Get a client handle to the DFS cluster for the namenode at given index.
    */
@@ -1705,7 +1720,7 @@ public class MiniDFSCluster {
   public FileSystem getNewFileSystemInstance(int nnIndex) throws IOException {
     return FileSystem.newInstance(getURI(nnIndex), nameNodes[nnIndex].conf);
   }
-  
+
   /**
    * @return a http URL
    */
@@ -1713,7 +1728,7 @@ public class MiniDFSCluster {
     return "http://" +
         nameNodes[nnIndex].conf.get(DFS_NAMENODE_HTTP_ADDRESS_KEY);
   }
-  
+
   /**
    * @return a {@link HftpFileSystem} object.
    */
@@ -1786,7 +1801,7 @@ public class MiniDFSCluster {
 
     client.close();
   }
-  
+
   /**
    * Wait until the cluster is active and running.
    */
@@ -1811,7 +1826,7 @@ public class MiniDFSCluster {
     }
     LOG.info("Cluster is active");
   }
-  
+
   private synchronized boolean shouldWait(DatanodeInfo[] dnInfo,
       InetSocketAddress addr) {
     // If a datanode failed to start, then do not wait
@@ -1890,7 +1905,7 @@ public class MiniDFSCluster {
     return result;
   }
   
-  
+
   /**
    * This method is valid only if the data nodes have simulated data
    *
@@ -1996,7 +2011,7 @@ public class MiniDFSCluster {
   public void setLeasePeriod(long soft, long hard) {
     NameNodeAdapter.setLeasePeriod(getNamesystem(), soft, hard);
   }
-  
+
   public void setWaitSafeMode(boolean wait) {
     this.waitSafeMode = wait;
   }
@@ -2083,6 +2098,26 @@ public class MiniDFSCluster {
   }
 
   /**
+   * Get a storage directory for PROVIDED storages.
+   * The PROVIDED directory to return can be set by using the configuration
+   * parameter {@link #HDFS_MINIDFS_BASEDIR_PROVIDED}. If this parameter is
+   * not set, this function behaves exactly the same as
+   * {@link #getInstanceStorageDir(int, int)}. Currently, the two parameters
+   * are ignored as only one PROVIDED storage is supported in HDFS-9806.
+   *
+   * @param dnIndex datanode index (starts from 0)
+   * @param dirIndex directory index
+   * @return Storage directory
+   */
+  public File getProvidedStorageDir(int dnIndex, int dirIndex) {
+    String base = conf.get(HDFS_MINIDFS_BASEDIR_PROVIDED, null);
+    if (base == null) {
+      return getInstanceStorageDir(dnIndex, dirIndex);
+    }
+    return new File(base);
+  }
+
+  /**
    * Get a storage directory for a datanode.
    * <ol>
    * <li><base directory>/data/data<2*dnIndex + 1></li>
@@ -2123,7 +2158,7 @@ public class MiniDFSCluster {
   public static String getDNCurrentDir(File storageDir) {
     return storageDir + "/" + Storage.STORAGE_DIR_CURRENT + "/";
   }
-  
+
   /**
    * Get directory corresponding to block pool directory in the datanode
    *
@@ -2172,7 +2207,7 @@ public class MiniDFSCluster {
     return new File(getBPDir(storageDir, bpid, Storage.STORAGE_DIR_CURRENT) +
         DataStorage.STORAGE_DIR_FINALIZED);
   }
-  
+
   /**
    * Get file correpsonding to a block
    *
@@ -2239,7 +2274,7 @@ public class MiniDFSCluster {
     }
     return null;
   }
-  
+
   /**
    * Throw an exception if the MiniDFSCluster is not started with a single
    * namenode
@@ -2289,7 +2324,7 @@ public class MiniDFSCluster {
       writer.close();
     }
   }
-  
+
 
   /**
    * deletes tables if there are no alive nn in the system

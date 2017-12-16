@@ -29,6 +29,8 @@ import org.apache.hadoop.hdfs.server.datanode.DataStorage;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,6 +46,8 @@ import java.util.Set;
  */
 @InterfaceAudience.Private
 public class FsVolumeImpl implements FsVolumeSpi {
+  public static final Logger LOG =
+          LoggerFactory.getLogger(FsVolumeImpl.class);
   private final FsDatasetImpl dataset;
   private final String storageID;
   private final StorageType storageType;
