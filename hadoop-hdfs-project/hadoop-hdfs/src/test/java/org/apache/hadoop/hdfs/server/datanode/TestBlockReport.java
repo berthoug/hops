@@ -152,11 +152,11 @@ public class TestBlockReport {
       // generation stamp and length, if so requested.
       for (int i = 0; i < blockList.getNumBlocks(); ++i) {
         if (corruptOneBlockGs && !corruptedGs) {
-          blockList.corruptBlockGSForTesting(i, rand);
+          blockList = blockList.corruptBlockGSForTesting(i, rand);
           LOG.info("Corrupted the GS for block ID " + i);
           corruptedGs = true;
         } else if (corruptOneBlockLen && !corruptedLen) {
-          blockList.corruptBlockLengthForTesting(i, rand);
+          blockList = blockList.corruptBlockLengthForTesting(i, rand);
           LOG.info("Corrupted the length for block ID " + i);
           corruptedLen = true;
         } else {
@@ -165,7 +165,7 @@ public class TestBlockReport {
       }
 
       reports[reportIndex++] =
-          new StorageBlockReport(dnStorage, blockList.getBlockListAsLongs());
+          new StorageBlockReport(dnStorage, blockList);
     }
 
     return reports;
