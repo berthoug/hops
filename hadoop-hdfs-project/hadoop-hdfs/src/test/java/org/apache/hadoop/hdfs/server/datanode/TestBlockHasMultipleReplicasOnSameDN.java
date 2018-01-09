@@ -28,6 +28,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.*;
 import org.apache.hadoop.hdfs.protocol.*;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
+import org.apache.hadoop.hdfs.server.protocol.BlockReport;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.StorageBlockReport;
@@ -117,10 +118,10 @@ public class TestBlockHasMultipleReplicasOnSameDN {
     LogFactory.getLog("foooo").debug("HERE (1)");
 
     for (int i = 0; i < cluster.getStoragesPerDatanode(); ++i) {
-      BlockListAsLongs bll = new BlockListAsLongs(blocks, null);
+      BlockReport bll = BlockReport.builder(1).addAllAsFinalized(blocks).build();
       FsVolumeSpi v = dn.getFSDataset().getVolumes().get(i);
       DatanodeStorage dns = new DatanodeStorage(v.getStorageID());
-      reports[i] = new StorageBlockReport(dns, bll.getBlockListAsLongs());
+      reports[i] = new StorageBlockReport(dns, bll);
     }
 
     LogFactory.getLog("foooo").debug("HERE (1b)");

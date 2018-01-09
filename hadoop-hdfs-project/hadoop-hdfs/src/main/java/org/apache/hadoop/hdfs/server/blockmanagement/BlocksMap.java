@@ -45,7 +45,7 @@ class BlocksMap {
   private final static List<DatanodeDescriptor> empty_datanode_list =
       Collections.unmodifiableList(new ArrayList<DatanodeDescriptor>());
   private final static List<DatanodeStorageInfo> empty_storage_list =
-      Collections.unmodifiableList(new ArrayList<DatanodeDescriptor>());
+      Collections.unmodifiableList(new ArrayList<DatanodeStorageInfo>());
   
   BlocksMap(DatanodeManager datanodeManager) {
     this.datanodeManager = datanodeManager;

@@ -255,7 +255,7 @@ class InvalidateBlocks {
         InvalidateBlockDataAccess da =
             (InvalidateBlockDataAccess) HdfsStorageFactory
                 .getDataAccess(InvalidateBlockDataAccess.class);
-        return da.findInvalidatedBlockBySid(sid);
+        return da.findInvalidatedBlockByStorageId(sid);
       }
     }.handle();
   }
@@ -283,7 +283,7 @@ class InvalidateBlocks {
         InvalidateBlockDataAccess da =
             (InvalidateBlockDataAccess) HdfsStorageFactory
                 .getDataAccess(InvalidateBlockDataAccess.class);
-        da.removeAllBySid(sid);
+        da.removeAllByStorageId(sid);
         return null;
       }
     }.handle();
@@ -313,7 +313,7 @@ class InvalidateBlocks {
         InvalidateBlockDataAccess da =
             (InvalidateBlockDataAccess) HdfsStorageFactory
                 .getDataAccess(InvalidateBlockDataAccess.class);
-        da.removeByBlockIdAndSid(blockId, sid);
+        da.removeByBlockIdAndStorageId(blockId, sid);
         return null;
       }
     }.handle();

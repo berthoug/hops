@@ -209,7 +209,7 @@ public class InvalidatedBlockContext
     final int sid = (Integer) params[2];
 
     aboutToAccessStorage(iFinder, params);
-    List<InvalidatedBlock> result = dataAccess.findInvalidatedBlockBySid(sid);
+    List<InvalidatedBlock> result = dataAccess.findInvalidatedBlockByStorageId(sid);
 
     gotFromDB(BlockPK.ReplicaPK.getKeys(blockIds, inodeIds, sid),
         result);

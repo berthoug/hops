@@ -903,7 +903,7 @@ public class BlockManager {
     final DatanodeStorageInfo[] storages = new DatanodeStorageInfo[numMachines];
     int j = 0;
     if (numMachines > 0) {
-      for (final DatanodeDescriptor d : blocksMap.nodeList(blk)){
+      for (final DatanodeStorageInfo storage : blocksMap.storageList(blk)){
         final boolean replicaCorrupt = corruptReplicas.isReplicaCorrupt(blk,
             storage.getDatanodeDescriptor());
         if (isCorrupt || (!isCorrupt && !replicaCorrupt)) {

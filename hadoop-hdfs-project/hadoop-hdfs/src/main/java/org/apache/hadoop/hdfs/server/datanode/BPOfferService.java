@@ -796,7 +796,7 @@ public class IncrementalBRTask implements Callable{
 
     if (blockArrays.size() == 0) {
       // Nothing new to report.
-      return;
+      return null;
     }
 
     // Send incremental block reports to the Namenode outside the lock
