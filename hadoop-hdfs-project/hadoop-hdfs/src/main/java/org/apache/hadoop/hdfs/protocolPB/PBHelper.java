@@ -574,8 +574,6 @@ public class PBHelper {
       DatanodeInfo loc = locs[i];
       builder.addLocs(i, PBHelper.convert(loc));
       //For compatability with newer clients
-      builder.addStorageIDs("HopsFS_Hack_Storage_ID" );
-      builder.addStorageTypes(HdfsProtos.StorageTypeProto.DISK);
       builder.addIsCached(false);
     }
 

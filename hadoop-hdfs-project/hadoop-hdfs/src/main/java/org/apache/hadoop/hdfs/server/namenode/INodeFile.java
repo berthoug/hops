@@ -399,17 +399,10 @@ public class INodeFile extends INode implements BlockCollection {
   }
   
 
-  public long getHeader() {
-    return header;
-  }
 
   /** @return the diskspace required for a full block. */
   final long getBlockDiskspace() {
     return getPreferredBlockSize() * getBlockReplication();
-  }
-
-  public static short getBlockReplication(long header) {
-    return (short) ((header & HEADERMASK) >> BLOCKBITS);
   }
 
   void setReplication(short replication)

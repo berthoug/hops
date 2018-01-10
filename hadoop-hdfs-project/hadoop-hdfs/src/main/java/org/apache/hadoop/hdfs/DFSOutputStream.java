@@ -351,7 +351,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
 
     private ArrayList<DatanodeInfo> excludedNodes =
         new ArrayList<>();
-    private String[] favoredNodes;
     volatile boolean hasError = false;
     volatile int errorIndex = -1;
     private BlockConstructionStage stage;  // block construction stage
@@ -464,10 +463,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
       this.storageIDs = storageIDs;
     }
 
-    private void setFavoredNodes(String[] favoredNodes) {
-      this.favoredNodes = favoredNodes;
-    }
-    
     /**
      * Initialize for data streaming
      */
@@ -521,21 +516,19 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           synchronized (dataQueue) {
             // wait for a packet to be sent.
             long now = Time.now();
-            while ((
-                    !streamerClosed &&
-                    !hasError &&
-                    dfsClient.clientRunning &&
+            while ((!streamerClosed && !hasError && dfsClient.clientRunning &&
                     dataQueue.size() == 0 &&
                     (stage != BlockConstructionStage.DATA_STREAMING ||
-                        (stage == BlockConstructionStage.DATA_STREAMING &&
-                        now - lastPacket < dfsClient.getConf().socketTimeout/2)
-                    )
-                )
-                || doSleep ) {
-              long timeout = dfsClient.getConf().socketTimeout/2 - (now-lastPacket);
+                            (stage == BlockConstructionStage.DATA_STREAMING &&
+                                    now - lastPacket < 
+                                            dfsClient.getConf().socketTimeout / 2))) ||
+                    doSleep) {
+              long timeout = 
+                      dfsClient.getConf().socketTimeout / 2 - (now - lastPacket);
               timeout = timeout <= 0 ? 1000 : timeout;
-              timeout = (stage == BlockConstructionStage.DATA_STREAMING)? timeout : 1000;
-
+              timeout = 
+                      (stage == BlockConstructionStage.DATA_STREAMING) ? timeout :
+                      1000;
               try {
                 dataQueue.wait(timeout);
               } catch (InterruptedException e) {
@@ -964,8 +957,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
 
       //get a new datanode
       final DatanodeInfo[] original = nodes;
-      final LocatedBlock lb = dfsClient.getAdditionalDatanode(
-          src, block, nodes, storageIDs,
+      final LocatedBlock lb = dfsClient.getAdditionalDatanode(src, block, nodes, storageIDs,
           failed.toArray(new DatanodeInfo[failed.size()]), 1,
           dfsClient.clientName);
       setPipeline(lb);
@@ -1310,7 +1302,8 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           BlockConstructionStage bcs =
               recoveryFlag ? stage.getRecoveryStage() : stage;
           // send the request
-          new Sender(out).writeBlock(block, nodeStorageTypes[0], accessToken,
+          new Sender(out)
+                  .writeBlock(block, nodeStorageTypes[0], accessToken,
               dfsClient.clientName, nodes, nodeStorageTypes, null,
               bcs, nodes.length, block.getNumBytes(), bytesSent, newGS,
               checksum);
