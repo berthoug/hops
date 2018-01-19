@@ -935,10 +935,9 @@ public class MiniDFSCluster {
    * @throws IllegalStateException if NameNode has been shutdown
    */
   public synchronized void startDataNodes(Configuration conf, int numDataNodes,
-      boolean manageDfsDirs, StartupOption operation,
-      String[] racks, String[] hosts,
-      long[] simulatedCapacities,
-      boolean setupHostsFile) throws IOException {
+      boolean manageDfsDirs, StartupOption operation, String[] racks, 
+      String[] hosts, long[] simulatedCapacities, boolean setupHostsFile)
+          throws IOException {
     startDataNodes(conf, numDataNodes, null, manageDfsDirs, operation, racks, hosts,
         null, simulatedCapacities, setupHostsFile, false, false, null);
   }
@@ -981,19 +980,10 @@ public class MiniDFSCluster {
    *              global MiniDFSCluster Configuration for the corresponding DataNode.
    * @throws IllegalStateException if NameNode has been shutdown
    */
-  public synchronized void startDataNodes(
-      Configuration conf,
-      int numDataNodes,
-      StorageType[][] storageTypes,
-      boolean manageDfsDirs,
-      StartupOption operation,
-      String[] racks,
-      String[] hosts,
-      long[][] storageCapacities,
-      long[] simulatedCapacities,
-      boolean setupHostsFile,
-      boolean checkDataNodeAddrConfig,
-      boolean checkDataNodeHostConfig,
+  public synchronized void startDataNodes( Configuration conf, int numDataNodes,
+      StorageType[][] storageTypes, boolean manageDfsDirs, StartupOption operation, String[] racks,
+      String[] hosts, long[][] storageCapacities, long[] simulatedCapacities, boolean setupHostsFile,
+      boolean checkDataNodeAddrConfig, boolean checkDataNodeHostConfig,
       Configuration[] dnConfOverlays) throws IOException {
     assert storageCapacities == null || simulatedCapacities == null;
     assert storageTypes == null || storageTypes.length == numDataNodes;
@@ -1050,9 +1040,9 @@ public class MiniDFSCluster {
     String [] dnArgs = (operation == null ||
         operation != StartupOption.ROLLBACK) ?
         null : new String[] {operation.getName()};
-
     DataNode[] dns = new DataNode[numDataNodes];
-    for (int i = curDatanodesNum; i < curDatanodesNum+numDataNodes; i++) {
+    
+    for (int i = curDatanodesNum; i < curDatanodesNum + numDataNodes; i++) {
       Configuration dnConf = new HdfsConfiguration(conf);
       if (dnConfOverlays != null) {
         dnConf.addResource(dnConfOverlays[i]);
@@ -1151,9 +1141,8 @@ public class MiniDFSCluster {
    */
 
   public void startDataNodes(Configuration conf, int numDataNodes,
-      boolean manageDfsDirs, StartupOption operation,
-      String[] racks
-  ) throws IOException {
+      boolean manageDfsDirs, StartupOption operation, String[] racks)
+          throws IOException {
     startDataNodes(conf, numDataNodes, manageDfsDirs, operation, racks, null,
         null, false);
   }

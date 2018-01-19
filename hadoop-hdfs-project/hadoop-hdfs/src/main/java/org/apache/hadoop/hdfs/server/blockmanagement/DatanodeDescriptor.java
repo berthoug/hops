@@ -316,7 +316,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     DatanodeStorageInfo s = b.getStorageOnNode(this);
 
     if (s != null) {
-      b.removeReplica(s);
+      return b.removeReplica(s) != null;
     }
     return false;
   }

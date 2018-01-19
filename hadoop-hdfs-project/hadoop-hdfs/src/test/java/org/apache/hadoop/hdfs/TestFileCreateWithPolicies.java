@@ -83,7 +83,7 @@ public class TestFileCreateWithPolicies {
   }
 
   @Test (timeout=300000)
-  public void testGetStorageType() throws IOException {
+  public void testGetStorageType() throws IOException, InterruptedException {
     MiniDFSCluster cluster = null;
     DFSClient client = null;
     Configuration conf = new HdfsConfiguration();
@@ -128,6 +128,8 @@ public class TestFileCreateWithPolicies {
 
       // Now set the root folder storage policy
       dfs.setStoragePolicy(new Path("/"), ONESSD_STORAGE_POLICY_NAME);
+      //wait for root inode cach to refresh.
+      Thread.sleep(300);
       check(client, "/", ONESSD_STORAGE_POLICY_ID);
       // Inherit root
       check(client, "/foo", ONESSD_STORAGE_POLICY_ID);
@@ -154,7 +156,7 @@ public class TestFileCreateWithPolicies {
       throws IOException {
     LOG.debug("Checking path " + path + " to have policy " +
         BlockStoragePolicySuite.getPolicy(policy));
-    assertEquals(client.getFileInfo(path).getStoragePolicy(), policy);
+    assertEquals(policy, client.getFileInfo(path).getStoragePolicy());
   }
 
   /**
@@ -266,7 +268,7 @@ public class TestFileCreateWithPolicies {
   }
 
   @Test
-  public void testSimple() throws IOException {
+  public void testSimple() throws IOException, InterruptedException {
     assert(policyNames.length == replicaCounts.length);
 
     MiniDFSCluster cluster = null;
@@ -312,7 +314,8 @@ public class TestFileCreateWithPolicies {
         byte[] buffer = AppendTestUtil.randomBytes(seed, fileSize);
         stm.write(buffer, 0, fileSize);
         stm.close();
-
+        //let some time for the replication to finish
+        Thread.sleep(1000);
         // Each block has numBlocks blocks (so multiply by that factor)
         for(int x = 0; x < numBlocks; x++)
           expectedReplicasOnType.add(replicaCounts[i%policyNames.length]);

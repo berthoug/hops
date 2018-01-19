@@ -266,13 +266,9 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
     // Thus, the following adjustment will still result in a value that forces
     // multi-rack allocation and gives enough number of total nodes.
 
-    // TODO this is the new Hadoop style (and it's better), but it didn't
-    // play nice with Hops yet. Fix it, so this if statement can be uncommented.
-    // Test with: TestReplaceDatanodeOnFailure#testReplaceDatanodeOnFailure()
-
-//    if (maxNodesPerRack == totalNumOfReplicas) {
-//      maxNodesPerRack--;
-//    }
+    if (maxNodesPerRack == totalNumOfReplicas) {
+      maxNodesPerRack--;
+    }
     return new int[] {numOfReplicas, maxNodesPerRack};
   }
 

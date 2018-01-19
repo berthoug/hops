@@ -780,7 +780,8 @@ public class NetworkTopology {
         scopeNodeCount=((InnerNode)n).getNumOfLeaves();
       }
       if (isExcluded) {
-        return clusterMap.getNumOfLeaves() - scopeNodeCount - excludedCountOffScope;
+        return clusterMap.getNumOfLeaves() - scopeNodeCount
+                - excludedCountOffScope;
       } else {
         return scopeNodeCount - excludedCountInScope;
       }

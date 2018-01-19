@@ -1500,7 +1500,7 @@ public class DatanodeManager {
   }
   
   public int getSid(String StorageId){
-    return this.getSid(StorageId);
+    return this.storageMap.getSid(StorageId);
   }
 
   public List<Integer> getSidsOnDatanode(String datanodeUuid) {

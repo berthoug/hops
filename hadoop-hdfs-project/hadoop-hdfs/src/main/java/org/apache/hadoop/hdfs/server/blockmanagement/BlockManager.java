@@ -633,8 +633,9 @@ public class BlockManager {
 
     int numReplicas = countNodes(lastBlock).liveReplicas();
     if (numReplicas >= minReplication) {
-      completeBlock(bc, bc.numBlocks() - 1, false);
-      LOG.debug("commitOrCompleteLastBlock. Completed Block " + lastBlock.getBlockId());
+      completeBlock(bc, lastBlock.getBlockIndex(), false);
+      LOG.debug("commitOrCompleteLastBlock. Completed Block " +
+          lastBlock.getBlockId());
     } else {
       LOG.debug("commitOrCompleteLastBlock. Completed FAILED. " +
           "Block " + lastBlock.getBlockId() + ": " +
@@ -2007,7 +2008,7 @@ public class BlockManager {
             LockFactory lf = LockFactory.getInstance();
             Block b = (Block) getParams()[0];
             locks.add(
-                lf.getIndividualINodeLock(INodeLockType.WRITE, inodeIdentifier))
+                lf.getIndividualINodeLock(INodeLockType.WRITE, inodeIdentifier, true))
                 .add(lf.getIndividualBlockLock(b.getBlockId(), inodeIdentifier))
                 .add(
                     lf.getBlockRelated(BLK.RE, BLK.IV, BLK.CR, BLK.UR, BLK.ER));
@@ -2071,7 +2072,7 @@ public class BlockManager {
     Collection<StatefulBlockInfo> toUC = Collections.newSetFromMap(mapToUC);
 
     final boolean firstBlockReport =
-        namesystem.isInStartupSafeMode() && storage.getBlockReportCount() > 0;
+        namesystem.isInStartupSafeMode() && storage.getBlockReportCount() == 0;
     ReportStatistics reportStatistics = reportDiff(storage, report, toAdd, toRemove, toInvalidate, toCorrupt,
         toUC, firstBlockReport);
 
@@ -2188,7 +2189,7 @@ public class BlockManager {
     stats.numBlocks = newReport.getNumBlocks();
   
     HashMatchingResult matchingResult;
-    if (firstBlockReport){
+    if (storage.getBlockReportCount() == 0){
       //For some reason, the first block reports can report matching hashes
       //despite being incorrect. I still don't get why..
       List<Integer> allBucketIds = new ArrayList<>();
@@ -3239,10 +3240,8 @@ public class BlockManager {
    * then pick a node with least free space
    */
   private void chooseExcessReplicates(final Collection<DatanodeStorageInfo> nonExcess,
-      Block b, short replication,
-      DatanodeDescriptor addedNode,
-      DatanodeDescriptor delNodeHint,
-      BlockPlacementPolicy replicator)
+      Block b, short replication, DatanodeDescriptor addedNode,
+      DatanodeDescriptor delNodeHint, BlockPlacementPolicy replicator)
       throws StorageException, TransactionContextException {
 
     // first form a rack to datanodes map and
@@ -3277,8 +3276,8 @@ public class BlockManager {
           moreThanOne, excessTypes)) {
         cur = delNodeHintStorage;
       } else { // regular excessive replica removal
-        cur = replicator.chooseReplicaToDelete(bc, b, replication,
-            moreThanOne, exactlyOne, excessTypes);
+        cur = replicator
+            .chooseReplicaToDelete(bc, b, replication, moreThanOne, exactlyOne, excessTypes);
       }
       firstOne = false;
 
@@ -3299,8 +3298,8 @@ public class BlockManager {
       // upon giving instructions to the namenode.
       //
       addToInvalidates(b, cur);
-      blockLog.info("BLOCK* chooseExcessReplicates: "
-          +"("+cur+", "+b+") is added to invalidated blocks set");
+      blockLog.info("BLOCK* chooseExcessReplicates: " + "(" + cur + ", " + b +
+              ") is added to invalidated blocks set");
     }
   }
 
@@ -3639,11 +3638,12 @@ public class BlockManager {
 
           @Override
           public Object performTask() throws IOException {
-            ReceivedDeletedBlockInfo rdbi = (ReceivedDeletedBlockInfo) getParams()[0];
-            LOG.debug("DDD: BLOCK_RECEIVED_AND_DELETED_INC_BLK_REPORT " + rdbi
-                .getStatus() + " bid=" +
-                rdbi.getBlock().getBlockId() + " dataNode=" + node.getXferAddr() + " storage=" +
-                storage.getStorageID());
+            ReceivedDeletedBlockInfo rdbi =
+                    (ReceivedDeletedBlockInfo) getParams()[0];
+            LOG.debug("DDD: BLOCK_RECEIVED_AND_DELETED_INC_BLK_REPORT " +
+                rdbi.getStatus() + " bid=" +rdbi.getBlock().getBlockId() +
+                " dataNode=" + node.getXferAddr() + " storage=" + storage.getStorageID() +
+                    " sid: " + storage.getSid());
             HashBuckets hashBuckets = HashBuckets.getInstance();
             
             switch (rdbi.getStatus()) {
@@ -3680,7 +3680,8 @@ public class BlockManager {
                 break;
               default:
                 String msg =
-                    "Unknown block status code reported by " + storage.getStorageID() + ": " + rdbi;
+                    "Unknown block status code reported by " + storage.getStorageID() + ": " + 
+                        rdbi;
                 blockLog.warn(msg);
                 assert false : msg; // if assertions are enabled, throw.
                 break;

@@ -1077,11 +1077,11 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
           case FINALIZED:
           case RBW:
           case RWR:
-            builders.get(b.getVolume()).add(b);
+            builders.get(b.getVolume().getStorageID()).add(b);
             break;
           case RUR:
             ReplicaUnderRecovery rur = (ReplicaUnderRecovery) b;
-            builders.get(b.getVolume()).add(rur.getOriginalReplica());
+            builders.get(b.getVolume().getStorageID()).add(rur.getOriginalReplica());
             break;
           case TEMPORARY:
             break;

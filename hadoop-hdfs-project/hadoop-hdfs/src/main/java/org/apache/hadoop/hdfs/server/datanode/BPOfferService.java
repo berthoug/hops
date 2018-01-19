@@ -719,15 +719,15 @@ class BPOfferService implements Runnable {
     } // while (shouldRun())
   } // offerService
 
-  private final Object BRLock = new Object();
-  private boolean brIsRunning = false;
   private BRTask brTask = new BRTask();
-  private void startBRThread(){
-    synchronized (BRLock) {
-      if (!brIsRunning) {
-        brIsRunning = true;
-        brDispatcher.submit(brTask);
+  private Future futur = null;
+  private void startBRThread() throws InterruptedException, ExecutionException{
+    if(futur == null || futur.isDone()){
+      if(futur!=null){
+        //check that previous run did not end with an exception
+        futur.get();
       }
+      futur = brDispatcher.submit(brTask);
     }
   }
 
@@ -740,7 +740,7 @@ class BPOfferService implements Runnable {
      */
     @Override
     public Object call() throws Exception {
-      DatanodeCommand cmd = blockReport();
+      DatanodeCommand cmd = blockReport();      
       if (cmd != null) {
         blkReportHander.processCommand(new DatanodeCommand[]{cmd});
       }
@@ -748,9 +748,6 @@ class BPOfferService implements Runnable {
       // If it has already been started, this is a no-op.
       if (dn.blockScanner != null) {
         dn.blockScanner.addBlockPool(getBlockPoolId());
-      }
-      synchronized (BRLock) {
-        brIsRunning = false;
       }
       return null;
     }
@@ -796,9 +793,11 @@ public class IncrementalBRTask implements Callable{
 
     if (blockArrays.size() == 0) {
       // Nothing new to report.
+      synchronized (incrementalBRLock){
+        incrementalBRCounter--;
+      }
       return null;
     }
-
     // Send incremental block reports to the Namenode outside the lock
     for (Map.Entry<String, ReceivedDeletedBlockInfo[]> entry :
         blockArrays.entrySet()) {
@@ -1213,9 +1212,13 @@ public class IncrementalBRTask implements Callable{
     BPServiceActor leaderActor = getLeaderActor();
       if (leaderActor != null) {
         try {
-        annToBR = leaderActor.nextNNForBlkReport(noOfBlks);
-        } catch (BRLoadBalancingException e) {
-          LOG.warn(e);
+          annToBR = leaderActor.nextNNForBlkReport(noOfBlks);
+        } catch (RemoteException e) {
+            if(e.getClassName().equals(BRLoadBalancingException.class.getName())){
+                LOG.warn(e);
+            }else{
+                throw e;
+            }
         }
       }
     return annToBR;

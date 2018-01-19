@@ -277,11 +277,9 @@ public class BlockInfoUnderConstruction extends BlockInfo {
   }
 
   private void complete() throws StorageException, TransactionContextException {
-    ReplicaUnderConstructionDataAccess da =
-        (ReplicaUnderConstructionDataAccess) HdfsStorageFactory
-            .getDataAccess(ReplicaUnderConstructionDataAccess.class);
-
-    da.removeByBlockIdAndInodeId(getBlockId(), getInodeId());
+    for (ReplicaUnderConstruction rep : getExpectedReplicas()) {
+      EntityManager.remove(rep);
+    }
   }
 
   void setBlockUCState(BlockUCState s)
