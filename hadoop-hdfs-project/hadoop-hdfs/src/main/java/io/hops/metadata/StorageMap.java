@@ -58,13 +58,11 @@ public class StorageMap {
   private Map<String, ArrayList<Integer>> datanodeUuidToSids =
       Collections.synchronizedMap(new HashMap<String, ArrayList<Integer>>());;
 
-  public StorageMap() {
+  public StorageMap() throws IOException {
     this(true);
   }
 
-  // TODO should this method throw the IOExceptions?
-  public StorageMap(boolean loadFromDB) {
-    try {
+  public StorageMap(boolean loadFromDB) throws IOException {
       // Initialize the StorageId (String) <--> sid (int) maps
       this.storageIdMap = new StorageIdMap(loadFromDB);
 
@@ -72,9 +70,6 @@ public class StorageMap {
         // Initialize the datanodeUuid (String) --> sids (int[]) map
         this.initializeDatanodeUuidToSidsMap();
       }
-    } catch (IOException e) {
-      LOG.error("Failed to load storageIdMap from database.", e);
-    }
   }
 
   /**
@@ -106,8 +101,7 @@ public class StorageMap {
   /**
    * Adds or replaces storageinfo for the given sid
    */
-  public void updateStorage(final DatanodeStorageInfo storageInfo) {
-    try {
+  public void updateStorage(final DatanodeStorageInfo storageInfo) throws IOException {
       // Allow lookup of storageId (String) <--> sid (int)
       storageIdMap.update(storageInfo);
 
@@ -152,10 +146,6 @@ public class StorageMap {
           }
         }.handle();
       }
-    } catch (IOException e) {
-      // TODO throw some stuff?
-      e.printStackTrace();
-    }
 
     // Allow lookup of sid (int) -> DatanodeStorageInfo
     storageInfoMap.put(storageInfo.getSid(), storageInfo);

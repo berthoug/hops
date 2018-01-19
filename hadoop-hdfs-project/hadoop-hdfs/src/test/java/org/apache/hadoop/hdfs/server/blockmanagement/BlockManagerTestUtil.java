@@ -218,13 +218,13 @@ public class BlockManagerTestUtil {
   }
 
   public static DatanodeDescriptor getDatanodeDescriptor(String ipAddr,
-      String rackLocation, boolean initializeStorage) {
+      String rackLocation, boolean initializeStorage) throws IOException {
     return getDatanodeDescriptor(ipAddr, rackLocation,
         initializeStorage? new DatanodeStorage(DatanodeStorage.generateUuid()): null);
   }
 
   public static DatanodeDescriptor getDatanodeDescriptor(String ipAddr,
-      String rackLocation, DatanodeStorage storage) {
+      String rackLocation, DatanodeStorage storage) throws IOException {
     return getDatanodeDescriptor(ipAddr, rackLocation, storage, "host");
   }
 
@@ -252,12 +252,12 @@ public class BlockManagerTestUtil {
   }
 
   public static DatanodeStorageInfo updateStorage(DatanodeDescriptor dn,
-      DatanodeStorage s) {
+      DatanodeStorage s) throws IOException {
     return dn.updateStorage(s);
   }
 
   public static DatanodeDescriptor getDatanodeDescriptor(String ipAddr,
-      String rackLocation, DatanodeStorage storage, String hostname) {
+      String rackLocation, DatanodeStorage storage, String hostname) throws IOException {
     DatanodeDescriptor dn = DFSTestUtil.getDatanodeDescriptor(ipAddr,
         DFSConfigKeys.DFS_DATANODE_DEFAULT_PORT, rackLocation, hostname);
     if (storage != null) {

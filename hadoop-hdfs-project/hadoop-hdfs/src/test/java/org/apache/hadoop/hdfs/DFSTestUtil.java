@@ -958,11 +958,11 @@ public class DFSTestUtil {
     return new DatanodeID("127.0.0.1", "localhost", "", port, port, port);
   }
 
-  public static DatanodeDescriptor getLocalDatanodeDescriptor() {
+  public static DatanodeDescriptor getLocalDatanodeDescriptor() throws IOException {
     return getLocalDatanodeDescriptor(false);
   }
 
-  public static DatanodeDescriptor getLocalDatanodeDescriptor(boolean initializeStorage) {
+  public static DatanodeDescriptor getLocalDatanodeDescriptor(boolean initializeStorage) throws IOException {
     DatanodeDescriptor dn = new DatanodeDescriptor(new StorageMap(false),
         getLocalDatanodeID());
     if (initializeStorage) {
@@ -1007,8 +1007,16 @@ public class DFSTestUtil {
     return datanodes;
   }
 
-  public static StorageMap storageMap = new StorageMap(false);
+  public static StorageMap storageMap;
 
+  static {
+     try {
+       storageMap = new StorageMap(false);
+     } catch (IOException ex) {
+       LOG.error(ex);
+     }
+  }
+  
   public static DatanodeDescriptor getDatanodeDescriptor(String ipAddr,
       String rackLocation) {
     return getDatanodeDescriptor(ipAddr,
@@ -1029,21 +1037,21 @@ public class DFSTestUtil {
     return new DatanodeDescriptor(storageMap, dnId, rackLocation);
   }
 
-  public static DatanodeStorageInfo[] createDatanodeStorageInfos(String[] racks) {
+  public static DatanodeStorageInfo[] createDatanodeStorageInfos(String[] racks) throws IOException {
     return createDatanodeStorageInfos(racks, null);
   }
 
-  public static DatanodeStorageInfo[] createDatanodeStorageInfos(String[] racks, String[] hostnames) {
+  public static DatanodeStorageInfo[] createDatanodeStorageInfos(String[] racks, String[] hostnames) throws IOException {
     return createDatanodeStorageInfos(racks.length, racks, hostnames);
   }
 
   public static DatanodeStorageInfo[] createDatanodeStorageInfos(
-      int n, String[] racks, String[] hostnames) {
+      int n, String[] racks, String[] hostnames) throws IOException {
     return createDatanodeStorageInfos(n, racks, hostnames, null);
   }
 
   public static DatanodeStorageInfo[] createDatanodeStorageInfos(
-      int n, String[] racks, String[] hostnames, StorageType[] types) {
+      int n, String[] racks, String[] hostnames, StorageType[] types) throws IOException {
     DatanodeStorageInfo[] storages = new DatanodeStorageInfo[n];
     for(int i = storages.length; i > 0; ) {
       final String storageID = "s" + i;
@@ -1060,14 +1068,14 @@ public class DFSTestUtil {
   }
 
   public static DatanodeStorageInfo createDatanodeStorageInfo(
-      String storageID, String ip, String rack, String hostname) {
+      String storageID, String ip, String rack, String hostname) throws IOException {
     return createDatanodeStorageInfo(storageID, ip, rack, hostname,
         StorageType.DEFAULT);
   }
 
   public static DatanodeStorageInfo createDatanodeStorageInfo(
       String storageID, String ip, String rack, String hostname,
-      StorageType type) {
+      StorageType type) throws IOException {
     final DatanodeStorage storage = new DatanodeStorage(storageID,
         DatanodeStorage.State.NORMAL, type);
     final DatanodeDescriptor dn = BlockManagerTestUtil.getDatanodeDescriptor(ip, rack, storage, hostname);

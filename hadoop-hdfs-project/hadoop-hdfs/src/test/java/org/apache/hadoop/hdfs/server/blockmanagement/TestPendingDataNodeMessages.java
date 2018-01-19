@@ -18,6 +18,7 @@
 package org.apache.hadoop.hdfs.server.blockmanagement;
 
 import com.google.common.base.Joiner;
+import java.io.IOException;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.blockmanagement.PendingDataNodeMessages.ReportedBlockInfo;
@@ -40,7 +41,7 @@ public class TestPendingDataNodeMessages {
   private final Block block2Gs1 = new Block(2, 0, 1);
 
   @Test
-  public void testQueues() {
+  public void testQueues() throws IOException {
     DatanodeDescriptor fakeDN = DFSTestUtil.getLocalDatanodeDescriptor();
     DatanodeStorage storage = new DatanodeStorage("STORAGE_ID");
     DatanodeStorageInfo storageInfo = new DatanodeStorageInfo(fakeDN, storage);

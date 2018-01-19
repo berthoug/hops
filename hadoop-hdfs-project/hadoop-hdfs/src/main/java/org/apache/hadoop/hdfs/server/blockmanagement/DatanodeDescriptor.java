@@ -401,21 +401,25 @@ public class DatanodeDescriptor extends DatanodeInfo {
     setLastUpdate(Time.now());
     this.volumeFailures = volFailures;
     for (StorageReport report : reports) {
-      // TODO do we want to pass a storage, or just the id? If we only pass
-      // the ID (which should be enough for a DB lookup), we can reduce the
-      // report object to only have a storageId, instead of a full
-      // DatanodeStorage object. If so, we could also do an if(storage !=
-      // null) check...
-      DatanodeStorageInfo storage = updateStorage(report.getStorage());
-      if (checkFailedStorages) {
-        failedStorageInfos.remove(storage);
-      }
+      try {
+        // TODO do we want to pass a storage, or just the id? If we only pass
+        // the ID (which should be enough for a DB lookup), we can reduce the
+        // report object to only have a storageId, instead of a full
+        // DatanodeStorage object. If so, we could also do an if(storage !=
+        // null) check...
+        DatanodeStorageInfo storage = updateStorage(report.getStorage());
+        if (checkFailedStorages) {
+          failedStorageInfos.remove(storage);
+        }
 
-      storage.receivedHeartbeat(report);
-      totalCapacity += report.getCapacity();
-      totalRemaining += report.getRemaining();
-      totalBlockPoolUsed += report.getBlockPoolUsed();
-      totalDfsUsed += report.getDfsUsed();
+        storage.receivedHeartbeat(report);
+        totalCapacity += report.getCapacity();
+        totalRemaining += report.getRemaining();
+        totalBlockPoolUsed += report.getBlockPoolUsed();
+        totalDfsUsed += report.getDfsUsed();
+      } catch (IOException ex) {
+        LOG.error("could not handle storage report for storage: " + report.getStorage().getStorageID(), ex);
+      }
     }
     rollBlocksScheduled(getLastUpdate());
 
@@ -830,7 +834,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     return sb.toString();
   }
 
-  public DatanodeStorageInfo updateStorage(DatanodeStorage s) {
+  public DatanodeStorageInfo updateStorage(DatanodeStorage s) throws IOException{
     synchronized (storageMap) {
       DatanodeStorageInfo storage = getStorageInfo(s.getStorageID());
       if (storage == null) {
