@@ -200,8 +200,10 @@ public class DatanodeStorageInfo {
   
   public void setState(State s) {
     this.state = s;
-    
-    // TODO: if goes to failed state cleanup the block list
+  }
+  
+  boolean areBlocksOnFailedStorage() throws IOException {
+    return getState() == State.FAILED && numBlocks() != 0;
   }
   
   public State getState() {
