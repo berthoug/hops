@@ -44,6 +44,7 @@ import org.apache.hadoop.util.Time;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -224,8 +225,6 @@ public class DatanodeDescriptor extends DatanodeInfo {
   /**
    * The number of replication work pending before targets are determined
    */
-  // TODO HDP_2.6 should we keep this volatile or store in DB? I think
-  // volatile is OK
   private int PendingReplicationWithoutTargets = 0;
 
   /**
@@ -340,10 +339,6 @@ public class DatanodeDescriptor extends DatanodeInfo {
   }
 
   public int numBlocks() throws IOException {
-    // TODO: do a count in SQL instead of a for loop (both for
-    // atomicity and for efficiency)
-    // i.e. SELECT COUNT(*) FROM blocks b, storages s
-    //  WHERE s.hostid = <some id> AND s.id = b.storageID
 
     int blocks = 0;
 
@@ -511,15 +506,51 @@ public class DatanodeDescriptor extends DatanodeInfo {
     return (List<DatanodeStorageInfo>) findStoragesHandler.handle();
   }
 
-  // TODO deal with this...
-  public Iterator<BlockInfo> getBlockIterator() throws IOException {
-    // We could iterate over all storages, and then over all blocks within
-    // each storage?
+  private static class BlockIterator implements Iterator<BlockInfo> {
 
-    // For now, let's just pretend we have a single function to deal with it:
-    return getAllMachineBlockInfos().iterator();
+    private int index = 0;
+    private final List<Iterator<BlockInfo>> iterators;
+
+    private BlockIterator(final DatanodeStorageInfo... storages) throws IOException {
+      List<Iterator<BlockInfo>> iterators = new ArrayList<Iterator<BlockInfo>>();
+      for (DatanodeStorageInfo e : storages) {
+        iterators.add(e.getBlockIterator());
+      }
+      this.iterators = Collections.unmodifiableList(iterators);
+    }
+
+    @Override
+    public boolean hasNext() {
+      update();
+      return !iterators.isEmpty() && iterators.get(index).hasNext();
+    }
+
+    @Override
+    public BlockInfo next() {
+      update();
+      return iterators.get(index).next();
+    }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException("Remove unsupported.");
+    }
+
+    private void update() {
+      while (index < iterators.size() - 1 && !iterators.get(index).hasNext()) {
+        index++;
+      }
+    }
   }
 
+  public Iterator<BlockInfo> getBlockIterator() throws IOException {
+    return new BlockIterator(getStorageInfos());
+  }
+
+  Iterator<BlockInfo> getBlockIterator(final String storageID) throws IOException {
+    return new BlockIterator(getStorageInfo(storageID));
+  }
+  
   void incrementPendingReplicationWithoutTargets() {
     PendingReplicationWithoutTargets++;
   }
@@ -581,7 +612,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
    * The number of work items that are pending to be replicated
    */
   int getNumberOfBlocksToBeReplicated() {
-    return replicateBlocks.size();
+    return PendingReplicationWithoutTargets + replicateBlocks.size();
   }
 
   /**

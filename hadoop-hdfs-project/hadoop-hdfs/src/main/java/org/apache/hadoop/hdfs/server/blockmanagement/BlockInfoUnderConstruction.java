@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -200,7 +201,7 @@ public class BlockInfoUnderConstruction extends BlockInfo {
       }
     }
   }
-
+  
   @Override // BlockInfo
   // BlockInfoUnderConstruction participates in maps the same way as BlockInfo
   public int hashCode() {

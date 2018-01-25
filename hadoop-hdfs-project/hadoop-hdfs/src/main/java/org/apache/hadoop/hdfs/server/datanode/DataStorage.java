@@ -489,8 +489,6 @@ public class DataStorage extends Storage {
 
   /**
    * Upgrading not supported as of now.
-   * Check the new Hadoop code to implement it.
-   * TODO HDP_2.6
    */
   void doUpgrade(DataNode datanode, StorageDirectory sd, NamespaceInfo nsInfo)
       throws IOException {

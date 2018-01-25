@@ -296,17 +296,15 @@ public class BlockPoolSliceStorage extends Storage {
             this.getCTime() + " is newer than the namespace state: LV = " +
             nsInfo.getLayoutVersion() + " CTime = " + nsInfo.getCTime());
   }
-
+ 
   /**
    * Upgrading not supported as of now.
-   * Check the new Hadoop code to implement it.
-   * TODO HDP_2.6
    */
   void doUpgrade(DataNode datanode, StorageDirectory sd, NamespaceInfo nsInfo)
       throws IOException {
     throw new IOException("doUpgrade not supported yet.");
-  }
-
+    }
+    
   /**
    * Cleanup the detachDir.
    * <p/>

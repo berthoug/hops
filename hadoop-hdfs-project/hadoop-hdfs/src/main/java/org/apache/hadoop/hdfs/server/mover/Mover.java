@@ -396,13 +396,12 @@ public class Mover {
       return expected.isEmpty() || existing.isEmpty();
     }
 
-    // TODO we don't have non-movable storagetypes, so remove this stuff
     void removeNonMovable(List<StorageType> types) {
       for (Iterator<StorageType> i = types.iterator(); i.hasNext(); ) {
         final StorageType t = i.next();
-        //        if (!t.isMovable()) {
-        //          i.remove();
-        //        }
+                if (!t.isMovable()) {
+                  i.remove();
+                }
       }
     }
 

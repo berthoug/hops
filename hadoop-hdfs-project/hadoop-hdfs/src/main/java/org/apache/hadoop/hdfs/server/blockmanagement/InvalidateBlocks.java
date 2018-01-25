@@ -96,22 +96,10 @@ class InvalidateBlocks {
 
   /**
    * Add a block to the block collection
-   * which will be invalidated on the specified datanode.
+   * which will be invalidated on the specified storage.
    */
   void add(final BlockInfo block, final DatanodeStorageInfo storage,
       final boolean log) throws StorageException, TransactionContextException {
-
-    if(storage == null) {
-      // TODO this avoids a NullPointer when running
-      // TestIncrementalBrVariations#testNnLearnsNewStorages()
-      // NullPointer is caused because we haven actually added the block in
-      // the database, so looking up which storage it's on will return null.
-      // Maybe we can do this prettier?
-
-      NameNode.blockStateChangeLog.error("Skipped invalidating blocks. " +
-            "Should only happen during tests!");
-      return;
-    }
 
     InvalidatedBlock invBlk = new InvalidatedBlock(
         storage.getSid(),
@@ -303,7 +291,6 @@ class InvalidateBlocks {
 
   /*
   Removes (all) replica's of the given block on the given datanode.
-  TODO include the generation timestamp?
    */
   private void removeInvalidatedBlockFromDB(final long blockId, final int sid)
       throws IOException {

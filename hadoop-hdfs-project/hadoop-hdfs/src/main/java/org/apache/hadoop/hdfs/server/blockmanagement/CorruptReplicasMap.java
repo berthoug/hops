@@ -22,7 +22,6 @@ import io.hops.exception.StorageException;
 import io.hops.exception.TransactionContextException;
 import io.hops.metadata.HdfsStorageFactory;
 import io.hops.metadata.hdfs.dal.CorruptReplicaDataAccess;
-import io.hops.metadata.hdfs.dal.StorageDataAccess;
 import io.hops.metadata.hdfs.entity.CorruptReplica;
 import io.hops.metadata.hdfs.entity.Storage;
 import io.hops.transaction.EntityManager;

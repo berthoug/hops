@@ -38,6 +38,9 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 
 /**
  * Internal class for block metadata. BlockInfo class maintains for a given
@@ -222,12 +225,22 @@ public class BlockInfo extends Block {
   }
 
   /**
+   * Returns the Storages on which the replicas of this block are stored.
+   * @param datanodeMgr
+   * @return array of storages that store a replica of this block
+   */
+  public DatanodeStorageInfo[] getStorages(DatanodeManager datanodeMgr, final DatanodeStorage.State state)
+      throws StorageException, TransactionContextException {
+    List<Replica> replicas = getReplicas(datanodeMgr);
+    return getStorages(datanodeMgr, replicas, state);
+  }
+  
+  /**
    * Returns the storage on the given node which stores this block, or null
    * if it can't find such a storage.
    */
   public DatanodeStorageInfo getStorageOnNode(DatanodeDescriptor node)
       throws TransactionContextException, StorageException {
-    // TODO HDP_2.6 this is like a join -> should be done in SQL probably...
     DatanodeStorageInfo[] storagesOnNode = node.getStorageInfos();
 
     for(DatanodeStorageInfo s : storagesOnNode) {
@@ -435,6 +448,25 @@ public class BlockInfo extends Block {
     return set.toArray(storages);
   }
 
+  /**
+   * Returns an array of storages where the replicas are stored
+   */
+  protected DatanodeStorageInfo[] getStorages(DatanodeManager datanodeMgr,
+      List<? extends ReplicaBase> replicas, final DatanodeStorage.State state) {
+    int numLocations = replicas.size();
+    HashSet<DatanodeStorageInfo> set = new HashSet<>();
+    for (int i = numLocations - 1; i >= 0; i--) {
+      DatanodeStorageInfo desc = datanodeMgr.getStorage(replicas.get(i).getStorageId());
+      if (desc != null) {
+        set.add(desc);
+      } else if(desc.getState().equals(state)){
+        replicas.remove(i);
+      }
+    }
+    DatanodeStorageInfo[] storages = new DatanodeStorageInfo[set.size()];
+    return set.toArray(storages);
+  }
+  
   protected DatanodeDescriptor[] getDatanodes(DatanodeManager datanodeMgr,
       List<? extends ReplicaBase> replicas) {
     int numLocations = replicas.size();
@@ -457,14 +489,12 @@ public class BlockInfo extends Block {
     EntityManager.update(replica);
   }
 
+  public static final Log LOG = LogFactory.getLog(BlockInfo.class);
+  
   protected void remove(Replica replica)
       throws StorageException, TransactionContextException {
+    LOG.info("GAUTIER remove replicat " + replica);
     EntityManager.remove(replica);
-  }
-  
-  protected void save(Replica replica)
-      throws StorageException, TransactionContextException {
-    EntityManager.update(replica);
   }
   
   @Override

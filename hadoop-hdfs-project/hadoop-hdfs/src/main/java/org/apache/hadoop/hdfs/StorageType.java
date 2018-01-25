@@ -44,4 +44,8 @@ public enum StorageType {
   public static List<StorageType> asList() {
     return Arrays.asList(VALUES);
   }
+  
+  public boolean isMovable() {
+    return false;
+  }
 }

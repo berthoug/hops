@@ -2413,9 +2413,6 @@ public class FSNamesystem
             blockSize = pendingFile.getPreferredBlockSize();
 
             String host = pendingFile.getClientMachine();
-            // TODO this seems a bit weird to me, but this is how HDFS
-            // does it... maybe we could use the uuid instead somehow?
-//            clientNode = getBlockManager().getDatanodeManager().getDatanodeByHost(host);
 
             clientNode = pendingFile.getClientNode() == null ? null :
                 getBlockManager().getDatanodeManager()

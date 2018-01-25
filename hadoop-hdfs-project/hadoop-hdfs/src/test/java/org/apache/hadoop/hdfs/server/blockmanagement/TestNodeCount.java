@@ -131,8 +131,9 @@ public class TestNodeCount {
                   inodeIdentifier.getInodeId());
               Collection<String> excessDns = bm.excessReplicateMap.get(blkInfo);
               DatanodeDescriptor nonExcessDN = null;
-              for (DatanodeDescriptor dn : bm.blocksMap.nodeList(block
+              for (DatanodeStorageInfo storage : bm.blocksMap.storageList(block
                   .getLocalBlock())){
+                DatanodeDescriptor dn = storage.getDatanodeDescriptor();
                 if (!excessDns.contains(dn.getDatanodeUuid())) {
                   nonExcessDN = dn;
                 }

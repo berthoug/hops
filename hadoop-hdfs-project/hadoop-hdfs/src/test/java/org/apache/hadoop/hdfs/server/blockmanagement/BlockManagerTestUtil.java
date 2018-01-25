@@ -109,7 +109,8 @@ public class BlockManagerTestUtil {
     final Collection<DatanodeDescriptor> corruptNodes =
         getCorruptReplicas(blockManager)
             .getNodes(blockManager.blocksMap.getStoredBlock(b));
-    for (DatanodeDescriptor cur : blockManager.blocksMap.nodeList(b)){
+    for (DatanodeStorageInfo storage : blockManager.blocksMap.storageList(b)){
+      DatanodeDescriptor cur = storage.getDatanodeDescriptor();
       if (!cur.isDecommissionInProgress() && !cur.isDecommissioned()) {
         if ((corruptNodes == null) || !corruptNodes.contains(cur)) {
           String rackName = cur.getNetworkLocation();

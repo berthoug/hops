@@ -145,7 +145,7 @@ class BPOfferService implements Runnable {
    * the
    * NN. Access should be synchronized on this object.
    */
-  private final Map<String, PerStoragePendingIncrementalBR>
+  private final Map<DatanodeStorage, PerStoragePendingIncrementalBR>
       pendingIncrementalBRperStorage = Maps.newHashMap();
 
   private Thread blockReportThread = null;
@@ -299,7 +299,7 @@ class BPOfferService implements Runnable {
         new ReceivedDeletedBlockInfo(block.getLocalBlock(),
             BlockStatus.DELETED, null);
 
-    notifyNamenodeDeletedBlockInt(bInfo, storageUuid);
+    notifyNamenodeDeletedBlockInt(bInfo, dn.getFSDataset().getStorage(storageUuid));
   }
   
   public void notifyNamenodeCreatingBlock(ExtendedBlock block, String storageUuid) {
@@ -774,11 +774,12 @@ public class IncrementalBRTask implements Callable{
     @Override
     public Object call() throws Exception {
     // Generate a list of the pending reports for each storage under the lock
-    Map<String, ReceivedDeletedBlockInfo[]> blockArrays = Maps.newHashMap();
+    List<StorageReceivedDeletedBlocks> reports =
+      new ArrayList<>(pendingIncrementalBRperStorage.size());
     synchronized (pendingIncrementalBRperStorage) {
-      for (Map.Entry<String, PerStoragePendingIncrementalBR> entry :
+      for (Map.Entry<DatanodeStorage, PerStoragePendingIncrementalBR> entry :
           pendingIncrementalBRperStorage.entrySet()) {
-        final String storageUuid = entry.getKey();
+        final DatanodeStorage storage = entry.getKey();
         final PerStoragePendingIncrementalBR perStorageMap = entry.getValue();
         if (perStorageMap.getBlockInfoCount() > 0) {
           // Send newly-received and deleted blockids to namenode
@@ -786,44 +787,36 @@ public class IncrementalBRTask implements Callable{
           pendingReceivedRequests =
               (pendingReceivedRequests > rdbi.length ?
                   (pendingReceivedRequests - rdbi.length) : 0);
-          blockArrays.put(storageUuid, rdbi);
+          reports.add(new StorageReceivedDeletedBlocks(storage, rdbi));
         }
       }
     }
 
-    if (blockArrays.size() == 0) {
+    if (reports.size() == 0) {
       // Nothing new to report.
       synchronized (incrementalBRLock){
         incrementalBRCounter--;
       }
       return null;
-    }
-    // Send incremental block reports to the Namenode outside the lock
-    for (Map.Entry<String, ReceivedDeletedBlockInfo[]> entry :
-        blockArrays.entrySet()) {
-      final String storageUuid = entry.getKey();
-      final ReceivedDeletedBlockInfo[] rdbi = entry.getValue();
-
-      StorageReceivedDeletedBlocks[] report = { new
-          StorageReceivedDeletedBlocks(storageUuid, rdbi) };
-
+      }
+      // Send incremental block reports to the Namenode outside the lock
       boolean success = false;
       try {
-        blockReceivedAndDeletedWithRetry(report);
+        blockReceivedAndDeletedWithRetry(reports.toArray(new StorageReceivedDeletedBlocks[reports.size()]));
         success = true;
       } finally {
         if (!success) {
           synchronized (pendingIncrementalBRperStorage) {
-            // If we didn't succeed in sending the report, put all of the
-            // blocks back onto our queue, but only in the case where we
-            // didn't put something newer in the meantime.
-            PerStoragePendingIncrementalBR perStorageMap =
-                pendingIncrementalBRperStorage.get(storageUuid);
-            pendingReceivedRequests += perStorageMap.putMissingBlockInfos(rdbi);
+            for (StorageReceivedDeletedBlocks report : reports) {
+              // If we didn't succeed in sending the report, put all of the
+              // blocks back onto our queue, but only in the case where we
+              // didn't put something newer in the meantime.
+              PerStoragePendingIncrementalBR perStorageMap = pendingIncrementalBRperStorage.get(report.getStorage());
+              pendingReceivedRequests += perStorageMap.putMissingBlockInfos(report.getBlocks());
+            }
           }
         }
       }
-    }
     synchronized (incrementalBRLock){
       incrementalBRCounter--;
     }
@@ -837,15 +830,15 @@ public class IncrementalBRTask implements Callable{
    * @return
    */
   private PerStoragePendingIncrementalBR getIncrementalBRMapForStorage(
-      String storageUuid) {
+      DatanodeStorage storage) {
     PerStoragePendingIncrementalBR mapForStorage =
-        pendingIncrementalBRperStorage.get(storageUuid);
+        pendingIncrementalBRperStorage.get(storage);
     if (mapForStorage == null) {
       // This is the first time we are adding incremental BR state for
       // this storage so create a new map. This is required once per
       // storage, per service actor.
       mapForStorage = new PerStoragePendingIncrementalBR();
-      pendingIncrementalBRperStorage.put(storageUuid, mapForStorage);
+      pendingIncrementalBRperStorage.put(storage, mapForStorage);
     }
     return mapForStorage;
   }
@@ -858,16 +851,16 @@ public class IncrementalBRTask implements Callable{
    * @param storageUuid
    */
   void addPendingReplicationBlockInfo(ReceivedDeletedBlockInfo bInfo,
-      String storageUuid) {
+      DatanodeStorage storage) {
     // Make sure another entry for the same block is first removed.
     // There may only be one such entry.
-    for (Map.Entry<String, PerStoragePendingIncrementalBR> entry :
+    for (Map.Entry<DatanodeStorage, PerStoragePendingIncrementalBR> entry :
         pendingIncrementalBRperStorage.entrySet()) {
       if (entry.getValue().removeBlockInfo(bInfo)) {
         break;
       }
     }
-    getIncrementalBRMapForStorage(storageUuid).putBlockInfo(bInfo);
+    getIncrementalBRMapForStorage(storage).putBlockInfo(bInfo);
   }
 
   /*
@@ -878,7 +871,7 @@ public class IncrementalBRTask implements Callable{
   void notifyNamenodeBlockImmediatelyInt(
       ReceivedDeletedBlockInfo bInfo, String storageUuid, boolean now) {
     synchronized (pendingIncrementalBRperStorage) {
-      addPendingReplicationBlockInfo(bInfo, storageUuid);
+      addPendingReplicationBlockInfo(bInfo, dn.getFSDataset().getStorage(storageUuid));
       pendingReceivedRequests++;
       if(now) {
         pendingIncrementalBRperStorage.notifyAll();
@@ -887,9 +880,9 @@ public class IncrementalBRTask implements Callable{
   }
 
   void notifyNamenodeDeletedBlockInt(
-      ReceivedDeletedBlockInfo bInfo, String storageUuid) {
+      ReceivedDeletedBlockInfo bInfo, DatanodeStorage storage) {
     synchronized (pendingIncrementalBRperStorage) {
-      addPendingReplicationBlockInfo(bInfo, storageUuid);
+      addPendingReplicationBlockInfo(bInfo, storage);
     }
   }
 

@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 
 /**
  * This class maintains the map from a block to its metadata.
@@ -129,18 +130,30 @@ class BlocksMap {
   }
 
   /**
-   * Searches for the block in the BlocksMap and
-   * returns Iterator that iterates through the nodes the block belongs to.
+   * Searches for the block in the BlocksMap and 
+   * returns {@link Iterable} of the storages the block belongs to
+   * <i>that are of the given {@link DatanodeStorage.State state}</i>.
+   *
+   * @param state DatanodeStorage state by which to filter the returned Iterable
    */
-  List<DatanodeDescriptor> nodeList(Block b)
-      throws StorageException, TransactionContextException {
+  List<DatanodeStorageInfo> storageList(Block b, final DatanodeStorage.State state) throws StorageException,
+      TransactionContextException {
     BlockInfo blockInfo = getStoredBlock(b);
-    if (blockInfo == null){
+    return storageList(blockInfo, state);
+  }
+
+  /**
+   * For a block that has already been retrieved from the BlocksMap
+   * returns Iterator that iterates through the storages the block belongs to.
+   */
+  List<DatanodeStorageInfo> storageList(BlockInfo storedBlock, final DatanodeStorage.State state)
+      throws StorageException, TransactionContextException {
+    if (storedBlock == null) {
       return null;
     }
-    DatanodeDescriptor[] desc = blockInfo.getDatanodes(datanodeManager, blockInfo.getReplicas(datanodeManager));
-    if (desc == null){
-      return Collections.emptyList();
+    DatanodeStorageInfo[] desc = storedBlock.getStorages(datanodeManager,  state);
+    if (desc == null) {
+      return empty_storage_list;
     } else {
       return Arrays.asList(desc);
     }

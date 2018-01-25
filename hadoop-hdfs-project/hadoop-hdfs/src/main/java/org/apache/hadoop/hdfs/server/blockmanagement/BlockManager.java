@@ -119,6 +119,7 @@ import static io.hops.transaction.lock.LockFactory.BLK;
 import java.util.concurrent.Callable;
 
 import static org.apache.hadoop.util.ExitUtil.terminate;
+import static org.apache.hadoop.util.ExitUtil.terminate;
 
 /**
  * Keeps information related to the blocks stored in the Hadoop cluster.
@@ -1128,16 +1129,10 @@ public class BlockManager {
    */
   void datanodeRemoved(final DatanodeDescriptor node)
       throws IOException {
-    for(DatanodeStorageInfo storage : node.getStorageInfos()) {
-      final Iterator<? extends Block> it = storage.getBlockIterator();
-      while (it.hasNext()) {
-        removeStoredBlockTx(it.next().getBlockId(), storage);
-      }
+    final Iterator<? extends Block> it = node.getBlockIterator();
+    while(it.hasNext()) {
+      removeStoredBlock(it.next(), node);
     }
-
-    // TODO HDP_2.6 also does this:
-//    Remove all pending DN messages referencing this DN.
-//    pendingDNMessages.removeAllMessagesForDatanode(node);
 
     node.resetBlocks();
     List<Integer> sids = datanodeManager.getSidsOnDatanode(node.getDatanodeUuid());
@@ -1163,9 +1158,10 @@ public class BlockManager {
   void removeBlocksAssociatedTo(final DatanodeStorageInfo storageInfo)
       throws IOException {
     final Iterator<BlockInfo> it = storageInfo.getBlockIterator();
+    DatanodeDescriptor node = storageInfo.getDatanodeDescriptor();
     while(it.hasNext()) {
       BlockInfo block = it.next();
-      removeStoredBlock(block, storageInfo.getDatanodeDescriptor());
+      removeStoredBlock(block, node);
       invalidateBlocks.remove(storageInfo, block);
     }
     namesystem.checkSafeMode();
@@ -1180,10 +1176,11 @@ public class BlockManager {
       UnregisteredNodeException {
     DatanodeDescriptor dn = datanodeManager.getDatanode(datanode);
     DatanodeStorageInfo storage = getBlockInfo(block).getStorageOnNode(dn);
-
-    addToInvalidates(block, storage);
+    if(storage!=null){
+      addToInvalidates(block, storage);
+    }
   }
-
+   
   void addToInvalidates(Block block, DatanodeStorageInfo storage)
       throws TransactionContextException, StorageException {
     BlockInfo temp = getBlockInfo(block);
@@ -2581,8 +2578,6 @@ public class BlockManager {
         return storedBlock;
       }
 
-
-      // TODO -> check this @Bram !
       toAdd.add(storedBlock);
       safeBlocks.remove(block.getBlockId());
     }
@@ -3559,11 +3554,10 @@ public class BlockManager {
    * This includes blocks that are starting to be received, completed being
    * received, or deleted.
    */
-  // TODO change to a per-storage report (one report message deals with an
-  // entire host, but it's split up per storage)
   public void processIncrementalBlockReport(DatanodeRegistration nodeID,
       final StorageReceivedDeletedBlocks blockInfos)
     throws IOException {
+    //hack to have the variables final to pass then to the handler.
     final int[] received = {0};
     final int[] deleted = {0};
     final int[] receiving = {0};
@@ -3769,9 +3763,10 @@ public class BlockManager {
     }
     // else proceed with fast case
     int live = 0;
-    List<DatanodeDescriptor> nodes = blocksMap.nodeList(b);
+    List<DatanodeStorageInfo> storages = blocksMap.storageList(b, DatanodeStorage.State.NORMAL);
     Collection<DatanodeDescriptor> nodesCorrupt = corruptReplicas.getNodes(b);
-    for(DatanodeDescriptor node : nodes) {
+    for(DatanodeStorageInfo storage : storages) {
+      final DatanodeDescriptor node = storage.getDatanodeDescriptor();
       if ((nodesCorrupt == null) || (!nodesCorrupt.contains(node))) {
         live++;
       }
@@ -3784,9 +3779,10 @@ public class BlockManager {
     int curReplicas = num.liveReplicas();
     int curExpectedReplicas = getReplication(block);
     BlockCollection bc = blocksMap.getBlockCollection(block);
-    List<DatanodeDescriptor> nodes = blocksMap.nodeList(block);
+    List<DatanodeStorageInfo> storages = blocksMap.storageList(block);
     StringBuilder nodeList = new StringBuilder();
-    for (DatanodeDescriptor node : nodes){
+    for (DatanodeStorageInfo storage : storages){
+      final DatanodeDescriptor node = storage.getDatanodeDescriptor();
       nodeList.append(node);
       nodeList.append(" ");
     }
@@ -3949,19 +3945,6 @@ public class BlockManager {
     return blocksMap.size();
   }
 
-  public DatanodeDescriptor[] getNodes(BlockInfo block)
-      throws StorageException, TransactionContextException {
-    DatanodeDescriptor[] toReturn =
-        new DatanodeDescriptor[block.numNodes(datanodeManager)];
-    List<DatanodeDescriptor> nodes = blocksMap.nodeList(block);
-    if (nodes != null){
-      for (int i = 0; i < nodes.size() ; i++){
-        toReturn[i] = nodes.get(i);
-      }
-    }
-    return toReturn;
-  }
-
   public DatanodeStorageInfo[] getStorages(BlockInfo block)
       throws TransactionContextException, StorageException {
     return block.getStorages(datanodeManager);
@@ -4095,7 +4078,8 @@ public class BlockManager {
         corruptReplicas.getNodes(getBlockInfo(b));
     int numExpectedReplicas = getReplication(b);
     String rackName = null;
-    for (DatanodeDescriptor cur : blocksMap.nodeList(b)) {
+    for (DatanodeStorageInfo storage : blocksMap.storageList(b)) {
+      final DatanodeDescriptor cur = storage.getDatanodeDescriptor();
       if (!cur.isDecommissionInProgress() && !cur.isDecommissioned()) {
         if ((corruptNodes == null) || !corruptNodes.contains(cur)) {
           if (numExpectedReplicas == 1 || (numExpectedReplicas > 1 &&
@@ -4143,9 +4127,9 @@ public class BlockManager {
   /**
    * @return an iterator of the datanodes.
    */
-  public List<DatanodeDescriptor> datanodeList(final Block block)
+  public List<DatanodeStorageInfo> storageList(final Block block)
       throws StorageException, TransactionContextException {
-    return blocksMap.nodeList(block);
+    return blocksMap.storageList(block);
   }
 
   public int numCorruptReplicas(Block block)
