@@ -276,6 +276,7 @@ class BlockPoolSliceScanner {
     long period = Math.min(scanPeriod,
         Math.max(blockMap.size(),1) * 600 * 1000L);
     int periodInt = Math.abs((int)period);
+    long now = Time.monotonicNow();
     return Time.monotonicNow() - scanPeriod +
         DFSUtil.getRandom().nextInt(periodInt);
   }
@@ -557,7 +558,7 @@ class BlockPoolSliceScanner {
                   }
                   processedBlocks.put(entry.blockId, 1);
                 }
-                if (logIterator.isPrevious()) {
+                if (logIterator.isLastReadFromPrevious()) {
                   // write the log entry to current file
                   // so that the entry is preserved for later runs.
                   verificationLog.append(entry.verificationTime, entry.genStamp,

@@ -59,7 +59,7 @@ public class TestDatanodeBlockScanner {
   private static final Log LOG =
       LogFactory.getLog(TestDatanodeBlockScanner.class);
 
-  private static final long TIMEOUT = 20000; // 20 sec.
+  private static final long TIMEOUT = 200000000; // 20 sec.
 
   private static final Pattern pattern =
       Pattern.compile(".*?(blk_[-]*\\d+).*?scan time\\s*:\\s*(\\d+)");
