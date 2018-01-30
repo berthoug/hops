@@ -1131,7 +1131,7 @@ public class BlockManager {
       throws IOException {
     final Iterator<? extends Block> it = node.getBlockIterator();
     while(it.hasNext()) {
-      removeStoredBlock(it.next(), node);
+      removeStoredBlockTx(it.next().getBlockId(), node);
     }
 
     node.resetBlocks();
@@ -2123,7 +2123,7 @@ public class BlockManager {
     addToInvalidates(toInvalidate, storage);
 
     for (Long b : toRemove) {
-      removeStoredBlockTx(b, storage);
+      removeStoredBlockTx(b, storage.getDatanodeDescriptor());
     }
     return reportStatistics;
   }
@@ -4344,7 +4344,7 @@ public class BlockManager {
   }
 
 
-  private void removeStoredBlockTx(final Long b, final DatanodeStorageInfo storage)
+  private void removeStoredBlockTx(final Long b, final DatanodeDescriptor node)
       throws IOException {
     new HopsTransactionalRequestHandler(HDFSOperationType.REMOVE_STORED_BLOCK) {
       INodeIdentifier inodeIdentifier;
@@ -4372,7 +4372,7 @@ public class BlockManager {
       public Object performTask() throws IOException {
         BlockInfo block =
             EntityManager.find(BlockInfo.Finder.ByBlockIdAndINodeId, b);
-        removeStoredBlock(block, storage.getDatanodeDescriptor());
+        removeStoredBlock(block, node);
         return null;
       }
     }.handle(namesystem);
