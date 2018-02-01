@@ -568,6 +568,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             if (DFSClient.LOG.isDebugEnabled()) {
               DFSClient.LOG.debug("Send single block " + block);
             }
+            setPipeline(lb);
             nodes = setupPipelineForSingleBlock(lb);
             initDataStreaming();
           }

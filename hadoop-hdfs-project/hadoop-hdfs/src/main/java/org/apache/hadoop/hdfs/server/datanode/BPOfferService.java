@@ -117,7 +117,10 @@ class BPOfferService implements Runnable {
   private long lastActiveClaimTxId = -1;
 
   private final DNConf dnConf;
-  private volatile int pendingReceivedRequests = 0;
+  // IBR = Incremental Block Report. If this flag is set then an IBR will be
+  // sent immediately by the actor thread without waiting for the IBR timer
+  // to elapse.
+  private volatile boolean sendImmediateIBR = false;
   volatile long lastDeletedReport = 0;
   // lastBlockReport, lastDeletedReport and lastHeartbeat may be assigned/read
   // by testing threads (through BPServiceActor#triggerXXX), while also
@@ -683,7 +686,7 @@ class BPOfferService implements Runnable {
       try {
         long startTime = now();
 
-        if (pendingReceivedRequests > 0 ||
+        if (sendImmediateIBR ||
             (startTime - lastDeletedReport > dnConf.deleteReportInterval)) {
           reportReceivedDeletedBlocks();
           lastDeletedReport = startTime;
@@ -697,7 +700,7 @@ class BPOfferService implements Runnable {
         //
         long waitTime = 1000;
         synchronized (pendingIncrementalBRperStorage) {
-          if (waitTime > 0 && pendingReceivedRequests == 0) {
+          if (waitTime > 0 && sendImmediateIBR) {
             try {
               pendingIncrementalBRperStorage.wait(waitTime);
             } catch (InterruptedException ie) {
@@ -784,12 +787,10 @@ public class IncrementalBRTask implements Callable{
         if (perStorageMap.getBlockInfoCount() > 0) {
           // Send newly-received and deleted blockids to namenode
           ReceivedDeletedBlockInfo[] rdbi = perStorageMap.dequeueBlockInfos();
-          pendingReceivedRequests =
-              (pendingReceivedRequests > rdbi.length ?
-                  (pendingReceivedRequests - rdbi.length) : 0);
           reports.add(new StorageReceivedDeletedBlocks(storage, rdbi));
         }
       }
+      sendImmediateIBR = false;
     }
 
     if (reports.size() == 0) {
@@ -812,7 +813,8 @@ public class IncrementalBRTask implements Callable{
               // blocks back onto our queue, but only in the case where we
               // didn't put something newer in the meantime.
               PerStoragePendingIncrementalBR perStorageMap = pendingIncrementalBRperStorage.get(report.getStorage());
-              pendingReceivedRequests += perStorageMap.putMissingBlockInfos(report.getBlocks());
+              perStorageMap.putMissingBlockInfos(report.getBlocks());
+              sendImmediateIBR = true;
             }
           }
         }
@@ -850,17 +852,20 @@ public class IncrementalBRTask implements Callable{
    * @param bInfo
    * @param storageUuid
    */
-  void addPendingReplicationBlockInfo(ReceivedDeletedBlockInfo bInfo,
+  boolean addPendingReplicationBlockInfo(ReceivedDeletedBlockInfo bInfo,
       DatanodeStorage storage) {
     // Make sure another entry for the same block is first removed.
     // There may only be one such entry.
+    boolean isNew = true;
     for (Map.Entry<DatanodeStorage, PerStoragePendingIncrementalBR> entry :
         pendingIncrementalBRperStorage.entrySet()) {
       if (entry.getValue().removeBlockInfo(bInfo)) {
+        isNew = false;
         break;
       }
     }
     getIncrementalBRMapForStorage(storage).putBlockInfo(bInfo);
+    return isNew;
   }
 
   /*
@@ -872,11 +877,11 @@ public class IncrementalBRTask implements Callable{
       ReceivedDeletedBlockInfo bInfo, String storageUuid, boolean now) {
     synchronized (pendingIncrementalBRperStorage) {
       addPendingReplicationBlockInfo(bInfo, dn.getFSDataset().getStorage(storageUuid));
-      pendingReceivedRequests++;
-      if(now) {
+      sendImmediateIBR = true;
+      if (now) {
         pendingIncrementalBRperStorage.notifyAll();
+      }
     }
-  }
   }
 
   void notifyNamenodeDeletedBlockInt(
@@ -1013,6 +1018,11 @@ public class IncrementalBRTask implements Callable{
         }
       }
     }
+  }
+
+  @VisibleForTesting
+  boolean hasPendingIBR() {
+    return sendImmediateIBR;
   }
 
   synchronized void updateNNList(SortedActiveNodeList list) throws IOException {

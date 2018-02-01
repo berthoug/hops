@@ -308,7 +308,7 @@ public class TestBlockManager {
       doTestOneOfTwoRacksDecommissioned(i);
     }
   }
-  
+
   private void doTestOneOfTwoRacksDecommissioned(int testIndex)
       throws Exception {
     // Block originally on A1, A2, B1
@@ -321,30 +321,29 @@ public class TestBlockManager {
     List<DatanodeDescriptor> decomNodes = startDecommission(0, 1, 2);
 
     DatanodeStorageInfo[] pipeline = scheduleSingleReplication(blockInfo);
-    assertTrue("Source of replication should be one of the nodes the block " +
-        "was on. Was: " + pipeline[0], origStorages.contains(pipeline[0]));
-    assertEquals("Should have three targets", 3, pipeline.length);
+    assertTrue("Source of replication should be one of the nodes the block " + "was on. Was: " + pipeline[0],
+        origStorages.contains(pipeline[0]));
+    // Only up to two nodes can be picked per rack when there are two racks.
+    assertEquals("Should have two targets", 2, pipeline.length);
 
     boolean foundOneOnRackB = false;
     for (int i = 1; i < pipeline.length; i++) {
-      DatanodeStorageInfo target = pipeline[i];
-      if (rackB.contains(target.getDatanodeDescriptor())) {
+      DatanodeDescriptor target = pipeline[i].getDatanodeDescriptor();
+      if (rackB.contains(target)) {
         foundOneOnRackB = true;
       }
-      assertFalse(decomNodes.contains(target.getDatanodeDescriptor()));
-      assertFalse(origNodes.contains(target.getDatanodeDescriptor()));
+      assertFalse(decomNodes.contains(target));
+      assertFalse(origNodes.contains(target));
     }
 
-    assertTrue("Should have at least one target on rack B. Pipeline: " +
-        Joiner.on(",").join(pipeline), foundOneOnRackB);
+    assertTrue("Should have at least one target on rack B. Pipeline: " + Joiner.on(",").join(pipeline), foundOneOnRackB);
 
     // Mark the block as received on the target nodes in the pipeline
     fulfillPipeline(blockInfo, pipeline);
 
     // the block is still under-replicated. Add a new node. This should allow
     // the third off-rack replica.
-    DatanodeDescriptor rackCNode =
-        DFSTestUtil.getDatanodeDescriptor("7.7.7.7", "/rackC");
+    DatanodeDescriptor rackCNode = DFSTestUtil.getDatanodeDescriptor("7.7.7.7", "/rackC");
     rackCNode.updateStorage(new DatanodeStorage(DatanodeStorage.generateUuid()));
     addNodes(ImmutableList.of(rackCNode));
     try {

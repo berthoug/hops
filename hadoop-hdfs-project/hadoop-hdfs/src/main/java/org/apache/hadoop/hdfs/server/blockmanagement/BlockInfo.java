@@ -493,7 +493,6 @@ public class BlockInfo extends Block {
   
   protected void remove(Replica replica)
       throws StorageException, TransactionContextException {
-    LOG.info("GAUTIER remove replicat " + replica);
     EntityManager.remove(replica);
   }
   

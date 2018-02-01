@@ -1158,11 +1158,37 @@ public class BlockManager {
   void removeBlocksAssociatedTo(final DatanodeStorageInfo storageInfo)
       throws IOException {
     final Iterator<BlockInfo> it = storageInfo.getBlockIterator();
-    DatanodeDescriptor node = storageInfo.getDatanodeDescriptor();
+    final DatanodeDescriptor node = storageInfo.getDatanodeDescriptor();
     while(it.hasNext()) {
-      BlockInfo block = it.next();
-      removeStoredBlock(block, node);
-      invalidateBlocks.remove(storageInfo, block);
+      final BlockInfo block = it.next();
+      new HopsTransactionalRequestHandler(HDFSOperationType.REMOVE_STORED_BLOCK) {
+        INodeIdentifier inodeIdentifier;
+
+        @Override
+        public void setUp() throws StorageException {
+          inodeIdentifier = INodeUtil.resolveINodeFromBlockID(block.getBlockId());
+        }
+
+        @Override
+        public void acquireLock(TransactionLocks locks) throws IOException {
+          LockFactory lf = LockFactory.getInstance();
+          locks.add(
+              lf.getIndividualINodeLock(INodeLockType.WRITE, inodeIdentifier))
+              .add(lf.getIndividualBlockLock(block.getBlockId(), inodeIdentifier))
+              .add(lf.getBlockRelated(BLK.RE, BLK.ER, BLK.CR, BLK.UR, BLK.UC, BLK.IV));
+
+          if (((FSNamesystem) namesystem).isErasureCodingEnabled() && inodeIdentifier != null) {
+            locks.add(lf.getIndivdualEncodingStatusLock(LockType.WRITE, inodeIdentifier.getInodeId()));
+          }
+        }
+
+        @Override
+        public Object performTask() throws IOException {
+          removeStoredBlock(block, node);
+          invalidateBlocks.remove(storageInfo, block);
+          return null;
+        }
+      }.handle();
     }
     namesystem.checkSafeMode();
   }
@@ -1979,7 +2005,7 @@ public class BlockManager {
     if (metrics != null) {
       metrics.addBlockReport((int) (endTime - startTime));
     }
-    blockLog.info("BLOCK* processReport: from " + nodeID + ", blocks: " +
+    blockLog.info("BLOCK* processReport: from " + nodeID + " storage: " + storage + ", blocks: " +
         newReport.getNumBlocks() + ", processing time: " +
         (endTime - startTime) + " ms. " + reportStatistics);
     return !node.hasStaleStorages();
@@ -3339,18 +3365,22 @@ public class BlockManager {
    */
   public void removeStoredBlock(Block block, DatanodeDescriptor node)
       throws IOException {
-    if (blockLog.isDebugEnabled()) {
-      blockLog.debug("BLOCK* removeStoredBlock: " + block + " from " + node);
-    }
-
+//    if (blockLog.isDebugEnabled()) {
+      blockLog.info("BLOCK* removeStoredBlock: " + block + " from " + node);
+//    }
+//    try{
     if (!blocksMap.removeNode(block, node)) {
-      if (blockLog.isDebugEnabled()) {
-        blockLog.debug("BLOCK* removeStoredBlock: " + block +
+//      if (blockLog.isDebugEnabled()) {
+        blockLog.info("BLOCK* removeStoredBlock: " + block +
             " has already been removed from node " + node);
-      }
+//      }
       return;
     }
-
+//    }catch(Exception e){
+//      LOG.error(e);
+//    }
+    blockLog.info("BLOCK* removeStoredBlock: " + block +
+            " has already been removed from node " + node);
     //
     // It's possible that the block was removed because of a datanode
     // failure. If the block is still valid, check if replication is

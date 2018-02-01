@@ -7432,6 +7432,7 @@ public class FSNamesystem
               "encoded file");
         }
         int inodeId = dir.getINode(sourcePath).getId();
+        LOG.info("GAUTIER add encodingStatus for inode " + inodeId);
         EncodingStatus encodingStatus = new EncodingStatus(inodeId, status,
             policy, System.currentTimeMillis());
         EntityManager.add(encodingStatus);
@@ -7494,6 +7495,7 @@ public class FSNamesystem
 
       @Override
       public Object performTask() throws IOException {
+        LOG.info("GAUTIER remove encodingStatus for inode " + encodingStatus.getInodeId());
         EntityManager.remove(encodingStatus);
         return null;
       }
@@ -7532,6 +7534,7 @@ public class FSNamesystem
         EncodingStatus encodingStatus = EntityManager
             .find(EncodingStatus.Finder.ByInodeId, targetNode.getId());
         encodingStatus.setRevoked(true);
+        LOG.info("GAUTIER revoke encodingStatus for inode " + targetNode);
         EntityManager.update(encodingStatus);
         return null;
       }
@@ -7624,6 +7627,7 @@ public class FSNamesystem
           // Should be updated together with the status so the modification time is already set
         }
         if (parityStatus != null) {
+          LOG.info("GAUTIER encodingStatus for inode " + targetNode.getId() + " is " + encodingStatus);
           encodingStatus.setParityStatus(parityStatus);
           encodingStatus.setStatusModificationTime(System.currentTimeMillis());
         }
