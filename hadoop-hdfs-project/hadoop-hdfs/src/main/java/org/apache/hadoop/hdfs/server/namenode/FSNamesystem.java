@@ -184,6 +184,7 @@ import java.util.concurrent.TimeUnit;
 
 import static io.hops.transaction.lock.LockFactory.BLK;
 import static io.hops.transaction.lock.LockFactory.getInstance;
+import io.hops.transaction.lock.TransactionLockTypes;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_BLOCK_SIZE_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_BLOCK_SIZE_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_BYTES_PER_CHECKSUM_DEFAULT;
@@ -7627,7 +7628,7 @@ public class FSNamesystem
           // Should be updated together with the status so the modification time is already set
         }
         if (parityStatus != null) {
-          LOG.info("GAUTIER encodingStatus for inode " + targetNode.getId() + " is " + encodingStatus);
+          LOG.info("GAUTIER encodingStatus for inode " + targetNode.getId() + " is " + encodingStatus + " source file: " + sourceFile);
           encodingStatus.setParityStatus(parityStatus);
           encodingStatus.setStatusModificationTime(System.currentTimeMillis());
         }
@@ -7728,7 +7729,7 @@ public class FSNamesystem
    * @see org.apache.hadoop.hdfs.protocol.ClientProtocol#getRepairedBlockLocations
    */
   public LocatedBlock getRepairedBlockLocations(String clientMachine,
-      String sourcePath, String parityPath, LocatedBlock block,
+      final String sourcePath, String parityPath, LocatedBlock block,
       boolean isParity) throws IOException {
     EncodingStatus status = getEncodingStatus(sourcePath);
     Codec codec = Codec.getCodec(status.getEncodingPolicy().getCodec());
@@ -7769,7 +7770,22 @@ public class FSNamesystem
     }
 
     // Find which storage policy is used for this file.
-    byte storagePolicyID = getINode(sourcePath).getLocalStoragePolicyID();
+    byte storagePolicyID = (byte) new HopsTransactionalRequestHandler(
+        HDFSOperationType.TEST) {
+      @Override
+      public void acquireLock(TransactionLocks locks) throws IOException {
+        LockFactory lf = LockFactory.getInstance();
+        locks.add(lf.getINodeLock(nameNode,
+            TransactionLockTypes.INodeLockType.READ_COMMITTED,
+            TransactionLockTypes.INodeResolveType.PATH, sourcePath));
+      }
+
+      @Override
+      public Object performTask() throws IOException {
+        INode targetNode = nameNode.getNamesystem().getINode(sourcePath);
+        return targetNode.getLocalStoragePolicyID();
+      }
+    }.handle();
     BlockStoragePolicy policy = BlockStoragePolicySuite.getPolicy(storagePolicyID);
 
     BlockPlacementPolicyDefault placementPolicy = (BlockPlacementPolicyDefault)
