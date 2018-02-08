@@ -116,6 +116,7 @@ public class FSDirectory implements Closeable {
         conf.getBoolean(DFSConfigKeys.DFS_NAMENODE_QUOTA_ENABLED_KEY,
             DFSConfigKeys.DFS_NAMENODE_QUOTA_ENABLED_DEFAULT);
 
+    namesystem = ns;
 
     createRootInode(ns.createFsOwnerPermissions(new FsPermission((short) 0755)),
         false /*dont overwrite if root inode already existes*/);
@@ -139,7 +140,7 @@ public class FSDirectory implements Closeable {
     NameNode.LOG
         .info("Caching file names occuring more than " + threshold + " times");
     nameCache = new NameCache<>(threshold);
-    namesystem = ns;
+    
   }
 
   private FSNamesystem getFSNamesystem() {
@@ -2756,7 +2757,7 @@ public class FSDirectory implements Closeable {
   }
   
   //add root inode if its not there
-  public static INodeDirectoryWithQuota createRootInode(
+  public INodeDirectoryWithQuota createRootInode(
       final PermissionStatus ps, final boolean overwrite) throws IOException {
     LightWeightRequestHandler addRootINode =
         new LightWeightRequestHandler(HDFSOperationType.SET_ROOT) {
@@ -2771,7 +2772,7 @@ public class FSDirectory implements Closeable {
             if (rootInode == null || overwrite == true) {
               newRootINode = INodeDirectoryWithQuota.createRootDir(ps);
               // Set the block storage policy to DEFAULT
-              newRootINode.setBlockStoragePolicyIDNoPersistance(BlockStoragePolicySuite.getDefaultPolicy().getId());
+              newRootINode.setBlockStoragePolicyIDNoPersistance(namesystem.getDefaultStoragePolicy().getId());
               List<INode> newINodes = new ArrayList();
               newINodes.add(newRootINode);
               da.prepare(INode.EMPTY_LIST, newINodes, INode.EMPTY_LIST);

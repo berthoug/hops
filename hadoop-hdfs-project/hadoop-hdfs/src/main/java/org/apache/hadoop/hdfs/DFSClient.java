@@ -1770,6 +1770,26 @@ public class DFSClient implements java.io.Closeable {
   /**
    * @return All the existing storage policies
    */
+  public BlockStoragePolicy getStoragePolicy(final byte storagePolicyID) throws IOException {
+    try {
+      ClientActionHandler handler = new ClientActionHandler() {
+        @Override
+        public Object doAction(ClientProtocol namenode)
+            throws RemoteException, IOException {
+          return namenode.getStoragePolicy(storagePolicyID);
+        }
+      };
+      return (BlockStoragePolicy) doClientActionWithRetry(handler, "getStoragePolicy");
+    } catch (RemoteException re) {
+      throw re.unwrapRemoteException(AccessControlException.class,
+          FileNotFoundException.class, SafeModeException.class,
+          DSQuotaExceededException.class, UnresolvedPathException.class);
+    }
+  }
+  
+  /**
+   * @return All the existing storage policies
+   */
   public BlockStoragePolicy[] getStoragePolicies() throws IOException {
     try {
       ClientActionHandler handler = new ClientActionHandler() {

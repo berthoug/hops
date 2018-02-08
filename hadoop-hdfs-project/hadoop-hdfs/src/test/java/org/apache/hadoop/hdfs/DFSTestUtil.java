@@ -1083,6 +1083,10 @@ public class DFSTestUtil {
   }
 
   public static void createRootFolder() throws IOException {
+    createRootFolder(new PermissionStatus("user", "grp", new FsPermission((short) 0755)));
+  }
+  
+  public static INodeDirectoryWithQuota createRootFolder(final PermissionStatus ps) throws IOException {
     LightWeightRequestHandler addRootINode =
         new LightWeightRequestHandler(HDFSOperationType.SET_ROOT) {
           @Override
@@ -1090,11 +1094,10 @@ public class DFSTestUtil {
             INodeDirectoryWithQuota newRootINode = null;
             INodeDataAccess da = (INodeDataAccess) HdfsStorageFactory.getDataAccess(INodeDataAccess.class);
 
-            newRootINode = INodeDirectoryWithQuota.createRootDir(
-                new PermissionStatus("user", "grp", new FsPermission((short) 0755)));
+            newRootINode = INodeDirectoryWithQuota.createRootDir(ps);
 
             // Set the block storage policy to DEFAULT
-            newRootINode.setBlockStoragePolicyIDNoPersistance(BlockStoragePolicySuite.getDefaultPolicy().getId());
+            newRootINode.setBlockStoragePolicyIDNoPersistance(TestBlockStoragePolicy.DEFAULT_STORAGE_POLICY.getId());
             List<INode> newINodes = new ArrayList<INode>();
             newINodes.add(newRootINode);
             da.prepare(INode.EMPTY_LIST, newINodes, INode.EMPTY_LIST);
@@ -1109,10 +1112,10 @@ public class DFSTestUtil {
             attrList.add(inodeAttributes);
             ida.prepare(attrList, null);
 
-            return null;
+            return newRootINode;
           }
         };
-    addRootINode.handle();
+    return (INodeDirectoryWithQuota) addRootINode.handle();
   }
   
   public static class Builder {

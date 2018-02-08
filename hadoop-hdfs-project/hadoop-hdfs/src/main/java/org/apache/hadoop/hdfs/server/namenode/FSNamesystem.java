@@ -1762,7 +1762,7 @@ public class FSNamesystem
   private void setStoragePolicyInt(final String filename, final String policyName)
       throws IOException, UnresolvedLinkException, AccessControlException {
 
-    final BlockStoragePolicy policy = BlockStoragePolicySuite.getPolicy(policyName);
+    final BlockStoragePolicy policy =  blockManager.getStoragePolicy(policyName);
     if (policy == null) {
       throw new HadoopIllegalArgumentException("Cannot find a block policy with the name " + policyName);
     }
@@ -1795,11 +1795,20 @@ public class FSNamesystem
   }
 
 
+  BlockStoragePolicy getDefaultStoragePolicy() throws IOException {
+    return blockManager.getDefaultStoragePolicy();
+  }
+ 
+  
+  BlockStoragePolicy getStoragePolicy(byte storagePolicyID) throws IOException {
+    return blockManager.getStoragePolicy(storagePolicyID);
+  }
+  
   /**
    * @return All the existing block storage policies
    */
   BlockStoragePolicy[] getStoragePolicies() throws IOException {
-    return BlockStoragePolicySuite.getAllStoragePolicies();
+    return blockManager.getStoragePolicies();
   }
 
   long getPreferredBlockSize(final String filename) throws IOException {
@@ -2622,18 +2631,15 @@ public class FSNamesystem
             preferredBlockSize = file.getPreferredBlockSize();
 
             byte storagePolicyID = file.getStoragePolicyID();
-            BlockStoragePolicy storagePolicy =
-                BlockStoragePolicySuite.getPolicy(storagePolicyID);
 
             //find datanode storages
             final DatanodeManager dm = blockManager.getDatanodeManager();
             chosen = Arrays.asList(dm.getDatanodeStorageInfos(existings, storageIDs));
 
             // choose new datanodes.
-            final DatanodeStorageInfo[] targets =
-                blockManager.getBlockPlacementPolicy()
-                    .chooseTarget(src, numAdditionalNodes, clientNode, chosen,
-                        true, excludes, preferredBlockSize, storagePolicy);
+            final DatanodeStorageInfo[] targets = blockManager.chooseTarget4AdditionalDatanode(
+                src, numAdditionalNodes, clientNode, chosen,
+                excludes, preferredBlockSize, storagePolicyID);
 
             final LocatedBlock lb = new LocatedBlock(blk, targets);
             blockManager.setBlockToken(lb, AccessMode.COPY);
@@ -7780,16 +7786,13 @@ public class FSNamesystem
         return targetNode.getLocalStoragePolicyID();
       }
     }.handle();
-    BlockStoragePolicy policy = BlockStoragePolicySuite.getPolicy(storagePolicyID);
 
-    BlockPlacementPolicyDefault placementPolicy = (BlockPlacementPolicyDefault)
-        getBlockManager().getBlockPlacementPolicy();
     List<DatanodeStorageInfo> chosenStorages = new LinkedList<DatanodeStorageInfo>();
 
-    DatanodeStorageInfo[] descriptors = placementPolicy
-        .chooseTarget(isParity ? parityPath : sourcePath,
+    final DatanodeStorageInfo[] descriptors = blockManager.chooseTarget4ParityRepair(
+                isParity ? parityPath : sourcePath,
             isParity ? 1 : status.getEncodingPolicy().getTargetReplication(),
-            null, chosenStorages, false, excluded, block.getBlockSize(), policy);
+            null, chosenStorages, excluded, block.getBlockSize(), storagePolicyID);
 
     return new LocatedBlock(block.getBlock(), descriptors);
   }
