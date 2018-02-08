@@ -79,6 +79,7 @@ import java.net.UnknownHostException;
 import java.util.*;
 
 import static io.hops.transaction.lock.LockFactory.BLK;
+import org.apache.hadoop.net.NetUtils;
 import static org.apache.hadoop.util.Time.now;
 
 /**
@@ -124,6 +125,7 @@ public class DatanodeManager {
   private final Host2NodesMap host2DatanodeMap = new Host2NodesMap();
 
   private final DNSToSwitchMapping dnsToSwitchMapping;
+  private final boolean rejectUnresolvedTopologyDN;
 
   /**
    * Read include/exclude files
@@ -174,6 +176,8 @@ public class DatanodeManager {
    */
   private boolean hasClusterEverBeenMultiRack = false;
 
+  private final boolean checkIpHostnameInRegistration;
+  
   private final StorageMap storageMap = new StorageMap();
   
   DatanodeManager(final BlockManager blockManager, final Namesystem namesystem,
@@ -193,6 +197,10 @@ public class DatanodeManager {
     this.dnsToSwitchMapping = ReflectionUtils.newInstance(
         conf.getClass(DFSConfigKeys.NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY,
             ScriptBasedMapping.class, DNSToSwitchMapping.class), conf);
+    
+    this.rejectUnresolvedTopologyDN = conf.getBoolean(
+        DFSConfigKeys.DFS_REJECT_UNRESOLVED_DN_TOPOLOGY_MAPPING_KEY,
+        DFSConfigKeys.DFS_REJECT_UNRESOLVED_DN_TOPOLOGY_MAPPING_DEFAULT);
     
     // If the dns to switch mapping supports cache, resolve network
     // locations of those hosts in the include list and store the mapping
@@ -217,6 +225,12 @@ public class DatanodeManager {
             blockInvalidateLimit);
     LOG.info(DFSConfigKeys.DFS_BLOCK_INVALIDATE_LIMIT_KEY + "=" +
         this.blockInvalidateLimit);
+
+    this.checkIpHostnameInRegistration = conf.getBoolean(
+        DFSConfigKeys.DFS_NAMENODE_DATANODE_REGISTRATION_IP_HOSTNAME_CHECK_KEY,
+        DFSConfigKeys.DFS_NAMENODE_DATANODE_REGISTRATION_IP_HOSTNAME_CHECK_DEFAULT);
+    LOG.info(DFSConfigKeys.DFS_NAMENODE_DATANODE_REGISTRATION_IP_HOSTNAME_CHECK_KEY
+        + "=" + checkIpHostnameInRegistration);
 
     this.avoidStaleDataNodesForRead = conf.getBoolean(
         DFSConfigKeys.DFS_NAMENODE_AVOID_STALE_DATANODE_FOR_READ_KEY,
@@ -677,7 +691,7 @@ public class DatanodeManager {
       // Mostly called inside an RPC, update ip and peer hostname
       String hostname = dnAddress.getHostName();
       String ip = dnAddress.getHostAddress();
-      if (!isNameResolved(dnAddress)) {
+      if (checkIpHostnameInRegistration && !isNameResolved(dnAddress)) {
         // Reject registration of unresolved datanode to prevent performance
         // impact of repetitive DNS lookups later.
         final String message = "hostname cannot be resolved (ip="
@@ -745,7 +759,12 @@ public class DatanodeManager {
       nodeS.setDisallowed(false); // Node is in the include list
       
       // resolve network location
-      nodeS.setNetworkLocation(resolveNetworkLocation(nodeS));
+      if (this.rejectUnresolvedTopologyDN) {
+        nodeS.setNetworkLocation(resolveNetworkLocation(nodeS));
+      } else {
+        nodeS.setNetworkLocation(
+            resolveNetworkLocationWithFallBackToDefaultLocation(nodeS));
+      }
       getNetworkTopology().add(nodeS);
 
       // also treat the registration message as a heartbeat
@@ -758,7 +777,13 @@ public class DatanodeManager {
     DatanodeDescriptor nodeDescr = new DatanodeDescriptor(this.storageMap,
         nodeReg, NetworkTopology.DEFAULT_RACK);
 
-    nodeDescr.setNetworkLocation(resolveNetworkLocation(nodeDescr));
+    // resolve network location
+        if (this.rejectUnresolvedTopologyDN) {
+      nodeDescr.setNetworkLocation(resolveNetworkLocation(nodeDescr));
+    } else {
+      nodeDescr.setNetworkLocation(
+          resolveNetworkLocationWithFallBackToDefaultLocation(nodeDescr));
+    }
     addDatanode(nodeDescr);
     checkDecommissioning(nodeDescr);
     
@@ -1104,19 +1129,19 @@ public class DatanodeManager {
   /**
    * Checks if name resolution was successful for the given address.  If IP
    * address and host name are the same, then it means name resolution has
-   * failed.  As a special case, the loopback address is also considered
+   * failed.  As a special case, local addresses are also considered
    * acceptable.  This is particularly important on Windows, where 127.0.0.1
    * does
    * not resolve to "localhost".
    *
    * @param address
    *     InetAddress to check
-   * @return boolean true if name resolution successful or address is loopback
+   * @return boolean true if name resolution successful or address is local
    */
   private static boolean isNameResolved(InetAddress address) {
     String hostname = address.getHostName();
     String ip = address.getHostAddress();
-    return !hostname.equals(ip) || address.isLoopbackAddress();
+    return !hostname.equals(ip) || NetUtils.isLocalAddress(address);
   }
   
   private void setDatanodeDead(DatanodeDescriptor node) {

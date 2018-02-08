@@ -529,6 +529,9 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
       "dfs.datanode.socket.reuse.keepalive";
   public static final int DFS_DATANODE_SOCKET_REUSE_KEEPALIVE_DEFAULT = 1000;
   
+  public static final String DFS_NAMENODE_DATANODE_REGISTRATION_IP_HOSTNAME_CHECK_KEY = "dfs.namenode.datanode.registration.ip-hostname-check";
+  public static final boolean DFS_NAMENODE_DATANODE_REGISTRATION_IP_HOSTNAME_CHECK_DEFAULT = true;
+
   // Whether to enable datanode's stale state detection and usage for reads
   public static final String DFS_NAMENODE_AVOID_STALE_DATANODE_FOR_READ_KEY =
       "dfs.namenode.avoid.read.stale.datanode";
@@ -840,4 +843,10 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final String DFS_NUM_BUCKETS_KEY =
       "dfs.blockreport.numbuckets";
   public static final int DFS_NUM_BUCKETS_DEFAULT = 1000;
+  
+  // Handling unresolved DN topology mapping
+  public static final String  DFS_REJECT_UNRESOLVED_DN_TOPOLOGY_MAPPING_KEY = 
+      "dfs.namenode.reject-unresolved-dn-topology-mapping";
+  public static final boolean DFS_REJECT_UNRESOLVED_DN_TOPOLOGY_MAPPING_DEFAULT =
+      false;
 }

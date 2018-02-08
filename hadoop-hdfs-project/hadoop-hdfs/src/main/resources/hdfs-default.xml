@@ -529,6 +529,22 @@
     </description>
   </property>
 
+<property>
+  <name>dfs.namenode.datanode.registration.ip-hostname-check</name>
+  <value>true</value>
+  <description>
+    If true (the default), then the namenode requires that a connecting
+    datanode's address must be resolved to a hostname.  If necessary, a reverse
+    DNS lookup is performed.  All attempts to register a datanode from an
+    unresolvable address are rejected.
+
+    It is recommended that this setting be left on to prevent accidental
+    registration of datanodes listed by hostname in the excludes file during a
+    DNS outage.  Only set this to false in environments where there is no
+    infrastructure to support reverse DNS lookup.
+  </description>
+</property>
+
   <property>
     <name>dfs.namenode.decommission.interval</name>
     <value>30</value>
@@ -1094,6 +1110,21 @@
       may affect the performance and stability of the NameNode. Refer to the
       custom
       logger's documentation for more details.
+    </description>
+  </property>
+  
+  <property>
+    <name>dfs.namenode.reject-unresolved-dn-topology-mapping</name>
+    <value>false</value>
+    <description>
+      If the value is set to true, then namenode will reject datanode 
+      registration if the topology mapping for a datanode is not resolved and 
+      NULL is returned (script defined by net.topology.script.file.name fails 
+      to execute). Otherwise, datanode will be registered and the default rack 
+      will be assigned as the topology path. Topology paths are important for 
+      data resiliency, since they define fault domains. Thus it may be unwanted 
+      behavior to allow datanode registration with the default rack if the 
+      resolving topology failed.
     </description>
   </property>
 
