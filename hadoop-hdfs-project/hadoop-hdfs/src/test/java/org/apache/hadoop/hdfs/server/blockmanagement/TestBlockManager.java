@@ -70,6 +70,8 @@ import java.util.concurrent.Executors;
 import static io.hops.transaction.lock.LockFactory.BLK;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_SUBTREE_EXECUTOR_LIMIT_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_SUBTREE_EXECUTOR_LIMIT_KEY;
+import org.apache.hadoop.hdfs.StorageType;
+import org.junit.Assert;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -811,4 +813,20 @@ public class TestBlockManager {
         BlockReport.builder(numBuckets).build());
     assertEquals(1, ds.getBlockReportCount());
   }
+  
+  @Test
+  public void testUseDelHint() throws IOException {
+    DatanodeStorageInfo delHint = new DatanodeStorageInfo(
+        DFSTestUtil.getLocalDatanodeDescriptor(), new DatanodeStorage("id"));
+    List<DatanodeStorageInfo> moreThan1Racks = Arrays.asList(delHint);
+    List<StorageType> excessTypes = new ArrayList<StorageType>();
+
+    excessTypes.add(StorageType.DEFAULT);
+    Assert.assertTrue(BlockManager.useDelHint(true, delHint, null,
+        moreThan1Racks, excessTypes));
+    excessTypes.remove(0);
+    excessTypes.add(StorageType.SSD);
+    Assert.assertFalse(BlockManager.useDelHint(true, delHint, null,
+        moreThan1Racks, excessTypes));
+}
 }

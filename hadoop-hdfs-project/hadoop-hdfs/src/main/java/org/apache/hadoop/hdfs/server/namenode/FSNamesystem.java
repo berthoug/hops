@@ -360,6 +360,9 @@ public class FSNamesystem
   private final BlockManager blockManager;
   private final DatanodeStatistics datanodeStatistics;
 
+  // whether setStoragePolicy is allowed.
+  private final boolean isStoragePolicyEnabled;
+  
   // Block pool ID used by this namenode
   //HOP made it final and now its value is read from the config file. all
   // namenodes should have same block pool id
@@ -511,6 +514,10 @@ public class FSNamesystem
       this.datanodeStatistics =
           blockManager.getDatanodeManager().getDatanodeStatistics();
 
+      this.isStoragePolicyEnabled =
+          conf.getBoolean(DFSConfigKeys.DFS_STORAGE_POLICY_ENABLED_KEY,
+                          DFSConfigKeys.DFS_STORAGE_POLICY_ENABLED_DEFAULT);
+      
       this.fsOwner = UserGroupInformation.getCurrentUser();
       this.fsOwnerShortUserName = fsOwner.getShortUserName();
       this.superGroup = conf.get(DFS_PERMISSIONS_SUPERUSERGROUP_KEY,
@@ -1762,6 +1769,11 @@ public class FSNamesystem
   private void setStoragePolicyInt(final String filename, final String policyName)
       throws IOException, UnresolvedLinkException, AccessControlException {
 
+    if (!isStoragePolicyEnabled) {
+      throw new IOException("Failed to set storage policy since "
+          + DFSConfigKeys.DFS_STORAGE_POLICY_ENABLED_KEY + " is set to false.");
+    }
+    
     final BlockStoragePolicy policy =  blockManager.getStoragePolicy(policyName);
     if (policy == null) {
       throw new HadoopIllegalArgumentException("Cannot find a block policy with the name " + policyName);
@@ -1776,7 +1788,7 @@ public class FSNamesystem
           }
 
           @Override
-          public Object performTask() throws IOException {
+          public Object performTask() throws IOException {           
             FSPermissionChecker pc = getPermissionChecker();
             if (isInSafeMode()) {
               throw new SafeModeException("Cannot set metaEnabled for " + filename, safeMode);

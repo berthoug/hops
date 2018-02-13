@@ -39,8 +39,32 @@ public class TestINodeFile {
   static final long BLKSIZE_MAXVALUE = ~(0xffffL << BLOCKBITS);
 
   private String userName = "Test";
+  private static final PermissionStatus perm = new PermissionStatus(
+      "userName", null, FsPermission.getDefault());
   private short replication;
   private long preferredBlockSize;
+
+  private static INodeFile createINodeFile(byte storagePolicyID) throws IOException {
+    return new INodeFile(perm, null, (short) 3, 0L, 1024L, storagePolicyID);
+  }
+
+  @Test
+  public void testStoragePolicyID() throws IOException {
+    for (byte i = 0; i < 16; i++) {
+      final INodeFile f = createINodeFile(i);
+      assertEquals(i, f.getStoragePolicyID());
+    }
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testStoragePolicyIdBelowLowerBound() throws IllegalArgumentException, IOException {
+    createINodeFile((byte) -1);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testStoragePolicyIdAboveUpperBound() throws IllegalArgumentException, IOException {
+    createINodeFile((byte) 16);
+  }
 
   /**
    * Test for the Replication value. Sets a value and checks if it was set

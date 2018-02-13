@@ -1108,6 +1108,11 @@ public class DFSClient implements java.io.Closeable {
     return dfsClientConf.defaultReplication;
   }
   
+  public LocatedBlocks getLocatedBlocks(String src, long start)
+      throws IOException {
+    return getLocatedBlocks(src, start, dfsClientConf.prefetchSize);
+  }
+  
   /*
    * This is just a wrapper around callGetBlockLocations, but non-static so that
    * we can stub it out for tests.
