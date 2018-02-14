@@ -257,12 +257,13 @@ public class INodeDALAdaptor
               INodeFile.getBlockReplication(hopINode.getHeader()),
               INodeFile.getPreferredBlockSize(hopINode.getHeader()),
               hopINode.getModificationTime(), hopINode.getClientName(),
-              hopINode.getClientMachine(), dnID);
+              hopINode.getClientMachine(), dnID, hopINode.getStoragePolicy());
 
             inode.setAccessTimeNoPersistance(hopINode.getAccessTime());
           } else {
             inode = new INodeFile(ps, hopINode.getHeader(),
-                hopINode.getModificationTime(), hopINode.getAccessTime(), hopINode.isFileStoredInDB());
+                hopINode.getModificationTime(), hopINode.getAccessTime(), hopINode.isFileStoredInDB(),
+                hopINode.getStoragePolicy());
           }
           ((INodeFile) inode).setGenerationStampNoPersistence(
               hopINode.getGenerationStamp());

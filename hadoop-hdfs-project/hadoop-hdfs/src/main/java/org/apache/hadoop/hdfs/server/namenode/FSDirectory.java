@@ -220,7 +220,7 @@ public class FSDirectory implements Closeable {
     }
     INodeFileUnderConstruction newNode =
         new INodeFileUnderConstruction(permissions, replication,
-            preferredBlockSize, modTime, clientName, clientMachine, clientNode);
+            preferredBlockSize, modTime, clientName, clientMachine, clientNode, (byte) 0);
 
 
     newNode = addNode(path, newNode, UNKNOWN_DISK_SPACE);
