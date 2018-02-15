@@ -281,7 +281,7 @@ public class FSNamesystem
   private HdfsFileStatus getAuditFileInfo(String path, boolean resolveSymlink)
       throws IOException {
     return (isAuditEnabled() && isExternalInvocation()) ?
-        dir.getFileInfo(path, resolveSymlink) : null;
+        dir.getFileInfo(path, resolveSymlink, false) : null;
   }
 
   private void logAuditEvent(boolean succeeded, String cmd, String src)
@@ -1918,7 +1918,7 @@ public class FSNamesystem
     FSPermissionChecker pc = getPermissionChecker();
     startFileInternal(pc, src, permissions, holder, clientMachine, flag,
         createParent, replication, blockSize);
-    final HdfsFileStatus stat = dir.getFileInfoForCreate(src, false);
+    final HdfsFileStatus stat = dir.getFileInfoForCreate(src, false, true);
     logAuditEvent(true, "create", src, null,
         (isAuditEnabled() && isExternalInvocation()) ? stat : null);
     return stat;
@@ -3307,10 +3307,12 @@ public class FSNamesystem
             HdfsFileStatus stat;
             FSPermissionChecker pc = getPermissionChecker();
             try {
+              boolean isSuperUser = true;
               if (isPermissionEnabled) {
                 checkTraverse(pc, src);
+                isSuperUser = pc.isSuperUser();
               }
-              stat = dir.getFileInfo(src, resolveLink);
+              stat = dir.getFileInfo(src, resolveLink, isSuperUser);
             } catch (AccessControlException e) {
               logAuditEvent(false, "getfileinfo", src);
               throw e;
@@ -3366,7 +3368,7 @@ public class FSNamesystem
     FSPermissionChecker pc = getPermissionChecker();
     status = mkdirsInternal(pc, src, permissions, createParent);
     if (status) {
-      resultingStat = dir.getFileInfo(src, false);
+      resultingStat = dir.getFileInfo(src, false, false);
     }
 
     if (status) {
@@ -3934,15 +3936,17 @@ public class FSNamesystem
       throws IOException {
     DirectoryListing dl;
     FSPermissionChecker pc = getPermissionChecker();
+    boolean isSuperUser = true;
     if (isPermissionEnabled) {
       if (dir.isDir(src)) {
         checkPathAccess(pc, src, FsAction.READ_EXECUTE);
       } else {
         checkTraverse(pc, src);
       }
+      isSuperUser = pc.isSuperUser();
     }
     logAuditEvent(true, "listStatus", src);
-    dl = dir.getListing(src, startAfter, needLocation);
+    dl = dir.getListing(src, startAfter, needLocation, isSuperUser);
     return dl;
   }
 

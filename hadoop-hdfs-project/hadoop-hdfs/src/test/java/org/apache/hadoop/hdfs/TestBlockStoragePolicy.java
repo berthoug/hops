@@ -848,7 +848,7 @@ public class TestBlockStoragePolicy {
           HdfsFileStatus.EMPTY_NAME, true).getPartialListing();
       checkDirectoryListing(dirList, ID_UNSPECIFIED, ID_UNSPECIFIED);
       checkDirectoryListing(barList, ID_UNSPECIFIED, ID_UNSPECIFIED);
-
+      
       final Path invalidPath = new Path("/invalidPath");
       try {
         fs.setStoragePolicy(invalidPath, HdfsConstants.WARM_STORAGE_POLICY_NAME);
@@ -1067,7 +1067,7 @@ public class TestBlockStoragePolicy {
     final DistributedFileSystem fs = cluster.getFileSystem();
     try {
       BlockStoragePolicy[] policies = fs.getStoragePolicies();
-      Assert.assertEquals(6, policies.length);
+      Assert.assertEquals(5, policies.length);
       Assert.assertEquals(POLICY_SUITE.getPolicy(COLD).toString(),
           policies[0].toString());
       Assert.assertEquals(POLICY_SUITE.getPolicy(WARM).toString(),
