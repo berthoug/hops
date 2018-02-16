@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.*;
 
 import com.google.common.collect.Lists;
+import io.hops.metadata.HdfsStorageFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -1014,6 +1015,8 @@ public class TestBlockStoragePolicy {
 
   @Test
   public void testChooseTargetWithTopology() throws Exception {
+    HdfsStorageFactory.resetDALInitialized();
+    HdfsStorageFactory.setConfiguration(conf);
     BlockStoragePolicy policy1 = new BlockStoragePolicy((byte) 9, "TEST1",
         new StorageType[]{StorageType.SSD, StorageType.DISK,
             StorageType.ARCHIVE}, new StorageType[]{}, new StorageType[]{});
@@ -1036,24 +1039,27 @@ public class TestBlockStoragePolicy {
     File baseDir = PathUtils.getTestDir(TestReplicationPolicy.class);
     DFSTestUtil.formatNameNode(conf);
     NameNode namenode = new NameNode(conf);
+    try {
+      final BlockManager bm = namenode.getNamesystem().getBlockManager();
+      BlockPlacementPolicy replicator = bm.getBlockPlacementPolicy();
+      NetworkTopology cluster = bm.getDatanodeManager().getNetworkTopology();
+      for (DatanodeDescriptor datanode : dataNodes) {
+        cluster.add(datanode);
+      }
 
-    final BlockManager bm = namenode.getNamesystem().getBlockManager();
-    BlockPlacementPolicy replicator = bm.getBlockPlacementPolicy();
-    NetworkTopology cluster = bm.getDatanodeManager().getNetworkTopology();
-    for (DatanodeDescriptor datanode : dataNodes) {
-      cluster.add(datanode);
+      DatanodeStorageInfo[] targets = replicator.chooseTarget("/foo", 3,
+          dataNodes[0], Collections.<DatanodeStorageInfo>emptyList(), false,
+          new HashSet<Node>(), 0, policy1);
+      System.out.println(Arrays.asList(targets));
+      Assert.assertEquals(3, targets.length);
+      targets = replicator.chooseTarget("/foo", 3,
+          dataNodes[0], Collections.<DatanodeStorageInfo>emptyList(), false,
+          new HashSet<Node>(), 0, policy2);
+      System.out.println(Arrays.asList(targets));
+      Assert.assertEquals(3, targets.length);
+    } finally {
+      namenode.stop();
     }
-
-    DatanodeStorageInfo[] targets = replicator.chooseTarget("/foo", 3,
-        dataNodes[0], Collections.<DatanodeStorageInfo>emptyList(), false,
-        new HashSet<Node>(), 0, policy1);
-    System.out.println(Arrays.asList(targets));
-    Assert.assertEquals(3, targets.length);
-    targets = replicator.chooseTarget("/foo", 3,
-        dataNodes[0], Collections.<DatanodeStorageInfo>emptyList(), false,
-        new HashSet<Node>(), 0, policy2);
-    System.out.println(Arrays.asList(targets));
-    Assert.assertEquals(3, targets.length);
   }
 
   /**

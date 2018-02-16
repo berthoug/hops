@@ -1119,7 +1119,7 @@ public class FSDirectory implements Closeable {
     INode inode = inodes[inodes.length - 1];
 
     if (inode == null) {
-      throw new FileNotFoundException(src + " is not a file or directory");
+      throw new FileNotFoundException("File/Directory does not exist: " + src);
     } else if (inode.isSymlink()) {
       throw new IOException("Cannot set storage policy for symlink: " + src);
     } else {
