@@ -282,16 +282,6 @@ public abstract class INode implements Comparable<byte[]> {
   boolean isRoot() {
     return name.length == 0;
   }
-
-  /**
-   * Set the {@link PermissionStatus}
-   */
-  private void setPermissionStatusNoPersistance(PermissionStatus ps)
-      throws IOException {
-    setUserNoPersistance(ps.getUserName());
-    setGroupNoPersistance(ps.getGroupName());
-    setPermissionNoPersistance(ps.getPermission());
-  }
   
   /**
    * Get the {@link PermissionStatus}
@@ -368,6 +358,13 @@ public abstract class INode implements Comparable<byte[]> {
    */
   private void setPermissionNoPersistance(FsPermission permission) {
     this.permission = permission;
+  }
+
+  /**
+   * Check whether it's a file.
+   */
+  public boolean isFile() {
+    return false;
   }
 
   /**
@@ -863,10 +860,6 @@ public abstract class INode implements Comparable<byte[]> {
 
   public void unlockSubtree() {
     setSubtreeLocked(false);
-  }
-
-  public boolean isFile() {
-    return !isDirectory() && !isSymlink();
   }
 
   public void logMetadataEvent(MetadataLogEntry.Operation operation)
