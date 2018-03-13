@@ -67,7 +67,7 @@ public class ProvidedStorageMap {
       LoggerFactory.getLogger(ProvidedStorageMap.class);
 
   // limit to a single provider for now
-  private RwLock lock; // TODO: what locking mechanism to use, hops internal?
+  private RwLock lock;
   private BlockManager bm;
   private BlockAliasMap aliasMap;
 
