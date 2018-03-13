@@ -338,7 +338,7 @@ class HeartbeatManager implements DatanodeStatistics {
               lastBlockKeyUpdate)) { //updated when leader. blocktokensecretmanager does leader check
             synchronized (HeartbeatManager.this) {
               for (DatanodeDescriptor d : datanodes) {
-                d.needKeyUpdate = true;
+                d.setNeedKeyUpdate(true);
               }
             }
             lastBlockKeyUpdate = now;

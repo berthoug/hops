@@ -331,6 +331,22 @@ public class DatanodeDescriptor extends DatanodeInfo {
     return false;
   }
 
+  public boolean isAlive() {
+    return isAlive;
+  }
+
+  public void setAlive(boolean isAlive) {
+    this.isAlive = isAlive;
+  }
+
+  public synchronized boolean needKeyUpdate() {
+    return needKeyUpdate;
+  }
+
+  public synchronized void setNeedKeyUpdate(boolean needKeyUpdate) {
+    this.needKeyUpdate = needKeyUpdate;
+  }
+
   public DatanodeStorageInfo getStorageInfo(String storageID) {
     synchronized (storageMap) {
       return this.storageMap.get(storageID);

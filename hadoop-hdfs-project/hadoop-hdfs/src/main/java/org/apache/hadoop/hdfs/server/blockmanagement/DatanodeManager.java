@@ -685,7 +685,7 @@ public class DatanodeManager {
       heartbeatManager.stopDecommission(node);
       // Over-replicated blocks will be detected and processed when 
       // the dead node comes back and send in its full block report.
-      if (node.isAlive) {
+      if (node.isAlive()) {
         blockManager.processOverReplicatedBlocksOnReCommission(node);
       }
     }
@@ -1186,7 +1186,7 @@ public class DatanodeManager {
           throw new DisallowedDatanodeException(nodeinfo);
         }
 
-        if (nodeinfo == null || !nodeinfo.isAlive) {
+        if (nodeinfo == null || !nodeinfo.isAlive()) {
           return new DatanodeCommand[]{RegisterCommand.REGISTER};
         }
 

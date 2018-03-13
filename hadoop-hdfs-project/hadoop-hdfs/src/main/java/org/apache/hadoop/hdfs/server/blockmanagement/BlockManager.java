@@ -1016,9 +1016,9 @@ public class BlockManager {
   void addKeyUpdateCommand(final List<DatanodeCommand> cmds,
       final DatanodeDescriptor nodeinfo) throws IOException {
     // check access key update
-    if (isBlockTokenEnabled() && nodeinfo.needKeyUpdate) {
+    if (isBlockTokenEnabled() && nodeinfo.needKeyUpdate()) {
       cmds.add(new KeyUpdateCommand(blockTokenSecretManager.exportKeys()));
-      nodeinfo.needKeyUpdate = false;
+      nodeinfo.setNeedKeyUpdate(false);
     }
   }
 
