@@ -141,6 +141,9 @@ public class BlockManager {
   private final HeartbeatManager heartbeatManager;
   private final NameNodeBlockTokenSecretManager blockTokenSecretManager;
 
+  // Block pool ID used by this namenode
+  private String blockPoolId;
+
   private volatile long pendingReplicationBlocksCount = 0L;
   private volatile long corruptReplicaBlocksCount = 0L;
   private volatile long underReplicatedBlocksCount = 0L;
@@ -457,9 +460,14 @@ public class BlockManager {
   }
 
   public void setBlockPoolId(String blockPoolId) {
+    this.blockPoolId = blockPoolId;
     if (isBlockTokenEnabled()) {
       blockTokenSecretManager.setBlockPoolId(blockPoolId);
     }
+  }
+
+  public String getBlockPoolId() {
+    return blockPoolId;
   }
 
   /**
@@ -2006,9 +2014,9 @@ public class BlockManager {
     final long startTime = Time.now(); //after acquiring write lock
 
     DatanodeDescriptor node = datanodeManager.getDatanode(nodeID);
-    if (node == null || !node.isAlive) {
+    if (node == null || !node.isAlive()) {
       throw new IOException(
-          "ProcessReport from dead or unregistered node: " + nodeID);
+              "ProcessReport from dead or unregistered node: " + nodeID);
     }
 
     DatanodeStorageInfo storageInfo = node.getStorageInfo(storage.getStorageID());
@@ -2022,44 +2030,44 @@ public class BlockManager {
     if (storageInfo == null) {
       // We handle this for backwards compatibility.
       storageInfo = node.updateStorage(storage);
+    }
 
+      // To minimize startup time, we discard any second (or later) block reports
+      // that we receive while still in startup phase.
+      if (namesystem.isInStartupSafeMode() && storageInfo.getBlockReportCount() > 0) {
+        blockLog.info("BLOCK* processReport: " +
+                "discarded non-initial block report from " + nodeID +
+                " because namenode still in startup phase");
+        return !node.hasStaleStorages();
+      }
 
-    // To minimize startup time, we discard any second (or later) block reports
-    // that we receive while still in startup phase.
-    if (namesystem.isInStartupSafeMode() && storageInfo.getBlockReportCount() > 0) {
-      blockLog.info("BLOCK* processReport: " +
-          "discarded non-initial block report from " + nodeID +
-          " because namenode still in startup phase");
+      // Get the storageinfo object that we are updating in this processreport
+      ReportStatistics reportStatistics = processReport(storageInfo, newReport);
+
+      // Now that we have an up-to-date block report, we know that any
+      // deletions from a previous NN iteration have been accounted for.
+      boolean staleBefore = storageInfo.areBlockContentsStale();
+      storageInfo.receivedBlockReport();
+      if (staleBefore && !storageInfo.areBlockContentsStale()) {
+        LOG.info(
+                "BLOCK* processReport: Received first block report from " + node +
+                        " after becoming active. Its block contents are no longer" +
+                        " considered stale");
+        rescanPostponedMisreplicatedBlocks();
+      }
+
+      final long endTime = Time.now();
+
+      // Log the block report processing stats from Namenode perspective
+      final NameNodeMetrics metrics = NameNode.getNameNodeMetrics();
+      if (metrics != null) {
+        metrics.addBlockReport((int) (endTime - startTime));
+      }
+      blockLog.info("BLOCK* processReport: from " + nodeID + " storage: " + storage + ", blocks: " +
+              newReport.getNumBlocks() + ", processing time: " +
+              (endTime - startTime) + " ms. " + reportStatistics);
       return !node.hasStaleStorages();
     }
-  
-    // Get the storageinfo object that we are updating in this processreport
-    ReportStatistics reportStatistics = processReport(storageInfo, newReport);
-    
-    // Now that we have an up-to-date block report, we know that any
-    // deletions from a previous NN iteration have been accounted for.
-    boolean staleBefore = storageInfo.areBlockContentsStale();
-    storageInfo.receivedBlockReport();
-    if (staleBefore && !storageInfo.areBlockContentsStale()) {
-      LOG.info(
-          "BLOCK* processReport: Received first block report from " + node +
-              " after becoming active. Its block contents are no longer" +
-              " considered stale");
-      rescanPostponedMisreplicatedBlocks();
-    }
-
-    final long endTime = Time.now();
-
-    // Log the block report processing stats from Namenode perspective
-    final NameNodeMetrics metrics = NameNode.getNameNodeMetrics();
-    if (metrics != null) {
-      metrics.addBlockReport((int) (endTime - startTime));
-    }
-    blockLog.info("BLOCK* processReport: from " + nodeID + " storage: " + storage + ", blocks: " +
-        newReport.getNumBlocks() + ", processing time: " +
-        (endTime - startTime) + " ms. " + reportStatistics);
-    return !node.hasStaleStorages();
-  }
 
   /**
    * Rescan the list of blocks which were previously postponed.
@@ -2125,7 +2133,7 @@ public class BlockManager {
     postponedMisreplicatedBlocks.removeAll(toRemove);
   }
 
-  private ReportStatistics processReport(
+  ReportStatistics processReport(
       final DatanodeStorageInfo storage,
       final BlockReport report) throws
       IOException {
@@ -3644,7 +3652,7 @@ public class BlockManager {
 
     final DatanodeDescriptor node = datanodeManager.getDatanode(nodeID);
 
-    if (node == null || !node.isAlive) {
+    if (node == null || !node.isAlive()) {
       blockLog
           .warn("BLOCK* processIncrementalBlockReport"
               + " is received from dead or unregistered node "
@@ -3769,7 +3777,7 @@ public class BlockManager {
         };
 
     try {
-      if (node == null || !node.isAlive) {
+      if (node == null || !node.isAlive()) {
         blockLog.warn("BLOCK* processIncrementalBlockReport" +
             " is received from dead or unregistered node " + nodeID);
         throw new IOException(

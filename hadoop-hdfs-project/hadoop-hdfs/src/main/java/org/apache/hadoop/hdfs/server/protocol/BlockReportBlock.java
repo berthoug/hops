@@ -1,6 +1,5 @@
 package org.apache.hadoop.hdfs.server.protocol;
 
-
 public class BlockReportBlock{
   private final long blockId;
   private final long generationStamp;
@@ -14,7 +13,7 @@ public class BlockReportBlock{
     this.length = length;
     this.state = state;
   }
-  
+
   public long getBlockId() {
     return blockId;
   }

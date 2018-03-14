@@ -519,14 +519,13 @@ public class DatanodeDescriptor extends DatanodeInfo {
     }
   }
 
-/* todo: is storage injection needed?
-  void injectStorage(DatanodeStorageInfo s) {
+
+ void injectStorage(DatanodeStorageInfo s) {
     synchronized (storageMap) {
       DatanodeStorageInfo storage = storageMap.get(s.getStorageID());
       if (null == storage) {
-        LOG.info("Adding new storage ID {} for DN {}", s.getStorageID(),
-            getXferAddr());
-        DFSTopologyNodeImpl parent = null;
+        LOG.info("Adding new storage ID {" + s.getStorageID() + "} for DN { " + getXferAddr() + "}");
+       /* DFSTopologyNodeImpl parent = null;
         if (getParent() instanceof DFSTopologyNodeImpl) {
           parent = (DFSTopologyNodeImpl) getParent();
         }
@@ -535,13 +534,13 @@ public class DatanodeDescriptor extends DatanodeInfo {
           // we are about to add a type this node currently does not have,
           // inform the parent that a new type is added to this datanode
           parent.childAddStorage(getName(), type);
-        }
+        }*/
         storageMap.put(s.getStorageID(), s);
       } else {
         assert storage == s : "found " + storage + " expected " + s;
       }
     }
-  }*/
+  }
 
   /**
    * Remove stale storages from storageMap. We must not remove any storages

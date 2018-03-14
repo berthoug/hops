@@ -30,13 +30,14 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.hops.exception.StorageException;
+import io.hops.exception.TransactionContextException;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.protocol.Block;
-import org.apache.hadoop.hdfs.protocol.BlockListAsLongs;
 import org.apache.hadoop.hdfs.protocol.DatanodeID;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfoWithStorage;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
@@ -45,6 +46,8 @@ import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.server.common.blockaliasmap.BlockAliasMap;
 import org.apache.hadoop.hdfs.server.common.blockaliasmap.impl.TextFileRegionAliasMap;
 import org.apache.hadoop.hdfs.server.common.BlockAlias;
+import org.apache.hadoop.hdfs.server.protocol.BlockReport;
+import org.apache.hadoop.hdfs.server.protocol.BlockReportBlock;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage.State;
 import org.apache.hadoop.hdfs.util.RwLock;
@@ -155,8 +158,8 @@ public class ProvidedStorageMap {
       BlockAliasMap.Reader<BlockAlias> reader =
           aliasMap.getReader(null, bm.getBlockPoolId());
       if (reader != null) {
-        bm.processFirstBlockReport(providedStorageInfo,
-                new ProvidedBlockList(reader.iterator()));
+        bm.processReport(providedStorageInfo,
+                BlockReport.builder(DFSConfigKeys.DFS_NUM_BUCKETS_DEFAULT).addAllAsFinalized(reader.iterator()).build());
       }
     }
   }
@@ -191,7 +194,7 @@ public class ProvidedStorageMap {
     return providedStorageInfo.getCapacity();
   }
 
-  public void updateStorage(DatanodeDescriptor node, DatanodeStorage storage) {
+  public void updateStorage(DatanodeDescriptor node, DatanodeStorage storage) throws IOException {
     if (isProvidedStorage(storage.getStorageID())) {
       if (StorageType.PROVIDED.equals(storage.getStorageType())) {
         node.injectStorage(providedStorageInfo);
@@ -460,7 +463,7 @@ public class ProvidedStorageMap {
     }
 
     @Override
-    boolean removeBlock(BlockInfo b) {
+    public boolean removeBlock(BlockInfo b) throws TransactionContextException, StorageException {
       ProvidedDescriptor dn = (ProvidedDescriptor) getDatanodeDescriptor();
       if (dn.activeProvidedDatanodes() == 0) {
         return super.removeBlock(b);
@@ -470,7 +473,7 @@ public class ProvidedStorageMap {
     }
 
     @Override
-    void setState(DatanodeStorage.State state) {
+    public void setState(DatanodeStorage.State state) {
       if (state == State.FAILED) {
         // The state should change to FAILED only when there are no active
         // datanodes with PROVIDED storage.
@@ -494,21 +497,22 @@ public class ProvidedStorageMap {
   /**
    * Used to emulate block reports for provided blocks.
    */
-  static class ProvidedBlockList extends BlockListAsLongs {
+  /*static class ProvidedBlockList extends BlockReport {
 
-    private final Iterator<BlockAlias> inner;
+    Builder builder = new Builder(conf.getInt(DFSConfigKeys.DFS_NUM_BUCKETS_KEY,
+            DFSConfigKeys.DFS_NUM_BUCKETS_DEFAULT));
 
-    ProvidedBlockList(Iterator<BlockAlias> inner) {
-      this.inner = inner;
+    private final Iterator<BlockReportBlock> inner = iterator();
+
+    ProvidedBlockList() {
+      super(); /
     }
 
     @Override
-    public Iterator<BlockReportReplica> iterator() {
-      return new Iterator<BlockReportReplica>() {
+    public Iterator<BlockReportBlock> iterator() {
+      return new Iterator<BlockReportBlock>() {
         @Override
-        public BlockReportReplica next() {
-          return new BlockReportReplica(inner.next().getBlock());
-        }
+        public BlockReportBlock next() { return inner.next(); }
         @Override
         public boolean hasNext() {
           return inner.hasNext();
@@ -520,7 +524,7 @@ public class ProvidedStorageMap {
       };
     }
 
-    @Override
+   @Override
     public int getNumberOfBlocks() {
       // is ignored for ProvidedBlockList.
       return -1;
@@ -536,5 +540,7 @@ public class ProvidedStorageMap {
       // should only be used for backwards compat, DN.ver > NN.ver
       throw new UnsupportedOperationException();
     }
+
   }
+  */
 }

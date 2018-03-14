@@ -20,8 +20,10 @@ package org.apache.hadoop.hdfs.server.protocol;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
 import org.apache.hadoop.hdfs.protocol.Block;
+import org.apache.hadoop.hdfs.server.common.BlockAlias;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.datanode.Replica;
+import org.apache.hadoop.metrics2.lib.MetricsSourceBuilder;
 
 import java.util.*;
 
@@ -85,7 +87,7 @@ public class BlockReport implements Iterable<BlockReportBlock> {
   public static Builder builder(int numBuckets){
     return new Builder(numBuckets);
   }
-  
+
   public static int bucket(Replica replica, int numBuckets){
     return bucket(replica.getBlockId(), numBuckets);
   }
@@ -226,7 +228,14 @@ public class BlockReport implements Iterable<BlockReportBlock> {
       blockCounter++;
       return this;
     }
-    
+
+    public Builder addAllAsFinalized(Iterator<BlockAlias> iterator) {
+      while (iterator.hasNext()) {
+        addAsFinalized(iterator.next().getBlock());
+      }
+      return this;
+    }
+
     public Builder addAllAsFinalized(List<Block> blocks){
       for (Block block : blocks){
         addAsFinalized(block);
@@ -272,9 +281,8 @@ public class BlockReport implements Iterable<BlockReportBlock> {
           throw new RuntimeException("Unimplemented state");
       }
     }
-  
   }
-  
+
   private class BlockReportBlockIterator implements Iterator<BlockReportBlock>{
   
     int currentBucket;
