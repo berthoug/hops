@@ -299,7 +299,7 @@ public class ProvidedStorageMap {
     LocatedBlocks build(DatanodeDescriptor client) {
       // TODO choose provided locations close to the client.
       return new LocatedBlocks(
-          flen, isUC, blocks, last, lastComplete, feInfo, ecPolicy);
+          flen, isUC, blocks, last, lastComplete);
     }
 
     @Override

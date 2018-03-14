@@ -29,7 +29,7 @@ import java.util.Set;
  * Namesystem operations.
  */
 @InterfaceAudience.Private
-public interface Namesystem extends SafeMode {
+public interface Namesystem extends RwLock, SafeMode { // TODO: should we use RwLock?
   /**
    * Is this name system running?
    */

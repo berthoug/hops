@@ -792,7 +792,7 @@ public class BlockManager {
 
     final long fileLength = bc.computeContentSummary().getLength();
     final long pos = fileLength - ucBlock.getNumBytes();
-    return createLocatedBlock(ucBlock, pos, AccessMode.WRITE);
+    return createLocatedBlock(null, ucBlock, pos, AccessMode.WRITE);
   }
 
   /**
@@ -811,9 +811,13 @@ public class BlockManager {
     return storageSet;
   }
 
-  private List<LocatedBlock> createLocatedBlockList(final BlockInfo[] blocks,
-      final long offset, final long length, final int nrBlocksToReturn,
-      final AccessMode mode) throws IOException, StorageException {
+  private List<LocatedBlock> createLocatedBlockList(
+      LocatedBlockBuilder locatedBlocks,
+      final BlockInfo[] blocks,
+      final long offset,
+      final long length,
+      final int nrBlocksToReturn,
+      final AccessMode mode) throws IOException {
     int curBlk = 0;
     long curPos = 0, blkSize = 0;
     int nrBlocks = (blocks[0].getNumBytes() == 0) ? 0 : blocks.length;
@@ -834,12 +838,31 @@ public class BlockManager {
     long endOff = offset + length;
     List<LocatedBlock> results = new ArrayList<>(blocks.length);
     do {
-      results.add(createLocatedBlock(blocks[curBlk], curPos, mode));
+      results.add(createLocatedBlock(locatedBlocks, blocks[curBlk], curPos, mode));
       curPos += blocks[curBlk].getNumBytes();
       curBlk++;
-    } while (curPos < endOff && curBlk < blocks.length &&
-        results.size() < nrBlocksToReturn);
+    } while (curPos < endOff
+            && curBlk < blocks.length
+            && results.size() < nrBlocksToReturn
+            && !locatedBlocks.isBlockMax());
     return results;
+  }
+
+  private LocatedBlock createLocatedBlock(LocatedBlockBuilder locatedBlocks,
+      final BlockInfo[] blocks,
+      final long endPos, final AccessMode mode) throws IOException {
+    int curBlk;
+    long curPos = 0;
+    int nrBlocks = (blocks[0].getNumBytes() == 0) ? 0 : blocks.length;
+    for (curBlk = 0; curBlk < nrBlocks; curBlk++) {
+      long blkSize = blocks[curBlk].getNumBytes();
+      if (curPos + blkSize >= endPos) {
+        break;
+      }
+      curPos += blkSize;
+    }
+
+    return createLocatedBlock(locatedBlocks, blocks[curBlk], curPos, mode);
   }
 
   private List<LocatedBlock> createPhantomLocatedBlockList(INodeFile file, final byte[] data,
@@ -891,10 +914,10 @@ public class BlockManager {
     return results;
   }
 
-  private LocatedBlock createLocatedBlock(final BlockInfo blk, final long pos,
-      final BlockTokenSecretManager.AccessMode mode)
+  private LocatedBlock createLocatedBlock(LocatedBlockBuilder locatedBlocks, final BlockInfo blk, final long pos,
+      final AccessMode mode)
       throws IOException, StorageException {
-    final LocatedBlock lb = createLocatedBlock(blk, pos);
+    final LocatedBlock lb = createLocatedBlock(locatedBlocks, blk, pos);
     if (mode != null) {
       setBlockToken(lb, mode);
     }
@@ -904,7 +927,7 @@ public class BlockManager {
   /**
    * @return a LocatedBlock for the given block
    */
-  private LocatedBlock createLocatedBlock(final BlockInfo blk, final long pos)
+  private LocatedBlock createLocatedBlock(LocatedBlockBuilder locatedBlock, final BlockInfo blk, final long pos)
       throws IOException, StorageException {
     if (blk instanceof BlockInfoUnderConstruction) {
       if (blk.isComplete()) {
@@ -914,9 +937,11 @@ public class BlockManager {
       }
       final BlockInfoUnderConstruction uc = (BlockInfoUnderConstruction) blk;
       final DatanodeStorageInfo[] locations = uc.getExpectedStorageLocations(datanodeManager);
-      final ExtendedBlock eb =
-          new ExtendedBlock(namesystem.getBlockPoolId(), blk);
-      return new LocatedBlock(eb, locations, pos, false);
+      final ExtendedBlock eb = new ExtendedBlock(namesystem.getBlockPoolId(), blk);
+
+      return null == locatedBlock ? newLocatedBlock(eb, locations, pos, false)
+              : locatedBlock.newLocatedBlock(eb, locations, pos, false);
+      //return new LocatedBlock(eb, locations, pos, false);
     }
 
     // get block locations
@@ -950,7 +975,9 @@ public class BlockManager {
         " numCorruptRepls: " + numCorruptReplicas;
     final ExtendedBlock eb =
         new ExtendedBlock(namesystem.getBlockPoolId(), blk);
-    return new LocatedBlock(eb, storages, pos, isCorrupt);
+    return null == locatedBlock ? newLocatedBlock(eb, storages, pos, isCorrupt)
+            : locatedBlock.newLocatedBlock(eb, storages, pos, isCorrupt);
+
   }
   /**
    * Create a PhantomLocatedBlocks.
@@ -988,17 +1015,33 @@ public class BlockManager {
         LOG.debug("blocks = " + java.util.Arrays.asList(blocks));
       }
       final AccessMode mode = needBlockToken ? AccessMode.READ : null;
-      final List<LocatedBlock> locatedblocks =
-          createLocatedBlockList(blocks, offset, length, Integer.MAX_VALUE,
-              mode);
+    //  final List<LocatedBlock> locatedblocks =
+    //      createLocatedBlockList(blocks, offset, length, Integer.MAX_VALUE,
+    //          mode);
+
+      LocatedBlockBuilder locatedBlocks = providedStorageMap
+          .newLocatedBlocks(Integer.MAX_VALUE)
+          .fileLength(fileSizeExcludeBlocksUnderConstruction)
+          .lastUC(isFileUnderConstruction);
+
+      createLocatedBlockList(locatedBlocks, blocks, offset, length,  Integer.MAX_VALUE, mode);
 
       final BlockInfo last = blocks[blocks.length - 1];
       final long lastPos = last.isComplete() ?
-          fileSizeExcludeBlocksUnderConstruction - last.getNumBytes() :
-          fileSizeExcludeBlocksUnderConstruction;
-      final LocatedBlock lastlb = createLocatedBlock(last, lastPos, mode);
-      return new LocatedBlocks(fileSizeExcludeBlocksUnderConstruction,
-          isFileUnderConstruction, locatedblocks, lastlb, last.isComplete());
+              fileSizeExcludeBlocksUnderConstruction - last.getNumBytes()
+              : fileSizeExcludeBlocksUnderConstruction;
+
+      locatedBlocks
+              .lastBlock(createLocatedBlock(locatedBlocks, last, lastPos, mode))
+              .lastComplete(last.isComplete());
+
+      LocatedBlocks locations = locatedBlocks.build();
+
+      return locations;
+
+      // final LocatedBlock lastlb = createLocatedBlock(last, lastPos, mode);
+      // return new LocatedBlocks(fileSizeExcludeBlocksUnderConstruction,
+      //        isFileUnderConstruction, locatedblocks, lastlb, last.isComplete());
     }
   }
 
@@ -4650,6 +4693,43 @@ public class BlockManager {
       }
     }.handle();
   }
+
+  public static LocatedBlock newLocatedBlock(
+          ExtendedBlock b, DatanodeStorageInfo[] storages,
+          long startOffset, boolean corrupt) {
+    // startOffset is unknown
+    return new LocatedBlock(
+            b, DatanodeStorageInfo.toDatanodeInfos(storages),
+            DatanodeStorageInfo.toStorageIDs(storages),
+            DatanodeStorageInfo.toStorageTypes(storages),
+            startOffset, corrupt,
+            null);
+  }
+
+/*  public static LocatedStripedBlock newLocatedStripedBlock(
+    ExtendedBlock b, DatanodeStorageInfo[] storages,
+    byte[] indices, long startOffset, boolean corrupt) {
+    // startOffset is unknown
+    return new LocatedStripedBlock(
+      b, DatanodeStorageInfo.toDatanodeInfos(storages),
+      DatanodeStorageInfo.toStorageIDs(storages),
+      DatanodeStorageInfo.toStorageTypes(storages),
+      indices, startOffset, corrupt,
+      null);
+  }
+
+  public static LocatedBlock newLocatedBlock(ExtendedBlock eb, BlockInfo info,
+       DatanodeStorageInfo[] locs, long offset) throws IOException {
+    final LocatedBlock lb;
+    if (info.isStriped()) {
+      lb = newLocatedStripedBlock(eb, locs,
+              info.getUnderConstructionFeature().getBlockIndices(),
+              offset, false);
+    } else {
+      lb = newLocatedBlock(eb, locs, offset, false);
+    }
+    return lb;
+  }*/
 
   private void addToInvalidates(final Collection<Block> blocks,
       final DatanodeStorageInfo storage) throws IOException {
