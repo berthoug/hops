@@ -130,7 +130,7 @@ public abstract class Storage extends StorageInfo {
       new ArrayList<>();
 
   private class DirIterator implements Iterator<StorageDirectory> {
-    StorageDirType dirType;
+    final StorageDirType dirType;
     int prevIndex; // for remove()
     int nextIndex; // for next()
     
@@ -251,6 +251,7 @@ public abstract class Storage extends StorageInfo {
 
     private String storageUuid = null;      // Storage directory identifier.
 
+    private final StorageLocation location;
     public StorageDirectory(File dir) {
       // default dirType is null
       this(dir, null, true);
@@ -572,7 +573,7 @@ public abstract class Storage extends StorageInfo {
         throws IOException {
 
       if (location != null &&
-              location.getStorageType() == org.apache.hadoop.fs.StorageType.PROVIDED) {
+              location.getStorageType() == StorageType.PROVIDED) {
         // currently we assume that PROVIDED storages are always NORMAL
         return StorageState.NORMAL;
       }
@@ -904,6 +905,10 @@ public abstract class Storage extends StorageInfo {
       }
       return false;
     }
+
+    public StorageLocation getStorageLocation() {
+      return location;
+    }
   }
 
   /**
@@ -911,12 +916,10 @@ public abstract class Storage extends StorageInfo {
    */
   protected Storage(NodeType type) {
     super();
-    this.storageType = type;
   }
 
   protected Storage(NodeType type, StorageInfo storageInfo) {
     super(storageInfo);
-    this.storageType = type;
   }
   
   public int getNumStorageDirs() {

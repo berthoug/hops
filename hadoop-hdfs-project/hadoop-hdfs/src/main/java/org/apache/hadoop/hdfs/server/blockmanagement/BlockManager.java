@@ -1000,7 +1000,7 @@ public class BlockManager {
   /**
    * Create a LocatedBlocks.
    */
-  public LocatedBlocks createLocatedBlocks(final BlockInfo[] blocks,
+  public LocatedBlocks createLoccatedBlocks(final BlockInfo[] blocks,
       final long fileSizeExcludeBlocksUnderConstruction,
       final boolean isFileUnderConstruction, final long offset,
       final long length, final boolean needBlockToken)

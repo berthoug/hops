@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
+import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.protocol.LayoutVersion;
 import org.apache.hadoop.hdfs.protocol.LayoutVersion.Feature;
@@ -106,22 +107,12 @@ public class DataStorage extends Storage {
 
   public BlockPoolSliceStorage getBPStorage(String bpid) {
     return bpStorageMap.get(bpid);
-
-  private static boolean createStorageID(StorageDirectory sd, int lv,
-      Configuration conf) {
-    // Clusters previously upgraded from layout versions earlier than
-    // ADD_DATANODE_AND_STORAGE_UUIDS failed to correctly generate a
-    // new storage ID. We check for that and fix it now.
-    final boolean haveValidStorageId = DataNodeLayoutVersion.supports(
-        LayoutVersion.Feature.ADD_DATANODE_AND_STORAGE_UUIDS, lv)
-        && DatanodeStorage.isValidStorageId(sd.getStorageUuid());
-    return createStorageID(sd, !haveValidStorageId, conf);
   }
 
   /** Create an ID for this storage.
    * @return true if a new storage ID was generated.
    * */
-  public synchronized static boolean createStorageID(
+  public synchronized boolean createStorageID(
       StorageDirectory sd, boolean regenerateStorageIds, Configuration conf) {
     final String oldStorageID = sd.getStorageUuid();
     if (sd.getStorageLocation() != null &&
@@ -257,7 +248,7 @@ public class DataStorage extends Storage {
       // Each storage directory is treated individually.
       // During startup some of them can upgrade or roll back
       // while others could be up-to-date for the regular startup.
-      doTransition(datanode, sd, nsInfo, startOpt);
+      doTransition(datanode, sd, nsInfo, startOpt, datanode.getConf());
 
       // 3. Update successfully loaded storage.
       setServiceLayoutVersion(getServiceLayoutVersion());
@@ -325,7 +316,6 @@ public class DataStorage extends Storage {
   protected void setPropertiesFromFields(Properties props,
       StorageDirectory sd
   ) throws IOException {
-    props.setProperty("storageType", storageType.toString());
     props.setProperty("clusterID", clusterID);
     props.setProperty("cTime", String.valueOf(cTime));
     props.setProperty("layoutVersion", String.valueOf(layoutVersion));
@@ -446,8 +436,12 @@ public class DataStorage extends Storage {
   private void doTransition( DataNode datanode,
       StorageDirectory sd,
       NamespaceInfo nsInfo,
-      StartupOption startOpt
+      StartupOption startOpt, Configuration conf
   ) throws IOException {
+    if (sd.getStorageLocation().getStorageType() == StorageType.PROVIDED) {
+      createStorageID(sd, false, conf);
+      return; // regular start up for PROVIDED storage directories
+    }
     if (startOpt == StartupOption.ROLLBACK) {
       doRollback(sd, nsInfo); // rollback if applicable
     }
@@ -486,14 +480,14 @@ public class DataStorage extends Storage {
 
     // regular start up.
     if (this.layoutVersion == HdfsConstants.LAYOUT_VERSION) {
-      createStorageID(sd, !haveValidStorageId);
+      createStorageID(sd, !haveValidStorageId, conf);
       return; // regular startup
     }
 
     // do upgrade
     if (this.layoutVersion > HdfsConstants.LAYOUT_VERSION) {
       doUpgrade( sd, nsInfo);  // upgrade
-      createStorageID(sd, !haveValidStorageId);
+      createStorageID(sd, !haveValidStorageId, conf);
       return;
     }
 

@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import com.google.common.annotations.VisibleForTesting;
 import io.hops.exception.StorageException;
 import io.hops.exception.TransactionContextException;
+import io.hops.metadata.StorageMap;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -322,15 +323,16 @@ public class ProvidedStorageMap {
     public final static String NETWORK_LOCATION = "/REMOTE";
     public final static String NAME = "PROVIDED";
 
-    ProvidedDescriptor() {
-      super(new DatanodeID(
-            null,                         // String ipAddr,
-            null,                         // String hostName,
-            UUID.randomUUID().toString(), // String datanodeUuid,
-            0,                            // int xferPort,
-            0,                            // int infoPort,
-            0,                            // int infoSecurePort,
-            0));                          // int ipcPort
+    ProvidedDescriptor() throws IOException {
+      super(new StorageMap(true), // TODO: create new storagemap ?
+            new DatanodeID(
+            null,                            // String ipAddr,
+            null,                        // String hostName,
+            UUID.randomUUID().toString(),        // String datanodeUuid,
+            0,                          // int xferPort,
+            0,                         // int infoPort,
+     //       0,                              // int infoSecurePort,
+            0));                      // int ipcPort
     }
 
     DatanodeStorageInfo getProvidedStorage(
@@ -343,8 +345,13 @@ public class ProvidedStorageMap {
     DatanodeStorageInfo createProvidedStorage(DatanodeStorage ds) {
       assert null == storageMap.get(ds.getStorageID());
       DatanodeStorageInfo storage = new ProvidedDatanodeStorageInfo(this, ds);
-      storage.setHeartbeatedSinceFailover(true);
+    //  storage.setHeartbeatedSinceFailover(true);
       storageMap.put(storage.getStorageID(), storage);
+      try {
+        globalStorageMap.updateStorage(storage); // updates db TODO: do in all put and updates to storagemap
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
       return storage;
     }
 
@@ -493,6 +500,7 @@ public class ProvidedStorageMap {
       return "PROVIDED-STORAGE";
     }
   }
+
 
   /**
    * Used to emulate block reports for provided blocks.

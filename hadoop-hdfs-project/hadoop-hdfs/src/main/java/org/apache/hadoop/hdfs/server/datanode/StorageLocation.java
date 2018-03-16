@@ -18,14 +18,18 @@
 
 package org.apache.hadoop.hdfs.server.datanode;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
+import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.server.common.Storage;
-import org.apache.hadoop.hdfs.server.common.Util;
+import org.apache.hadoop.util.DiskChecker;
+import org.apache.hadoop.util.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,24 +47,25 @@ import static java.util.regex.Pattern.compile;
  *
  */
 @InterfaceAudience.Private
-public class StorageLocation {
-  public static final Log LOG = LogFactory.getLog(StorageLocation.class);
-  final StorageType storageType;
-  final File file;
-
+public class StorageLocation implements Comparable<StorageLocation> {
+  private final StorageType storageType;
+  private final URI baseURI;
   /** Regular expression that describes a storage uri with a storage type.
    *  e.g. [Disk]/storages/storage1/
    */
   private static final Pattern regex = Pattern.compile("^\\[(\\w*)\\](.+)$");
+  private File file;
 
   private StorageLocation(StorageType storageType, URI uri) {
     this.storageType = storageType;
 
-    if (uri.getScheme() == null ||
-        "file".equalsIgnoreCase(uri.getScheme())) {
-      // drop any (illegal) authority in the URI for backwards compatibility
-      this.file = new File(uri.getPath());
-    } else {
+    if (uri.getScheme() == null || uri.getScheme().equals("file")) {
+      // make sure all URIs that point to a file have the same scheme
+      uri = normalizeFileURI(uri);
+      this.file = new File(uri.getPath()); // TODO: do we need file? not used in JIRA-9806, only uri
+      baseURI = uri;
+      }
+    else {
       throw new IllegalArgumentException("Unsupported URI schema in " + uri);
     }
   }
@@ -83,37 +88,12 @@ public class StorageLocation {
     return this.storageType;
   }
 
-  URI getUri() {
-    return file.toURI();
-  }
-
-  public File getFile() {
-    return this.file;
+  public URI getUri() {
+    return baseURI;
   }
 
   public URI getNormalizedUri() {
     return baseURI.normalize();
-  }
-
-  public boolean matchesStorageDirectory(Storage.StorageDirectory sd)
-      throws IOException {
-    return this.equals(sd.getStorageLocation());
-  }
-
-  public boolean matchesStorageDirectory(Storage.StorageDirectory sd,
-      String bpid) throws IOException {
-    if (sd.getStorageLocation().getStorageType() == StorageType.PROVIDED &&
-        storageType == StorageType.PROVIDED) {
-      return matchesStorageDirectory(sd);
-    }
-    if (sd.getStorageLocation().getStorageType() == StorageType.PROVIDED ||
-        storageType == StorageType.PROVIDED) {
-      // only one PROVIDED storage directory can exist; so this cannot match!
-      return false;
-    }
-    // both storage directories are local
-    return this.getBpURI(bpid, Storage.STORAGE_DIR_CURRENT).normalize()
-        .equals(sd.getRoot().toURI().normalize());
   }
 
   /**
@@ -125,26 +105,30 @@ public class StorageLocation {
    * @return A StorageLocation object if successfully parsed, null otherwise.
    *         Does not throw any exceptions.
    */
-  static StorageLocation parse(String rawLocation) throws IOException {
+  public static StorageLocation parse(String rawLocation)
+      throws IOException, SecurityException {
     Matcher matcher = regex.matcher(rawLocation);
     StorageType storageType = StorageType.DEFAULT;
     String location = rawLocation;
 
     if (matcher.matches()) {
       String classString = matcher.group(1);
-      location = matcher.group(2);
+      location = matcher.group(2).trim();
       if (!classString.isEmpty()) {
-        storageType = StorageType.valueOf(classString.toUpperCase());
+        storageType =
+            StorageType.valueOf(StringUtils.toUpperCase(classString));
       }
     }
 
-    return new StorageLocation(storageType, Util.stringAsURI(location));
+    //do Path.toURI instead of new URI(location) as this ensures that
+    //"/a/b" and "/a/b/" are represented in a consistent manner
+    return new StorageLocation(storageType, new Path(location).toUri());
   }
 
+  @Override
   public String toString() {
-    return "[" + storageType + "]" + file.toURI();
+    return "[" + storageType + "]" + baseURI.normalize();
   }
-}
 
   @Override
   public boolean equals(Object obj) {
@@ -170,11 +154,11 @@ public class StorageLocation {
 
     StorageLocation otherStorage = (StorageLocation) obj;
     if (this.getNormalizedUri() != null &&
-        otherStorage.getNormalizedUri() != null) {
+            otherStorage.getNormalizedUri() != null) {
       return this.getNormalizedUri().compareTo(
-          otherStorage.getNormalizedUri());
+              otherStorage.getNormalizedUri());
     } else if (this.getNormalizedUri() == null &&
-        otherStorage.getNormalizedUri() == null) {
+            otherStorage.getNormalizedUri() == null) {
       return this.storageType.compareTo(otherStorage.getStorageType());
     } else if (this.getNormalizedUri() == null) {
       return -1;
@@ -207,7 +191,7 @@ public class StorageLocation {
 
     if (conf == null) {
       conf = new HdfsConfiguration();
-    }
+}
     if (storageType == StorageType.PROVIDED) {
       // skip creation if the storage type is PROVIDED
       Storage.LOG.info("Skipping creating directory for block pool "
@@ -228,21 +212,12 @@ public class StorageLocation {
     }
   }
 
-  @Override  // Checkable
-  public VolumeCheckResult check(CheckContext context) throws IOException {
-    // assume provided storage locations are always healthy,
-    // and check only for local storages.
-    if (storageType != StorageType.PROVIDED) {
-      DiskChecker.checkDir(
-          context.localFileSystem,
-          new Path(baseURI),
-          context.expectedPermission);
-    }
-    return VolumeCheckResult.HEALTHY;
+  public File getFile() {
+    return file;
   }
 
   /**
-   * Class to hold the parameters for running a {@link #check}.
+   * Class to hold the parameters for running a {check}.
    */
   public static final class CheckContext {
     private final LocalFileSystem localFileSystem;

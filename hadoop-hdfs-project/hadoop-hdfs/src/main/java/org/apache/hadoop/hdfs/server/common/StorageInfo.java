@@ -62,11 +62,13 @@ public class StorageInfo {
   public int layoutVersion;   // layout version of the storage data
   public int namespaceID;     // id of the file system
   public String clusterID;      // id of the cluster
-  public long cTime;           // creation time of the file system state
+  public long cTime;           // creation time of the file system stateW
+
 
   public StorageInfo() {
     this(0, 0, "", 0L, "");
   }
+
 
   public StorageInfo(int layoutV, int nsID, String cid, long cT, String bpid) {
     layoutVersion = layoutV;
@@ -118,6 +120,7 @@ public class StorageInfo {
     clusterID = from.clusterID;
     namespaceID = from.namespaceID;
     cTime = from.cTime;
+
   }
 
   public boolean versionSupportsFederation() {
@@ -135,6 +138,8 @@ public class StorageInfo {
   public String toColonSeparatedString() {
     return Joiner.on(":").join(layoutVersion, namespaceID, cTime, clusterID);
   }
+
+
 
   public static StorageInfo getStorageInfoFromDB() throws IOException {
     if (storageInfo == null) {
@@ -156,6 +161,7 @@ public class StorageInfo {
     return storageInfo;
   }
 
+
   public static void storeStorageInfoToDB(final String clusterId) throws
       IOException { // should only be called by the format function once during the life time of the cluster.
     // Solution. call format on only one namenode or every one puts the same values.
@@ -172,7 +178,8 @@ public class StorageInfo {
       public Object performTask() throws StorageException, IOException {
         Configuration conf = new Configuration();
         String bpid = newBlockPoolID();
-        storageInfo = new StorageInfo(HdfsConstants.LAYOUT_VERSION,
+        storageInfo = new StorageInfo(
+                HdfsConstants.LAYOUT_VERSION,
             conf.getInt(DFSConfigKeys.DFS_NAME_SPACE_ID_KEY,
                 DFSConfigKeys.DFS_NAME_SPACE_ID_DEFAULT), clusterId, 0L, bpid);
         HdfsVariables.setStorageInfo(storageInfo);

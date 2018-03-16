@@ -76,7 +76,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
    * A datanode is a collection of storages. This maps storageID's to their
    * DataNodeStorageInfo
    */
-  private final Map<String, DatanodeStorageInfo> storageMap =
+  protected final Map<String, DatanodeStorageInfo> storageMap =
       new HashMap<String, DatanodeStorageInfo>();
 
   public Map<Long,Integer> getAllMachineReplicasInBucket(final int bucketId,
@@ -290,7 +290,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
    * Updates here affect the storageMap in the DatanodeManager (so don't
    * change the references)
    */
-  private final StorageMap globalStorageMap;
+  final StorageMap globalStorageMap;
 
   /**
    * DatanodeDescriptor constructor
