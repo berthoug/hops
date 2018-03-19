@@ -22,7 +22,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileUtil;
-import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.protocol.Block;
@@ -174,8 +174,6 @@ public class DirectoryScanner implements Runnable {
     private final File metaFile;
     private final File blockFile;
     private final FsVolumeSpi volume;
-    private final long blockLength;
-    private final FileRegion fileRegion;
 
     ScanInfo(long blockId, File blockFile, File metaFile, FsVolumeSpi vol) {
       this.blockId = blockId;
@@ -184,24 +182,6 @@ public class DirectoryScanner implements Runnable {
       this.volume = vol;
     }
 
-    /**
-     * Create a ScanInfo object for a block. This constructor will examine
-     * the block data and meta-data files.
-     *
-     * @param blockId the block ID
-     * @param vol the volume that contains the block
-     * @param fileRegion the file region (for provided blocks)
-     * @param length the length of the block data
-     */
-    public ScanInfo(long blockId, FsVolumeSpi vol, FileRegion fileRegion,
-                    long length) {
-      this.blockId = blockId;
-      this.blockLength = length;
-      this.volume = vol;
-      this.fileRegion = fileRegion;
-     // this.blockSuffix = null; TODO: are thse needed?
-     // this.metaSuffix = null;
-    }
 
     File getMetaFile() {
       return metaFile;
@@ -251,13 +231,6 @@ public class DirectoryScanner implements Runnable {
           GenerationStamp.GRANDFATHER_GENERATION_STAMP;
     }
 
-    public long getBlockLength() {
-      return blockLength;
-    }
-
-    public FileRegion getFileRegion() {
-      return fileRegion;
-    }
   }
 
   DirectoryScanner(FsDatasetSpi<?> dataset, Configuration conf) {
@@ -428,7 +401,8 @@ public class DirectoryScanner implements Runnable {
           }
           // Block file and/or metadata file exists on the disk
           // Block exists in memory
-          if (info.getBlockFile() == null) {
+          if (info.getVolume().getStorageType() != StorageType.PROVIDED &&
+              info.getBlockFile() == null) {
             // Block metadata file exits and block file is missing
             addDifference(diffRecord, statsRecord, info);
           } else if (info.getGenStamp() != memBlock.getGenerationStamp() ||
