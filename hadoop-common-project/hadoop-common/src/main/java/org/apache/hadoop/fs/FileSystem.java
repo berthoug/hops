@@ -774,6 +774,51 @@ public abstract class FileSystem extends Configured implements Closeable {
   }
 
   /**
+   * Open an FSDataInputStream matching the PathHandle instance. The
+   * implementation may encode metadata in PathHandle to address the
+   * resource directly and verify that the resource referenced
+   * satisfies constraints specified at its construciton.
+   * @param fd PathHandle object returned by the FS authority.
+   * @param bufferSize the size of the buffer to use
+   * @throws IOException IO failure
+   * @throws UnsupportedOperationException If not overridden by subclass
+   */
+  public FSDataInputStream open(PathHandle fd, int bufferSize)
+          throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  /**
+   * Create a durable, serializable handle to the referent of the given
+   * entity.
+   * @param stat Referent in the target FileSystem
+   * @param opt If absent, assume {@link HandleOpt#path()}.
+   * @throws IllegalArgumentException If the FileStatus does not belong to
+   *         this FileSystem
+   * @throws UnsupportedOperationException If
+   *         {@link #createPathHandle(FileStatus, HandleOpt[])}
+   *         not overridden by subclass.
+   * @throws UnsupportedOperationException If this FileSystem cannot enforce
+   *         the specified constraints.
+   */
+  public final PathHandle getPathHandle(FileStatus stat, Options.HandleOpt... opt) {
+    if (null == opt || 0 == opt.length) {
+      return createPathHandle(stat, Options.HandleOpt.path());
+    }
+    return createPathHandle(stat, opt);
+  }
+
+  /**
+   * Hook to implement support for {@link PathHandle} operations.
+   * @param stat Referent in the target FileSystem
+   * @param opt Constraints that determine the validity of the
+   *            {@link PathHandle} reference.
+   */
+  protected PathHandle createPathHandle(FileStatus stat, Options.HandleOpt... opt) {
+    throw new UnsupportedOperationException();
+  }
+
+  /**
    * Create an FSDataOutputStream at the indicated Path.
    * Files are overwritten by default.
    * @param f the file to create
