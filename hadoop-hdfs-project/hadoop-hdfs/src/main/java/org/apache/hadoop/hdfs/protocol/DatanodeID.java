@@ -62,7 +62,7 @@ public class DatanodeID implements Comparable<DatanodeID> {
         from.getIpcPort());
     this.peerHostName = from.getPeerHostName();
   }
-  
+
   /**
    * Create a DatanodeID
    *
@@ -88,7 +88,7 @@ public class DatanodeID implements Comparable<DatanodeID> {
     this.infoPort = infoPort;
     this.ipcPort = ipcPort;
   }
-  
+
   //HOP: Mahmoud: 
   public DatanodeID(String nodeName) {
     String[] ns = nodeName.split(":");

@@ -397,6 +397,13 @@ message BlockWithLocationsProto {
 }
 
 /**
+ * Placeholder type for consistent HDFS operations.
+ */
+message HdfsPathHandleProto {
+  optional uint64 inodeId = 1;
+}
+
+/**
  * List of block with locations
  */
 message BlocksWithLocationsProto {

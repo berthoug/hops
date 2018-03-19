@@ -793,7 +793,7 @@ public class NameNode {
       HdfsStorageFactory.setConfiguration(conf);
 //      HdfsStorageFactory.formatAllStorageNonTransactional();
       HdfsStorageFactory.formatStorage();
-      StorageInfo.storeStorageInfoToDB(clusterId);  //this adds new row to the db
+      StorageInfo.storeStorageInfoToDB(clusterId);  //this adds new row to the db // TODO: get properties and storagedirectory somehow
     } catch (StorageException e) {
       throw new RuntimeException(e.getMessage());
     }

@@ -132,8 +132,8 @@ public class StorageMap {
       }
 
       if(! sids.contains(sid)) { // We haven't seen this sid on this DN yet
-        // Add in hashmap
         sids.add(sid);
+        // Add in hashmap
 
         // Persist to database
         new HopsTransactionalRequestHandler(HDFSOperationType.UPDATE_SID_MAP) {
