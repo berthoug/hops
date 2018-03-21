@@ -17,18 +17,18 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
-import java.io.File;
-import java.net.URI;
-
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathHandle;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.common.FileRegion;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
+
+import java.io.File;
+import java.net.URI;
 
 /**
  * This class is to be used as a builder for {@link ReplicaInfo} objects.
@@ -178,149 +178,26 @@ public class ReplicaBuilder {
     return this;
   }
 
-  public LocalReplicaInPipeline buildLocalReplicaInPipeline()
-      throws IllegalArgumentException {
-    LocalReplicaInPipeline info = null;
-    switch(state) {
-    case RBW:
-      info = buildRBW();
-      break;
-    case TEMPORARY:
-      info = buildTemporaryReplica();
-      break;
-    default:
-      throw new IllegalArgumentException("Unknown replica state " + state);
-    }
-    return info;
-  }
-
-  private LocalReplicaInPipeline buildRBW() throws IllegalArgumentException {
-    if (null != fromReplica && fromReplica.getState() == ReplicaState.RBW) {
-      return new ReplicaBeingWritten((ReplicaBeingWritten) fromReplica);
-    } else if (null != fromReplica) {
-      throw new IllegalArgumentException("Incompatible fromReplica "
-          + "state: " + fromReplica.getState());
-    } else {
-      if (null != block) {
-        if (null == writer) {
-          throw new IllegalArgumentException("A valid writer is "
-              + "required for constructing a RBW from block "
-              + block.getBlockId());
-        }
-        return new ReplicaBeingWritten(block, volume, directoryUsed, writer);
-      } else {
-        if (length != -1) {
-          return new ReplicaBeingWritten(blockId, length, genStamp,
-              volume, directoryUsed, writer, bytesToReserve);
-        } else {
-          return new ReplicaBeingWritten(blockId, genStamp, volume,
-              directoryUsed, bytesToReserve);
-        }
-      }
-    }
-  }
-
-  private LocalReplicaInPipeline buildTemporaryReplica()
-      throws IllegalArgumentException {
-    if (null != fromReplica &&
-        fromReplica.getState() == ReplicaState.TEMPORARY) {
-      return new LocalReplicaInPipeline((LocalReplicaInPipeline) fromReplica);
-    } else if (null != fromReplica) {
-      throw new IllegalArgumentException("Incompatible fromReplica "
-          + "state: " + fromReplica.getState());
-    } else {
-      if (null != block) {
-        if (null == writer) {
-          throw new IllegalArgumentException("A valid writer is "
-              + "required for constructing a Replica from block "
-              + block.getBlockId());
-        }
-        return new LocalReplicaInPipeline(block, volume, directoryUsed,
-            writer);
-      } else {
-        if (length != -1) {
-          return new LocalReplicaInPipeline(blockId, length, genStamp,
-              volume, directoryUsed, writer, bytesToReserve);
-        } else {
-          return new LocalReplicaInPipeline(blockId, genStamp, volume,
-              directoryUsed, bytesToReserve);
-        }
-      }
-    }
-  }
-
-  private LocalReplica buildFinalizedReplica() throws IllegalArgumentException {
-    if (null != fromReplica &&
-        fromReplica.getState() == ReplicaState.FINALIZED) {
-      return new FinalizedReplica((FinalizedReplica)fromReplica);
-    } else if (null != this.fromReplica) {
-      throw new IllegalArgumentException("Incompatible fromReplica "
-          + "state: " + fromReplica.getState());
-    } else {
-      if (null != block) {
-        return new FinalizedReplica(block, volume, directoryUsed);
-      } else {
-        return new FinalizedReplica(blockId, length, genStamp, volume,
-            directoryUsed);
-      }
-    }
-  }
-
-  private LocalReplica buildRWR() throws IllegalArgumentException {
-
-    if (null != fromReplica && fromReplica.getState() == ReplicaState.RWR) {
-      return new ReplicaWaitingToBeRecovered(
-          (ReplicaWaitingToBeRecovered) fromReplica);
-    } else if (null != fromReplica){
-      throw new IllegalArgumentException("Incompatible fromReplica "
-          + "state: " + fromReplica.getState());
-    } else {
-      if (null != block) {
-        return new ReplicaWaitingToBeRecovered(block, volume, directoryUsed);
-      } else {
-        return new ReplicaWaitingToBeRecovered(blockId, length, genStamp,
-            volume, directoryUsed);
-      }
-    }
-  }
-
-  private LocalReplica buildRUR() throws IllegalArgumentException {
-    if (null == fromReplica) {
-      throw new IllegalArgumentException(
-          "Missing a valid replica to recover from");
-    }
-    if (null != writer || null != block) {
-      throw new IllegalArgumentException("Invalid state for "
-          + "recovering from replica with blk id "
-          + fromReplica.getBlockId());
-    }
-    if (fromReplica.getState() == ReplicaState.RUR) {
-      return new ReplicaUnderRecovery((ReplicaUnderRecovery) fromReplica);
-    } else {
-      return new ReplicaUnderRecovery(fromReplica, recoveryId);
-    }
-  }
-
   private ProvidedReplica buildProvidedFinalizedReplica()
-      throws IllegalArgumentException {
+          throws IllegalArgumentException {
     ProvidedReplica info = null;
     if (fromReplica != null) {
       throw new IllegalArgumentException("Finalized PROVIDED replica " +
-          "cannot be constructed from another replica");
+              "cannot be constructed from another replica");
     }
     if (fileRegion == null && uri == null &&
-        (pathPrefix == null || pathSuffix == null)) {
+            (pathPrefix == null || pathSuffix == null)) {
       throw new IllegalArgumentException(
-          "Trying to construct a provided replica on " + volume +
-          " without enough information");
+              "Trying to construct a provided replica on " + volume +
+                      " without enough information");
     }
     if (fileRegion == null) {
       if (uri != null) {
         info = new FinalizedProvidedReplica(blockId, uri, offset,
-            length, genStamp, pathHandle, volume, conf, remoteFS);
+                length, genStamp, pathHandle, volume, conf, remoteFS);
       } else {
         info = new FinalizedProvidedReplica(blockId, pathPrefix, pathSuffix,
-            offset, length, genStamp, pathHandle, volume, conf, remoteFS);
+                offset, length, genStamp, pathHandle, volume, conf, remoteFS);
       }
     } else {
       info = new FinalizedProvidedReplica(fileRegion, volume, conf, remoteFS);
@@ -329,42 +206,19 @@ public class ReplicaBuilder {
   }
 
   private ProvidedReplica buildProvidedReplica()
-      throws IllegalArgumentException {
+          throws IllegalArgumentException {
     ProvidedReplica info = null;
     switch(this.state) {
-    case FINALIZED:
-      info = buildProvidedFinalizedReplica();
-      break;
-    case RWR:
-    case RUR:
-    case RBW:
-    case TEMPORARY:
-    default:
-      throw new IllegalArgumentException("Unknown replica state " +
-          state + " for PROVIDED replica");
-    }
-    return info;
-  }
-
-  private LocalReplica buildLocalReplica()
-      throws IllegalArgumentException {
-    LocalReplica info = null;
-    switch(this.state) {
-    case FINALIZED:
-      info = buildFinalizedReplica();
-      break;
-    case RWR:
-      info = buildRWR();
-      break;
-    case RUR:
-      info = buildRUR();
-      break;
-    case RBW:
-    case TEMPORARY:
-      info = buildLocalReplicaInPipeline();
-      break;
-    default:
-      throw new IllegalArgumentException("Unknown replica state " + state);
+      case FINALIZED:
+        info = buildProvidedFinalizedReplica();
+        break;
+      case RWR:
+      case RUR:
+      case RBW:
+      case TEMPORARY:
+      default:
+        throw new IllegalArgumentException("Unknown replica state " +
+                state + " for PROVIDED replica");
     }
     return info;
   }
@@ -374,8 +228,6 @@ public class ReplicaBuilder {
     ReplicaInfo info = null;
     if(volume != null && volume.getStorageType() == StorageType.PROVIDED) {
       info = buildProvidedReplica();
-    } else {
-      info = buildLocalReplica();
     }
 
     return info;

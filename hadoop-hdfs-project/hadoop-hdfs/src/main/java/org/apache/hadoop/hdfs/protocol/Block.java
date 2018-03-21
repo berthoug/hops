@@ -138,6 +138,10 @@ public class Block implements Writable, Comparable<Block> {
     return numBytes;
   }
 
+  public void setNumBytes(long len) {
+    this.numBytes = len;
+  }
+
   public void setNumBytesNoPersistance(long len) {
     this.numBytes = len;
   }

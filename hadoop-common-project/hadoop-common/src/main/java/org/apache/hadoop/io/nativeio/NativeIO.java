@@ -35,6 +35,7 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.HardLink;
+import org.apache.hadoop.fs.PathIOException;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.SecureIOUtils.AlreadyExistsException;
 import org.apache.hadoop.util.NativeCodeLoader;
@@ -798,6 +799,38 @@ public class NativeIO {
       if (seekOffset > 0)
         NativeIO.Windows.setFilePointer(fd, seekOffset, NativeIO.Windows.FILE_BEGIN);
       return new FileInputStream(fd);
+    }
+  }
+
+  /**
+   * Create a FileDescriptor that shares delete permission on the
+   * file opened at a given offset, i.e. other process can delete
+   * the file the FileDescriptor is reading. Only Windows implementation
+   * uses the native interface.
+   */
+  public static FileDescriptor getShareDeleteFileDescriptor(
+          File f, long seekOffset) throws IOException {
+    if (!Shell.WINDOWS) {
+      RandomAccessFile rf = new RandomAccessFile(f, "r");
+      if (seekOffset > 0) {
+        rf.seek(seekOffset);
+      }
+      return rf.getFD();
+    } else {
+      // Use Windows native interface to create a FileInputStream that
+      // shares delete permission on the file opened, and set it to the
+      // given offset.
+      //
+      FileDescriptor fd = NativeIO.Windows.createFile(
+              f.getAbsolutePath(),
+              NativeIO.Windows.GENERIC_READ,
+              NativeIO.Windows.FILE_SHARE_READ |
+                      NativeIO.Windows.FILE_SHARE_WRITE |
+                      NativeIO.Windows.FILE_SHARE_DELETE,
+              NativeIO.Windows.OPEN_EXISTING);
+      if (seekOffset > 0)
+        NativeIO.Windows.setFilePointer(fd, seekOffset, NativeIO.Windows.FILE_BEGIN);
+      return fd;
     }
   }
 

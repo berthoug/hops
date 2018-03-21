@@ -20,6 +20,7 @@ package org.apache.hadoop.hdfs.server.common;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 
 import java.io.File;
 import java.io.IOException;
@@ -104,5 +105,22 @@ public final class Util {
       }
     }
     return uris;
+  }
+
+  public static boolean isDiskStatsEnabled(int fileIOSamplingPercentage) {
+    final boolean isEnabled;
+    if (fileIOSamplingPercentage <= 0) {
+      LOG.info(DFSConfigKeys
+              .DFS_DATANODE_FILEIO_PROFILING_SAMPLING_PERCENTAGE_KEY + " set to "
+              + fileIOSamplingPercentage + ". Disabling file IO profiling");
+      isEnabled = false;
+    } else {
+      LOG.info(DFSConfigKeys
+              .DFS_DATANODE_FILEIO_PROFILING_SAMPLING_PERCENTAGE_KEY + " set to "
+              + fileIOSamplingPercentage + ". Enabling file IO profiling");
+      isEnabled = true;
+    }
+
+    return isEnabled;
   }
 }

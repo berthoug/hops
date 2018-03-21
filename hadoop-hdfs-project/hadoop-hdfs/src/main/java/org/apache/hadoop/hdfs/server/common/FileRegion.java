@@ -36,7 +36,7 @@ public class FileRegion implements BlockAlias {
   private final Pair<Block, ProvidedStorageLocation> pair;  // TODO:  Pair not imported from pom
 
   public FileRegion(long blockId, Path path, long offset,
-      long length, long genStamp) {
+                    long length, long genStamp) {
     this(blockId, path, offset, length, genStamp, new byte[0]);
   }
 

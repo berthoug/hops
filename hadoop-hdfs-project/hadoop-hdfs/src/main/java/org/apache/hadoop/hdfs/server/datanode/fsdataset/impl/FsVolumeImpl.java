@@ -26,6 +26,7 @@ import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.datanode.DataStorage;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.DataNodeVolumeMetrics;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
@@ -318,6 +319,12 @@ public class FsVolumeImpl implements FsVolumeSpi {
         throw new IOException("Failed to delete " + bpDir);
       }
     }
+  }
+
+
+  @Override
+  public DataNodeVolumeMetrics getMetrics() {
+    return metrics;
   }
 
   @Override

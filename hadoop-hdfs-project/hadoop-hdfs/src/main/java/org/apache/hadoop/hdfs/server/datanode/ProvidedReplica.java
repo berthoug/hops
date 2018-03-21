@@ -17,30 +17,24 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URI;
-
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathHandle;
-import org.apache.hadoop.hdfs.server.common.FileRegion;
+import org.apache.hadoop.fs.*;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
-import org.apache.hadoop.hdfs.server.datanode.DirectoryScanner.*;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.LengthInputStream;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetUtil;
 import org.apache.hadoop.hdfs.server.protocol.ReplicaRecoveryInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
 
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.IO_FILE_BUFFER_SIZE_DEFAULT;
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.IO_FILE_BUFFER_SIZE_KEY;
@@ -306,17 +300,6 @@ public abstract class ProvidedReplica extends ReplicaInfo {
       throws UnsupportedOperationException {
     throw new UnsupportedOperationException(
         "ProvidedReplica does not yet support writes");
-  }
-
-  @Override
-  public int compareWith(ScanInfo info) {
-    if (info.getFileRegion().equals(
-        new FileRegion(this.getBlockId(), new Path(getRemoteURI()),
-            fileOffset, this.getNumBytes(), this.getGenerationStamp()))) {
-      return 0;
-    } else {
-      return (int) (info.getBlockLength() - getNumBytes());
-    }
   }
 
   @Override

@@ -48,6 +48,12 @@ public class HdfsConstants {
   public static final long QUOTA_DONT_SET = Long.MAX_VALUE;
   public static final long QUOTA_RESET = -1L;
 
+  /**
+   * Generation stamp of blocks that pre-date the introduction
+   * of a generation stamp.
+   */
+  public static final long GRANDFATHER_GENERATION_STAMP = 0;
+
   //
   // Timeouts, constants
   //

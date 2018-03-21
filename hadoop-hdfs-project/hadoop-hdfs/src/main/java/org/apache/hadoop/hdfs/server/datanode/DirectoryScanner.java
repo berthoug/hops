@@ -174,6 +174,7 @@ public class DirectoryScanner implements Runnable {
     private final File metaFile;
     private final File blockFile;
     private final FsVolumeSpi volume;
+   // private final FileRegion fileRegion;
 
     ScanInfo(long blockId, File blockFile, File metaFile, FsVolumeSpi vol) {
       this.blockId = blockId;
@@ -181,7 +182,6 @@ public class DirectoryScanner implements Runnable {
       this.blockFile = blockFile;
       this.volume = vol;
     }
-
 
     File getMetaFile() {
       return metaFile;

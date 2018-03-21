@@ -51,8 +51,6 @@ import org.apache.hadoop.hdfs.server.datanode.DirectoryScanner.ReportCompiler;
 import org.apache.hadoop.hdfs.server.datanode.StorageLocation;
 import org.apache.hadoop.hdfs.server.datanode.checker.VolumeCheckResult;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
-import org.apache.hadoop.hdfs.server.datanode.FileIoProvider;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaBuilder;
 import org.apache.hadoop.util.Timer;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.util.AutoCloseableLock;
@@ -158,7 +156,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
     }
 
     void fetchVolumeMap(ReplicaMap volumeMap,
-        RamDiskReplicaTracker ramDiskReplicaMap, FileSystem remoteFS)
+                        FileSystem remoteFS)
         throws IOException {
       BlockAliasMap.Reader<FileRegion> reader = null;
       int tries = 1;
@@ -270,7 +268,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
   ProvidedVolumeImpl(FsDatasetImpl dataset, String storageID,
       StorageDirectory sd, FileIoProvider fileIoProvider,
       Configuration conf) throws IOException {
-    super(dataset, storageID, sd, fileIoProvider, conf);
+    super(dataset, storageID, sd, conf);
     assert getStorageLocation().getStorageType() == StorageType.PROVIDED:
       "Only provided storages must use ProvidedVolume";
 
@@ -534,7 +532,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
           throws IOException {
     LOG.info("Creating volumemap for provided volume " + this);
     for(ProvidedBlockPoolSlice s : bpSlices.values()) {
-      s.fetchVolumeMap(volumeMap, ramDiskReplicaMap, remoteFS);
+      s.fetchVolumeMap(volumeMap, remoteFS);
     }
   }
 
@@ -551,8 +549,8 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
   void getVolumeMap(String bpid, ReplicaMap volumeMap,
       final RamDiskReplicaTracker ramDiskReplicaMap)
           throws IOException {
-    getProvidedBlockPoolSlice(bpid).fetchVolumeMap(volumeMap, ramDiskReplicaMap,
-        remoteFS);
+    getProvidedBlockPoolSlice(bpid).fetchVolumeMap(volumeMap,
+            remoteFS);
   }
 
   @VisibleForTesting

@@ -132,7 +132,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    * and, in case that they are not matched, update the record or mark it
    * as corrupted.
    */
-  void checkAndUpdate(String bpid, ScanInfo info) throws IOException;
+  //void checkAndUpdate(String bpid, ScanInfo info) throws IOException;
 
    /**
    * @param b

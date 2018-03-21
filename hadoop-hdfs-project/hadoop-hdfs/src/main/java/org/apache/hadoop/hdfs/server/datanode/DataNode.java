@@ -1232,8 +1232,8 @@ public class DataNode extends Configured
       metrics.shutdown();
     }
   }
-  
-  
+
+
   /**
    * Check if there is no space in disk
    *
@@ -1320,7 +1320,7 @@ public class DataNode extends Configured
       }
     }
   }
-  
+
   private void handleDiskError(String errMsgr) {
     final boolean hasEnoughResources = data.hasEnoughResource();
     LOG.warn("DataNode.handleDiskError: Keep Running: " + hasEnoughResources);

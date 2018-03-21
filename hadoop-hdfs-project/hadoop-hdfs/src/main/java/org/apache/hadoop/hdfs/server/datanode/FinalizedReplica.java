@@ -20,28 +20,22 @@ package org.apache.hadoop.hdfs.server.datanode;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
+import org.apache.hadoop.hdfs.server.protocol.ReplicaRecoveryInfo;
 
 import java.io.File;
 
 /**
  * This class describes a replica that has been finalized.
  */
-public class FinalizedReplica extends ReplicaInfo {
-  private boolean unlinked;      // copy-on-write done for block
+public class FinalizedReplica extends LocalReplica {
 
   /**
    * Constructor
-   *
-   * @param blockId
-   *     block id
-   * @param len
-   *     replica length
-   * @param genStamp
-   *     replica generation stamp
-   * @param vol
-   *     volume where replica is located
-   * @param dir
-   *     directory path where block and meta files are located
+   * @param blockId block id
+   * @param len replica length
+   * @param genStamp replica generation stamp
+   * @param vol volume where replica is located
+   * @param dir directory path where block and meta files are located
    */
   public FinalizedReplica(long blockId, long len, long genStamp,
       FsVolumeSpi vol, File dir) {
@@ -50,13 +44,9 @@ public class FinalizedReplica extends ReplicaInfo {
   
   /**
    * Constructor
-   *
-   * @param block
-   *     a block
-   * @param vol
-   *     volume where replica is located
-   * @param dir
-   *     directory path where block and meta files are located
+   * @param block a block
+   * @param vol volume where replica is located
+   * @param dir directory path where block and meta files are located
    */
   public FinalizedReplica(Block block, FsVolumeSpi vol, File dir) {
     super(block, vol, dir);
@@ -64,28 +54,17 @@ public class FinalizedReplica extends ReplicaInfo {
 
   /**
    * Copy constructor.
-   *
-   * @param from
+   * @param from where to copy construct from
    */
   public FinalizedReplica(FinalizedReplica from) {
     super(from);
-    this.unlinked = from.isUnlinked();
   }
 
   @Override  // ReplicaInfo
   public ReplicaState getState() {
     return ReplicaState.FINALIZED;
   }
-  
-  @Override // ReplicaInfo
-  public boolean isUnlinked() {
-    return unlinked;
-  }
 
-  @Override  // ReplicaInfo
-  public void setUnlinked() {
-    unlinked = true;
-  }
   
   @Override
   public long getVisibleLength() {
@@ -109,6 +88,33 @@ public class FinalizedReplica extends ReplicaInfo {
   
   @Override
   public String toString() {
-    return super.toString() + "\n  unlinked          =" + unlinked;
+    return super.toString();
   }
+
+  @Override
+  public ReplicaInfo getOriginalReplica() {
+    throw new UnsupportedOperationException("Replica of type " + getState() +
+        " does not support getOriginalReplica");
+  }
+
+  @Override
+  public long getRecoveryID() {
+    throw new UnsupportedOperationException("Replica of type " + getState() +
+        " does not support getRecoveryID");
+  }
+
+  @Override
+  public void setRecoveryID(long recoveryId) {
+    throw new UnsupportedOperationException("Replica of type " + getState() +
+        " does not support setRecoveryID");
+  }
+
+  @Override
+  public ReplicaRecoveryInfo createInfo() {
+    throw new UnsupportedOperationException("Replica of type " + getState() +
+        " does not support createInfo");
+  }
+
+
+
 }
