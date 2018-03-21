@@ -115,7 +115,7 @@ public interface FsVolumeSpi {
      *                         this volume.  In this case, EOF will be set on
      *                         the iterator.
      */
-    // ExtendedBlock nextBlock() throws IOException;
+    ExtendedBlock nextBlock() throws IOException;
 
     /**
      * Returns true if we got to the end of the block pool.
@@ -443,6 +443,7 @@ public interface FsVolumeSpi {
   LinkedList<ScanInfo> compileReport(String bpid,
                                      LinkedList<ScanInfo> report, ReportCompiler reportCompiler)
       throws InterruptedException, IOException;
+      */
 
   /**
    * Context for the {@link #check} call.

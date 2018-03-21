@@ -364,7 +364,7 @@ abstract public class LocalReplica extends ReplicaInfo {
   public void bumpReplicaGS(long newGS) throws IOException {
     long oldGS = getGenerationStamp();
     final File oldmeta = getMetaFile();
-    setGenerationStamp(newGS);
+    setGenerationStampNoPersistance(newGS);
     final File newmeta = getMetaFile();
 
     // rename meta file to new GS
@@ -375,7 +375,7 @@ abstract public class LocalReplica extends ReplicaInfo {
       // calling renameMeta on the ReplicaInfo doesn't work here
       getFileIoProvider().rename(getVolume(), oldmeta, newmeta);
     } catch (IOException e) {
-      setGenerationStamp(oldGS); // restore old GS
+      setGenerationStampNoPersistance(oldGS); // restore old GS
       throw new IOException("Block " + this + " reopen failed. " +
               " Unable to move meta file  " + oldmeta +
               " to " + newmeta, e);
