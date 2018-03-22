@@ -17,6 +17,31 @@
  */
 package org.apache.hadoop.hdfs.server.datanode.fsdataset.impl;
 
+import com.google.common.annotations.VisibleForTesting;
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.*;
+import org.apache.hadoop.hdfs.StorageType;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
+import org.apache.hadoop.hdfs.protocol.Block;
+import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
+import org.apache.hadoop.hdfs.server.common.FileRegion;
+import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
+import org.apache.hadoop.hdfs.server.common.Storage.StorageDirectory;
+import org.apache.hadoop.hdfs.server.common.blockaliasmap.BlockAliasMap;
+import org.apache.hadoop.hdfs.server.common.blockaliasmap.impl.TextFileRegionAliasMap;
+import org.apache.hadoop.hdfs.server.datanode.DirectoryScanner.ReportCompiler;
+import org.apache.hadoop.hdfs.server.datanode.*;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
+import org.apache.hadoop.util.AutoCloseableLock;
+import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.hadoop.util.Time;
+import org.apache.hadoop.util.Timer;
+import org.codehaus.jackson.annotate.JsonProperty;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.map.ObjectReader;
+import org.codehaus.jackson.map.ObjectWriter;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -24,45 +49,10 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathHandle;
-import org.apache.hadoop.fs.RawPathHandle;
-import org.apache.hadoop.fs.StorageType;
-import org.apache.hadoop.hdfs.DFSConfigKeys;
-import org.apache.hadoop.hdfs.protocol.Block;
-import org.apache.hadoop.hdfs.protocol.BlockListAsLongs;
-import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
-import org.apache.hadoop.hdfs.server.common.FileRegion;
-import org.apache.hadoop.hdfs.server.common.Storage.StorageDirectory;
-import org.apache.hadoop.hdfs.server.common.blockaliasmap.BlockAliasMap;
-import org.apache.hadoop.hdfs.server.common.blockaliasmap.impl.TextFileRegionAliasMap;
-import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaInPipeline;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaInfo;
-import org.apache.hadoop.hdfs.server.datanode.DirectoryScanner.ReportCompiler;
-import org.apache.hadoop.hdfs.server.datanode.StorageLocation;
-import org.apache.hadoop.hdfs.server.datanode.checker.VolumeCheckResult;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
-import org.apache.hadoop.util.Timer;
-import org.apache.hadoop.util.DiskChecker.DiskErrorException;
-import org.apache.hadoop.util.AutoCloseableLock;
-import org.codehaus.jackson.annotate.JsonProperty;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.ObjectReader;
-import org.codehaus.jackson.map.ObjectWriter;
-
-import com.google.common.annotations.VisibleForTesting;
-
-import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.hadoop.util.Time;
 
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_PROVIDED_ALIASMAP_LOAD_RETRIES;
 
@@ -221,10 +211,6 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
       return bpVolumeMap.replicas(bpid).size() == 0;
     }
 
-    public void shutdown(BlockListAsLongs blocksListsAsLongs) {
-      // nothing to do!
-    }
-
     public void compileReport(LinkedList<ScanInfo> report,
         ReportCompiler reportCompiler)
             throws IOException, InterruptedException {
@@ -237,7 +223,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
       aliasMap.refresh();
       BlockAliasMap.Reader<FileRegion> reader = aliasMap.getReader(null, bpid);
       for (FileRegion region : reader) {
-        reportCompiler.throttle();
+      //reportCompiler.throttle();
         report.add(new ScanInfo(region.getBlock().getBlockId(),
             providedVolume, region,
             region.getProvidedStorageLocation().getLength()));
@@ -268,7 +254,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
   ProvidedVolumeImpl(FsDatasetImpl dataset, String storageID,
       StorageDirectory sd, FileIoProvider fileIoProvider,
       Configuration conf) throws IOException {
-    super(dataset, storageID, sd, conf);
+    super(dataset, storageID, sd, fileIoProvider, conf); // TODO
     assert getStorageLocation().getStorageType() == StorageType.PROVIDED:
       "Only provided storages must use ProvidedVolume";
 
@@ -341,7 +327,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
     return numBlocks;
   }
 
-  @Override
+  //@Override
   void incDfsUsedAndNumBlocks(String bpid, long value) {
     throw new UnsupportedOperationException(
         "ProvidedVolume does not yet support writes");
@@ -401,7 +387,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
   }
 
   private class ProviderBlockIteratorImpl
-      implements FsVolumeSpi.BlockIterator {
+      implements BlockIterator {
 
     private String bpid;
     private String name;
@@ -513,6 +499,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
     return iter;
   }
 
+
   @Override
   ReplicaInfo addFinalizedBlock(String bpid, Block b,
       ReplicaInfo replicaInfo, long bytesReserved) throws IOException {
@@ -520,15 +507,9 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
         "ProvidedVolume does not yet support writes");
   }
 
-  @Override
-  public VolumeCheckResult check(VolumeCheckContext ignored)
-      throws DiskErrorException {
-    return VolumeCheckResult.HEALTHY;
-  }
 
   @Override
-  void getVolumeMap(ReplicaMap volumeMap,
-      final RamDiskReplicaTracker ramDiskReplicaMap)
+  void getVolumeMap(ReplicaMap volumeMap)
           throws IOException {
     LOG.info("Creating volumemap for provided volume " + this);
     for(ProvidedBlockPoolSlice s : bpSlices.values()) {
@@ -546,8 +527,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
   }
 
   @Override
-  void getVolumeMap(String bpid, ReplicaMap volumeMap,
-      final RamDiskReplicaTracker ramDiskReplicaMap)
+  void getVolumeMap(String bpid, ReplicaMap volumeMap)
           throws IOException {
     getProvidedBlockPoolSlice(bpid).fetchVolumeMap(volumeMap,
             remoteFS);
@@ -568,7 +548,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
     addBlockPool(bpid, conf, null);
   }
 
-  @Override
+  //@Override
   void addBlockPool(String bpid, Configuration conf, Timer timer)
       throws IOException {
     LOG.info("Adding block pool " + bpid +
@@ -579,22 +559,11 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
   }
 
   void shutdown() {
-    if (cacheExecutor != null) {
-      cacheExecutor.shutdown();
-    }
-    Set<Entry<String, ProvidedBlockPoolSlice>> set = bpSlices.entrySet();
+    // Nothing to do!
+    /*Set<Entry<String, ProvidedBlockPoolSlice>> set = bpSlices.entrySet();
     for (Entry<String, ProvidedBlockPoolSlice> entry : set) {
       entry.getValue().shutdown(null);
-    }
-  }
-
-  @Override
-  void shutdownBlockPool(String bpid, BlockListAsLongs blocksListsAsLongs) {
-    ProvidedBlockPoolSlice bp = bpSlices.get(bpid);
-    if (bp != null) {
-      bp.shutdown(blocksListsAsLongs);
-    }
-    bpSlices.remove(bpid);
+    }*/
   }
 
   @Override
@@ -619,34 +588,34 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
     return report;
   }
 
-  @Override
+  //@Override
   public ReplicaInPipeline append(String bpid, ReplicaInfo replicaInfo,
       long newGS, long estimateBlockLen) throws IOException {
     throw new UnsupportedOperationException(
         "ProvidedVolume does not yet support writes");
   }
 
-  @Override
+  //@Override
   public ReplicaInPipeline createRbw(ExtendedBlock b) throws IOException {
     throw new UnsupportedOperationException(
         "ProvidedVolume does not yet support writes");
   }
 
-  @Override
+  //@Override
   public ReplicaInPipeline convertTemporaryToRbw(ExtendedBlock b,
       ReplicaInfo temp) throws IOException {
     throw new UnsupportedOperationException(
         "ProvidedVolume does not yet support writes");
   }
 
-  @Override
+  //@Override
   public ReplicaInPipeline createTemporary(ExtendedBlock b)
       throws IOException {
     throw new UnsupportedOperationException(
         "ProvidedVolume does not yet support writes");
   }
 
-  @Override
+  //@Override
   public ReplicaInPipeline updateRURCopyOnTruncate(ReplicaInfo rur,
       String bpid, long newBlockId, long recoveryId, long newlength)
           throws IOException {
@@ -654,7 +623,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
         "ProvidedVolume does not yet support writes");
   }
 
-  @Override
+  //@Override
   public ReplicaInfo moveBlockToTmpLocation(ExtendedBlock block,
       ReplicaInfo replicaInfo, int smallBufferSize,
       Configuration conf) throws IOException {
@@ -662,7 +631,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
         "ProvidedVolume does not yet support writes");
   }
 
-  @Override
+  //@Override
   public File[] copyBlockToLazyPersistLocation(String bpId, long blockId,
       long genStamp, ReplicaInfo replicaInfo, int smallBufferSize,
       Configuration conf) throws IOException {

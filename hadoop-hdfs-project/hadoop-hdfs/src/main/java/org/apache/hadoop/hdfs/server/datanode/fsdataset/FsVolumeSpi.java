@@ -21,11 +21,14 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.DF;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.Block;
+import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.server.common.FileRegion;
+import org.apache.hadoop.hdfs.server.datanode.DirectoryScanner;
 import org.apache.hadoop.hdfs.server.datanode.FileIoProvider;
 import org.apache.hadoop.hdfs.server.datanode.StorageLocation;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -36,16 +39,8 @@ import java.util.regex.Pattern;
 /**
  * This is an interface for the underlying volume.
  */
-public interface FsVolumeSpi {
+public interface FsVolumeSpi  {
 
-  /**
-   * Obtain a reference object that had increased 1 reference count of the
-   * volume.
-   *
-   * It is caller's responsibility to close {@link FsVolumeReference} to decrease
-   * the reference count on the volume.
-   */
-  // FsVolumeReference obtainReference() throws ClosedChannelException;
   /** @return the StorageUuid of the volume */
   String getStorageID();
 
@@ -55,19 +50,16 @@ public interface FsVolumeSpi {
   /** @return the available storage space in bytes. */
   long getAvailable() throws IOException;
 
+
   /** @return the base path to the volume */
   URI getBaseURI();
 
   DF getUsageStats(Configuration conf);
-
   /** @return the {@link StorageLocation} to the volume */
   StorageLocation getStorageLocation();
 
   /** @return the {@link StorageType} of the volume */
   StorageType getStorageType();
-
-  /** Returns true if the volume is NOT backed by persistent storage. */
-  boolean isTransientStorage();
 
   /**
    * Reserve disk space for a block (RBW or Re-replicating)
@@ -81,14 +73,6 @@ public interface FsVolumeSpi {
   void releaseReservedSpace(long bytesToRelease);
 
   /**
-   * Release reserved memory for an RBW block written to transient storage
-   * i.e. RAM.
-   * bytesToRelease will be rounded down to the OS page size since locked
-   * memory reservation must always be a multiple of the page size.
-   */
-  void releaseLockedMemory(long bytesToRelease);
-
-  /**
    * BlockIterator will return ExtendedBlock entries from a block pool in
    * this volume.  The entries will be returned in sorted order.<p/>
    *
@@ -98,7 +82,7 @@ public interface FsVolumeSpi {
    *
    * Closing the iterator does not save it.  You must call save to save it.
    */
-  interface BlockIterator {
+  interface BlockIterator extends Closeable {
     /**
      * Get the next block.<p/>
      *
@@ -136,6 +120,8 @@ public interface FsVolumeSpi {
      *                         iterator.
      */
     void save() throws IOException;
+
+    void load() throws IOException;
 
     /**
      * Set the maximum staleness of entries that we will return.<p/>
@@ -418,18 +404,6 @@ public interface FsVolumeSpi {
       return fileRegion;
     }
   }
-
-  /**
-   * Load last partial chunk checksum from checksum file.
-   * Need to be called with FsDataset lock acquired.
-   * @param blockFile
-   * @param metaFile
-   * @return the last partial checksum
-   * @throws IOException
-   */
-  byte[] loadLastPartialChunkChecksum(File blockFile, File metaFile)
-      throws IOException;
-
   /**
    * Compile a list of {@link ScanInfo} for the blocks in
    * the block pool with id {@code bpid}.
@@ -439,11 +413,9 @@ public interface FsVolumeSpi {
    * @param reportCompiler
    * @throws IOException
    */
-  /*
   LinkedList<ScanInfo> compileReport(String bpid,
-                                     LinkedList<ScanInfo> report, ReportCompiler reportCompiler)
-      throws InterruptedException, IOException;
-      */
+                                     LinkedList<ScanInfo> report, DirectoryScanner.ReportCompiler reportCompiler)
+          throws InterruptedException, IOException;
 
   /**
    * Context for the {@link #check} call.
@@ -452,6 +424,4 @@ public interface FsVolumeSpi {
   }
 
   FileIoProvider getFileIoProvider();
-
-  DataNodeVolumeMetrics getMetrics();
 }

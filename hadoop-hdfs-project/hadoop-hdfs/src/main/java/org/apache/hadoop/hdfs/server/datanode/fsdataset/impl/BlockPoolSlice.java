@@ -23,23 +23,14 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
-import org.apache.hadoop.hdfs.server.datanode.BlockMetadataHeader;
-import org.apache.hadoop.hdfs.server.datanode.DataStorage;
-import org.apache.hadoop.hdfs.server.datanode.DatanodeUtil;
-import org.apache.hadoop.hdfs.server.datanode.FinalizedReplica;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaInfo;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaWaitingToBeRecovered;
+import org.apache.hadoop.hdfs.server.datanode.*;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.DataChecksum;
 import org.apache.hadoop.util.DiskChecker;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 
-import java.io.BufferedInputStream;
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A block pool slice represents a portion of a block pool stored on a volume.
@@ -56,7 +47,8 @@ class BlockPoolSlice {
   private final LDir finalizedDir; // directory store Finalized replica
   private final File rbwDir; // directory store RBW replica
   private final File tmpDir; // directory store Temporary replica
-  
+  private AtomicLong numOfBlocks = new AtomicLong();
+
   // TODO:FEDERATION scalability issue - a thread per DU is needed
   private final DU dfsUsage;
 
@@ -296,8 +288,19 @@ class BlockPoolSlice {
   public String toString() {
     return currentDir.getAbsolutePath();
   }
-  
   void shutdown() {
     dfsUsage.shutdown();
+  }
+
+  void incrNumBlocks() {
+    numOfBlocks.incrementAndGet();
+  }
+
+  void decrNumBlocks() {
+    numOfBlocks.decrementAndGet();
+  }
+
+   public long getNumOfBlocks() {
+    return numOfBlocks.get();
   }
 }

@@ -169,14 +169,14 @@ public class DirectoryScanner implements Runnable {
    * Missing file is indicated by setting the corresponding member
    * to null.
    */
-  static class ScanInfo implements Comparable<ScanInfo> {
+  public static class ScanInfo implements Comparable<ScanInfo> {
     private final long blockId;
     private final File metaFile;
     private final File blockFile;
     private final FsVolumeSpi volume;
    // private final FileRegion fileRegion;
 
-    ScanInfo(long blockId, File blockFile, File metaFile, FsVolumeSpi vol) {
+    public ScanInfo(long blockId, File blockFile, File metaFile, FsVolumeSpi vol) {
       this.blockId = blockId;
       this.metaFile = metaFile;
       this.blockFile = blockFile;
@@ -514,12 +514,7 @@ public class DirectoryScanner implements Runnable {
     return list.toSortedArrays();
   }
 
-  private static boolean isBlockMetaFile(String blockId, String metaFile) {
-    return metaFile.startsWith(blockId) &&
-        metaFile.endsWith(Block.METADATA_EXTENSION);
-  }
-
-  private static class ReportCompiler
+  public static class ReportCompiler
       implements Callable<ScanInfoPerBlockPool> {
     private FsVolumeSpi volume;
 
@@ -533,75 +528,16 @@ public class DirectoryScanner implements Runnable {
       ScanInfoPerBlockPool result = new ScanInfoPerBlockPool(bpList.length);
       for (String bpid : bpList) {
         LinkedList<ScanInfo> report = new LinkedList<>();
-        File bpFinalizedDir = volume.getFinalizedDir(bpid); // TODO: implement to only add finalized blocks to block report
-        result.put(bpid, compileReport(volume, bpFinalizedDir, report));
+
+        try {
+          result.put(bpid, volume.compileReport(bpid, report, this)); // TODO: implement to only add finalized blocks to block report
+        } catch (InterruptedException ex) {
+          // Exit quickly and flag the scanner to do the same
+          result = null;
+          break;
+        }
       }
       return result;
     }
-
-    /**
-     * Compile list {@link ScanInfo} for the blocks in the directory <dir>
-     */
-    private LinkedList<ScanInfo> compileReport(FsVolumeSpi vol, File dir,
-        LinkedList<ScanInfo> report) {
-      LOG.info("Scanning local blocks");
-      File[] files;
-      try {
-        files = FileUtil.listFiles(dir);
-      } catch (IOException ioe) {
-        LOG.warn("Exception occured while compiling report: ", ioe);
-        // Ignore this directory and proceed.
-        return report;
-      }
-      Arrays.sort(files);
-
-
-      List<File> blkFiles = new ArrayList();
-      List<File> metaFiles = new ArrayList();
-      List<File> subDirs = new ArrayList();
-      for (File file : files) {
-        if (!file.isDirectory()) {
-          if (isBlockMetaFile("blk_", file.getName())) {
-            metaFiles.add(file);
-          } else if (Block.isBlockFilename(file)) {
-            blkFiles.add(file);
-          }
-        } else {
-          subDirs.add(file);
-        }
-      }
-
-      for (File subDir : subDirs) {
-        compileReport(vol, subDir, report);
-      }
-
-      for (int i = blkFiles.size() - 1; i >= 0; i--) {
-        File blkFile = blkFiles.get(i);
-        long blockId = Block.filename2id(blkFile.getName());
-        File metaFile = popMetaFile(blkFile, metaFiles);
-        report.add(new ScanInfo(blockId, blkFile, metaFile, vol));
-        blkFiles.remove(i);
-      }
-
-      for (int i = metaFiles.size() - 1; i >= 0; i--) {
-        File metaFile = metaFiles.get(i);
-        long blockId = Block.getBlockId(metaFile.getName());
-        report.add(new ScanInfo(blockId, null, metaFile, vol));
-      }
-
-      return report;
-    }
   }
-
-  private static File popMetaFile(final File blkFile,
-      final List<File> metaFiles) {
-    for (File metaFile : metaFiles) {
-      if (isBlockMetaFile(blkFile.getName() + "_", metaFile.getName())) {
-        metaFiles.remove(metaFile);
-        return metaFile;
-      }
-    }
-    return null;
-  }
-
 }
