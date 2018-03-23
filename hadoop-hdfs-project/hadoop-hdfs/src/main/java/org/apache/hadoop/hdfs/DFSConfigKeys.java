@@ -889,6 +889,11 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final String  DFS_STORAGE_POLICY_ENABLED_KEY = "dfs.storage.policy.enabled";
   public static final boolean DFS_STORAGE_POLICY_ENABLED_DEFAULT = true;
 
+  // Hidden configuration undocumented in hdfs-site. xml
+  // Timeout to wait for block receiver and responder thread to stop
+  public static final String DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_KEY = "dfs.datanode.xceiver.stop.timeout.millis";
+  public static final long   DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_DEFAULT = 60000;
+
   // Security-related configs
   public static final String DFS_ENCRYPT_DATA_TRANSFER_KEY =
       "dfs.encrypt.data.transfer";

@@ -52,7 +52,8 @@ unzip clusterj-native-7.5.4-natives-linux.jar
 cp libndbclient.so /usr/lib
 ```
 
-See this [section](#connecting-the-driver-to-the-database) for specifying the database `URI` and `username/password`. 
+See this [section](#connecting-the-driver-to-the-database) for specifying the database `
+URI` and `username/password`. 
 
 
 

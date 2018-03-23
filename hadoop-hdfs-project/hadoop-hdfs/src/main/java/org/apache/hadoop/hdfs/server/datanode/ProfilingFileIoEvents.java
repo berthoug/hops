@@ -131,11 +131,13 @@ class ProfilingFileIoEvents {
   }
 
   private DataNodeVolumeMetrics getVolumeMetrics(final FsVolumeSpi volume) {
+    /*
     if (isEnabled) {
       if (volume != null) {
         return volume.getMetrics();
       }
     }
+    */
     return null;
   }
 }

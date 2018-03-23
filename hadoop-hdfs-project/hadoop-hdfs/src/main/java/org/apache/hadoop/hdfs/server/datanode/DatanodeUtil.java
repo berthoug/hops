@@ -77,6 +77,33 @@ public class DatanodeUtil {
     }
     return f;
   }
+
+  /**
+   * Create a new file.
+   *
+   * @throws IOException
+   *     if the file already exists or if the file cannot be created.
+   */
+  public static File createTmpFile(Block b, File f) throws IOException {
+    if (f.exists()) {
+      throw new IOException(
+              "Failed to create temporary file for " + b + ".  File " + f +
+                      " should not be present, but is.");
+    }
+    // Create the zero-length temp file
+    final boolean fileCreated;
+    try {
+      fileCreated = f.createNewFile();
+    } catch (IOException ioe) {
+      throw new IOException(DISK_ERROR + "Failed to create " + f, ioe);
+    }
+    if (!fileCreated) {
+      throw new IOException(
+              "Failed to create temporary file for " + b + ".  File " + f +
+                      " should be creatable, but is already present.");
+    }
+    return f;
+  }
   
   /**
    * @return the meta name given the block name and generation stamp.
@@ -142,6 +169,7 @@ public class DatanodeUtil {
     if (lin == null) {
       throw new FileNotFoundException("Meta file for " + b + " not found.");
     }
-    return (FileInputStream)lin.getWrappedStream();
+    // return (FileInputStream)lin.getWrappedStream(); // method not found
+    return null;
   }
 }

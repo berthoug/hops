@@ -468,7 +468,7 @@ public class TestProvidedImpl {
           new TestFileRegionBlockAliasMap(fileRegionIterator, minBlockId,
               numBlocks));
       ReplicaMap volumeMap = new ReplicaMap(new AutoCloseableLock());
-      vol.getVolumeMap(BLOCK_POOL_IDS[CHOSEN_BP_ID], volumeMap, null);
+      vol.getVolumeMap(BLOCK_POOL_IDS[CHOSEN_BP_ID], volumeMap);
       totalBlocks += volumeMap.size(BLOCK_POOL_IDS[CHOSEN_BP_ID]);
     }
     return totalBlocks;

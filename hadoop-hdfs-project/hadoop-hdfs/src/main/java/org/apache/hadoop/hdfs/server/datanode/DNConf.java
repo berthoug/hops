@@ -52,6 +52,7 @@ class DNConf {
   final String encryptionAlgorithm;
 
   final int iBRDispatherTPSize;
+  final long xceiverStopTimeout;
 
   public DNConf(Configuration conf) {
     socketTimeout = conf.getInt(DFS_CLIENT_SOCKET_TIMEOUT_KEY,
@@ -89,6 +90,11 @@ class DNConf {
         DFS_BLOCKREPORT_INTERVAL_MSEC_DEFAULT);
     this.blockReportSplitThreshold = conf.getLong(DFS_BLOCKREPORT_SPLIT_THRESHOLD_KEY,
         DFS_BLOCKREPORT_SPLIT_THRESHOLD_DEFAULT);
+
+    this.xceiverStopTimeout = conf.getLong(
+            DFSConfigKeys.DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_KEY,
+            DFSConfigKeys.DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_DEFAULT);
+
     long initBRDelay = conf.getLong(DFS_BLOCKREPORT_INITIAL_DELAY_KEY,
         DFS_BLOCKREPORT_INITIAL_DELAY_DEFAULT) * 1000L;
     if (initBRDelay >= blockReportInterval) {
@@ -122,5 +128,9 @@ class DNConf {
   // We get minimumNameNodeVersion via a method so it can be mocked out in tests.
   String getMinimumNameNodeVersion() {
     return this.minimumNameNodeVersion;
+  }
+
+  public long getXceiverStopTimeout() {
+    return xceiverStopTimeout;
   }
 }

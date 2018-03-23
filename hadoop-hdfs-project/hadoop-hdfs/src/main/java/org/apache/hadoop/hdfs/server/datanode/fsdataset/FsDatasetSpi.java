@@ -26,11 +26,7 @@ import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.BlockLocalPathInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsBlocksMetadata;
-import org.apache.hadoop.hdfs.server.datanode.DataNode;
-import org.apache.hadoop.hdfs.server.datanode.DataStorage;
-import org.apache.hadoop.hdfs.server.datanode.FinalizedReplica;
-import org.apache.hadoop.hdfs.server.datanode.Replica;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaInPipelineInterface;
+import org.apache.hadoop.hdfs.server.datanode.*;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetFactory;
 import org.apache.hadoop.hdfs.server.datanode.metrics.FSDatasetMBean;
 import org.apache.hadoop.hdfs.server.protocol.BlockRecoveryCommand.RecoveringBlock;
@@ -116,9 +112,16 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
   public Map<String, Object> getVolumeInfoMap();
 
   /**
-   * @return a list of finalized blocks for the given block pool.
+   * Gets a list of references to the finalized blocks for the given block pool.
+   * <p>
+   * Callers of this function should call
+   * {@link FsDatasetSpi#acquireDatasetLock} to avoid blocks' status being
+   * changed during list iteration.
+   * </p>
+   * @return a list of references to the finalized blocks for the given block
+   *         pool.
    */
-  public List<FinalizedReplica> getFinalizedBlocks(String bpid);
+  List<FinalizedReplica> getFinalizedBlocks(String bpid);
 
   /**
    * Check whether the in-memory block record matches the block on the disk,
@@ -127,12 +130,6 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    */
   public void checkAndUpdate(String bpid, long blockId, File diskFile,
       File diskMetaFile, FsVolumeSpi vol);
-  /**
-   * Check whether the in-memory block record matches the block on the disk,
-   * and, in case that they are not matched, update the record or mark it
-   * as corrupted.
-   */
-  //void checkAndUpdate(String bpid, ScanInfo info) throws IOException;
 
    /**
    * @param b
@@ -209,7 +206,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    * @throws IOException
    *     if an error occurs
    */
-  public ReplicaInPipelineInterface createTemporary(StorageType storageType, ExtendedBlock b)
+  public ReplicaInPipeline createTemporary(StorageType storageType, ExtendedBlock b)
       throws IOException;
 
   /**
@@ -219,8 +216,8 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    * @return the meta info of the replica which is being written to
    * @throws IOException if an error occurs
    */
-  public ReplicaInPipelineInterface createRbw(StorageType storageType,
-      ExtendedBlock b) throws IOException;
+  public ReplicaInPipeline createRbw(StorageType storageType,
+                                     ExtendedBlock b) throws IOException;
 
   /**
    * Recovers a RBW replica and returns the meta info of the replica
@@ -237,8 +234,8 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    * @throws IOException
    *     if an error occurs
    */
-  public ReplicaInPipelineInterface recoverRbw(ExtendedBlock b, long newGS,
-      long minBytesRcvd, long maxBytesRcvd) throws IOException;
+  public ReplicaInPipeline recoverRbw(ExtendedBlock b, long newGS,
+                                      long minBytesRcvd, long maxBytesRcvd) throws IOException;
 
   /**
    * Covert a temporary replica to a RBW.
@@ -262,8 +259,8 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    * @return the meata info of the replica which is being written to
    * @throws IOException
    */
-  public ReplicaInPipelineInterface append(ExtendedBlock b, long newGS,
-      long expectedBlockLen) throws IOException;
+  public ReplicaInPipeline append(ExtendedBlock b, long newGS,
+                                  long expectedBlockLen) throws IOException;
 
   /**
    * Recover a failed append to a finalized replica
@@ -278,8 +275,8 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    * @return the meta info of the replica which is being written to
    * @throws IOException
    */
-  public ReplicaInPipelineInterface recoverAppend(ExtendedBlock b, long newGS,
-      long expectedBlockLen) throws IOException;
+  public ReplicaInPipeline recoverAppend(ExtendedBlock b, long newGS,
+                                         long expectedBlockLen) throws IOException;
   
   /**
    * Recover a failed pipeline close

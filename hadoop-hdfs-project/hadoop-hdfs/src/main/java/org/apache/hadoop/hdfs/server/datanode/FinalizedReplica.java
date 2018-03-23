@@ -28,7 +28,7 @@ import java.io.File;
  * This class describes a replica that has been finalized.
  */
 public class FinalizedReplica extends LocalReplica {
-
+  private boolean unlinked;      // copy-on-write done for block
   /**
    * Constructor
    * @param blockId block id
@@ -65,7 +65,16 @@ public class FinalizedReplica extends LocalReplica {
     return ReplicaState.FINALIZED;
   }
 
-  
+  @Override // ReplicaInfo
+  public boolean isUnlinked() {
+    return unlinked;
+  }
+
+  @Override  // ReplicaInfo
+  public void setUnlinked() {
+    unlinked = true;
+  }
+
   @Override
   public long getVisibleLength() {
     return getNumBytes();       // all bytes are visible

@@ -90,7 +90,7 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   }
 
   @Override
-  public List<ReplicaInfo> getFinalizedBlocks(String bpid) {
+  public List<FinalizedReplica> getFinalizedBlocks(String bpid) {
     return null;
   }
 
@@ -151,8 +151,8 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   }
 
   @Override
-  public ReplicaHandler recoverRbw(ExtendedBlock b, long newGS,
-      long minBytesRcvd, long maxBytesRcvd) throws IOException {
+  public ReplicaInPipeline recoverRbw(ExtendedBlock b, long newGS,
+                                      long minBytesRcvd, long maxBytesRcvd) throws IOException {
     return new ReplicaHandler(new ExternalReplicaInPipeline(), null);
   }
 
@@ -163,14 +163,14 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   }
 
   @Override
-  public ReplicaHandler append(ExtendedBlock b, long newGS,
-      long expectedBlockLen) throws IOException {
+  public ReplicaInPipeline append(ExtendedBlock b, long newGS,
+                                  long expectedBlockLen) throws IOException {
     return new ReplicaHandler(new ExternalReplicaInPipeline(), null);
   }
 
   @Override
-  public ReplicaHandler recoverAppend(ExtendedBlock b, long newGS,
-      long expectedBlockLen) throws IOException {
+  public ReplicaInPipeline recoverAppend(ExtendedBlock b, long newGS,
+                                         long expectedBlockLen) throws IOException {
     return new ReplicaHandler(new ExternalReplicaInPipeline(), null);
   }
 

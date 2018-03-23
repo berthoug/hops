@@ -17,19 +17,20 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.HardLink;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi.ScanInfo;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.LengthInputStream;
 import org.apache.hadoop.hdfs.server.protocol.ReplicaRecoveryInfo;
+import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.LightWeightResizableGSet;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.URI;
 
 /**
@@ -134,23 +135,155 @@ abstract public class ReplicaInfo extends Block
    * @param seekOffset the offset at which the read is started from.
    * @return the {@link InputStream} to read the replica data.
    * @throws IOException if an error occurs in opening a stream to the data.
+   * check if this replica has already been unlinked.
+   *
+   * @return true if the replica has already been unlinked
+   * or no need to be detached; false otherwise
    */
   abstract public InputStream getDataInputStream(long seekOffset)
           throws IOException;
 
+  public boolean isUnlinked() {
+    return true;                // no need to be unlinked
+  }
+
+  /**
+   * set that this replica is unlinked
+   */
+  public void setUnlinked() {
+    // no need to be unlinked
+  }
   /**
    * Returns an {@link OutputStream} to the replica's data.
    * @param append indicates if the block should be opened for append.
    * @return the {@link OutputStream} to write to the replica.
    * @throws IOException if an error occurs in creating an {@link OutputStream}.
+   * set that this replica is unlinked
    */
   abstract public OutputStream getDataOutputStream(boolean append)
           throws IOException;
 
+
   /**
    * @return true if the replica's data exists.
+   * Copy specified file into a temporary file. Then rename the
+   * temporary file to the original name. This will cause any
+   * hardlinks to the original file to be removed. The temporary
+   * files are created in the same directory. The temporary files will
+   * be recovered (especially on Windows) on datanode restart.
    */
   abstract public boolean blockDataExists();
+
+  /**
+   * Copy specified file into a temporary file. Then rename the
+   * temporary file to the original name. This will cause any
+   * hardlinks to the original file to be removed. The temporary
+   * files are created in the same directory. The temporary files will
+   * be recovered (especially on Windows) on datanode restart.
+   */
+  private void unlinkFile(File file, Block b) throws IOException {
+    File tmpFile =
+        DatanodeUtil.createTmpFile(b, DatanodeUtil.getUnlinkTmpFile(file));
+    try {
+      FileInputStream in = new FileInputStream(file);
+      try {
+        FileOutputStream out = new FileOutputStream(tmpFile);
+        try {
+          IOUtils.copyBytes(in, out, 16 * 1024);
+        } finally {
+          out.close();
+        }
+      } finally {
+        in.close();
+      }
+      if (file.length() != tmpFile.length()) {
+        throw new IOException(
+            "Copy of file " + file + " size " + file.length() +
+                " into file " + tmpFile +
+                " resulted in a size of " + tmpFile.length());
+      }
+      FileUtil.replaceFile(tmpFile, file);
+    } catch (IOException e) {
+      boolean done = tmpFile.delete();
+      if (!done) {
+        DataNode.LOG
+            .info("detachFile failed to delete temporary file " + tmpFile);
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * Remove a hard link by copying the block to a temporary place and
+   * then moving it back
+   *
+   * @param numLinks
+   *     number of hard links
+   * @return true if copy is successful;
+   * false if it is already detached or no need to be detached
+   * @throws IOException
+   *     if there is any copy error
+   */
+  public boolean unlinkBlock(int numLinks) throws IOException {
+    if (isUnlinked()) {
+      return false;
+    }
+    File file = getBlockFile();
+    if (file == null || getVolume() == null) {
+      throw new IOException("detachBlock:Block not found. " + this);
+    }
+    File meta = getMetaFile();
+
+    if (HardLink.getLinkCount(file) > numLinks) {
+      DataNode.LOG.info("CopyOnWrite for block " + this);
+      unlinkFile(file, this);
+    }
+    if (HardLink.getLinkCount(meta) > numLinks) {
+      unlinkFile(meta, this);
+    }
+    setUnlinked();
+    return true;
+  }
+
+  /**
+   * Set this replica's generation stamp to be a newer one
+   *
+   * @param newGS
+   *     new generation stamp
+   * @throws IOException
+   *     is the new generation stamp is not greater than the current one
+   */
+  void setNewerGenerationStamp(long newGS) throws IOException {
+    long curGS = getGenerationStamp();
+    if (newGS <= curGS) {
+      throw new IOException("New generation stamp (" + newGS +
+              ") must be greater than current one (" + curGS + ")");
+    }
+    setGenerationStampNoPersistance(newGS);
+  }
+
+  @VisibleForTesting
+  public static class ReplicaDirInfo {
+    public String baseDirPath;
+    public boolean hasSubidrs;
+
+    public ReplicaDirInfo (String baseDirPath, boolean hasSubidrs) {
+      this.baseDirPath = baseDirPath;
+      this.hasSubidrs = hasSubidrs;
+    }
+  }
+
+  @VisibleForTesting
+  public static ReplicaDirInfo parseBaseDir(File dir) {
+    File currentDir = dir;
+    boolean hasSubdirs = false;
+    while (currentDir.getName().startsWith(DataStorage.BLOCK_SUBDIR_PREFIX)) {
+      hasSubdirs = true;
+      currentDir = currentDir.getParentFile();
+    }
+
+    return new ReplicaDirInfo(currentDir.getAbsolutePath(), hasSubdirs);
+  }
 
   /**
    * Used to deletes the replica's block data.

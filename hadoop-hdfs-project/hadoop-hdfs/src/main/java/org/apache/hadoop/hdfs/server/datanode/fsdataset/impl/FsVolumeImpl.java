@@ -57,7 +57,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @InterfaceAudience.Private
 public class FsVolumeImpl implements FsVolumeSpi {
-  public static final Logger LOG =
+   public static final Logger LOG =
       LoggerFactory.getLogger(FsVolumeImpl.class);
   private static final ObjectWriter WRITER =
       new ObjectMapper().writerWithDefaultPrettyPrinter();
@@ -133,7 +133,8 @@ public class FsVolumeImpl implements FsVolumeSpi {
     }
   }
   
-  long getDfsUsed() throws IOException {
+  @VisibleForTesting
+  public long getDfsUsed() throws IOException {
     long dfsUsed = 0;
     synchronized (dataset) {
       for (BlockPoolSlice s : bpSlices.values()) {
@@ -323,6 +324,12 @@ public class FsVolumeImpl implements FsVolumeSpi {
           newReservation));
     }
   }
+
+  @Override
+  public void releaseLockedMemory(long bytesToRelease) {
+    // TODO: implement
+  }
+
   private enum SubdirFilter implements FilenameFilter {
     INSTANCE;
 

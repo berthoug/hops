@@ -121,7 +121,22 @@ public class BlockMetadataHeader {
     DataChecksum checksum = DataChecksum.newDataChecksum(in);
     return new BlockMetadataHeader(version, checksum);
   }
-  
+
+  /**
+   * Reads header at the top of metadata file and returns the header.
+   * Closes the input stream after reading the header.
+   *
+   * @return metadata header for the block
+   * @throws IOException
+   */
+  public static BlockMetadataHeader readHeader(
+          FileInputStream fis) throws IOException {
+    try (DataInputStream in = new DataInputStream(
+            new BufferedInputStream(fis))) {
+      return readHeader(in);
+    }
+  }
+
   /**
    * This writes all the fields till the beginning of checksum.
    *
