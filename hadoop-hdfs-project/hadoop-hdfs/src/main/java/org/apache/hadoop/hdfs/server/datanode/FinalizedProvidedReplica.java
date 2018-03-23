@@ -17,9 +17,6 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
-import java.net.URI;
-import java.nio.ByteBuffer;
-
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -31,6 +28,9 @@ import org.apache.hadoop.hdfs.server.common.FileRegion;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.protocol.ReplicaRecoveryInfo;
+
+import java.net.URI;
+import java.nio.ByteBuffer;
 
 /**
  * This class is used for provided replicas that are finalized.

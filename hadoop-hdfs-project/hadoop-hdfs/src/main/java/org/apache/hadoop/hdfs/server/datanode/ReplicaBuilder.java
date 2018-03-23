@@ -178,6 +178,128 @@ public class ReplicaBuilder {
     return this;
   }
 
+  public LocalReplicaInPipeline buildLocalReplicaInPipeline()
+      throws IllegalArgumentException {
+    LocalReplicaInPipeline info = null;
+    switch(state) {
+    case RBW:
+      info = buildRBW();
+      break;
+    case TEMPORARY:
+      info = buildTemporaryReplica();
+      break;
+    default:
+      throw new IllegalArgumentException("Unknown replica state " + state);
+    }
+    return info;
+  }
+
+  private LocalReplicaInPipeline buildRBW() throws IllegalArgumentException {
+    if (null != fromReplica && fromReplica.getState() == ReplicaState.RBW) {
+      return new ReplicaBeingWritten((ReplicaBeingWritten) fromReplica);
+    } else if (null != fromReplica) {
+      throw new IllegalArgumentException("Incompatible fromReplica "
+          + "state: " + fromReplica.getState());
+    } else {
+      if (null != block) {
+        if (null == writer) {
+          throw new IllegalArgumentException("A valid writer is "
+              + "required for constructing a RBW from block "
+              + block.getBlockId());
+        }
+        return new ReplicaBeingWritten(block, volume, directoryUsed, writer);
+      } else {
+        if (length != -1) {
+          return new ReplicaBeingWritten(blockId, length, genStamp,
+              volume, directoryUsed, writer);
+        } else {
+          return new ReplicaBeingWritten(blockId, genStamp, volume,
+              directoryUsed);
+        }
+      }
+    }
+  }
+
+  private LocalReplicaInPipeline buildTemporaryReplica()
+      throws IllegalArgumentException {
+    if (null != fromReplica &&
+        fromReplica.getState() == ReplicaState.TEMPORARY) {
+      return new LocalReplicaInPipeline((LocalReplicaInPipeline) fromReplica);
+    } else if (null != fromReplica) {
+      throw new IllegalArgumentException("Incompatible fromReplica "
+          + "state: " + fromReplica.getState());
+    } else {
+      if (null != block) {
+        if (null == writer) {
+          throw new IllegalArgumentException("A valid writer is "
+              + "required for constructing a Replica from block "
+              + block.getBlockId());
+        }
+        return new LocalReplicaInPipeline(block, volume, directoryUsed,
+            writer);
+      } else {
+        if (length != -1) {
+          return new LocalReplicaInPipeline(blockId, length, genStamp,
+              volume, directoryUsed, writer, bytesToReserve);
+        } else {
+          return new LocalReplicaInPipeline(blockId, genStamp, volume,
+              directoryUsed, bytesToReserve);
+        }
+      }
+    }
+  }
+
+  private LocalReplica buildFinalizedReplica() throws IllegalArgumentException {
+    if (null != fromReplica &&
+        fromReplica.getState() == ReplicaState.FINALIZED) {
+      return new FinalizedReplica((FinalizedReplica)fromReplica);
+    } else if (null != this.fromReplica) {
+      throw new IllegalArgumentException("Incompatible fromReplica "
+          + "state: " + fromReplica.getState());
+    } else {
+      if (null != block) {
+        return new FinalizedReplica(block, volume, directoryUsed);
+      } else {
+        return new FinalizedReplica(blockId, length, genStamp, volume,
+            directoryUsed);
+      }
+    }
+  }
+
+  private LocalReplica buildRWR() throws IllegalArgumentException {
+
+    if (null != fromReplica && fromReplica.getState() == ReplicaState.RWR) {
+      return new ReplicaWaitingToBeRecovered(
+          (ReplicaWaitingToBeRecovered) fromReplica);
+    } else if (null != fromReplica){
+      throw new IllegalArgumentException("Incompatible fromReplica "
+          + "state: " + fromReplica.getState());
+    } else {
+      if (null != block) {
+        return new ReplicaWaitingToBeRecovered(block, volume, directoryUsed);
+      } else {
+        return new ReplicaWaitingToBeRecovered(blockId, length, genStamp,
+            volume, directoryUsed);
+      }
+    }
+  }
+
+  private LocalReplica buildRUR() throws IllegalArgumentException {
+    if (null == fromReplica) {
+      throw new IllegalArgumentException(
+          "Missing a valid replica to recover from");
+    }
+    if (null != writer || null != block) {
+      throw new IllegalArgumentException("Invalid state for "
+          + "recovering from replica with blk id "
+          + fromReplica.getBlockId());
+    }
+    if (fromReplica.getState() == ReplicaState.RUR) {
+      return new ReplicaUnderRecovery((ReplicaUnderRecovery) fromReplica);
+    } else {
+      return new ReplicaUnderRecovery(fromReplica, recoveryId);
+    }
+  }
   private ProvidedReplica buildProvidedFinalizedReplica()
           throws IllegalArgumentException {
     ProvidedReplica info = null;
@@ -223,11 +345,35 @@ public class ReplicaBuilder {
     return info;
   }
 
+  private LocalReplica buildLocalReplica()
+      throws IllegalArgumentException {
+    LocalReplica info = null;
+    switch(this.state) {
+    case FINALIZED:
+      info = buildFinalizedReplica();
+      break;
+    case RWR:
+      info = buildRWR();
+      break;
+    case RUR:
+      info = buildRUR();
+      break;
+    case RBW:
+    case TEMPORARY:
+      info = buildLocalReplicaInPipeline();
+      break;
+    default:
+      throw new IllegalArgumentException("Unknown replica state " + state);
+    }
+    return info;
+  }
   public ReplicaInfo build() throws IllegalArgumentException {
 
     ReplicaInfo info = null;
     if(volume != null && volume.getStorageType() == StorageType.PROVIDED) {
       info = buildProvidedReplica();
+    } else {
+      info = buildLocalReplica();
     }
 
     return info;

@@ -42,7 +42,7 @@ public class LocalReplicaInPipeline extends LocalReplica
   private long bytesAcked;
   private long bytesOnDisk;
   private byte[] lastChecksum;
-  private AtomicReference<Thread> writer = new AtomicReference<Thread>();
+  private AtomicReference<Thread> writer = new AtomicReference<Thread>(); // What is the purpose of he writer thread?
 
   /**
    * Bytes reserved for this replica on the containing volume.
@@ -65,6 +65,15 @@ public class LocalReplicaInPipeline extends LocalReplica
                                 FsVolumeSpi vol, File dir, long bytesToReserve) {
     this(blockId, 0L, genStamp, vol, dir, Thread.currentThread(),
             bytesToReserve);
+  }
+
+  /**
+   * Legacy constructor without bytesToReserve
+   */
+  public LocalReplicaInPipeline(long blockId, long genStamp,
+                                FsVolumeSpi vol, File dir) {
+    this(blockId, 0L, genStamp, vol, dir, Thread.currentThread(),
+            0L);
   }
 
   /**
@@ -112,6 +121,12 @@ public class LocalReplicaInPipeline extends LocalReplica
     this.writer.set(from.writer.get());
     this.bytesReserved = from.bytesReserved;
     this.originalBytesReserved = from.originalBytesReserved;
+  }
+  /**
+   * Legacy constructor without bytesToReserve
+   */
+  public LocalReplicaInPipeline(long blockId, long len, long genStamp, FsVolumeSpi vol, File dir, Thread writer) {
+    this(blockId, len, genStamp, vol, dir, writer,0L);
   }
 
   @Override

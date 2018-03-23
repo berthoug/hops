@@ -23,6 +23,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
+import org.apache.hadoop.hdfs.server.common.FileRegion;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.LengthInputStream;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetUtil;
@@ -300,6 +301,17 @@ public abstract class ProvidedReplica extends ReplicaInfo {
       throws UnsupportedOperationException {
     throw new UnsupportedOperationException(
         "ProvidedReplica does not yet support writes");
+  }
+
+  @Override
+  public int compareWith(FsVolumeSpi.ScanInfo info) {
+    if (info.getFileRegion().equals(
+        new FileRegion(this.getBlockId(), new Path(getRemoteURI()),
+            fileOffset, this.getNumBytes(), this.getGenerationStamp()))) {
+      return 0;
+    } else {
+      return (int) (info.getBlockLength() - getNumBytes());
+    }
   }
 
   @Override

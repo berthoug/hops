@@ -28,7 +28,7 @@ import java.io.File;
  * Those are the replicas that
  * are created in a pipeline initiated by a dfs client.
  */
-public class ReplicaBeingWritten extends ReplicaInPipeline {
+public class ReplicaBeingWritten extends LocalReplicaInPipeline {
   /**
    * Constructor for a zero length replica
    *

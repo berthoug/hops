@@ -20,6 +20,7 @@ package org.apache.hadoop.hdfs.server.datanode;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
+import org.apache.hadoop.hdfs.server.protocol.ReplicaRecoveryInfo;
 
 import java.io.File;
 
@@ -32,8 +33,7 @@ import java.io.File;
  * client continues to write or be recovered as a result of
  * lease recovery.
  */
-public class ReplicaWaitingToBeRecovered extends ReplicaInfo {
-  private boolean unlinked;      // copy-on-write done for block
+public class ReplicaWaitingToBeRecovered extends LocalReplica {
 
   /**
    * Constructor
@@ -75,24 +75,13 @@ public class ReplicaWaitingToBeRecovered extends ReplicaInfo {
    */
   public ReplicaWaitingToBeRecovered(ReplicaWaitingToBeRecovered from) {
     super(from);
-    this.unlinked = from.isUnlinked();
   }
 
   @Override //ReplicaInfo
   public ReplicaState getState() {
     return ReplicaState.RWR;
   }
-  
-  @Override //ReplicaInfo
-  public boolean isUnlinked() {
-    return unlinked;
-  }
 
-  @Override //ReplicaInfo
-  public void setUnlinked() {
-    unlinked = true;
-  }
-  
   @Override //ReplicaInfo
   public long getVisibleLength() {
     return -1;  //no bytes are visible
@@ -115,6 +104,30 @@ public class ReplicaWaitingToBeRecovered extends ReplicaInfo {
 
   @Override
   public String toString() {
-    return super.toString() + "\n  unlinked=" + unlinked;
+    return super.toString();
+  }
+
+  @Override
+  public ReplicaInfo getOriginalReplica() {
+    throw new UnsupportedOperationException("Replica of type " + getState() +
+        " does not support getOriginalReplica");
+  }
+
+  @Override
+  public long getRecoveryID() {
+    throw new UnsupportedOperationException("Replica of type " + getState() +
+        " does not support getRecoveryID");
+  }
+
+  @Override
+  public void setRecoveryID(long recoveryId) {
+    throw new UnsupportedOperationException("Replica of type " + getState() +
+        " does not support getRecoveryID");
+  }
+
+  @Override
+  public ReplicaRecoveryInfo createInfo() {
+    throw new UnsupportedOperationException("Replica of type " + getState() +
+        " does not support createInfo");
   }
 }

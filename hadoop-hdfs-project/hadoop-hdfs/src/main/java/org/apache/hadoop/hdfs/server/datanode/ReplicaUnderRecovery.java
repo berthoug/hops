@@ -21,8 +21,6 @@ import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.protocol.ReplicaRecoveryInfo;
 
-import java.io.File;
-
 /**
  * This class represents replicas that are under block recovery
  * It has a recovery id that is equal to the generation stamp
@@ -30,21 +28,20 @@ import java.io.File;
  * The recovery id is used to handle multiple concurrent block recoveries.
  * A recovery with higher recovery id preempts recoveries with a lower id.
  */
-public class ReplicaUnderRecovery extends ReplicaInfo {
-  private ReplicaInfo original;
-      // the original replica that needs to be recovered
+public class ReplicaUnderRecovery extends LocalReplica {
+  private LocalReplica original; // original replica to be recovered
   private long recoveryId; // recovery id; it is also the generation stamp 
   // that the replica will be bumped to after recovery
 
   public ReplicaUnderRecovery(ReplicaInfo replica, long recoveryId) {
     super(replica.getBlockId(), replica.getNumBytes(),
-        replica.getGenerationStamp(), replica.getVolume(), replica.getDir());
+        replica.getGenerationStamp(), replica.getVolume(), ((LocalReplica)replica).getDir());
     if (replica.getState() != ReplicaState.FINALIZED &&
         replica.getState() != ReplicaState.RBW &&
         replica.getState() != ReplicaState.RWR) {
       throw new IllegalArgumentException("Cannot recover replica: " + replica);
     }
-    this.original = replica;
+    this.original = (LocalReplica) replica;
     this.recoveryId = recoveryId;
   }
 
@@ -55,7 +52,7 @@ public class ReplicaUnderRecovery extends ReplicaInfo {
    */
   public ReplicaUnderRecovery(ReplicaUnderRecovery from) {
     super(from);
-    this.original = from.getOriginalReplica();
+    this.original = (LocalReplica) from.getOriginalReplica();
     this.recoveryId = from.getRecoveryID();
   }
 
@@ -92,15 +89,6 @@ public class ReplicaUnderRecovery extends ReplicaInfo {
     return original;
   }
 
-  @Override //ReplicaInfo
-  public boolean isUnlinked() {
-    return original.isUnlinked();
-  }
-
-  @Override //ReplicaInfo
-  public void setUnlinked() {
-    original.setUnlinked();
-  }
   
   @Override //ReplicaInfo
   public ReplicaState getState() {
@@ -135,11 +123,13 @@ public class ReplicaUnderRecovery extends ReplicaInfo {
     original.setNumBytesNoPersistance(numBytes);
   }
   
+  /*
   @Override //ReplicaInfo
   public void setDir(File dir) {
     super.setDir(dir);
     original.setDir(dir);
   }
+  */
   
   @Override
     //ReplicaInfo

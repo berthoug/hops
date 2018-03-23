@@ -26,6 +26,7 @@ import org.apache.hadoop.hdfs.server.datanode.fsdataset.LengthInputStream;
 import org.apache.hadoop.hdfs.server.protocol.ReplicaRecoveryInfo;
 import org.apache.hadoop.util.LightWeightResizableGSet;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -71,6 +72,8 @@ abstract public class ReplicaInfo extends Block
     super(blockId, len, genStamp);
     this.volume = vol;
   }
+
+
 
   /**
    * Copy constructor.
@@ -315,5 +318,13 @@ abstract public class ReplicaInfo extends Block
   @Override
   public void setNext(LightWeightResizableGSet.LinkedElement next) {
     this.next = next;
+  }
+
+  public File getBlockFile() {
+    return null; // TODO: implement. Should we use URI or fallback to File?
+  }
+
+  public File getMetaFile() {
+    return null; // TODO: implement. Should we use URI or fallback to File?
   }
 }
