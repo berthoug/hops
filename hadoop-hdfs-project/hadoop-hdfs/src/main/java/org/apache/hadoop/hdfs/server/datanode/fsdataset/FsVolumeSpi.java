@@ -421,7 +421,8 @@ public interface FsVolumeSpi  {
    * @throws IOException
    */
   LinkedList<ScanInfo> compileReport(String bpid,
-                                     LinkedList<ScanInfo> report, DirectoryScanner.ReportCompiler reportCompiler)
+                                     LinkedList<ScanInfo> report,
+                                     DirectoryScanner.ReportCompiler reportCompiler)
           throws InterruptedException, IOException;
 
   /**

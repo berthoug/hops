@@ -17,18 +17,7 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.RandomAccessFile;
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
-
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -42,7 +31,10 @@ import org.apache.hadoop.util.DataChecksum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
+import java.io.*;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This class is used for all replicas which are on local storage media
@@ -137,7 +129,7 @@ abstract public class LocalReplica extends ReplicaInfo {
       return;
     }
 
-    ReplicaDirInfo dirInfo = parseBaseDir(dir);
+    ReplicaInfo.ReplicaDirInfo dirInfo = parseBaseDir(dir);
     this.hasSubdirs = dirInfo.hasSubidrs;
 
     synchronized (internedBaseDirs) {
@@ -160,19 +152,6 @@ abstract public class LocalReplica extends ReplicaInfo {
       this.baseDirPath = baseDirPath;
       this.hasSubidrs = hasSubidrs;
     }
-  }
-
-  @VisibleForTesting
-  public static ReplicaDirInfo parseBaseDir(File dir) {
-
-    File currentDir = dir;
-    boolean hasSubdirs = false;
-    while (currentDir.getName().startsWith(DataStorage.BLOCK_SUBDIR_PREFIX)) {
-      hasSubdirs = true;
-      currentDir = currentDir.getParentFile();
-    }
-
-    return new ReplicaDirInfo(currentDir.getAbsolutePath(), hasSubdirs);
   }
 
   /**

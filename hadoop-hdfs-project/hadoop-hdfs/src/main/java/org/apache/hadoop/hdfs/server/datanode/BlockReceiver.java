@@ -20,7 +20,6 @@ package org.apache.hadoop.hdfs.server.datanode;
 import org.apache.commons.logging.Log;
 import org.apache.hadoop.fs.ChecksumException;
 import org.apache.hadoop.fs.FSOutputSummer;
-import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
@@ -39,14 +38,7 @@ import org.apache.hadoop.io.nativeio.NativeIO;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DataChecksum;
 
-import java.io.BufferedOutputStream;
-import java.io.Closeable;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -115,7 +107,7 @@ class BlockReceiver implements Closeable {
   /**
    * the replica to write
    */
-  private final ReplicaInPipelineInterface replicaInfo;
+  private ReplicaInPipeline replicaInfo;
   /**
    * pipeline stage
    */
@@ -466,7 +458,7 @@ class BlockReceiver implements Closeable {
     long firstByteInBlock = offsetInBlock;
     offsetInBlock += len;
     if (replicaInfo.getNumBytes() < offsetInBlock) {
-      replicaInfo.setNumBytesNoPersistance(offsetInBlock);
+      replicaInfo.setNumBytes(offsetInBlock);
     }
     
     // put in queue for pending acks, unless sync was requested

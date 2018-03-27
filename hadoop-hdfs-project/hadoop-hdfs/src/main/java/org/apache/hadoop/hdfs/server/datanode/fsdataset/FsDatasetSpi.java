@@ -37,7 +37,6 @@ import org.apache.hadoop.hdfs.server.protocol.StorageReport;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.util.ReflectionUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -128,8 +127,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    * and, in case that they are not matched, update the record or mark it
    * as corrupted.
    */
-  public void checkAndUpdate(String bpid, long blockId, File diskFile,
-      File diskMetaFile, FsVolumeSpi vol);
+  void checkAndUpdate(String bpid, FsVolumeSpi.ScanInfo scanInfo) throws IOException;
 
    /**
    * @param b
@@ -149,6 +147,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    * @throws IOException
    */
   public long getLength(ExtendedBlock b) throws IOException;
+
 
   /**
    * Get reference to the replica meta info in the replicasMap.
@@ -244,7 +243,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    *     the temporary replica being converted
    * @return the result RBW
    */
-  public ReplicaInPipelineInterface convertTemporaryToRbw(
+  public ReplicaInPipeline convertTemporaryToRbw(
       ExtendedBlock temporary) throws IOException;
 
   /**

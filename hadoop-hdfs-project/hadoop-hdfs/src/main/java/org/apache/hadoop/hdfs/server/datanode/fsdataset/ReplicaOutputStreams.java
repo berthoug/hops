@@ -17,19 +17,14 @@
  */
 package org.apache.hadoop.hdfs.server.datanode.fsdataset;
 
-import java.io.Closeable;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.io.IOException;
-
 import org.apache.commons.logging.Log;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.datanode.FileIoProvider;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.nativeio.NativeIOException;
 import org.apache.hadoop.util.DataChecksum;
-import org.slf4j.Logger;
+
+import java.io.*;
 
 /**
  * Contains the output streams for the data and checksum of a replica.
@@ -90,11 +85,6 @@ public class ReplicaOutputStreams implements Closeable {
   /** @return the checksum. */
   public DataChecksum getChecksum() {
     return checksum;
-  }
-
-  /** @return is writing to a transient storage? */
-  public boolean isTransientStorage() {
-    return volume.isTransientStorage();
   }
 
   @Override

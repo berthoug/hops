@@ -112,8 +112,8 @@ public class DataStorage extends Storage {
   /** Create an ID for this storage.
    * @return true if a new storage ID was generated.
    * */
-  public synchronized boolean createStorageID(
-      StorageDirectory sd, boolean regenerateStorageIds, Configuration conf) {
+  public static synchronized boolean createStorageID(
+          StorageDirectory sd, boolean regenerateStorageIds, Configuration conf) {
     final String oldStorageID = sd.getStorageUuid();
     if (sd.getStorageLocation() != null &&
             sd.getStorageLocation().getStorageType() == StorageType.PROVIDED) {
@@ -162,6 +162,7 @@ public class DataStorage extends Storage {
       throw new IOException("All specified directories are failed to load.");
     }
   }
+
 
   /**
    * Add a list of volumes to be managed by DataStorage. If the volume is empty,

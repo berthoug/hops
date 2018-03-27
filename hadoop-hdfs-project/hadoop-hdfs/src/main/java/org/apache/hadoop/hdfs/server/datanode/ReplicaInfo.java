@@ -47,6 +47,11 @@ abstract public class ReplicaInfo extends Block
   /** volume where the replica belongs. */
   private FsVolumeSpi volume;
 
+  /**
+   * directory where block & meta files belong
+   */
+  private File dir; // only used for backwards compatibility for methods that uses File instead of URI
+
   /** This is used by some tests and FsDatasetUtil#computeChecksum. */
   private static final FileIoProvider DEFAULT_FILE_IO_PROVIDER =
           new FileIoProvider(null, null);
@@ -85,6 +90,27 @@ abstract public class ReplicaInfo extends Block
   }
 
   /**
+   * Get the full path of this replica's data file
+   *
+   * @return the full path of this replica's data file
+   */
+  public File getBlockFile() {
+    return new File(getDir(), getBlockName());
+  }
+
+  /**
+   * Get the full path of this replica's meta file
+   *
+   * @return the full path of this replica's meta file
+   */
+  public File getMetaFile() {
+    return new File(getDir(),
+        DatanodeUtil.getMetaName(getBlockName(), getGenerationStamp()));
+  }
+
+  /**
+   * Get the volume where this replica is located on disk
+   *
    * @return the volume where this replica is located on disk
    */
   public FsVolumeSpi getVolume() {
@@ -115,6 +141,25 @@ abstract public class ReplicaInfo extends Block
   @Override
   public String getStorageUuid() {
     return volume.getStorageID();
+  }
+
+  /**
+   * Return the parent directory path where this replica is located
+   *
+   * @return the parent directory path where this replica is located
+   */
+  File getDir() {
+    return dir;
+  }
+
+  /**
+   * Set the parent directory where this replica is located
+   *
+   * @param dir
+   *     the parent directory where the replica is located
+   */
+  public void setDir(File dir) {
+    this.dir = dir;
   }
 
   /**
@@ -453,11 +498,4 @@ abstract public class ReplicaInfo extends Block
     this.next = next;
   }
 
-  public File getBlockFile() {
-    return null; // TODO: implement. Should we use URI or fallback to File?
-  }
-
-  public File getMetaFile() {
-    return null; // TODO: implement. Should we use URI or fallback to File?
-  }
 }

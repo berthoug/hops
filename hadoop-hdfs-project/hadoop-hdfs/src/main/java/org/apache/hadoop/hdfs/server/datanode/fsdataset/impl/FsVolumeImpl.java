@@ -123,7 +123,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
   File getRbwDir(String bpid) throws IOException {
     return getBlockPoolSlice(bpid).getRbwDir();
   }
-  
+
   void decDfsUsed(String bpid, long value) {
     synchronized (dataset) {
       BlockPoolSlice bp = bpSlices.get(bpid);
@@ -719,6 +719,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
             .build();
   }
 
+  // kept for backwards compatibility
   File addBlock(String bpid, Block b, File f) throws IOException {
     return getBlockPoolSlice(bpid).addBlock(b, f);
   }

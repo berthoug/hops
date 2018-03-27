@@ -91,7 +91,7 @@ class DNConf {
     this.blockReportSplitThreshold = conf.getLong(DFS_BLOCKREPORT_SPLIT_THRESHOLD_KEY,
         DFS_BLOCKREPORT_SPLIT_THRESHOLD_DEFAULT);
 
-    this.xceiverStopTimeout = conf.getLong(
+    xceiverStopTimeout = conf.getLong(
             DFSConfigKeys.DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_KEY,
             DFSConfigKeys.DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_DEFAULT);
 
@@ -131,6 +131,6 @@ class DNConf {
   }
 
   public long getXceiverStopTimeout() {
-    return xceiverStopTimeout;
+    return this.xceiverStopTimeout;
   }
 }
