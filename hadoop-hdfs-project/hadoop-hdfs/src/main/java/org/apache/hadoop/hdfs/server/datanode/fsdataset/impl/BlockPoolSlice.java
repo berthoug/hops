@@ -128,7 +128,13 @@ class BlockPoolSlice {
   long getDfsUsed() throws IOException {
     return dfsUsage.getUsed();
   }
-  
+
+  void incDfsUsed(long value) {
+    // Not implemented since we do not have caching
+    // if (dfsUsage instanceof CachingGetSpaceUsed) {
+    //   ((CachingGetSpaceUsed)dfsUsage).incDfsUsed(value);
+    // }
+  }
   /**
    * Temporary files. They get moved to the finalized block directory when
    * the block is finalized.
@@ -147,6 +153,23 @@ class BlockPoolSlice {
     return DatanodeUtil.createTmpFile(b, f);
   }
 
+  File addFinalizedBlock(Block b, ReplicaInfo replicaInfo) throws IOException {
+    File blockDir = DatanodeUtil.idToBlockDir(getFinalizedDir(), b.getBlockId());
+    if (!blockDir.exists()) {
+      if (!blockDir.mkdirs()) {
+        throw new IOException("Failed to mkdirs " + blockDir);
+      }
+    }
+    File blockFile = FsDatasetImpl.moveBlockFiles(b, replicaInfo, blockDir);
+    File metaFile = FsDatasetUtil.getMetaFile(blockFile, b.getGenerationStamp());
+
+    return blockFile;
+  }
+
+  /**
+   * Use addFinalizedBlock instead which takes an {@link ReplicaInfo} instead of {@link File}.
+   */
+  @Deprecated
   File addBlock(Block b, File f) throws IOException {
     File blockFile = finalizedDir.addBlock(b, f);
     File metaFile =

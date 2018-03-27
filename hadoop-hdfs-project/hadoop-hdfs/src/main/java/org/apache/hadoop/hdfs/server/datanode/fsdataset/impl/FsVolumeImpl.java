@@ -124,6 +124,40 @@ public class FsVolumeImpl implements FsVolumeSpi {
     return getBlockPoolSlice(bpid).getRbwDir();
   }
 
+  void onBlockFileDeletion(String bpid, long value) {
+    decDfsUsedAndNumBlocks(bpid, value, true);
+  }
+
+  void onMetaFileDeletion(String bpid, long value) {
+    decDfsUsedAndNumBlocks(bpid, value, false);
+  }
+
+  private void decDfsUsedAndNumBlocks(String bpid, long value,
+                                      boolean blockFileDeleted) {
+    BlockPoolSlice bp = bpSlices.get(bpid);
+    if (bp != null) {
+      bp.decDfsUsed(value);
+      if (blockFileDeleted) {
+        bp.decrNumBlocks();
+      }
+    }
+  }
+
+  void incDfsUsedAndNumBlocks(String bpid, long value) {
+    BlockPoolSlice bp = bpSlices.get(bpid);
+    if (bp != null) {
+      bp.incDfsUsed(value);
+      bp.incrNumBlocks();
+    }
+  }
+
+  void incDfsUsed(String bpid, long value) {
+    BlockPoolSlice bp = bpSlices.get(bpid);
+    if (bp != null) {
+      bp.incDfsUsed(value);
+    }
+  }
+
   void decDfsUsed(String bpid, long value) {
     synchronized (dataset) {
       BlockPoolSlice bp = bpSlices.get(bpid);
@@ -132,7 +166,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
       }
     }
   }
-  
+
   @VisibleForTesting
   public long getDfsUsed() throws IOException {
     long dfsUsed = 0;
@@ -327,7 +361,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
 
   @Override
   public void releaseLockedMemory(long bytesToRelease) {
-    // TODO: implement
+
   }
 
   private enum SubdirFilter implements FilenameFilter {
