@@ -34,7 +34,7 @@ import java.util.List;
  * A node type that can be built into a tree reflecting the
  * hierarchy of replicas on the local disk.
  */
-class LDir { // TODO: do we need LDir? Currently only used for storing the File dir
+class LDir {
   final File dir;
   final int maxBlocksPerDir;
 
@@ -66,7 +66,6 @@ class LDir { // TODO: do we need LDir? Currently only used for storing the File 
     }
   }
 
-
   File addBlock(Block b, File src) throws IOException {
     //First try without creating subdirectories
     File file = addBlock(b, src, false, false);
@@ -75,10 +74,12 @@ class LDir { // TODO: do we need LDir? Currently only used for storing the File 
 
   private File addBlock(Block b, File src, boolean createOk, boolean resetIdx)
       throws IOException {
+
+    // this is already taken care of by callee
     if (numBlocks < maxBlocksPerDir) {
-      final File dest = FsDatasetImpl.moveBlockFiles(b, src, dir);
+     // final File dest = FsDatasetImpl.moveBlockFiles(b, src, replicaInfo, dir);
       numBlocks += 1;
-      return dest;
+     // return dest;
     }
 
     if (lastChildIdx < 0 && resetIdx) {

@@ -31,6 +31,7 @@ import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi.ScanInfo;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.Time;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
@@ -263,7 +264,11 @@ public class DirectoryScanner implements Runnable {
       LinkedList<ScanInfo> diff = entry.getValue();
       
       for (ScanInfo info : diff) {
-        dataset.checkAndUpdate(bpid, info);
+        try {
+          dataset.checkAndUpdate(bpid, info);
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
       }
     }
     if (!retainDiffs) {
@@ -291,7 +296,7 @@ public class DirectoryScanner implements Runnable {
         diffs.put(bpid, diffRecord);
         
         statsRecord.totalBlocks = blockpoolReport.length;
-        List<FinalizedReplica> bl = dataset.getFinalizedBlocks(bpid);
+        List<ReplicaInfo> bl = dataset.getFinalizedBlocks(bpid);
         FinalizedReplica[] memReport = bl.toArray(new FinalizedReplica[bl.size()]);
         Arrays.sort(memReport); // Sort based on blockId
 
@@ -446,7 +451,7 @@ public class DirectoryScanner implements Runnable {
         LinkedList<ScanInfo> report = new LinkedList<>();
 
         try {
-          result.put(bpid, volume.compileReport(bpid, report, this)); // TODO: implement to only add finalized blocks to block report
+          result.put(bpid, volume.compileReport(bpid, report, this)); // TODO: GABRIEL - implement to only add finalized blocks to block report
         } catch (InterruptedException ex) {
           // Exit quickly and flag the scanner to do the same
           result = null;

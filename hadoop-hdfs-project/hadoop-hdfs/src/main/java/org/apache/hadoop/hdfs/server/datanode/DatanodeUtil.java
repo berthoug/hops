@@ -19,14 +19,10 @@ package org.apache.hadoop.hdfs.server.datanode;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.hdfs.protocol.Block;
-import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.LengthInputStream;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 
 /** Provide utility methods for Datanode. */
@@ -148,28 +144,8 @@ public class DatanodeUtil {
    * @param blockId
    * @return
    */
-  public static File idToBlockDir(File root, long blockId) { // TODO: rollback to using LDir instead of storing in blockid?
-    int d1 = (int) ((blockId >> 16) & 0x1F);
-    int d2 = (int) ((blockId >> 8) & 0x1F);
-    String path = DataStorage.BLOCK_SUBDIR_PREFIX + d1 + SEP +
-        DataStorage.BLOCK_SUBDIR_PREFIX + d2;
-    return new File(root, path);
-  }
-
-  /**
-   * @return the FileInputStream for the meta data of the given block.
-   * @throws FileNotFoundException
-   *           if the file not found.
-   * @throws ClassCastException
-   *           if the underlying input stream is not a FileInputStream.
-   */
-  public static FileInputStream getMetaDataInputStream(
-          ExtendedBlock b, FsDatasetSpi<?> data) throws IOException {
-    final LengthInputStream lin = data.getMetaDataInputStream(b);
-    if (lin == null) {
-      throw new FileNotFoundException("Meta file for " + b + " not found.");
-    }
-    // return (FileInputStream)lin.getWrappedStream(); // method not found
-    return null;
+  public static File idToBlockDir(File root, long blockId) {
+    // TODO: GABRIEL - Rollback to using LDir instead of getting File from blockId.
+    throw new NotImplementedException();
   }
 }

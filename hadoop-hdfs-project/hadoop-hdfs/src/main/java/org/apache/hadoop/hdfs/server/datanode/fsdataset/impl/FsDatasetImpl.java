@@ -415,7 +415,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   public synchronized ReplicaInputStreams getTmpInputStreams(ExtendedBlock b,
       long blkOffset, long metaOffset) throws IOException {
     ReplicaInfo info = getReplicaInfo(b);
-    FsVolumeSpi ref = info.getVolume();// TODO: do we need FsVolumeReference from .obtainReference(); ?
+    FsVolumeSpi ref = info.getVolume();// TODO: GABRIEL - do we need FsVolumeReference from .obtainReference(); ?
     try {
       InputStream blockInStream = info.getDataInputStream(blkOffset);
       try {
@@ -452,39 +452,6 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       LOG.debug("addFinalizedBlock: Moved " + replicaInfo.getMetadataURI()
               + " to " + dstmeta + " and " + replicaInfo.getBlockURI()
               + " to " + dstfile);
-    }
-    return dstfile;
-  }
-
-  /**
-   * Use {@link #moveBlockFiles(Block, org.apache.hadoop.hdfs.server.datanode.ReplicaInfo, File)} instead. Kept for backwards compability with File usage for now.
-   */
-  @Deprecated
-  static File moveBlockFiles(Block b, File srcfile, File destdir)
-      throws IOException {
-    final File dstfile = new File(destdir, b.getBlockName());
-    final File srcmeta =
-        FsDatasetUtil.getMetaFile(srcfile, b.getGenerationStamp());
-    final File dstmeta =
-        FsDatasetUtil.getMetaFile(dstfile, b.getGenerationStamp());
-    try {
-      NativeIO.renameTo(srcmeta, dstmeta);
-    } catch (IOException e) {
-      throw new IOException(
-          "Failed to move meta file for " + b + " from " + srcmeta + " to " +
-              dstmeta, e);
-    }
-    try {
-      NativeIO.renameTo(srcfile, dstfile);
-    } catch (IOException e) {
-      throw new IOException(
-          "Failed to move block file for " + b + " from " + srcfile + " to " +
-              dstfile.getAbsolutePath(), e);
-    }
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(
-          "addBlock: Moved " + srcmeta + " to " + dstmeta + " and " + srcfile +
-              " to " + dstfile);
     }
     return dstfile;
   }
@@ -641,7 +608,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     if (replicaInfo.getState() == ReplicaState.RBW) {
       ReplicaBeingWritten rbw = (ReplicaBeingWritten) replicaInfo;
       // kill the previous writer
-      rbw.stopWriter(6000); // TODO: should call datanode.getDnConf().getXceiverCount()
+      rbw.stopWriter(6000); // TODO: GABRIEL - should call datanode.getDnConf().getXceiverCount()
       rbw.setWriter(Thread.currentThread());
       // check length: bytesRcvd, bytesOnDisk, and bytesAcked should be the same
       if (replicaLen != rbw.getBytesOnDisk() ||
@@ -745,7 +712,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     LOG.info("Recovering " + rbw);
 
     // Stop the previous writer
-    rbw.stopWriter(6000); // TODO: should call datanode.getDnConf().getXceiverCount()
+    rbw.stopWriter(6000); // TODO: GABRIEL - should call datanode.getDnConf().getXceiverCount()
     rbw.setWriter(Thread.currentThread());
 
     // check generation stamp
@@ -1232,7 +1199,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
 
       // Delete the block asynchronously to make sure we can do it fast enough
       asyncDiskService.deleteAsync(v, removing,
-              new ExtendedBlock(bpid, invalidBlk)); // TODO: fix
+              new ExtendedBlock(bpid, invalidBlk));
     }
     if (error) {
       throw new IOException("Error in deleting blocks.");
@@ -1608,7 +1575,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     //stop writer if there is any
     if (replica instanceof ReplicaInPipeline) {
       final ReplicaInPipeline rip = (ReplicaInPipeline) replica;
-      rip.stopWriter(6000); // TODO: should call datanode.getDnConf().getXceiverCount()
+      rip.stopWriter(6000); // TODO: GABRIEL - should call datanode.getDnConf().getXceiverCount()
 
       //check replica bytes on disk.
       if (rip.getBytesOnDisk() < rip.getVisibleLength()) {

@@ -18,15 +18,12 @@
 package org.apache.hadoop.hdfs.server.common;
 
 import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.hdfs.DFSUtil;
-import org.apache.hadoop.hdfs.protocol.HdfsConstants;
-import org.apache.hadoop.hdfs.server.namenode.FSDirectory;
+import org.apache.hadoop.hdfs.server.namenode.Lease;
 import org.apache.hadoop.hdfs.server.namenode.MetaRecoveryContext;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import org.apache.hadoop.hdfs.server.namenode.Lease;
 
 /**
  * *********************************
@@ -40,12 +37,7 @@ public final class HdfsServerConstants {
   /* Hidden constructor */
   private HdfsServerConstants() {
   }
-  /**
-   * Current layout version for NameNode.
-   * Please see {@link NameNodeLayoutVersion.Feature} on adding new layout version.
-   */
-  int NAMENODE_LAYOUT_VERSION
-          = NameNodeLayoutVersion.CURRENT_LAYOUT_VERSION;
+
   /**
    * Type of the node
    */

@@ -247,7 +247,7 @@ class FsDatasetAsyncDiskService {
         LOG.info("Deleted " + block.getBlockPoolId() + " "
                 + block.getLocalBlock() + " URI " + replicaToDelete.getBlockURI());
         }
-        // IOUtils.cleanup(null, volumeRef); // TODO: do we need VolumeReference ?
+        // IOUtils.cleanup(null, volumeRef); // TODO: GABRIEL -  do we need VolumeReference for cleanup?
       }
     }
   }

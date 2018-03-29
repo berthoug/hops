@@ -65,16 +65,6 @@ public class FinalizedReplica extends LocalReplica {
     return ReplicaState.FINALIZED;
   }
 
-  @Override // ReplicaInfo
-  public boolean isUnlinked() {
-    return unlinked;
-  }
-
-  @Override  // ReplicaInfo
-  public void setUnlinked() {
-    unlinked = true;
-  }
-
   @Override
   public long getVisibleLength() {
     return getNumBytes();       // all bytes are visible

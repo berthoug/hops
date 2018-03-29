@@ -211,10 +211,10 @@ public class ReplicaBuilder {
       } else {
         if (length != -1) {
           return new ReplicaBeingWritten(blockId, length, genStamp,
-              volume, directoryUsed, writer);
+              volume, directoryUsed, writer, bytesToReserve);
         } else {
           return new ReplicaBeingWritten(blockId, genStamp, volume,
-              directoryUsed);
+              directoryUsed, bytesToReserve);
         }
       }
     }

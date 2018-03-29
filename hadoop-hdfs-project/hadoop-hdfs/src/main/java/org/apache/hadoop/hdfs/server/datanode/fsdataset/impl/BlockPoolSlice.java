@@ -48,6 +48,7 @@ class BlockPoolSlice {
   private final LDir finalizedDir; // directory store Finalized replica
   private final File rbwDir; // directory store RBW replica
   private final File tmpDir; // directory store Temporary replica
+  private final FileIoProvider fileIoProvider;
   private AtomicLong numOfBlocks = new AtomicLong();
 
   // TODO:FEDERATION scalability issue - a thread per DU is needed
@@ -72,6 +73,7 @@ class BlockPoolSlice {
     this.currentDir = new File(bpDir, DataStorage.STORAGE_DIR_CURRENT);
     final File finalizedDir =
         new File(currentDir, DataStorage.STORAGE_DIR_FINALIZED);
+    this.fileIoProvider = volume.getFileIoProvider();
 
     // Files that were being written when the datanode was last shutdown
     // are now moved back to the data directory. It is possible that
@@ -162,28 +164,14 @@ class BlockPoolSlice {
     return rbwFile;
   }
 
-  File addFinalizedBlock(Block b, ReplicaInfo replicaInfo) throws IOException {
-    File blockDir = DatanodeUtil.idToBlockDir(getFinalizedDir(), b.getBlockId());
-    if (!blockDir.exists()) {
-      if (!blockDir.mkdirs()) {
-        throw new IOException("Failed to mkdirs " + blockDir);
-      }
-    }
-    File blockFile = FsDatasetImpl.moveBlockFiles(b, replicaInfo, blockDir);
-    File metaFile = FsDatasetUtil.getMetaFile(blockFile, b.getGenerationStamp());
-
-    return blockFile;
-  }
-
   /**
-   * Use addFinalizedBlock instead which takes an {@link ReplicaInfo} instead of {@link File}.
+   * Replaced addBlocks
    */
-  @Deprecated
-  File addBlock(Block b, File f) throws IOException {
-    File blockFile = finalizedDir.addBlock(b, f);
-    File metaFile =
-        FsDatasetUtil.getMetaFile(blockFile, b.getGenerationStamp());
-    dfsUsage.incDfsUsed(b.getNumBytes() + metaFile.length());
+  File addFinalizedBlock(Block b, ReplicaInfo replicaInfo) throws IOException {
+    File blockDir = finalizedDir.addBlock(b, ((FinalizedReplica)replicaInfo).getBlockFile()); // TODO: GABRIEL - test
+    fileIoProvider.mkdirsWithExistsCheck(volume, blockDir);
+    File blockFile = FsDatasetImpl.moveBlockFiles(b, replicaInfo, blockDir);
+
     return blockFile;
   }
 
@@ -230,7 +218,7 @@ class BlockPoolSlice {
                 .setLength(block.getNumBytes())
                 .setGenerationStamp(genStamp)
                 .setFsVolume(volume)
-                .setDirectoryToUse(DatanodeUtil.idToBlockDir(getFinalizedDir(), blockId))
+                .setDirectoryToUse(blockFile.getParentFile()) // TODO: GABRIEL - test if correct dir
                 .build();
       } else {
         newReplica = new ReplicaBuilder(HdfsServerConstants.ReplicaState.RWR)
@@ -346,7 +334,7 @@ class BlockPoolSlice {
           final ReplicaInfo replica1, final ReplicaInfo replica2,
           final ReplicaMap volumeMap) throws IOException {
 
-    // TODO: implement, now returning first replica
+    // TODO: GABRIEL - implement, now returning first replica
 
     return replica1;
   }
