@@ -636,7 +636,7 @@ public class TestBlockRecovery {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Running " + GenericTestUtils.getMethodName());
     }
-    ReplicaInPipelineInterface replicaInfo = dn.data.createRbw(StorageType.DEFAULT, block);
+    ReplicaInPipeline replicaInfo = dn.data.createRbw(StorageType.DEFAULT, block);
     ReplicaOutputStreams streams = null;
     try {
       streams = replicaInfo.createStreams(true,

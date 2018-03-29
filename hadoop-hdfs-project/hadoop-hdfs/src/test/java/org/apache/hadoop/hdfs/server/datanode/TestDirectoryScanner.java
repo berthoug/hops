@@ -41,11 +41,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * Tests {@link DirectoryScanner} handling of differences
@@ -84,8 +80,8 @@ public class TestDirectoryScanner {
   private long truncateBlockFile() throws IOException {
     synchronized (fds) {
       for (ReplicaInfo b : FsDatasetTestUtil.getReplicas(fds, bpid)) {
-        File f = b.getBlockFile();
-        File mf = b.getMetaFile();
+        File f = new File(b.getBlockURI());
+        File mf = new File(b.getMetadataURI());
         // Truncate a block file that has a corresponding metadata file
         if (f.exists() && f.length() != 0 && mf.exists()) {
           FileOutputStream s = new FileOutputStream(f);
@@ -105,8 +101,8 @@ public class TestDirectoryScanner {
   private long deleteBlockFile() {
     synchronized (fds) {
       for (ReplicaInfo b : FsDatasetTestUtil.getReplicas(fds, bpid)) {
-        File f = b.getBlockFile();
-        File mf = b.getMetaFile();
+        File f = new File(b.getBlockURI());
+        File mf = new File(b.getMetadataURI());
         // Delete a block file that has corresponding metadata file
         if (f.exists() && mf.exists() && f.delete()) {
           LOG.info("Deleting block file " + f.getAbsolutePath());
@@ -123,10 +119,9 @@ public class TestDirectoryScanner {
   private long deleteMetaFile() {
     synchronized (fds) {
       for (ReplicaInfo b : FsDatasetTestUtil.getReplicas(fds, bpid)) {
-        File file = b.getMetaFile();
         // Delete a metadata file
-        if (file.exists() && file.delete()) {
-          LOG.info("Deleting metadata file " + file.getAbsolutePath());
+        if (b.metadataExists() && b.deleteMetadata()) {
+          LOG.info("Deleting metadata " + b.getMetadataURI());
           return b.getBlockId();
         }
       }
@@ -227,7 +222,7 @@ public class TestDirectoryScanner {
     scanner.reconcile();
     
     assertTrue(scanner.diffs.containsKey(bpid));
-    LinkedList<DirectoryScanner.ScanInfo> diff = scanner.diffs.get(bpid);
+    LinkedList<FsVolumeSpi.ScanInfo> diff = scanner.diffs.get(bpid);
     assertTrue(scanner.stats.containsKey(bpid));
     DirectoryScanner.Stats stats = scanner.stats.get(bpid);
     

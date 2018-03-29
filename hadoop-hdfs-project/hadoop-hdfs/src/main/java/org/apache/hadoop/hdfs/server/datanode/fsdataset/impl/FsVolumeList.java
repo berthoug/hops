@@ -44,7 +44,7 @@ class FsVolumeList {
     this.blockChooser = blockChooser;
     this.numFailedVolumes = failedVols;
   }
-  
+
   int numberOfFailedVolumes() {
     return numFailedVolumes;
   }
@@ -55,7 +55,7 @@ class FsVolumeList {
   List<FsVolumeImpl> getVolumes() {
     return Collections.unmodifiableList(Arrays.asList(volumes.get()));
   }
-  
+
   /**
    * Get next volume.
    *
@@ -127,7 +127,7 @@ class FsVolumeList {
   synchronized List<FsVolumeImpl> checkDirs() {
     ArrayList<FsVolumeImpl> removedVols = null;
 
-    // Make a copy of volumes for performing modification 
+    // Make a copy of volumes for performing modification
     final List<FsVolumeImpl> volumeList = getVolumes();
 
     for (Iterator<FsVolumeImpl> i = volumeList.iterator(); i.hasNext(); ) {

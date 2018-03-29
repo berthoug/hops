@@ -23,6 +23,7 @@ import org.apache.hadoop.fs.ChecksumException;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.protocol.datatransfer.PacketHeader;
+import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.util.DataTransferThrottler;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.LongWritable;
@@ -230,8 +231,8 @@ class BlockSender implements java.io.Closeable {
       }
       // if there is a write in progress
       ChunkChecksum chunkChecksum = null;
-      if (replica instanceof ReplicaBeingWritten) {
-        final ReplicaBeingWritten rbw = (ReplicaBeingWritten) replica;
+      if (replica.getState() == HdfsServerConstants.ReplicaState.RBW) {
+        final ReplicaInPipeline rbw = (ReplicaInPipeline) replica;
         waitForMinLength(rbw, startOffset + length);
         chunkChecksum = rbw.getLastChecksumAndDataLen();
       }
@@ -441,7 +442,7 @@ class BlockSender implements java.io.Closeable {
    * @throws IOException
    *     on failing to reach the len in given wait time
    */
-  private static void waitForMinLength(ReplicaBeingWritten rbw, long len)
+  private static void waitForMinLength(ReplicaInPipeline rbw, long len)
       throws IOException {
     // Wait for 3 seconds for rbw replica to reach the minimum length
     for (int i = 0; i < 30 && rbw.getBytesOnDisk() < len; i++) {

@@ -32,13 +32,19 @@ public class ReplicaInputStreams implements Closeable {
   private final InputStream checksumIn;
 
   /**
-   * Create an object with a data input stream and a checksum input stream.
+   * Legacy constructor. Create an object with a data input stream and a checksum input stream.
    */
   public ReplicaInputStreams(FileDescriptor dataFd, FileDescriptor checksumFd) {
     this.dataIn = new FileInputStream(dataFd);
     this.checksumIn = new FileInputStream(checksumFd);
   }
 
+  /** Create an object with a data input stream and a checksum input stream. */
+  public ReplicaInputStreams(
+          InputStream dataStream, InputStream checksumStream) {
+    this.dataIn = dataStream;
+    this.checksumIn = checksumStream;
+  }
   /**
    * @return the data input stream.
    */

@@ -23,6 +23,7 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
+import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.datanode.*;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.DataChecksum;
@@ -141,7 +142,11 @@ class BlockPoolSlice {
    */
   File createTmpFile(Block b) throws IOException {
     File f = new File(tmpDir, b.getBlockName());
-    return DatanodeUtil.createTmpFile(b, f);
+    File tmpFile = DatanodeUtil.createTmpFile(b, f);
+    // If any exception during creation, its expected that counter will not be
+    // incremented, So no need to decrement
+    incrNumBlocks();
+    return tmpFile;
   }
 
   /**
@@ -150,7 +155,11 @@ class BlockPoolSlice {
    */
   File createRbwFile(Block b) throws IOException {
     File f = new File(rbwDir, b.getBlockName());
-    return DatanodeUtil.createTmpFile(b, f);
+    File rbwFile = DatanodeUtil.createTmpFile(b, f);
+    // If any exception during creation, its expected that counter will not be
+    // incremented, So no need to decrement
+    incrNumBlocks();
+    return rbwFile;
   }
 
   File addFinalizedBlock(Block b, ReplicaInfo replicaInfo) throws IOException {
@@ -213,21 +222,30 @@ class BlockPoolSlice {
       long genStamp =
           FsDatasetUtil.getGenerationStampFromFile(blockFiles, blockFile);
       long blockId = Block.filename2id(blockFile.getName());
+      Block block = new Block(blockId, blockFile.length(), genStamp);
       ReplicaInfo newReplica = null;
       if (isFinalized) {
-        newReplica =
-            new FinalizedReplica(blockId, blockFile.length(), genStamp, volume,
-                blockFile.getParentFile());
+        newReplica = new ReplicaBuilder(HdfsServerConstants.ReplicaState.FINALIZED)
+                .setBlockId(blockId)
+                .setLength(block.getNumBytes())
+                .setGenerationStamp(genStamp)
+                .setFsVolume(volume)
+                .setDirectoryToUse(DatanodeUtil.idToBlockDir(getFinalizedDir(), blockId))
+                .build();
       } else {
-        newReplica = new ReplicaWaitingToBeRecovered(blockId,
-            validateIntegrity(blockFile, genStamp), genStamp, volume,
-            blockFile.getParentFile());
+        newReplica = new ReplicaBuilder(HdfsServerConstants.ReplicaState.RWR)
+                .setBlockId(blockId)
+                .setLength(validateIntegrity(blockFile, genStamp))
+                .setGenerationStamp(genStamp)
+                .setFsVolume(volume)
+                .setDirectoryToUse(blockFile.getParentFile())
+                .build();
       }
 
       ReplicaInfo oldReplica = volumeMap.add(bpid, newReplica);
       if (oldReplica != null) {
         FsDatasetImpl.LOG.warn("Two block files with the same block id exist " +
-            "on disk: " + oldReplica.getBlockFile() + " and " + blockFile);
+            "on disk: " + oldReplica.getBlockURI() + " and " + blockFile);
       }
     }
   }
@@ -302,7 +320,36 @@ class BlockPoolSlice {
       IOUtils.closeStream(blockIn);
     }
   }
+  /**
+   * This method is invoked during DN startup when volumes are scanned to
+   * build up the volumeMap.
+   *
+   * Given two replicas, decide which one to keep. The preference is as
+   * follows:
+   *   1. Prefer the replica with the higher generation stamp.
+   *   2. If generation stamps are equal, prefer the replica with the
+   *      larger on-disk length.
+   *   3. If on-disk length is the same, prefer the replica on persistent
+   *      storage volume.
+   *   4. All other factors being equal, keep replica1.
+   *
+   * The other replica is removed from the volumeMap and is deleted from
+   * its storage volume.
+   *
+   * @param replica1
+   * @param replica2
+   * @param volumeMap
+   * @return the replica that is retained.
+   * @throws IOException
+   */
+  ReplicaInfo resolveDuplicateReplicas(
+          final ReplicaInfo replica1, final ReplicaInfo replica2,
+          final ReplicaMap volumeMap) throws IOException {
 
+    // TODO: implement, now returning first replica
+
+    return replica1;
+  }
   void clearPath(File f) {
     finalizedDir.clearPath(f);
   }

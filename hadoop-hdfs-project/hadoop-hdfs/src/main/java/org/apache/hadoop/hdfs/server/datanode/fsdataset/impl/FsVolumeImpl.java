@@ -17,10 +17,6 @@
  */
 package org.apache.hadoop.hdfs.server.datanode.fsdataset.impl;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
@@ -36,11 +32,18 @@ import org.apache.hadoop.hdfs.server.datanode.*;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
+import org.apache.hadoop.util.DataChecksum;
+import org.apache.hadoop.util.DiskChecker;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 
 import java.io.*;
 import java.net.URI;
@@ -62,7 +65,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
   private static final ObjectWriter WRITER =
       new ObjectMapper().writerWithDefaultPrettyPrinter();
   private static final ObjectReader READER =
-      new ObjectMapper().readerFor(BlockIteratorState.class); // TODO: method not found
+      new ObjectMapper().readerFor(BlockIteratorState.class);
 
   private final FsDatasetImpl dataset;
   private final String storageID;
@@ -77,11 +80,11 @@ public class FsVolumeImpl implements FsVolumeSpi {
   private final File currentDir;    // <StorageDirectory>/current
   private final DF usage;
   private final long reserved;
-  private final Configuration conf;
 
   // Disk space reserved for blocks (RBW or Re-replicating) open for write.
   private AtomicLong reservedForReplicas;
   private long recentReserved = 0;
+  private final Configuration conf;
   // Capacity configured. This is useful when we want to
   // limit the visible capacity for tests. If negative, then we just
   // query from the filesystem.
@@ -107,15 +110,15 @@ public class FsVolumeImpl implements FsVolumeSpi {
         DFSConfigKeys.DFS_DATANODE_DU_RESERVED_DEFAULT));
     this.configuredCapacity = -1;
     if (currentDir != null) {
-    File parent = currentDir.getParentFile();
-    this.usage = new DF(parent, conf);
+      File parent = currentDir.getParentFile();
+      this.usage = new DF(parent, conf);
     } else {
       this.usage = null;
     }
     this.conf = conf;
     this.fileIoProvider = fileIoProvider;
   }
-  
+
   File getCurrentDir() {
     return currentDir;
   }
@@ -362,6 +365,12 @@ public class FsVolumeImpl implements FsVolumeSpi {
   @Override
   public void releaseLockedMemory(long bytesToRelease) {
 
+  }
+
+  public void resolveDuplicateReplicas(String bpid, ReplicaInfo memBlockInfo,
+                                       ReplicaInfo diskBlockInfo, ReplicaMap volumeMap) throws IOException {
+    getBlockPoolSlice(bpid).resolveDuplicateReplicas(
+            memBlockInfo, diskBlockInfo, volumeMap);
   }
 
   private enum SubdirFilter implements FilenameFilter {
@@ -745,17 +754,12 @@ public class FsVolumeImpl implements FsVolumeSpi {
   ReplicaInfo addFinalizedBlock(String bpid, Block b, ReplicaInfo replicaInfo,
                                 long bytesReserved) throws IOException {
     releaseReservedSpace(bytesReserved);
-    File dest = getBlockPoolSlice(bpid).addBlock(b, replicaInfo.getBlockFile());
+    File dest = getBlockPoolSlice(bpid).addFinalizedBlock(b, replicaInfo);
     return new ReplicaBuilder(HdfsServerConstants.ReplicaState.FINALIZED)
             .setBlock(replicaInfo)
             .setFsVolume(this)
             .setDirectoryToUse(dest.getParentFile())
             .build();
-  }
-
-  // kept for backwards compatibility
-  File addBlock(String bpid, Block b, File f) throws IOException {
-    return getBlockPoolSlice(bpid).addBlock(b, f);
   }
 
   void checkDirs() throws DiskErrorException {
@@ -802,7 +806,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
     // dfsUsage.incDfsUsed(b.getNumBytes()+metaFile.length());
     bp.addToReplicasMap(volumeMap, dir, isFinalized);
   }
-  
+
   void clearPath(String bpid, File f) throws IOException {
     getBlockPoolSlice(bpid).clearPath(f);
   }
@@ -890,7 +894,49 @@ public class FsVolumeImpl implements FsVolumeSpi {
     }
   }
 
+  public ReplicaInPipeline createRbw(ExtendedBlock b) throws IOException {
 
+    File f = createRbwFile(b.getBlockPoolId(), b.getLocalBlock());
+    LocalReplicaInPipeline newReplicaInfo = new ReplicaBuilder(HdfsServerConstants.ReplicaState.RBW)
+            .setBlockId(b.getBlockId())
+            .setGenerationStamp(b.getGenerationStamp())
+            .setFsVolume(this)
+            .setDirectoryToUse(f.getParentFile())
+            .setBytesToReserve(b.getNumBytes())
+            .buildLocalReplicaInPipeline();
+    return newReplicaInfo;
+  }
+
+  public ReplicaInPipeline convertTemporaryToRbw(ExtendedBlock b,
+                                                 ReplicaInfo temp) throws IOException {
+
+    final long blockId = b.getBlockId();
+    final long expectedGs = b.getGenerationStamp();
+    final long visible = b.getNumBytes();
+    final long numBytes = temp.getNumBytes();
+
+    // move block files to the rbw directory
+    BlockPoolSlice bpslice = getBlockPoolSlice(b.getBlockPoolId());
+    final File dest = FsDatasetImpl.moveBlockFiles(b.getLocalBlock(), temp,
+            bpslice.getRbwDir());
+    // create RBW
+    final LocalReplicaInPipeline rbw = new ReplicaBuilder(HdfsServerConstants.ReplicaState.RBW)
+            .setBlockId(blockId)
+            .setLength(numBytes)
+            .setGenerationStamp(expectedGs)
+            .setFsVolume(this)
+            .setDirectoryToUse(dest.getParentFile())
+            .setWriterThread(Thread.currentThread())
+            .setBytesToReserve(0)
+            .buildLocalReplicaInPipeline();
+    rbw.setBytesAcked(visible);
+
+    // load last checksum and datalen
+    final File destMeta = FsDatasetUtil.getMetaFile(dest,b.getGenerationStamp());
+    byte[] lastChunkChecksum = loadLastPartialChunkChecksum(dest, destMeta);
+    rbw.setLastChecksumAndDataLen(numBytes, lastChunkChecksum);
+    return rbw;
+  }
 
   /**
    * Compile list {@link ScanInfo} for the blocks in the directory <dir>
@@ -971,12 +1017,90 @@ public class FsVolumeImpl implements FsVolumeSpi {
     return storageType;
   }
 
+  DatanodeStorage toDatanodeStorage() {
+    return new DatanodeStorage(storageID, DatanodeStorage.State.NORMAL, storageType);
+  }
+
+  @Override
+  public byte[] loadLastPartialChunkChecksum(
+          File blockFile, File metaFile) throws IOException {
+    // readHeader closes the temporary FileInputStream.
+    DataChecksum dcs;
+    try (FileInputStream fis = fileIoProvider.getFileInputStream(
+            this, metaFile)) {
+      dcs = BlockMetadataHeader.readHeader(fis).getChecksum();
+    }
+    final int checksumSize = dcs.getChecksumSize();
+    final long onDiskLen = blockFile.length();
+    final int bytesPerChecksum = dcs.getBytesPerChecksum();
+
+    if (onDiskLen % bytesPerChecksum == 0) {
+      // the last chunk is a complete one. No need to preserve its checksum
+      // because it will not be modified.
+      return null;
+    }
+
+    long offsetInChecksum = BlockMetadataHeader.getHeaderSize() +
+            (onDiskLen / bytesPerChecksum) * checksumSize;
+    byte[] lastChecksum = new byte[checksumSize];
+    try (RandomAccessFile raf = fileIoProvider.getRandomAccessFile(
+            this, metaFile, "r")) {
+      raf.seek(offsetInChecksum);
+      int readBytes = raf.read(lastChecksum, 0, checksumSize);
+      if (readBytes == -1) {
+        throw new IOException("Expected to read " + checksumSize +
+                " bytes from offset " + offsetInChecksum +
+                " but reached end of file.");
+      } else if (readBytes != checksumSize) {
+        throw new IOException("Expected to read " + checksumSize +
+                " bytes from offset " + offsetInChecksum + " but read " +
+                readBytes + " bytes.");
+      }
+    }
+    return lastChecksum;
+  }
+
+  public ReplicaInPipeline append(String bpid, ReplicaInfo replicaInfo,
+      long newGS, long estimateBlockLen) throws IOException {
+
+    long bytesReserved = estimateBlockLen - replicaInfo.getNumBytes();
+    if (getAvailable() < bytesReserved) {
+      throw new DiskChecker.DiskOutOfSpaceException("Insufficient space for appending to "
+          + replicaInfo);
+    }
+
+    assert replicaInfo.getVolume() == this:
+      "The volume of the replica should be the same as this volume";
+
+    // construct a RBW replica with the new GS
+    File newBlkFile = new File(getRbwDir(bpid), replicaInfo.getBlockName());
+    LocalReplicaInPipeline newReplicaInfo = new ReplicaBuilder(HdfsServerConstants.ReplicaState.RBW)
+        .setBlockId(replicaInfo.getBlockId())
+        .setLength(replicaInfo.getNumBytes())
+        .setGenerationStamp(newGS)
+        .setFsVolume(this)
+        .setDirectoryToUse(newBlkFile.getParentFile())
+        .setWriterThread(Thread.currentThread())
+        .setBytesToReserve(bytesReserved)
+        .buildLocalReplicaInPipeline();
+
+    // load last checksum and datalen
+    LocalReplica localReplica = (LocalReplica)replicaInfo;
+    byte[] lastChunkChecksum = loadLastPartialChunkChecksum(
+            localReplica.getBlockFile(), localReplica.getMetaFile());
+    newReplicaInfo.setLastChecksumAndDataLen(
+            replicaInfo.getNumBytes(), lastChunkChecksum);
+
+    // rename meta file to rbw directory
+    // rename block file to rbw directory
+    newReplicaInfo.moveReplicaFrom(replicaInfo, newBlkFile);
+
+    reserveSpaceForReplica(bytesReserved);
+    return newReplicaInfo;
+  }
+
   @Override
   public FileIoProvider getFileIoProvider() {
     return fileIoProvider;
-  }
-
-  DatanodeStorage toDatanodeStorage() {
-    return new DatanodeStorage(storageID, DatanodeStorage.State.NORMAL, storageType);
   }
 }

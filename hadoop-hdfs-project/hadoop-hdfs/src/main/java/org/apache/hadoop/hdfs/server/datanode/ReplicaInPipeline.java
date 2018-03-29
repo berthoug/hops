@@ -17,13 +17,13 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.ReplicaOutputStreams;
-import org.apache.hadoop.util.DataChecksum;
-
 import java.io.IOException;
 import java.io.OutputStream;
 
-/**
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.ReplicaOutputStreams;
+import org.apache.hadoop.util.DataChecksum;
+
+/** 
  * This defines the interface of a replica in Pipeline that's being written to
  */
 public interface ReplicaInPipeline extends Replica {
@@ -56,13 +56,13 @@ public interface ReplicaInPipeline extends Replica {
    * @param lastChecksum - checksum bytes for the last chunk
    */
   public void setLastChecksumAndDataLen(long dataLength, byte[] lastChecksum);
-
+  
   /**
    * gets the last chunk checksum and the length of the block corresponding
    * to that checksum
    */
   public ChunkChecksum getLastChecksumAndDataLen();
-
+  
   /**
    * Create output streams for writing to this replica,
    * one for block file and one for CRC file
@@ -73,7 +73,7 @@ public interface ReplicaInPipeline extends Replica {
    * @throws IOException if any error occurs
    */
   public ReplicaOutputStreams createStreams(boolean isCreate,
-                                            DataChecksum requestedChecksum) throws IOException;
+      DataChecksum requestedChecksum) throws IOException;
 
   /**
    * Create an output stream to write restart metadata in case of datanode
@@ -83,17 +83,17 @@ public interface ReplicaInPipeline extends Replica {
    * @throws IOException if any error occurs
    */
   public OutputStream createRestartMetaStream() throws IOException;
-
+  
   ReplicaInfo getReplicaInfo();
-
+  
   /**
    * Set the thread that is writing to this replica
    * @param writer a thread writing to this replica
    */
   void setWriter(Thread writer);
-
+  
   void interruptThread();
-
+  
   /**
    * Attempt to set the writer to a new value.
    */

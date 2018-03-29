@@ -225,7 +225,6 @@ class FsDatasetAsyncDiskService {
               (replicaToDelete.deleteMetadata() || !replicaToDelete.metadataExists());
     }
 
-
     @Override
     public void run() {
       final long blockLength = replicaToDelete.getBlockDataLength();
@@ -248,7 +247,7 @@ class FsDatasetAsyncDiskService {
         LOG.info("Deleted " + block.getBlockPoolId() + " "
                 + block.getLocalBlock() + " URI " + replicaToDelete.getBlockURI());
         }
-        // IOUtils.cleanup(null, volumeRef); // TODO: add VolumeReference class and its implementations
+        // IOUtils.cleanup(null, volumeRef); // TODO: do we need VolumeReference ?
       }
     }
   }

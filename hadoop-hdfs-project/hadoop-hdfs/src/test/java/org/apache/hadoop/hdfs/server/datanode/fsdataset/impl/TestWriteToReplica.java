@@ -161,7 +161,7 @@ public class TestWriteToReplica {
             new ExtendedBlock(bpid, 4, 1, 2004),
             new ExtendedBlock(bpid, 5, 1, 2005),
             new ExtendedBlock(bpid, 6, 1, 2006)};
-    
+
     ReplicaMap replicasMap = dataSet.volumeMap;
     FsVolumeImpl vol = dataSet.volumes.getNextVolume(StorageType.DEFAULT, 0);
     ReplicaInfo replicaInfo =
@@ -170,18 +170,18 @@ public class TestWriteToReplica {
     replicasMap.add(bpid, replicaInfo);
     replicaInfo.getBlockFile().createNewFile();
     replicaInfo.getMetaFile().createNewFile();
-    
+
     replicasMap.add(bpid, new ReplicaInPipeline(blocks[TEMPORARY].getBlockId(),
         blocks[TEMPORARY].getGenerationStamp(), vol,
         vol.createTmpFile(bpid, blocks[TEMPORARY].getLocalBlock()).getParentFile()));
-    
+
     replicaInfo = new ReplicaBeingWritten(blocks[RBW].getLocalBlock(), vol,
         vol.createRbwFile(bpid, blocks[RBW].getLocalBlock()).getParentFile(),
         null);
     replicasMap.add(bpid, replicaInfo);
     replicaInfo.getBlockFile().createNewFile();
     replicaInfo.getMetaFile().createNewFile();
-    
+
     replicasMap.add(bpid,
         new ReplicaWaitingToBeRecovered(blocks[RWR].getLocalBlock(), vol,
             vol.createRbwFile(bpid, blocks[RWR].getLocalBlock())
@@ -189,7 +189,7 @@ public class TestWriteToReplica {
     replicasMap.add(bpid, new ReplicaUnderRecovery(
         new FinalizedReplica(blocks[RUR].getLocalBlock(), vol,
             vol.getCurrentDir().getParentFile()), 2007));
-    
+
     return blocks;
   }
   

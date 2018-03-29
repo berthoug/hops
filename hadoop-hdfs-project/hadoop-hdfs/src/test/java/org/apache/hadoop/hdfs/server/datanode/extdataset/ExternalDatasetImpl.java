@@ -90,7 +90,7 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   }
 
   @Override
-  public List<FinalizedReplica> getFinalizedBlocks(String bpid) {
+  public List<ReplicaInfo> getFinalizedBlocks(String bpid) {
     return null;
   }
 
@@ -151,7 +151,7 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   }
 
   @Override
-  public ReplicaInPipeline recoverRbw(ExtendedBlock b, long newGS,
+  public ReplicaHandler recoverRbw(ExtendedBlock b, long newGS,
                                       long minBytesRcvd, long maxBytesRcvd) throws IOException {
     return new ReplicaHandler(new ExternalReplicaInPipeline(), null);
   }
@@ -163,13 +163,13 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   }
 
   @Override
-  public ReplicaInPipeline append(ExtendedBlock b, long newGS,
+  public ReplicaHandler append(ExtendedBlock b, long newGS,
                                   long expectedBlockLen) throws IOException {
     return new ReplicaHandler(new ExternalReplicaInPipeline(), null);
   }
 
   @Override
-  public ReplicaInPipeline recoverAppend(ExtendedBlock b, long newGS,
+  public ReplicaHandler recoverAppend(ExtendedBlock b, long newGS,
                                          long expectedBlockLen) throws IOException {
     return new ReplicaHandler(new ExternalReplicaInPipeline(), null);
   }
@@ -207,12 +207,10 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   public boolean contains(ExtendedBlock block) {
     return false;
   }
-
   @Override
   public void checkBlock(ExtendedBlock b, long minLength, ReplicaState state) throws ReplicaNotFoundException, UnexpectedReplicaStateException, FileNotFoundException, EOFException, IOException {
 
   }
-
   @Override
   public boolean isValidBlock(ExtendedBlock b) {
     return false;
@@ -243,7 +241,6 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   @Override
   public void handleVolumeFailures(Set<FsVolumeSpi> failedVolumes) {
   }
-
   @Override
   public void shutdown() {
   }
@@ -274,7 +271,6 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
       long recoveryId, long newBlockId, long newLength) throws IOException {
     return null;
   }
-
   @Override
   public void addBlockPool(String bpid, Configuration conf) throws IOException {
   }
@@ -338,7 +334,6 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
       StorageType targetStorageType, String storageId) throws IOException {
     return null;
   }
-
   @Override
   public long getBlockPoolUsed(String bpid) throws IOException {
     return 0;
@@ -368,7 +363,6 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   public int getNumFailedVolumes() {
     return 0;
   }
-
   @Override
   public String[] getFailedStorageLocations() {
     return null;
@@ -430,14 +424,14 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   }
 
   @Override
-  public void setPinning(ExtendedBlock block) throws IOException {    
+  public void setPinning(ExtendedBlock block) throws IOException {
   }
 
   @Override
   public boolean getPinning(ExtendedBlock block) throws IOException {
     return false;
   }
-  
+
   @Override
   public boolean isDeletingBlock(String bpid, long blockId) {
     return false;

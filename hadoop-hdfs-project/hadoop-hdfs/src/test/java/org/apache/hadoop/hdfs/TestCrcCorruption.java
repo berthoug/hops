@@ -142,7 +142,7 @@ public class TestCrcCorruption {
           }
         }
       }
-      
+
       //
       // Now deliberately corrupt all meta blocks from the second
       // directory of the first datanode

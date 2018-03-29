@@ -17,12 +17,12 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
+import java.io.File;
+
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.protocol.ReplicaRecoveryInfo;
-
-import java.io.File;
 
 /**
  * This class represents a replica that is waiting to be recovered.
@@ -70,8 +70,7 @@ public class ReplicaWaitingToBeRecovered extends LocalReplica {
   
   /**
    * Copy constructor.
-   *
-   * @param from
+   * @param from where to copy from
    */
   public ReplicaWaitingToBeRecovered(ReplicaWaitingToBeRecovered from) {
     super(from);
@@ -81,7 +80,7 @@ public class ReplicaWaitingToBeRecovered extends LocalReplica {
   public ReplicaState getState() {
     return ReplicaState.RWR;
   }
-
+  
   @Override //ReplicaInfo
   public long getVisibleLength() {
     return -1;  //no bytes are visible

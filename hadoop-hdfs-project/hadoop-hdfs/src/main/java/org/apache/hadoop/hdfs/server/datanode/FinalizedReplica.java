@@ -123,7 +123,4 @@ public class FinalizedReplica extends LocalReplica {
     throw new UnsupportedOperationException("Replica of type " + getState() +
         " does not support createInfo");
   }
-
-
-
 }

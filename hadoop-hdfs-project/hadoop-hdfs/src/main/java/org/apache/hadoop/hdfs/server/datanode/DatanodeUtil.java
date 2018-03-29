@@ -148,7 +148,7 @@ public class DatanodeUtil {
    * @param blockId
    * @return
    */
-  public static File idToBlockDir(File root, long blockId) {
+  public static File idToBlockDir(File root, long blockId) { // TODO: rollback to using LDir instead of storing in blockid?
     int d1 = (int) ((blockId >> 16) & 0x1F);
     int d2 = (int) ((blockId >> 8) & 0x1F);
     String path = DataStorage.BLOCK_SUBDIR_PREFIX + d1 + SEP +

@@ -59,7 +59,7 @@ public class TestSimulatedFSDataset {
   long blockIdToLen(long blkid) {
     return blkid * BLOCK_LENGTH_MULTIPLIER;
   }
-  
+
   int addSomeBlocks(SimulatedFSDataset fsdataset, int startingBlockId)
       throws IOException {
     int bytesAdded = 0;
@@ -67,7 +67,7 @@ public class TestSimulatedFSDataset {
       ExtendedBlock b = new ExtendedBlock(bpid, i, 0, 0);
       // we pass expected len as zero, - fsdataset should use the sizeof actual
       // data written
-      ReplicaInPipelineInterface bInfo = fsdataset.createRbw(
+      ReplicaInPipeline bInfo = fsdataset.createRbw(
           StorageType.DEFAULT, b);
       ReplicaOutputStreams out = bInfo.createStreams(true,
           DataChecksum.newDataChecksum(DataChecksum.Type.CRC32, 512));
@@ -152,7 +152,7 @@ public class TestSimulatedFSDataset {
     }
     assertEquals(expectedLen, lengthRead);
   }
-  
+
   @Test
   public void testWriteRead() throws IOException {
     final SimulatedFSDataset fsdataset = getSimulatedFSDataset();
