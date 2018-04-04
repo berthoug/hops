@@ -168,7 +168,7 @@ class BlockPoolSlice {
    * Replaced addBlocks
    */
   File addFinalizedBlock(Block b, ReplicaInfo replicaInfo) throws IOException {
-    File blockDir = finalizedDir.addBlock(b, ((FinalizedReplica)replicaInfo).getBlockFile()); // TODO: GABRIEL - test
+    File blockDir = finalizedDir.addBlock(b, ((LocalReplica)replicaInfo).getBlockFile()); // TODO: GABRIEL - test. Replaced call to idToBlockDir
     fileIoProvider.mkdirsWithExistsCheck(volume, blockDir);
     File blockFile = FsDatasetImpl.moveBlockFiles(b, replicaInfo, blockDir);
 
@@ -334,7 +334,7 @@ class BlockPoolSlice {
           final ReplicaInfo replica1, final ReplicaInfo replica2,
           final ReplicaMap volumeMap) throws IOException {
 
-    // TODO: GABRIEL - implement, now returning first replica
+    // TODO: GABRIEL - implement. Now returning first replica
 
     return replica1;
   }

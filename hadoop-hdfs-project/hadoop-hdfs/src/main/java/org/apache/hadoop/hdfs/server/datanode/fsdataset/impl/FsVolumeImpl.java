@@ -566,7 +566,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
      * And so on.
      */
     @Override
-    public ExtendedBlock nextBlock() throws IOException {
+    public ExtendedBlock nextBlock() throws IOException { // TODO: GABRIEL - find usage of old iterator call
       if (state.atEnd) {
         return null;
       }

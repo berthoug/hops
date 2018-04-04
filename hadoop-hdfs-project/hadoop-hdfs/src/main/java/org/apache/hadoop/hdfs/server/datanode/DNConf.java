@@ -27,7 +27,7 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.*;
  * Simple class encapsulating all of the configuration that the DataNode
  * loads at startup time.
  */
-class DNConf {
+public class DNConf {
   final int socketTimeout;
   final int socketWriteTimeout;
   final int socketKeepaliveTimeout;

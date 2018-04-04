@@ -415,7 +415,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   public synchronized ReplicaInputStreams getTmpInputStreams(ExtendedBlock b,
       long blkOffset, long metaOffset) throws IOException {
     ReplicaInfo info = getReplicaInfo(b);
-    FsVolumeSpi ref = info.getVolume();// TODO: GABRIEL - do we need FsVolumeReference from .obtainReference(); ?
+    FsVolumeSpi ref = info.getVolume();
     try {
       InputStream blockInStream = info.getDataInputStream(blkOffset);
       try {
@@ -426,7 +426,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
         throw e;
       }
     } catch (IOException e) {
-    //  IOUtils.cleanup(null, ref);
+    //  IOUtils.cleanup(null, ref); // TODO: GABRIEL - do we need FsVolumeReference  for cleanup ?
       throw e;
     }
   }
@@ -608,7 +608,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     if (replicaInfo.getState() == ReplicaState.RBW) {
       ReplicaBeingWritten rbw = (ReplicaBeingWritten) replicaInfo;
       // kill the previous writer
-      rbw.stopWriter(6000); // TODO: GABRIEL - should call datanode.getDnConf().getXceiverCount()
+      rbw.stopWriter(datanode.getDnConf().getXceiverStopTimeout());
       rbw.setWriter(Thread.currentThread());
       // check length: bytesRcvd, bytesOnDisk, and bytesAcked should be the same
       if (replicaLen != rbw.getBytesOnDisk() ||
@@ -712,7 +712,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     LOG.info("Recovering " + rbw);
 
     // Stop the previous writer
-    rbw.stopWriter(6000); // TODO: GABRIEL - should call datanode.getDnConf().getXceiverCount()
+    rbw.stopWriter(datanode.getDnConf().getXceiverStopTimeout());
     rbw.setWriter(Thread.currentThread());
 
     // check generation stamp
@@ -1561,8 +1561,8 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   /**
    * static version of {@link #initReplicaRecovery(RecoveringBlock)}.
    */
-  static ReplicaRecoveryInfo initReplicaRecovery(String bpid, ReplicaMap map,
-      Block block, long recoveryId) throws IOException {
+  ReplicaRecoveryInfo initReplicaRecovery(String bpid, ReplicaMap map,
+                                          Block block, long recoveryId) throws IOException {
     final ReplicaInfo replica = map.get(bpid, block.getBlockId());
     LOG.info("initReplicaRecovery: " + block + ", recoveryId=" + recoveryId +
         ", replica=" + replica);
@@ -1575,7 +1575,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     //stop writer if there is any
     if (replica instanceof ReplicaInPipeline) {
       final ReplicaInPipeline rip = (ReplicaInPipeline) replica;
-      rip.stopWriter(6000); // TODO: GABRIEL - should call datanode.getDnConf().getXceiverCount()
+      rip.stopWriter(datanode.getDnConf().getXceiverStopTimeout());
 
       //check replica bytes on disk.
       if (rip.getBytesOnDisk() < rip.getVisibleLength()) {
