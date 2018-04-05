@@ -27,7 +27,6 @@ import org.apache.hadoop.hdfs.server.protocol.BlockCommand;
 import org.apache.hadoop.io.nativeio.NativeIO;
 import org.apache.hadoop.io.nativeio.NativeIOException;
 
-import java.io.File;
 import java.io.FileDescriptor;
 import java.util.HashMap;
 import java.util.Map;
@@ -80,7 +79,7 @@ class FsDatasetAsyncDiskService {
     this.threadGroup = new ThreadGroup(getClass().getSimpleName());
   }
 
-  private void addExecutorForVolume(final File volume) {
+  private void addExecutorForVolume(final FsVolumeImpl volume) {
     ThreadFactory threadFactory = new ThreadFactory() {
       int counter = 0;
 
@@ -104,7 +103,7 @@ class FsDatasetAsyncDiskService {
 
     // This can reduce the number of running threads
     executor.allowCoreThreadTimeOut(true);
-    executors.put(volume, executor);
+    executors.put(volume.getStorageID(), executor);
   }
 
   /**
@@ -112,7 +111,7 @@ class FsDatasetAsyncDiskService {
    *
    * @param volume the root of the new data volume.
    */
-  synchronized void addVolume(File volume) {
+  synchronized void addVolume(FsVolumeImpl volume) {
     if (executors == null) {
       throw new RuntimeException("AsyncDiskService is already shutdown");
     }

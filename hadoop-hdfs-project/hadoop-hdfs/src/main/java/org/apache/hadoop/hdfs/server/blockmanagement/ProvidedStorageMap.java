@@ -65,6 +65,11 @@ public class ProvidedStorageMap {
   private long capacity;
   private int defaultReplication;
 
+  ProvidedStorageMap(BlockManager bm, Configuration conf) throws IOException {
+    // TODO: GABRIEL - do we need RwLock ? Else remove the other constructor
+     this(null, bm, conf);
+  }
+
   ProvidedStorageMap(RwLock lock, BlockManager bm, Configuration conf)
       throws IOException {
 
@@ -488,6 +493,7 @@ public class ProvidedStorageMap {
   /**
    * Used to emulate block reports for provided blocks.
    */
+  // TODO: GABRIEL - do we need ProvidedBlockList, probabaly yes, fix interfaces
   /*static class ProvidedBlockList extends BlockReport {
 
     Builder builder = new Builder(conf.getInt(DFSConfigKeys.DFS_NUM_BUCKETS_KEY,

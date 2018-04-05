@@ -237,7 +237,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
           new DatanodeStorage(sd.getStorageUuid(),
               DatanodeStorage.State.NORMAL,
               storageLocation.getStorageType()));
-      asyncDiskService.addVolume(sd.getCurrentDir());
+      asyncDiskService.addVolume(fsVolume); // TODO: GABRIEL - do we use asyncDiskService?
       volumes.addVolume(fsVolume);
     }
     LOG.info("Added volume - " + storageLocation + ", StorageType: " +
@@ -368,8 +368,14 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   ReplicaInfo getReplicaInfo(ExtendedBlock b) throws ReplicaNotFoundException {
     ReplicaInfo info = volumeMap.get(b.getBlockPoolId(), b.getLocalBlock());
     if (info == null) {
-      throw new ReplicaNotFoundException(
-          ReplicaNotFoundException.NON_EXISTENT_REPLICA + b);
+      if (volumeMap.get(b.getBlockPoolId(), b.getLocalBlock().getBlockId())
+              == null) {
+        throw new ReplicaNotFoundException(
+                ReplicaNotFoundException.NON_EXISTENT_REPLICA + b);
+      } else {
+        throw new ReplicaNotFoundException(
+                ReplicaNotFoundException.UNEXPECTED_GS_REPLICA + b);
+      }
     }
     return info;
   }
@@ -404,18 +410,19 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   public synchronized ReplicaInputStreams getTmpInputStreams(ExtendedBlock b,
       long blkOffset, long metaOffset) throws IOException {
     ReplicaInfo info = getReplicaInfo(b);
-    FsVolumeSpi ref = info.getVolume();
+    FsVolumeImpl ref = (FsVolumeImpl) info.getVolume();
     try {
       InputStream blockInStream = info.getDataInputStream(blkOffset);
       try {
         InputStream metaInStream = info.getMetadataInputStream(metaOffset);
-        return new ReplicaInputStreams(blockInStream, metaInStream);
+        return new ReplicaInputStreams(
+                blockInStream, metaInStream, ref, datanode.getFileIoProvider());
       } catch (IOException e) {
         IOUtils.cleanup(null, blockInStream);
         throw e;
       }
     } catch (IOException e) {
-    //  IOUtils.cleanup(null, ref); // TODO: GABRIEL - do we need FsVolumeReference  for cleanup ?
+    //  IOUtils.cleanup(null, ref); // TODO: GABRIEL - do we need FsVolumeReference for cleanup (since it's closeables) ?
       throw e;
     }
   }
@@ -1233,9 +1240,9 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
             // check if the volume block belongs to still valid
             if (b.getVolume() == fv) {
               LOG.warn("Removing replica " + bpid + ":" + b.getBlockId() +
-                  " on failed volume " + fv.getPath(bpid));
+                  " on failed volume " + fv.getBaseURI());
               // report the error
-              sb.append(fv.getPath(bpid) + ";");
+              sb.append(fv.getBaseURI() + ";");
               ib.remove();
               removedBlocks++;
             }
@@ -1865,19 +1872,19 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   }
 
   @Override
-    public RollingLogs createRollingLogs(String bpid, String prefix)
+  public RollingLogs createRollingLogs(String bpid, String prefix)
             throws IOException {
       String dir = null;
       final List<FsVolumeImpl> volumes = getVolumes();
       for (FsVolumeImpl vol : volumes) {
-        String bpDir = vol.getPath(bpid);
+        String bpDir = vol.getBaseURI().getPath(); // TODO: GABRIEL - test. Changed from getPath(bpid)
         if (RollingLogsImpl.isFilePresent(bpDir, prefix)) {
           dir = bpDir;
           break;
         }
       }
       if (dir == null) {
-        dir = volumes.get(0).getPath(bpid);
+        dir = volumes.get(0).getBaseURI().getPath();
       }
       return new RollingLogsImpl(dir, prefix);
     }

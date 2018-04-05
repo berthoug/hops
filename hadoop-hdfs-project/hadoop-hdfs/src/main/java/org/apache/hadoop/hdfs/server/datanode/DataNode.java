@@ -80,6 +80,7 @@ import org.apache.hadoop.util.*;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.util.DiskChecker.DiskOutOfSpaceException;
 import org.mortbay.util.ajax.JSON;
+import org.slf4j.Logger;
 
 import java.io.*;
 import java.net.*;
@@ -1795,8 +1796,8 @@ public class DataNode extends Configured
         dataNodeDiskChecker.checkDir(localFS, new Path(uri));
         locations.add(location);
       } catch (IOException ioe) {
-        LOG.warn("Invalid " + DFS_DATANODE_DATA_DIR_KEY + " "
-            + location.getFile() + " : ", ioe);
+        LOG.warn("Invalid " + DFS_DATANODE_DATA_DIR_KEY + " uri = "
+            + uri  + " : ", ioe);
         invalidDirs.append("\"").append(uri.getPath()).append("\" ");
       }
     }

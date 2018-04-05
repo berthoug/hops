@@ -339,7 +339,7 @@ public class BlockManager {
 
     blockTokenSecretManager = createBlockTokenSecretManager(conf);
 
-    providedStorageMap = new ProvidedStorageMap(namesystem, this, conf);
+    providedStorageMap = new ProvidedStorageMap(this, conf); // TODO: GABRIEL - was called with namesystem as RwLock, investigate if needed
 
     this.maxCorruptFilesReturned =
         conf.getInt(DFSConfigKeys.DFS_DEFAULT_MAX_CORRUPT_FILES_RETURNED_KEY,
@@ -1000,10 +1000,10 @@ public class BlockManager {
   /**
    * Create a LocatedBlocks.
    */
-  public LocatedBlocks createLoccatedBlocks(final BlockInfo[] blocks,
-      final long fileSizeExcludeBlocksUnderConstruction,
-      final boolean isFileUnderConstruction, final long offset,
-      final long length, final boolean needBlockToken)
+  public LocatedBlocks createLocatedBlocks(final BlockInfo[] blocks,
+                                           final long fileSizeExcludeBlocksUnderConstruction,
+                                           final boolean isFileUnderConstruction, final long offset,
+                                           final long length, final boolean needBlockToken)
       throws IOException, StorageException {
     if (blocks == null) {
       return null;

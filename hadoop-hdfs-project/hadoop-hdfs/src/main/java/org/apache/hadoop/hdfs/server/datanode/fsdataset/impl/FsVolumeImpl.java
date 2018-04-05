@@ -306,10 +306,10 @@ public class FsVolumeImpl implements FsVolumeSpi {
   /**
    * Use {@link FsVolumeImpl#getBaseURI()} instead. Kept for backwards compatibility for now.
    */
-  @Deprecated
-  public String getPath(String bpid) throws IOException { // TODO: GABRIEL - check and remove usage
-    return getBlockPoolSlice(bpid).getDirectory().getAbsolutePath();
-  }
+ // @Deprecated
+ // public String getPath(String bpid) throws IOException {
+ //   return getBlockPoolSlice(bpid).getDirectory().getAbsolutePath();
+ // }
 
   @VisibleForTesting
   public File getFinalizedDir(String bpid) throws IOException {

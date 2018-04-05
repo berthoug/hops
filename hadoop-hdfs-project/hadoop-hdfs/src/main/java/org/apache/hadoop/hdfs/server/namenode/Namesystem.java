@@ -19,7 +19,6 @@ package org.apache.hadoop.hdfs.server.namenode;
 
 import io.hops.exception.StorageException;
 import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.hdfs.util.RwLock;
 import org.apache.hadoop.security.AccessControlException;
 
 import java.io.IOException;
@@ -29,7 +28,7 @@ import java.util.Set;
  * Namesystem operations.
  */
 @InterfaceAudience.Private
-public interface Namesystem extends RwLock, SafeMode { // TODO: GABRIEL -  do we need RwLock?
+public interface Namesystem extends SafeMode { // TODO: GABRIEL -  do we need RwLock?
   /**
    * Is this name system running?
    */
