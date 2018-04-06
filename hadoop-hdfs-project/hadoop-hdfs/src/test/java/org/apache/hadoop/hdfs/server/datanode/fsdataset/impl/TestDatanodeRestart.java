@@ -27,10 +27,7 @@ import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
-import org.apache.hadoop.hdfs.server.datanode.DataNode;
-import org.apache.hadoop.hdfs.server.datanode.DataNodeTestUtils;
-import org.apache.hadoop.hdfs.server.datanode.DatanodeUtil;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaInfo;
+import org.apache.hadoop.hdfs.server.datanode.*;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.io.IOUtils;
 import org.junit.Assert;
@@ -196,9 +193,9 @@ public class TestDatanodeRestart {
       boolean changeBlockFile, boolean isRename) throws IOException {
     File src;
     if (changeBlockFile) {
-      src = replicaInfo.getBlockFile();
+      src = ((LocalReplica)replicaInfo).getBlockFile();
     } else {
-      src = replicaInfo.getMetaFile();
+      src = ((LocalReplica)replicaInfo).getMetaFile();
     }
     File dst = DatanodeUtil.getUnlinkTmpFile(src);
     if (isRename) {

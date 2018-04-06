@@ -777,7 +777,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
       s.getVolumeMap(volumeMap);
     }
   }
-  
+
   void getVolumeMap(String bpid, ReplicaMap volumeMap) throws IOException {
     getBlockPoolSlice(bpid).getVolumeMap(volumeMap);
   }

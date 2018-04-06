@@ -179,6 +179,10 @@ class HeartbeatManager implements DatanodeStatistics {
   public synchronized int getExpiredHeartbeats() {
     return stats.expiredHeartbeats;
   }
+  @Override
+  public long getProvidedCapacity() {
+    return blockManager.getProvidedCapacity();
+  }
 
   synchronized void register(final DatanodeDescriptor d) {
     if (!datanodes.contains(d)) {
@@ -197,14 +201,14 @@ class HeartbeatManager implements DatanodeStatistics {
     // update in-service node count
     stats.add(d);
     datanodes.add(d);
-    d.isAlive = true;
+    d.setAlive(true);
   }
 
   synchronized void removeDatanode(DatanodeDescriptor node) {
-    if (node.isAlive) {
+    if (node.isAlive()) {
       stats.subtract(node);
       datanodes.remove(node);
-      node.isAlive = false;
+      node.setAlive(false);
     }
   }
 

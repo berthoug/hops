@@ -73,7 +73,7 @@ public class TestDeadDatanode {
     while (Time.now() < stopTime) {
       final DatanodeDescriptor dd =
           BlockManagerTestUtil.getDatanode(namesystem, nodeID);
-      if (dd.isAlive == alive) {
+      if (dd.isAlive() == alive) {
         LOG.info("datanode " + nodeID + " is " + state);
         return;
       }

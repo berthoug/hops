@@ -533,7 +533,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
         if (!hasStorageType(type) && parent != null) {
           // we are about to add a type this node currently does not have,
           // inform the parent that a new type is added to this datanode
-          parent.childAddStorage(getName(), type);
+          parent.childAddStorage(getName(), type); // TODO: GABRIEL - do we need to add a child?
         }*/
         storageMap.put(s.getStorageID(), s);
       } else {

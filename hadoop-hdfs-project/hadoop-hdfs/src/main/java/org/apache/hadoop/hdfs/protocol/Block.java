@@ -17,6 +17,8 @@
  */
 package org.apache.hadoop.hdfs.protocol;
 
+import io.hops.exception.StorageException;
+import io.hops.exception.TransactionContextException;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.hdfs.server.common.GenerationStamp;
@@ -138,7 +140,7 @@ public class Block implements Writable, Comparable<Block> {
     return numBytes;
   }
 
-  public void setNumBytes(long len) {
+  public void setNumBytes(long len) throws StorageException, TransactionContextException {
     this.numBytes = len;
   }
 

@@ -59,8 +59,8 @@ public class DataBlockScanner implements Runnable {
       new TreeMap<>();
   Thread blockScannerThread = null;
   
-  DataBlockScanner(DataNode datanode,
-      FsDatasetSpi<? extends FsVolumeSpi> dataset, Configuration conf) {
+  public DataBlockScanner(DataNode datanode,
+                          FsDatasetSpi<? extends FsVolumeSpi> dataset, Configuration conf) {
     this.datanode = datanode;
     this.dataset = dataset;
     this.conf = conf;

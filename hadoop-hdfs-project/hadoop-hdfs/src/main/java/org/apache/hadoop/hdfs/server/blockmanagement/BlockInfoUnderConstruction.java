@@ -18,8 +18,6 @@ package org.apache.hadoop.hdfs.server.blockmanagement;
 
 import io.hops.exception.StorageException;
 import io.hops.exception.TransactionContextException;
-import io.hops.metadata.HdfsStorageFactory;
-import io.hops.metadata.hdfs.dal.ReplicaUnderConstructionDataAccess;
 import io.hops.transaction.EntityManager;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
@@ -30,7 +28,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -192,7 +189,7 @@ public class BlockInfoUnderConstruction extends BlockInfo {
       ReplicaUnderConstruction replica = replicas.get(j);
       DatanodeDescriptor primary =
           datanodeMgr.getDatanodeBySid(replica.getStorageId());
-      if (primary.isAlive) {
+      if (primary.isAlive()) {
         primaryNodeIndex = j;
         primary.addBlockToBeRecovered(this);
         NameNode.blockStateChangeLog

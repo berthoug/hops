@@ -150,7 +150,7 @@ public class TestDataStorage {
     assertEquals(numLocations, storage.getNumStorageDirs());
 
     locations = createStorageLocations(numLocations);
-    List<StorageDirectory> addedLocation =
+    List<StorageLocation> addedLocation =
         storage.addStorageLocations(mockDN, namespaceInfos.get(0),
             locations, START_OPT);
     assertTrue(addedLocation.isEmpty());

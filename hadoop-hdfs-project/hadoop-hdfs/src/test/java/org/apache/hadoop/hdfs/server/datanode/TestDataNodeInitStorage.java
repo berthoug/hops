@@ -26,6 +26,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
+import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.junit.Test;
 
@@ -41,6 +43,12 @@ public class TestDataNodeInitStorage {
   public static final Log LOG = LogFactory.getLog(TestDataNodeInitStorage.class);
 
   static private class SimulatedFsDatasetVerifier extends SimulatedFSDataset {
+
+    @Override
+    public void checkBlock(ExtendedBlock b, long minLength, HdfsServerConstants.ReplicaState state) throws ReplicaNotFoundException, FileNotFoundException, EOFException, IOException {
+
+    }
+
     static class Factory extends FsDatasetSpi.Factory<SimulatedFSDataset> {
       @Override
       public SimulatedFsDatasetVerifier newInstance(

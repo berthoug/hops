@@ -80,7 +80,6 @@ import org.apache.hadoop.util.*;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.util.DiskChecker.DiskOutOfSpaceException;
 import org.mortbay.util.ajax.JSON;
-import org.slf4j.Logger;
 
 import java.io.*;
 import java.net.*;

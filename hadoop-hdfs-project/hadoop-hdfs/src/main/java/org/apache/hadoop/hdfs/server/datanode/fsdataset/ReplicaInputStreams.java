@@ -17,11 +17,11 @@
  */
 package org.apache.hadoop.hdfs.server.datanode.fsdataset;
 
+import org.apache.commons.logging.Log;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.datanode.FileIoProvider;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsVolumeImpl;
 import org.apache.hadoop.io.IOUtils;
-import org.slf4j.Logger;
 
 import java.io.*;
 
@@ -29,7 +29,7 @@ import java.io.*;
  * Contains the input streams for the data and checksum of a replica.
  */
 public class ReplicaInputStreams implements Closeable {
-  public static final Logger LOG = DataNode.LOG;
+  public static final Log LOG = DataNode.LOG;
 
   private InputStream dataIn;
   private InputStream checksumIn;

@@ -18,7 +18,7 @@
 package org.apache.hadoop.hdfs.server.blockmanagement;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
@@ -54,7 +54,7 @@ public class TestProvidedStorageMap {
             providedStorageID);
     conf.setBoolean(DFSConfigKeys.DFS_NAMENODE_PROVIDED_ENABLED, true);
     conf.setClass(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_CLASS,
-        TestProvidedImpl.TestFileRegionBlockAliasMap.class,
+        TestProvidedImpl.TestFileRegionBlockAliasMap.class, // TODO: GABRIEL - do we need to add a child?
         BlockAliasMap.class);
     blockPoolID = "BP-12344-10.1.1.2-12344";
     bm = mock(BlockManager.class);
@@ -87,7 +87,7 @@ public class TestProvidedStorageMap {
     DatanodeStorage dn1DiskStorage = new DatanodeStorage(
         "sid-1", DatanodeStorage.State.NORMAL, StorageType.DISK);
 
-    when(nameSystemLock.hasWriteLock()).thenReturn(true);
+ //   when(nameSystemLock.hasWriteLock()).thenReturn(true);
     DatanodeStorageInfo dns1Provided =
         providedMap.getStorage(dn1, dn1ProvidedStorage);
     DatanodeStorageInfo dns1Disk = providedMap.getStorage(dn1, dn1DiskStorage);

@@ -219,11 +219,11 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
       <groupId>org.apache.ant</groupId>
       <artifactId>ant</artifactId>
     </dependency>
-    <!--  <dependency>
-        <groupId>org.assertj</groupId>
-        <artifactId>assertj-core</artifactId>
-        <scope>test</scope>
-      </dependency>-->
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

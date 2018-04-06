@@ -111,6 +111,11 @@ public class LocatedBlock {
     this(b, convert(locs, storageIDs, storageTypes), storageIDs, storageTypes, -1, false, EMPTY_LOCS); // startOffset is unknown
   }
 
+  public LocatedBlock(ExtendedBlock b, DatanodeInfo[] locs, String[] storageIDs,
+                      StorageType[] storageTypes, long offset, boolean corrupt) {
+    this(b, convert(locs, storageIDs, storageTypes), storageIDs, storageTypes, -offset, corrupt, EMPTY_LOCS);
+  }
+
   public LocatedBlock(ExtendedBlock b, DatanodeStorageInfo[] storages, long startOffset, boolean corrupt) {
     this(b, convert(DatanodeStorageInfo.toDatanodeInfos(storages), null, null),
         DatanodeStorageInfo.toStorageIDs(storages),

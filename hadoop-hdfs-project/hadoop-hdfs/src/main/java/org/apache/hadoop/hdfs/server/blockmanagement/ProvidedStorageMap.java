@@ -25,12 +25,15 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
+import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.*;
 import org.apache.hadoop.hdfs.server.common.BlockAlias;
 import org.apache.hadoop.hdfs.server.common.blockaliasmap.BlockAliasMap;
 import org.apache.hadoop.hdfs.server.common.blockaliasmap.impl.TextFileRegionAliasMap;
 import org.apache.hadoop.hdfs.server.protocol.BlockReport;
+import org.apache.hadoop.hdfs.server.protocol.BlockReportBlock;
+import org.apache.hadoop.hdfs.server.protocol.BlockReportBucket;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage.State;
 import org.apache.hadoop.hdfs.util.RwLock;
@@ -148,7 +151,7 @@ public class ProvidedStorageMap {
           aliasMap.getReader(null, bm.getBlockPoolId());
       if (reader != null) {
         bm.processReport(providedStorageInfo,
-                BlockReport.builder(DFSConfigKeys.DFS_NUM_BUCKETS_DEFAULT).addAllAsFinalized(reader.iterator()).build());
+                BlockReport.builder(DFSConfigKeys.DFS_NUM_BUCKETS_DEFAULT).addAllAsFinalized(reader.iterator()).build()); // TODO: GABRIEL - test. Using hops block report code
       }
     }
   }
@@ -314,13 +317,13 @@ public class ProvidedStorageMap {
     ProvidedDescriptor() throws IOException {
       super(new StorageMap(true), // TODO: create new storagemap ?
             new DatanodeID(
-            null,                            // String ipAddr,
-            null,                        // String hostName,
-            UUID.randomUUID().toString(),        // String datanodeUuid,
-            0,                          // int xferPort,
-            0,                         // int infoPort,
-     //       0,                              // int infoSecurePort,
-            0));                      // int ipcPort
+            null,
+            null,
+            UUID.randomUUID().toString(),
+            0,
+            0,
+     //       0,
+            0));
     }
 
     DatanodeStorageInfo getProvidedStorage(
@@ -493,16 +496,17 @@ public class ProvidedStorageMap {
   /**
    * Used to emulate block reports for provided blocks.
    */
-  // TODO: GABRIEL - do we need ProvidedBlockList, probabaly yes, fix interfaces
-  /*static class ProvidedBlockList extends BlockReport {
+  static class ProvidedBlockList extends BlockReport {
 
-    Builder builder = new Builder(conf.getInt(DFSConfigKeys.DFS_NUM_BUCKETS_KEY,
-            DFSConfigKeys.DFS_NUM_BUCKETS_DEFAULT));
+    HdfsConfiguration conf = new HdfsConfiguration();
+
+    Builder builder = builder(conf.getInt(DFSConfigKeys.DFS_NUM_BUCKETS_KEY,
+            DFSConfigKeys.DFS_NUM_BUCKETS_DEFAULT)); // TODO: GABRIEL - test
 
     private final Iterator<BlockReportBlock> inner = iterator();
 
-    ProvidedBlockList() {
-      super(); /
+    public ProvidedBlockList(BlockReportBucket[] buckets, long[] hashes, int numBlocks) {
+      super(buckets, hashes, numBlocks);
     }
 
     @Override
@@ -520,24 +524,5 @@ public class ProvidedStorageMap {
         }
       };
     }
-
-   @Override
-    public int getNumberOfBlocks() {
-      // is ignored for ProvidedBlockList.
-      return -1;
-    }
-
-    @Override
-    public ByteString getBlocksBuffer() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public long[] getBlockListAsLongs() {
-      // should only be used for backwards compat, DN.ver > NN.ver
-      throw new UnsupportedOperationException();
-    }
-
   }
-  */
 }

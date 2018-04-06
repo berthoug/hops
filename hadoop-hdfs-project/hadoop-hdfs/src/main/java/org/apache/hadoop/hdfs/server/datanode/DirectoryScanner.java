@@ -151,7 +151,7 @@ public class DirectoryScanner implements Runnable {
   }
 
 
-  DirectoryScanner(FsDatasetSpi<?> dataset, Configuration conf) {
+  public DirectoryScanner(FsDatasetSpi<?> dataset, Configuration conf) {
     this.dataset = dataset;
     int interval =
         conf.getInt(DFSConfigKeys.DFS_DATANODE_DIRECTORYSCAN_INTERVAL_KEY,
@@ -391,7 +391,7 @@ public class DirectoryScanner implements Runnable {
   /**
    * Get lists of blocks on the disk sorted by blockId, per blockpool
    */
-  private Map<String, ScanInfo[]> getDiskReport() {
+  public Map<String, ScanInfo[]> getDiskReport() {
     // First get list of data directories
     final List<? extends FsVolumeSpi> volumes = dataset.getVolumes();
 

@@ -51,7 +51,7 @@ import org.apache.hadoop.fs.FileSystemTestHelper;
 import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathHandle;
-import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -61,21 +61,10 @@ import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.server.common.FileRegion;
 import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.common.blockaliasmap.BlockAliasMap;
-import org.apache.hadoop.hdfs.server.datanode.BlockScanner;
-import org.apache.hadoop.hdfs.server.datanode.DNConf;
-import org.apache.hadoop.hdfs.server.datanode.DataNode;
-import org.apache.hadoop.hdfs.server.datanode.DataStorage;
-import org.apache.hadoop.hdfs.server.datanode.DirectoryScanner;
-import org.apache.hadoop.hdfs.server.datanode.FinalizedProvidedReplica;
-import org.apache.hadoop.hdfs.server.datanode.ProvidedReplica;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaInfo;
-import org.apache.hadoop.hdfs.server.datanode.ShortCircuitRegistry;
-import org.apache.hadoop.hdfs.server.datanode.StorageLocation;
-import org.apache.hadoop.hdfs.server.datanode.TestProvidedReplicaImpl;
+import org.apache.hadoop.hdfs.server.datanode.*;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi.BlockIterator;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi.FsVolumeReferences;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.AutoCloseableLock;
 import org.apache.hadoop.util.StringUtils;
@@ -302,12 +291,7 @@ public class TestProvidedImpl {
   }
 
   private int getNumVolumes() {
-    try (FsDatasetSpi.FsVolumeReferences volumes =
-        dataset.getFsVolumeReferences()) {
-      return volumes.size();
-    } catch (IOException e) {
-      return 0;
-    }
+      return dataset.getVolumes().size(); // if error from VolumeRef , should return 0
   }
 
   @Before
@@ -318,16 +302,13 @@ public class TestProvidedImpl {
     conf.setLong(DFS_DATANODE_SCAN_PERIOD_HOURS_KEY, 0);
 
     when(datanode.getConf()).thenReturn(conf);
-    final DNConf dnConf = new DNConf(datanode);
+    final DNConf dnConf = new DNConf(conf);
     when(datanode.getDnConf()).thenReturn(dnConf);
     // reset the space used
     spaceUsed = 0;
 
-    final BlockScanner disabledBlockScanner = new BlockScanner(datanode, conf);
+    final DataBlockScanner disabledBlockScanner = new DataBlockScanner(datanode, dataset, conf);
     when(datanode.getBlockScanner()).thenReturn(disabledBlockScanner);
-    final ShortCircuitRegistry shortCircuitRegistry =
-        new ShortCircuitRegistry(conf);
-    when(datanode.getShortCircuitRegistry()).thenReturn(shortCircuitRegistry);
 
     this.conf.setClass(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_CLASS,
         TestFileRegionBlockAliasMap.class, BlockAliasMap.class);
@@ -339,7 +320,7 @@ public class TestProvidedImpl {
         storage, conf, NUM_LOCAL_INIT_VOLUMES, NUM_PROVIDED_INIT_VOLUMES);
 
     dataset = new FsDatasetImpl(datanode, storage, conf);
-    FsVolumeReferences volumes = dataset.getFsVolumeReferences();
+    List<FsVolumeImpl> volumes = dataset.getVolumes();
     for (int i = 0; i < volumes.size(); i++) {
       FsVolumeSpi vol = volumes.get(i);
       if (vol.getStorageType() == StorageType.PROVIDED) {
@@ -374,7 +355,7 @@ public class TestProvidedImpl {
       assertEquals(NUM_PROVIDED_BLKS, providedVolumes.get(i).getNumBlocks());
 
       providedVolumes.get(i).shutdownBlockPool(
-          BLOCK_POOL_IDS[1 - CHOSEN_BP_ID], null);
+          BLOCK_POOL_IDS[1 - CHOSEN_BP_ID]);
       try {
         assertEquals(0, providedVolumes.get(i)
             .getBlockPoolUsed(BLOCK_POOL_IDS[1 - CHOSEN_BP_ID]));
@@ -392,7 +373,7 @@ public class TestProvidedImpl {
     for (int i = 0; i < providedVolumes.size(); i++) {
       FsVolumeImpl vol = providedVolumes.get(i);
       ReplicaMap volumeMap = new ReplicaMap(new AutoCloseableLock());
-      vol.getVolumeMap(volumeMap, null);
+      vol.getVolumeMap(volumeMap);
 
       assertEquals(vol.getBlockPoolList().length, BLOCK_POOL_IDS.length);
       for (int j = 0; j < BLOCK_POOL_IDS.length; j++) {
@@ -578,7 +559,7 @@ public class TestProvidedImpl {
     for (int i = 0; i < providedVolumes.size(); i++) {
       FsVolumeImpl vol = providedVolumes.get(i);
       ReplicaMap volumeMap = new ReplicaMap(new AutoCloseableLock());
-      vol.getVolumeMap(volumeMap, null);
+      vol.getVolumeMap(volumeMap);
 
       Path expectedPrefix = new Path(
           StorageLocation.normalizeFileURI(new File(providedBasePath).toURI()));
@@ -592,7 +573,7 @@ public class TestProvidedImpl {
 
   @Test
   public void testScannerWithProvidedVolumes() throws Exception {
-    DirectoryScanner scanner = new DirectoryScanner(datanode, dataset, conf);
+    DirectoryScanner scanner = new DirectoryScanner(dataset, conf);
     Map<String, FsVolumeSpi.ScanInfo[]> report = scanner.getDiskReport();
     // no blocks should be reported for the Provided volume as long as
     // the directoryScanner is disabled.

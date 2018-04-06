@@ -21,16 +21,7 @@ import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
-import org.apache.hadoop.hdfs.server.datanode.DataNode;
-import org.apache.hadoop.hdfs.server.datanode.DataNodeTestUtils;
-import org.apache.hadoop.hdfs.server.datanode.FinalizedReplica;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaAlreadyExistsException;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaBeingWritten;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaInPipeline;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaInfo;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaNotFoundException;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaUnderRecovery;
-import org.apache.hadoop.hdfs.server.datanode.ReplicaWaitingToBeRecovered;
+import org.apache.hadoop.hdfs.server.datanode.*;
 import org.apache.hadoop.util.DiskChecker.DiskOutOfSpaceException;
 import org.junit.Assert;
 import org.junit.Test;
@@ -168,10 +159,11 @@ public class TestWriteToReplica {
         new FinalizedReplica(blocks[FINALIZED].getLocalBlock(), vol,
             vol.getCurrentDir().getParentFile());
     replicasMap.add(bpid, replicaInfo);
-    replicaInfo.getBlockFile().createNewFile();
-    replicaInfo.getMetaFile().createNewFile();
+    ((LocalReplica)replicaInfo).getBlockFile().createNewFile();
+    ((LocalReplica)replicaInfo).getMetaFile().createNewFile();
 
-    replicasMap.add(bpid, new ReplicaInPipeline(blocks[TEMPORARY].getBlockId(),
+    // TODO: test. Was ReplicaInPipeline, now LocalReplicaInPipeline
+    replicasMap.add(bpid, new LocalReplicaInPipeline(blocks[TEMPORARY].getBlockId(),
         blocks[TEMPORARY].getGenerationStamp(), vol,
         vol.createTmpFile(bpid, blocks[TEMPORARY].getLocalBlock()).getParentFile()));
 
@@ -179,8 +171,8 @@ public class TestWriteToReplica {
         vol.createRbwFile(bpid, blocks[RBW].getLocalBlock()).getParentFile(),
         null);
     replicasMap.add(bpid, replicaInfo);
-    replicaInfo.getBlockFile().createNewFile();
-    replicaInfo.getMetaFile().createNewFile();
+    ((LocalReplica)replicaInfo).getBlockFile().createNewFile();
+    ((LocalReplica)replicaInfo).getMetaFile().createNewFile();
 
     replicasMap.add(bpid,
         new ReplicaWaitingToBeRecovered(blocks[RWR].getLocalBlock(), vol,
