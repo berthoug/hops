@@ -746,7 +746,7 @@ public class TestBlockManager {
 
     node.setDatanodeUuidForTesting(ds.getStorageID());
 
-    node.isAlive = true;
+    node.setAlive(true);
 
     DatanodeRegistration nodeReg =
         new DatanodeRegistration(node, null, null, "");
@@ -793,7 +793,7 @@ public class TestBlockManager {
 
     node.setDatanodeUuidForTesting(ds.getStorageID());
 
-    node.isAlive = true;
+    node.setAlive(true);
 
     DatanodeRegistration nodeReg =
         new DatanodeRegistration(node, null, null, "");

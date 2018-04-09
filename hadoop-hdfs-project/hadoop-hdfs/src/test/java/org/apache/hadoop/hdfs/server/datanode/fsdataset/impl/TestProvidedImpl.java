@@ -78,7 +78,7 @@ import org.slf4j.LoggerFactory;
  */
 public class TestProvidedImpl {
   private static final Logger LOG =
-      LoggerFactory.getLogger(TestFsDatasetImpl.class);
+      LoggerFactory.getLogger(TestProvidedImpl.class);
   private static final String BASE_DIR =
       new FileSystemTestHelper().getTestRootDir();
   private static final int NUM_LOCAL_INIT_VOLUMES = 1;
@@ -97,7 +97,7 @@ public class TestProvidedImpl {
   private DataStorage storage;
   private FsDatasetImpl dataset;
   private static Map<Long, String> blkToPathMap;
-  private static List<FsVolumeImpl> providedVolumes;
+  private static List<FsVolumeImpl>   providedVolumes;
   private static long spaceUsed = 0;
 
   /**

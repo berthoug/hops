@@ -37,11 +37,9 @@ import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.ReplicaRecoveryInfo;
 import org.apache.hadoop.hdfs.server.protocol.StorageReport;
 import org.apache.hadoop.io.IOUtils;
-import org.apache.hadoop.io.nativeio.NativeIO;
 import org.apache.hadoop.metrics2.util.MBeans;
 import org.apache.hadoop.util.DataChecksum;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
-import org.apache.hadoop.util.DiskChecker.DiskOutOfSpaceException;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.Time;
 
@@ -64,6 +62,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @InterfaceAudience.Private
 class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   static final Log LOG = LogFactory.getLog(FsDatasetImpl.class);
+  private static long XCEIVER_STOP_TIMEOUT;
   private final int NUM_BUCKETS;
 
   @Override // FsDatasetSpi
@@ -214,6 +213,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     registerMBean(datanode.getDatanodeUuid());
     NUM_BUCKETS = conf.getInt(DFSConfigKeys.DFS_NUM_BUCKETS_KEY,
         DFSConfigKeys.DFS_NUM_BUCKETS_DEFAULT);
+    XCEIVER_STOP_TIMEOUT = datanode.getDnConf().getXceiverStopTimeout();
   }
 
   private void addVolume(Collection<StorageLocation> dataLocations,
@@ -393,7 +393,8 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
    *     if no entry is in the map or
    *     there is a generation stamp mismatch
    */
-  private ReplicaInfo getReplicaInfo(String bpid, long blkid)
+
+  ReplicaInfo getReplicaInfo(String bpid, long blkid)
       throws ReplicaNotFoundException {
     ReplicaInfo info = volumeMap.get(bpid, blkid);
     if (info == null) {
@@ -1555,7 +1556,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   /**
    * static version of {@link #initReplicaRecovery(RecoveringBlock)}.
    */
-  ReplicaRecoveryInfo initReplicaRecovery(String bpid, ReplicaMap map,
+  static ReplicaRecoveryInfo initReplicaRecovery(String bpid, ReplicaMap map,
                                           Block block, long recoveryId) throws IOException {
     final ReplicaInfo replica = map.get(bpid, block.getBlockId());
     LOG.info("initReplicaRecovery: " + block + ", recoveryId=" + recoveryId +
@@ -1569,7 +1570,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     //stop writer if there is any
     if (replica instanceof ReplicaInPipeline) {
       final ReplicaInPipeline rip = (ReplicaInPipeline) replica;
-      rip.stopWriter(datanode.getDnConf().getXceiverStopTimeout());
+      rip.stopWriter(XCEIVER_STOP_TIMEOUT);
 
       //check replica bytes on disk.
       if (rip.getBytesOnDisk() < rip.getVisibleLength()) {

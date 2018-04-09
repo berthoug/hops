@@ -160,15 +160,6 @@ public class DataNodeTestUtils {
       throws IOException {
     return FsDatasetTestUtil.getMetaFile(dn.getFSDataset(), bpid, b);
   }
-  
-  public static boolean unlinkBlock(DataNode dn, ExtendedBlock bk, int numLinks)
-      throws IOException {
-    return FsDatasetTestUtil.unlinkBlock(dn.getFSDataset(), bk, numLinks);
-  }
-
-  public static long getPendingAsyncDeletions(DataNode dn) {
-    return FsDatasetTestUtil.getPendingAsyncDeletions(dn.getFSDataset());
-  }
 
   /**
    * Fetch a copy of ReplicaInfo from a datanode by block id

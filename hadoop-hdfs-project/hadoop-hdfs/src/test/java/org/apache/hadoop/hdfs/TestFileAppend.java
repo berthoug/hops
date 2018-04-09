@@ -29,6 +29,7 @@ import org.apache.hadoop.hdfs.server.datanode.ReplicaBeingWritten;
 import org.apache.hadoop.hdfs.server.datanode.SimulatedFSDataset;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.ReplicaOutputStreams;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetTestUtil;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetUtil;
 import org.apache.hadoop.ipc.RemoteException;
 import org.junit.Assert;
@@ -139,17 +140,18 @@ public class TestFileAppend {
       assertTrue("There should be only one datanode but found " + dn.length,
           dn.length == 1);
 
-      LocatedBlocks locations = client.getNamenode()
-          .getBlockLocations(file1.toString(), 0, Long.MAX_VALUE);
+      LocatedBlocks locations = client.getNamenode().getBlockLocations(
+                                  file1.toString(), 0, Long.MAX_VALUE);
       List<LocatedBlock> blocks = locations.getLocatedBlocks();
+      final FsDatasetSpi<?> fsd = dn[0].getFSDataset();
 
       //
       // Create hard links for a few of the blocks
       //
       for (int i = 0; i < blocks.size(); i = i + 2) {
         ExtendedBlock b = blocks.get(i).getBlock();
-        final File f = DataNodeTestUtils
-            .getFile(dn[0], b.getBlockPoolId(), b.getLocalBlock().getBlockId());
+        final File f = FsDatasetTestUtil.getBlockFile(
+            fsd, b.getBlockPoolId(), b.getLocalBlock());
         File link = new File(f.toString() + ".link");
         System.out.println("Creating hardlink for File " + f + " to " + link);
         HardLink.createHardLink(f, link);
@@ -157,25 +159,25 @@ public class TestFileAppend {
 
       //
       // Detach all blocks. This should remove hardlinks (if any)
-      //
-      for (LocatedBlock block1 : blocks) {
-        ExtendedBlock b = block1.getBlock();
-        System.out.println("testCopyOnWrite detaching block " + b);
-        assertTrue("Detaching block " + b + " should have returned true",
-            DataNodeTestUtils.unlinkBlock(dn[0], b, 1));
+      for (int i = 0; i < blocks.size(); i++) {
+        ExtendedBlock b = blocks.get(i).getBlock();
+        System.out.println("breakHardlinksIfNeeded detaching block " + b);
+        assertTrue("breakHardlinksIfNeeded(" + b + ") should have returned true",
+            FsDatasetTestUtil.breakHardlinksIfNeeded(fsd, b));
       }
 
       // Since the blocks were already detached earlier, these calls should
       // return false
-      //
-      for (LocatedBlock block : blocks) {
-        ExtendedBlock b = block.getBlock();
-        System.out.println("testCopyOnWrite detaching block " + b);
-        assertTrue("Detaching block " + b + " should have returned false",
-            !DataNodeTestUtils.unlinkBlock(dn[0], b, 1));
+      for (int i = 0; i < blocks.size(); i++) {
+        ExtendedBlock b = blocks.get(i).getBlock();
+        System.out.println("breakHardlinksIfNeeded re-attempting to " +
+                "detach block " + b);
+        assertTrue("breakHardlinksIfNeeded(" + b + ") should have returned false",
+                FsDatasetTestUtil.breakHardlinksIfNeeded(fsd, b));
       }
 
     } finally {
+      client.close();
       fs.close();
       cluster.shutdown();
     }

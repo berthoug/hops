@@ -38,6 +38,7 @@
     <module>hadoop-rumen</module>
     <module>hadoop-gridmix</module>
     <module>hadoop-datajoin</module>
+    <!--<module>hadoop-fs2img</module>-->
     <module>hadoop-ant</module>
     <module>hadoop-tools-dist</module>
     <module>hadoop-extras</module>

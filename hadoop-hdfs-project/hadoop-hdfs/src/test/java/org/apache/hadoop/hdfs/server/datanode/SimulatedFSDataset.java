@@ -17,6 +17,8 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
+import io.hops.exception.StorageException;
+import io.hops.exception.TransactionContextException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.DF;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -36,11 +38,11 @@ import org.apache.hadoop.hdfs.server.protocol.StorageReport;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.metrics2.util.MBeans;
 import org.apache.hadoop.util.DataChecksum;
-import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -162,7 +164,11 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
       if (!finalized) {
         bytesRcvd = length;
       } else {
-        theBlock.setNumBytes(length);
+        try {
+          theBlock.setNumBytes(length);
+        } catch (StorageException | TransactionContextException e) {
+          e.printStackTrace();
+        }
       }
     }
     
@@ -647,6 +653,32 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
     return getBInfo(block) != null;
   }
 
+  /**
+   * Check if a block is valid.
+   *
+   * @param b           The block to check.
+   * @param minLength   The minimum length that the block must have.  May be 0.
+   * @param state       If this is null, it is ignored.  If it is non-null, we
+   *                        will check that the replica has this state.
+   *
+   * @throws ReplicaNotFoundException          If the replica is not found
+   *
+   * @throws UnexpectedReplicaStateException   If the replica is not in the
+   *                                             expected state.
+   */
+  @Override // {@link FsDatasetSpi}
+  public void checkBlock(ExtendedBlock b, long minLength, ReplicaState state)
+      throws ReplicaNotFoundException, UnexpectedReplicaStateException {
+    final BInfo binfo = getBInfo(b);
+
+    if (binfo == null) {
+      throw new ReplicaNotFoundException(b);
+    }
+    if ((state == ReplicaState.FINALIZED && !binfo.isFinalized()) ||
+        (state != ReplicaState.FINALIZED && binfo.isFinalized())) {
+      throw new UnexpectedReplicaStateException(b,state);
+    }
+  }
   @Override // FsDatasetSpi
   public synchronized boolean isValidBlock(ExtendedBlock b) {
     final BInfo binfo = getBInfo(b);
@@ -801,9 +833,9 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
   }
 
   @Override
-  public Set<StorageLocation> checkDataDir() {
+  public void checkDataDir() {
     // nothing to check for simulated data set
-    return null;
+    return ;
   }
 
   @Override // FsDatasetSpi
@@ -1119,6 +1151,11 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
 
     @Override
     public FsDatasetSpi getDataset() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public byte[] loadLastPartialChunkChecksum(File blockFile, File metaFile) throws IOException {
       throw new UnsupportedOperationException();
     }
 

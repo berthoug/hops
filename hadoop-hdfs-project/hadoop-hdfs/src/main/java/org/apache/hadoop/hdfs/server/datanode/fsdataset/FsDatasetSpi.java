@@ -351,7 +351,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
 
   // FsDatasetSpi
   void checkBlock(ExtendedBlock b, long minLength, HdfsServerConstants.ReplicaState state)
-          throws ReplicaNotFoundException, FileNotFoundException, EOFException, IOException;
+          throws ReplicaNotFoundException, FileNotFoundException, EOFException, IOException, UnexpectedReplicaStateException;
 
   /**
    * Is the block valid?

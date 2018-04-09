@@ -211,9 +211,9 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
       <version>1.8</version>
     </dependency>
       <dependency>
-          <groupId>org.apache.hadoop</groupId>
+          <groupId>io.hops</groupId>
           <artifactId>hadoop-common</artifactId>
-          <version>3.1.0-SNAPSHOT</version>
+          <version>${project.version}</version>
       </dependency>
     <dependency>
       <groupId>org.apache.ant</groupId>
@@ -223,6 +223,15 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.grizzly</groupId>
+      <artifactId>grizzly-framework</artifactId>
+      <version>2.1.2</version>
     </dependency>
   </dependencies>
 

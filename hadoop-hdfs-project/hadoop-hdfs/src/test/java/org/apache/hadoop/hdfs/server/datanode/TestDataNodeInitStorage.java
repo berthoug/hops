@@ -44,11 +44,6 @@ public class TestDataNodeInitStorage {
 
   static private class SimulatedFsDatasetVerifier extends SimulatedFSDataset {
 
-    @Override
-    public void checkBlock(ExtendedBlock b, long minLength, HdfsServerConstants.ReplicaState state) throws ReplicaNotFoundException, FileNotFoundException, EOFException, IOException {
-
-    }
-
     static class Factory extends FsDatasetSpi.Factory<SimulatedFSDataset> {
       @Override
       public SimulatedFsDatasetVerifier newInstance(
