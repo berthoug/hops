@@ -18,14 +18,15 @@
 
 package org.apache.hadoop.hdfs.server.datanode;
 
+import com.google.common.collect.Lists;
 import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.HardLink;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.protocol.LayoutVersion;
 import org.apache.hadoop.hdfs.protocol.LayoutVersion.Feature;
-import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.NodeType;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.StartupOption;
 import org.apache.hadoop.hdfs.server.common.InconsistentFSStateException;
@@ -36,10 +37,8 @@ import org.apache.hadoop.util.Daemon;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Properties;
+import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -84,83 +83,124 @@ public class BlockPoolSliceStorage extends Storage {
     super(NodeType.DATA_NODE);
   }
 
+
   /**
-   * Analyze storage directories. Recover from previous transitions if
+   * Analyze storage directories. Recover from previous transitions if required.
+   *
+   * The block pool storages are either all analyzed or none of them is loaded.
+   * Therefore, a failure on loading any block pool storage results a faulty
+   * data volume.
+   *
+   * @param nsInfo namespace information
+   * @param dataDirs storage directories of block pool
+   * @param startOpt startup option
+   * @throws IOException on error
+   */
+  List<StorageDirectory> recoverTransitionRead(NamespaceInfo nsInfo,
+                                               StorageLocation location, StartupOption startOpt, Configuration conf)
+          throws IOException {
+    LOG.info("Analyzing storage directories for bpid " + nsInfo.getBlockPoolID());
+    final List<StorageDirectory> loaded = loadBpStorageDirectories(
+            nsInfo, location, startOpt, conf);
+    for (StorageDirectory sd : loaded) {
+      addStorageDir(sd);
+    }
+    return loaded;
+  }
+
+  /**
+   * Load one storage directory. Recover from previous transitions if required.
+   *
+   * @param nsInfo namespace information
+   * @param dataDir the root path of the storage directory
+   * @param startOpt startup option
+   * @return the StorageDirectory successfully loaded.
+   * @throws IOException
+   */
+  private StorageDirectory loadStorageDirectory(NamespaceInfo nsInfo,
+                                                StorageLocation location, StartupOption startOpt, Configuration conf)
+          throws IOException {
+    StorageDirectory sd = new StorageDirectory(
+            nsInfo.getBlockPoolID(), null, true, location);
+    try {
+      StorageState curState = sd.analyzeStorage(startOpt, this, true);
+      // sd is locked but not opened
+      switch (curState) {
+        case NORMAL:
+          break;
+        case NON_EXISTENT:
+          LOG.info("Block pool storage directory for location " + location +
+                  " and block pool id " + nsInfo.getBlockPoolID() +
+                  " does not exist");
+          throw new IOException("Storage directory for location " + location +
+                  " and block pool id " + nsInfo.getBlockPoolID() +
+                  " does not exist");
+        case NOT_FORMATTED: // format
+          LOG.info("Block pool storage directory for location " + location +
+                  " and block pool id " + nsInfo.getBlockPoolID()
+                  + " is not formatted for " + nsInfo.getBlockPoolID()
+                  + ". Formatting ...");
+          format(sd, nsInfo);
+          break;
+        default:  // recovery part is common
+          sd.doRecover(curState);
+      }
+
+      // 2. Do transitions
+      // Each storage directory is treated individually.
+      // During startup some of them can upgrade or roll back
+      // while others could be up-to-date for the regular startup.
+      if (!doTransition(sd, nsInfo, startOpt, conf)) {
+
+        // 3. Check CTime and update successfully loaded storage.
+        if (getCTime() != nsInfo.getCTime()) {
+          throw new IOException("Datanode CTime (=" + getCTime()
+                  + ") is not equal to namenode CTime (=" + nsInfo.getCTime() + ")");
+        }
+        setServiceLayoutVersion(getServiceLayoutVersion());
+        writeProperties(sd);
+      }
+
+      return sd;
+    } catch (IOException ioe) {
+      sd.unlock();
+      throw ioe;
+    }
+  }
+
+  /**
+   * Analyze and load storage directories. Recover from previous transitions if
    * required.
    *
-   * @param datanode
-   *     Datanode to which this storage belongs to
-   * @param nsInfo
-   *     namespace information
-   * @param dataDirs
-   *     storage directories of block pool
-   * @param startOpt
-   *     startup option
-   * @throws IOException
-   *     on error
+   * The block pool storages are either all analyzed or none of them is loaded.
+   * Therefore, a failure on loading any block pool storage results a faulty
+   * data volume.
+   *
+   * @param nsInfo namespace information
+   * @param dataDirs storage directories of block pool
+   * @param startOpt startup option
+   * @return an array of loaded block pool directories.
+   * @throws IOException on error
    */
-  void recoverTransitionRead(DataNode datanode, NamespaceInfo nsInfo,
-                             Collection<File> dataDirs, StartupOption startOpt) throws IOException {
-    assert HdfsConstants.LAYOUT_VERSION == nsInfo
-            .getLayoutVersion() : "Block-pool and name-node layout versions must be the same.";
-
-    // 1. For each BP data directory analyze the state and
-    // check whether all is consistent before transitioning.
-    this.storageDirs = new ArrayList<>(dataDirs.size());
-    ArrayList<StorageState> dataDirStates =
-            new ArrayList<>(dataDirs.size());
-    for (Iterator<File> it = dataDirs.iterator(); it.hasNext(); ) {
-      File dataDir = it.next();
-      StorageDirectory sd = new StorageDirectory(dataDir, null, false);
-      StorageState curState;
-      try {
-        curState = sd.analyzeStorage(startOpt, this);
-        // sd is locked but not opened
-        switch (curState) {
-          case NORMAL:
-            break;
-          case NON_EXISTENT:
-            // ignore this storage
-            LOG.info("Storage directory " + dataDir + " does not exist.");
-            it.remove();
-            continue;
-          case NOT_FORMATTED: // format
-            LOG.info("Storage directory " + dataDir + " is not formatted.");
-            LOG.info("Formatting ...");
-            format(sd, nsInfo);
-            break;
-          default: // recovery part is common
-            sd.doRecover(curState);
-        }
-      } catch (IOException ioe) {
-        sd.unlock();
-        throw ioe;
+  List<StorageDirectory> loadBpStorageDirectories(NamespaceInfo nsInfo,
+      StorageLocation location, StartupOption startOpt, Configuration conf)
+          throws IOException {
+    List<StorageDirectory> succeedDirs = Lists.newArrayList();
+    try {
+      if (containsStorageDir(location, nsInfo.getBlockPoolID())) {
+        throw new IOException(
+            "BlockPoolSliceStorage.recoverTransitionRead: " +
+                "attempt to load an used block storage: " + location);
       }
-      // add to the storage list. This is inherited from parent class, Storage.
-      addStorageDir(sd);
-      dataDirStates.add(curState);
+      final StorageDirectory sd = loadStorageDirectory(
+          nsInfo, location, startOpt, conf);
+      succeedDirs.add(sd);
+    } catch (IOException e) {
+      LOG.warn("Failed to analyze storage directories for block pool "
+          + nsInfo.getBlockPoolID(), e);
+      throw e;
     }
-
-    if (dataDirs.size() == 0) // none of the data dirs exist
-    {
-      throw new IOException(
-              "All specified directories are not accessible or do not exist.");
-    }
-
-    // 2. Do transitions
-    // Each storage directory is treated individually.
-    // During startup some of them can upgrade or roll back
-    // while others could be up-to-date for the regular startup.
-    for (int idx = 0; idx < getNumStorageDirs(); idx++) {
-      doTransition(datanode, getStorageDir(idx), nsInfo, startOpt);
-      assert getLayoutVersion() == nsInfo
-              .getLayoutVersion() : "Data-node and name-node layout versions must be the same.";
-      assert getCTime() == nsInfo
-              .getCTime() : "Data-node and name-node CTimes must be the same.";
-    }
-
-    // 3. Update all storages. Some of them might have just been formatted.
-    this.writeAll();
+    return succeedDirs;
   }
 
   /**
@@ -259,11 +299,12 @@ public class BlockPoolSliceStorage extends Storage {
    *     startup option
    * @throws IOException
    */
-  private void doTransition(DataNode dn, StorageDirectory sd, NamespaceInfo
-          nsInfo,
-                            StartupOption startOpt) throws IOException {
-    if (sd.getStorageLocation().getStorageType() == StorageType.PROVIDED) {
-      return; // regular startup for PROVIDED storage directories
+  private boolean doTransition(StorageDirectory sd, NamespaceInfo nsInfo,
+                               StartupOption startOpt,
+                               Configuration conf) throws IOException {
+    if (sd.getStorageLocation() == null
+            || sd.getStorageLocation().getStorageType() == StorageType.PROVIDED) { // TODO: GABRIEL - NullPointer for location
+      return false; // regular startup for PROVIDED storage directories
     }
     readProperties(sd);
     checkVersionUpgradable(this.layoutVersion);
@@ -283,12 +324,12 @@ public class BlockPoolSliceStorage extends Storage {
     }
     if (this.layoutVersion == HdfsConstants.LAYOUT_VERSION &&
             this.cTime == nsInfo.getCTime()) {
-      return; // regular startup
+      return false; // regular startup
     }
     if (this.layoutVersion > HdfsConstants.LAYOUT_VERSION ||
             this.cTime < nsInfo.getCTime()) {
       doUpgrade(sd, nsInfo); // upgrade
-      return;
+      return true;
     }
     // layoutVersion == LAYOUT_VERSION && this.cTime > nsInfo.cTime
     // must shutdown

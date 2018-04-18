@@ -20,8 +20,9 @@ package org.apache.hadoop.hdfs.server.datanode;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import org.apache.hadoop.HadoopIllegalArgumentException;
+import com.google.common.collect.Maps;
 import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.*;
@@ -46,7 +47,10 @@ import org.apache.hadoop.util.DiskChecker;
 import java.io.*;
 import java.nio.channels.FileLock;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Data storage information file.
@@ -104,7 +108,7 @@ public class DataStorage extends Storage {
   /** Create an ID for this storage.
    * @return true if a new storage ID was generated.
    * */
-  public static synchronized boolean createStorageID(
+  public static boolean createStorageID( // TODO: should it be synchronized ? (was earlier)
           StorageDirectory sd, boolean regenerateStorageIds, Configuration conf) {
     final String oldStorageID = sd.getStorageUuid();
     if (sd.getStorageLocation() != null &&
@@ -142,6 +146,7 @@ public class DataStorage extends Storage {
    */
   void recoverTransitionRead(DataNode datanode, NamespaceInfo nsInfo,
       Collection<StorageLocation> dataDirs, StartupOption startOpt) throws IOException {
+
     if (this.initialized) {
       LOG.info("DataNode version: " + HdfsConstants.LAYOUT_VERSION
           + " and NameNode layout version: " + nsInfo.getLayoutVersion());
@@ -155,6 +160,56 @@ public class DataStorage extends Storage {
     }
   }
 
+  /**
+   * VolumeBuilder holds the metadata (e.g., the storage directories) of the
+   * prepared volume returned from {@link prepareVolume()}. Calling {@link build()}
+   * to add the metadata to {@link DataStorage} so that this prepared volume can
+   * be active.
+   */
+  @InterfaceAudience.Private
+  @InterfaceStability.Unstable
+  static public class VolumeBuilder {
+    private DataStorage storage;
+    /** Volume level storage directory. */
+    private StorageDirectory sd;
+    /** Mapping from block pool ID to an array of storage directories. */
+    private Map<String, List<StorageDirectory>> bpStorageDirMap =
+            Maps.newHashMap();
+
+    @VisibleForTesting
+    public VolumeBuilder(DataStorage storage, StorageDirectory sd) {
+      this.storage = storage;
+      this.sd = sd;
+    }
+
+    public final StorageDirectory getStorageDirectory() {
+      return this.sd;
+    }
+
+    private void addBpStorageDirectories(String bpid,
+                                         List<StorageDirectory> dirs) {
+      bpStorageDirMap.put(bpid, dirs);
+    }
+
+    /**
+     * Add loaded metadata of a data volume to {@link DataStorage}.
+     */
+    public void build() {
+      assert this.sd != null;
+      synchronized (storage) {
+        for (Map.Entry<String, List<StorageDirectory>> e :
+                bpStorageDirMap.entrySet()) {
+          final String bpid = e.getKey();
+          BlockPoolSliceStorage bpStorage = this.storage.bpStorageMap.get(bpid);
+          assert bpStorage != null;
+          for (StorageDirectory bpSd : e.getValue()) {
+            bpStorage.addStorageDir(bpSd);
+          }
+        }
+        storage.addStorageDir(sd);
+      }
+    }
+  }
 
   /**
    * Add a list of volumes to be managed by DataStorage. If the volume is empty,
@@ -164,59 +219,71 @@ public class DataStorage extends Storage {
    * @param nsInfo namespace information
    * @param dataDirs array of data storage directories
    * @param startOpt startup option
-   * @return a list of successfully loaded volumes.
-   * @throws IOException
+   * @return a list of successfully loaded storage directories.
    */
   @VisibleForTesting
-  synchronized List<StorageLocation> addStorageLocations(DataNode datanode,
-      NamespaceInfo nsInfo, Collection<StorageLocation> dataDirs,
-      StartupOption startOpt) throws IOException {
-    final String bpid = nsInfo.getBlockPoolID();
-    List<StorageLocation> successVolumes = Lists.newArrayList();
+  synchronized List<StorageDirectory> addStorageLocations(DataNode datanode,
+                                                          NamespaceInfo nsInfo, Collection<StorageLocation> dataDirs,
+                                                          StartupOption startOpt) throws IOException {
+
+    final List<StorageLocation> successLocations = loadDataStorage(
+            datanode, nsInfo, dataDirs, startOpt);
+    return loadBlockPoolSliceStorage(
+            datanode, nsInfo, successLocations, startOpt);
+  }
+
+  private List<StorageLocation> loadDataStorage(DataNode datanode,
+                                                NamespaceInfo nsInfo, Collection<StorageLocation> dataDirs,
+                                                StartupOption startOpt) throws IOException {
+    final List<StorageLocation> success = Lists.newArrayList();
     for (StorageLocation dataDir : dataDirs) {
-      StorageDirectory sd = null;
       if (!containsStorageDir(dataDir)) {
         try {
           // It first ensures the datanode level format is completed.
-          sd = loadStorageDirectory(
-              datanode, nsInfo, dataDir, startOpt);
-          addStorageDir(sd);
+          final StorageDirectory sd = loadStorageDirectory(
+                  datanode, nsInfo, dataDir, startOpt);
+
+            addStorageDir(sd);
+            success.add(dataDir);
         } catch (IOException e) {
-          LOG.warn(e);
-          continue;
+          LOG.warn("Failed to add storage directory " + dataDir, e);
         }
       } else {
         LOG.info("Storage directory " + dataDir + " has already been used.");
+        success.add(dataDir);
       }
-
-      List<File> bpDataDirs = new ArrayList<File>();
-      bpDataDirs.add(BlockPoolSliceStorage.getBpRoot(bpid, sd.getCurrentDir())); // TODO: GABRIEL - test with sd.getCurrentDir() instead of File
-      try {
-        makeBlockPoolDataDir(bpDataDirs, null);
-        BlockPoolSliceStorage bpStorage = this.bpStorageMap.get(bpid);
-        if (bpStorage == null) {
-          bpStorage = new BlockPoolSliceStorage(
-              nsInfo.getNamespaceID(), bpid, nsInfo.getCTime(),
-              nsInfo.getClusterID());
-        }
-
-        bpStorage.recoverTransitionRead(datanode, nsInfo, bpDataDirs, startOpt);
-        addBlockPoolStorage(bpid, bpStorage);
-      } catch (IOException e) {
-        LOG.warn("Failed to add storage for block pool: " + bpid + " : "
-            + e.getMessage());
-        continue;
-      }
-      successVolumes.add(dataDir);
     }
-    return successVolumes;
+    return success;
+  }
+
+  private List<StorageDirectory> loadBlockPoolSliceStorage(DataNode datanode,
+                                                           NamespaceInfo nsInfo, Collection<StorageLocation> dataDirs,
+                                                           StartupOption startOpt) throws IOException {
+    final String bpid = nsInfo.getBlockPoolID();
+    final BlockPoolSliceStorage bpStorage = getBlockPoolSliceStorage(nsInfo);
+    final List<StorageDirectory> success = Lists.newArrayList();
+    for (StorageLocation dataDir : dataDirs) {
+      dataDir.makeBlockPoolDir(bpid, null);
+      try {
+        final List<StorageDirectory> dirs = bpStorage.recoverTransitionRead(
+                nsInfo, dataDir, startOpt, datanode.getConf());
+
+        for(StorageDirectory sd : dirs) {
+          success.add(sd);
+        }
+      } catch (IOException e) {
+        LOG.warn("Failed to add storage directory " + dataDir
+                + " for block pool " + bpid, e);
+      }
+    }
+    return success;
   }
 
   private StorageDirectory loadStorageDirectory(DataNode datanode,
                                                 NamespaceInfo nsInfo, StorageLocation location, StartupOption startOpt) throws IOException {
     StorageDirectory sd = new StorageDirectory(null, false, location);
     try {
-      StorageState curState = sd.analyzeStorage(startOpt, this);
+      StorageState curState = sd.analyzeStorage(startOpt, this, true);
       // sd is locked but not opened
       switch (curState) {
       case NORMAL:
@@ -226,11 +293,11 @@ public class DataStorage extends Storage {
             + " does not exist");
         throw new IOException("Storage directory with location " + location
             + " does not exist");
-      case NOT_FORMATTED: // format
+        case NOT_FORMATTED: // format
         LOG.info("Storage directory with location " + location
             + " is not formatted for namespace " + nsInfo.getNamespaceID()
             + ". Formatting...");
-          format(sd, nsInfo, datanode.getDatanodeUuid());
+          format(sd, nsInfo, datanode.getDatanodeUuid(), datanode.getConf());
           break;
         default:  // recovery part is common
           sd.doRecover(curState);
@@ -240,11 +307,12 @@ public class DataStorage extends Storage {
       // Each storage directory is treated individually.
       // During startup some of them can upgrade or roll back
       // while others could be up-to-date for the regular startup.
-      doTransition(datanode, sd, nsInfo, startOpt, datanode.getConf());
+      if (!doTransition(datanode, sd, nsInfo,startOpt, datanode.getConf())) {
 
-      // 3. Update successfully loaded storage.
-      setServiceLayoutVersion(getServiceLayoutVersion());
-      writeProperties(sd);
+        // 3. Update successfully loaded storage.
+        setServiceLayoutVersion(getServiceLayoutVersion());
+        writeProperties(sd);
+      }
       return sd;
     } catch (IOException ioe) {
       sd.unlock();
@@ -282,7 +350,7 @@ public class DataStorage extends Storage {
   }
 
   void format(StorageDirectory sd, NamespaceInfo nsInfo,
-      String datanodeUuid) throws IOException {
+              String newDatanodeUuid, Configuration conf) throws IOException {
     sd.clearDirectory(); // create directory
     this.layoutVersion = HdfsConstants.LAYOUT_VERSION;
     this.clusterID = nsInfo.getClusterID();
@@ -290,10 +358,7 @@ public class DataStorage extends Storage {
     this.cTime = 0;
     setDatanodeUuid(datanodeUuid);
 
-    if (sd.getStorageUuid() == null) {
-      // Assign a new Storage UUID.
-      sd.setStorageUuid(DatanodeStorage.generateUuid());
-    }
+    createStorageID(sd, false, conf);
 
     writeProperties(sd);
   }
@@ -407,6 +472,13 @@ public class DataStorage extends Storage {
     return true;
   }
 
+  /** Read VERSION file for rollback */
+  void readProperties(StorageDirectory sd, int rollbackLayoutVersion)
+      throws IOException {
+    Properties props = readPropertiesFile(sd.getVersionFile());
+    setFieldsFromProperties(props, sd, true, rollbackLayoutVersion);
+  }
+
   /**
    * Analize which and whether a transition of the fs state is required
    * and perform it if necessary.
@@ -425,14 +497,14 @@ public class DataStorage extends Storage {
    *     startup option
    * @throws IOException
    */
-  private void doTransition( DataNode datanode,
+  private boolean doTransition( DataNode datanode,
       StorageDirectory sd,
       NamespaceInfo nsInfo,
       StartupOption startOpt, Configuration conf
   ) throws IOException {
     if (sd.getStorageLocation().getStorageType() == StorageType.PROVIDED) {
       createStorageID(sd, false, conf);
-      return; // regular start up for PROVIDED storage directories
+      return false; // regular start up for PROVIDED storage directories
     }
     if (startOpt == StartupOption.ROLLBACK) {
       doRollback(sd, nsInfo); // rollback if applicable
@@ -473,14 +545,14 @@ public class DataStorage extends Storage {
     // regular start up.
     if (this.layoutVersion == HdfsConstants.LAYOUT_VERSION) {
       createStorageID(sd, !haveValidStorageId, conf);
-      return; // regular startup
+      return false; // regular startup
     }
 
     // do upgrade
     if (this.layoutVersion > HdfsConstants.LAYOUT_VERSION) {
       doUpgrade( sd, nsInfo);  // upgrade
       createStorageID(sd, !haveValidStorageId, conf);
-      return;
+      return true;
     }
 
     // layoutVersion < DATANODE_LAYOUT_VERSION. I.e. stored layout version is newer
@@ -554,9 +626,7 @@ public class DataStorage extends Storage {
     // 3. Format BP and hard link blocks from previous directory
     File curBpDir =
         BlockPoolSliceStorage.getBpRoot(nsInfo.getBlockPoolID(), curDir);
-    BlockPoolSliceStorage bpStorage =
-        new BlockPoolSliceStorage(nsInfo.getNamespaceID(),
-            nsInfo.getBlockPoolID(), nsInfo.getCTime(), nsInfo.getClusterID());
+    BlockPoolSliceStorage bpStorage = getBlockPoolSliceStorage(nsInfo);
     bpStorage.format(curDir, nsInfo);
     linkAllBlocks(tmpDir, bbwDir, new File(curBpDir, STORAGE_DIR_CURRENT));
 
@@ -821,6 +891,22 @@ public class DataStorage extends Storage {
       linkBlocks(new File(from, otherNames[i]), new File(to, otherNames[i]),
           oldLV, hl);
     }
+  }
+
+  /**
+   * Get the BlockPoolSliceStorage from {@link bpStorageMap}.
+   * If the object is not found, create a new object and put it to the map.
+   */
+  synchronized BlockPoolSliceStorage getBlockPoolSliceStorage(
+          final NamespaceInfo nsInfo) {
+    final String bpid = nsInfo.getBlockPoolID();
+    BlockPoolSliceStorage bpStorage = bpStorageMap.get(bpid);
+    if (bpStorage == null) {
+      bpStorage = new BlockPoolSliceStorage(nsInfo.getNamespaceID(), bpid,
+              nsInfo.getCTime(), nsInfo.getClusterID());
+      bpStorageMap.put(bpid, bpStorage);
+    }
+    return bpStorage;
   }
 
   /**

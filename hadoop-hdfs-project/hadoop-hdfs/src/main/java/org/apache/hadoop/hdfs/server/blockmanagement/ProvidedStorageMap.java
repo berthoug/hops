@@ -300,6 +300,7 @@ public class ProvidedStorageMap {
     }
   }
 
+
   /**
    * An abstract DatanodeDescriptor to track datanodes with provided storages.
    * NOTE: never resolved through registerDatanode, so not in the topology.
@@ -315,7 +316,7 @@ public class ProvidedStorageMap {
     public final static String NAME = "PROVIDED";
 
     ProvidedDescriptor() throws IOException {
-      super(new StorageMap(true), // TODO: create new storagemap ?
+      super(new StorageMap(false), // TODO: GABRIEL - loadFromDb true or false?
             new DatanodeID(
             null,
             null,
@@ -338,11 +339,13 @@ public class ProvidedStorageMap {
       DatanodeStorageInfo storage = new ProvidedDatanodeStorageInfo(this, ds);
     //  storage.setHeartbeatedSinceFailover(true);
       storageMap.put(storage.getStorageID(), storage);
+
       try {
-        globalStorageMap.updateStorage(storage); // updates db TODO: update globalStorageMap in all put and updates to storagemap
+        globalStorageMap.updateStorage(storage); // TODO: GABRIEL - fails in tests
       } catch (IOException e) {
         e.printStackTrace();
       }
+
       return storage;
     }
 
