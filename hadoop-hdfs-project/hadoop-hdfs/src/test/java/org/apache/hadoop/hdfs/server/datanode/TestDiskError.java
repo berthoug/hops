@@ -17,16 +17,7 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -149,7 +140,7 @@ public class TestDiskError {
     cluster.waitActive();
     final int sndNode = 1;
     DataNode datanode = cluster.getDataNodes().get(sndNode);
-
+    
     // replicate the block to the second datanode
     InetSocketAddress target = datanode.getXferAddress();
     Socket s = new Socket(target.getAddress(), target.getPort());
@@ -202,8 +193,7 @@ public class TestDiskError {
     FileSystem localFS = FileSystem.getLocal(conf);
     for (DataNode dn : cluster.getDataNodes()) {
       for (FsVolumeSpi vol : dn.getFSDataset().getVolumes()) {
-        String dir = vol.getStorageLocation().getFile().getAbsolutePath();
-        Path dataDir = new Path(dir);
+        Path dataDir = new Path(vol.getStorageLocation().getNormalizedUri());
         FsPermission actual = localFS.getFileStatus(dataDir).getPermission();
         assertEquals("Permission for dir: " + dataDir + ", is " + actual +
             ", while expected is " + expected, expected, actual);

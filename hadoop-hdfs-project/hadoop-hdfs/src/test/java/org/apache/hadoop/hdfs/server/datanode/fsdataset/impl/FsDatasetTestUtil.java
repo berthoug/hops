@@ -82,15 +82,6 @@ public class FsDatasetTestUtil {
   }
 
   /**
-   * Stop the lazy writer daemon that saves RAM disk files to persistent storage.
-   * @param dn
-   */
-  public static void stopLazyWriter(DataNode dn) {
-    FsDatasetImpl fsDataset = ((FsDatasetImpl) dn.getFSDataset());
-    ((FsDatasetImpl.LazyWriter) fsDataset.lazyWriter.getRunnable()).stop();
-  }
-
-  /**
    * Asserts that the storage lock file in the given directory has been
    * released.  This method works by trying to acquire the lock file itself.  If
    * locking fails here, then the main code must have failed to release it.
@@ -100,7 +91,7 @@ public class FsDatasetTestUtil {
    */
   public static void assertFileLockReleased(String dir) throws IOException {
     StorageLocation sl = StorageLocation.parse(dir);
-    File lockFile = new File(sl.getFile(), Storage.STORAGE_FILE_LOCK);
+    File lockFile = new File(new File(sl.getUri()), Storage.STORAGE_FILE_LOCK);
     try (RandomAccessFile raf = new RandomAccessFile(lockFile, "rws");
         FileChannel channel = raf.getChannel()) {
       FileLock lock = channel.tryLock();

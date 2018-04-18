@@ -30,7 +30,6 @@ import org.apache.hadoop.hdfs.protocol.LayoutVersion.Feature;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.NodeType;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.StartupOption;
 import org.apache.hadoop.hdfs.server.datanode.StorageLocation;
-import org.apache.hadoop.hdfs.server.namenode.NNStorage;
 import org.apache.hadoop.io.nativeio.NativeIO;
 import org.apache.hadoop.io.nativeio.NativeIOException;
 import org.apache.hadoop.util.ToolRunner;
@@ -72,11 +71,11 @@ public abstract class Storage extends StorageInfo {
 
   // last layout version that did not support upgrades
   public static final int LAST_PRE_UPGRADE_LAYOUT_VERSION = -3;
-  
+
   // this corresponds to Hadoop-0.18
   public static final int LAST_UPGRADABLE_LAYOUT_VERSION = -16;
   protected static final String LAST_UPGRADABLE_HADOOP_VERSION = "Hadoop-0.18";
-  
+
   /**
    * Layout versions of 0.20.203 release
    */
@@ -91,13 +90,13 @@ public abstract class Storage extends StorageInfo {
   public static final String STORAGE_TMP_FINALIZED = "finalized.tmp";
   public static final String STORAGE_TMP_LAST_CKPT = "lastcheckpoint.tmp";
   public static final String STORAGE_PREVIOUS_CKPT = "previous.checkpoint";
-  
+
   /**
    * The blocksBeingWritten directory which was used in some 1.x and earlier
    * releases.
    */
   public static final String STORAGE_1_BBW = "blocksBeingWritten";
-  
+
   public enum StorageState {
     NON_EXISTENT,
     NOT_FORMATTED,
@@ -110,7 +109,7 @@ public abstract class Storage extends StorageInfo {
     RECOVER_CHECKPOINT,
     NORMAL;
   }
-  
+
   /**
    * An interface to denote storage directory type
    * Implementations can define a type for storage directory by implementing
@@ -131,13 +130,13 @@ public abstract class Storage extends StorageInfo {
     final StorageDirType dirType;
     int prevIndex; // for remove()
     int nextIndex; // for next()
-    
+
     DirIterator(StorageDirType dirType) {
       this.dirType = dirType;
       this.nextIndex = 0;
       this.prevIndex = 0;
     }
-    
+
     @Override
     public boolean hasNext() {
       if (storageDirs.isEmpty() || nextIndex >= storageDirs.size()) {
@@ -156,7 +155,7 @@ public abstract class Storage extends StorageInfo {
       }
       return true;
     }
-    
+
     @Override
     public StorageDirectory next() {
       StorageDirectory sd = getStorageDir(nextIndex);
@@ -172,7 +171,7 @@ public abstract class Storage extends StorageInfo {
       }
       return sd;
     }
-    
+
     @Override
     public void remove() {
       nextIndex = prevIndex; // restore previous state
@@ -180,7 +179,7 @@ public abstract class Storage extends StorageInfo {
       hasNext(); // reset nextIndex to correct place
     }
   }
-  
+
   /**
    * @return A list of the given File in every available storage directory,
    * regardless of whether it might exist.
@@ -206,7 +205,7 @@ public abstract class Storage extends StorageInfo {
   public Iterator<StorageDirectory> dirIterator() {
     return dirIterator(null);
   }
-  
+
   /**
    * Return iterator based on Storage Directory Type
    * This iterator selects entries in storageDirs of type dirType and returns
@@ -215,7 +214,7 @@ public abstract class Storage extends StorageInfo {
   public Iterator<StorageDirectory> dirIterator(StorageDirType dirType) {
     return new DirIterator(dirType);
   }
-  
+
   public Iterable<StorageDirectory> dirIterable(final StorageDirType dirType) {
     return new Iterable<StorageDirectory>() {
       @Override
@@ -224,8 +223,8 @@ public abstract class Storage extends StorageInfo {
       }
     };
   }
-  
-  
+
+
   /**
    * generate storage list (debug line)
    */
@@ -236,7 +235,7 @@ public abstract class Storage extends StorageInfo {
     }
     return buf.toString();
   }
-  
+
   /**
    * One of the storage directories.
    */
@@ -256,10 +255,8 @@ public abstract class Storage extends StorageInfo {
     }
 
     public StorageDirectory(StorageLocation location) {
-      // default dirType is null
-      this(location.getFile(), null, false, location); // TODO: GABRIEL - Still keep location.getFile() ?
+      this(null, false, location);
     }
-
 
     public StorageDirectory(File dir, StorageDirType dirType) {
       this(dir, dirType, true);
@@ -329,8 +326,7 @@ public abstract class Storage extends StorageInfo {
       this.root = dir;
       this.lock = null;
       this.useLock = useLock;
-      // default dirType is UNDEFINED
-      this.dirType = (dirType == null ? NNStorage.NameNodeDirType.UNDEFINED : dirType);
+      this.dirType = dirType;
       this.location = location;
       assert location == null || dir == null ||
           dir.getAbsolutePath().startsWith(
@@ -575,6 +571,25 @@ public abstract class Storage extends StorageInfo {
      */
     public StorageState analyzeStorage(StartupOption startOpt, Storage storage)
         throws IOException {
+      return analyzeStorage(startOpt, storage, false);
+    }
+
+    /**
+     * Check consistency of the storage directory.
+     *
+     * @param startOpt a startup option.
+     * @param storage The Storage object that manages this StorageDirectory.
+     * @param checkCurrentIsEmpty if true, make sure current/ directory
+     *                            is empty before determining to format it.
+     *
+     * @return state {@link StorageState} of the storage directory
+     * @throws InconsistentFSStateException if directory state is not
+     * consistent and cannot be recovered.
+     * @throws IOException
+     */
+    public StorageState analyzeStorage(StartupOption startOpt, Storage storage,
+        boolean checkCurrentIsEmpty)
+        throws IOException {
 
       if (location != null &&
               location.getStorageType() == StorageType.PROVIDED) {
@@ -612,7 +627,12 @@ public abstract class Storage extends StorageInfo {
 
       this.lock(); // lock storage if it exists
 
+      // If startOpt is HOTSWAP, it returns NOT_FORMATTED for empty directory,
+      // while it also checks the layout version.
       if (startOpt == HdfsServerConstants.StartupOption.FORMAT) {
+        if (checkCurrentIsEmpty) {
+          checkEmptyCurrent();
+        }
         return StorageState.NOT_FORMATTED;
       }
 
@@ -640,6 +660,9 @@ public abstract class Storage extends StorageInfo {
         if (hasPrevious) {
           throw new InconsistentFSStateException(root,
               "version file in current directory is missing.");
+        }
+        if (checkCurrentIsEmpty) {
+          checkEmptyCurrent();
         }
         return StorageState.NOT_FORMATTED;
       }
@@ -678,7 +701,7 @@ public abstract class Storage extends StorageInfo {
         }
         return StorageState.RECOVER_UPGRADE;
       }
-      
+
       assert hasRemovedTmp : "hasRemovedTmp must be true";
       if (!(hasCurrent ^ hasPrevious)) {
         throw new InconsistentFSStateException(root,
@@ -752,7 +775,7 @@ public abstract class Storage extends StorageInfo {
           throw new IOException("Unexpected FS state: " + curState);
       }
     }
-    
+
     /**
      * @return true if the storage directory should prompt the user prior
      * to formatting (i.e if the directory appears to contain some data)
@@ -766,18 +789,18 @@ public abstract class Storage extends StorageInfo {
       if (!root.exists()) {
         return false;
       }
-      
+
       if (!root.isDirectory()) {
         // a file where you expect a directory should not cause silent
         // formatting
         return true;
       }
-      
+
       if (FileUtil.listFiles(root).length == 0) {
         // Empty dir can format without prompt.
         return false;
       }
-      
+
       return true;
     }
 
@@ -868,7 +891,7 @@ public abstract class Storage extends StorageInfo {
       lock.channel().close();
       lock = null;
     }
-    
+
     @Override
     public String toString() {
       return "Storage Directory " + this.root;
@@ -925,7 +948,7 @@ public abstract class Storage extends StorageInfo {
   protected Storage(NodeType type, StorageInfo storageInfo) {
     super(storageInfo);
   }
-  
+
   public int getNumStorageDirs() {
     return storageDirs.size();
   }
@@ -933,7 +956,7 @@ public abstract class Storage extends StorageInfo {
   public StorageDirectory getStorageDir(int idx) {
     return storageDirs.get(idx);
   }
-  
+
   /**
    * @return the storage directory, with the precondition that this storage
    * has exactly one storage directory
@@ -942,7 +965,7 @@ public abstract class Storage extends StorageInfo {
     Preconditions.checkState(storageDirs.size() == 1);
     return storageDirs.get(0);
   }
-  
+
   public void addStorageDir(StorageDirectory sd) {
     storageDirs.add(sd);
   }
@@ -961,6 +984,42 @@ public abstract class Storage extends StorageInfo {
     }
     return false;
   }
+
+  /**
+   * Returns true if the storage directory on the given directory is already
+   * loaded.
+   * @param location the {@link StorageLocation}
+   * @throws IOException if failed to get canonical path.
+   */
+  protected boolean containsStorageDir(StorageLocation location)
+      throws IOException {
+    for (StorageDirectory sd : storageDirs) {
+      if (location.matchesStorageDirectory(sd)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Returns true if the storage directory on the given location is already
+   * loaded.
+   * @param location the {@link StorageLocation}
+   * @param bpid the block pool id
+   * @return true if the location matches to any existing storage directories
+   * @throws IOException IOException if failed to read location
+   * or storage directory path
+   */
+  protected boolean containsStorageDir(StorageLocation location, String bpid)
+      throws IOException {
+    for (StorageDirectory sd : storageDirs) {
+      if (location.matchesStorageDirectory(sd, bpid)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
 
   /**
    * Return true if the layout of the given storage directory is from a version
@@ -1002,9 +1061,9 @@ public abstract class Storage extends StorageInfo {
       LOG.error(msg);
       throw new IOException(msg);
     }
-    
+
   }
-  
+
   /**
    * Iterate over each of the {@link FormatConfirmable} objects,
    * potentially checking with the user whether it should be formatted.
@@ -1043,10 +1102,10 @@ public abstract class Storage extends StorageInfo {
         return false;
       }
     }
-    
+
     return true;
   }
-  
+
   /**
    * Interface for classes which need to have the user confirm their
    * formatting during NameNode -format and other similar operations.
@@ -1063,14 +1122,14 @@ public abstract class Storage extends StorageInfo {
      *     if the storage cannot be accessed at all.
      */
     public boolean hasSomeData() throws IOException;
-    
+
     /**
      * @return a string representation of the formattable item, suitable
      * for display to the user inside a prompt
      */
     public String toString();
   }
-  
+
   /**
    * Get common storage fields.
    * Should be overloaded if additional fields need to be get.
@@ -1288,7 +1347,7 @@ public abstract class Storage extends StorageInfo {
       throw new IOException("Failed to delete " + dir.getCanonicalPath());
     }
   }
-  
+
   /**
    * Write all data storage files.
    *

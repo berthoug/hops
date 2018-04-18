@@ -144,7 +144,8 @@ class BlockPoolSlice {
    */
   File createTmpFile(Block b) throws IOException {
     File f = new File(tmpDir, b.getBlockName());
-    File tmpFile = DatanodeUtil.createTmpFile(b, f);
+    File tmpFile = DatanodeUtil.createFileWithExistsCheck(
+        volume, b, f, fileIoProvider);
     // If any exception during creation, its expected that counter will not be
     // incremented, So no need to decrement
     incrNumBlocks();

@@ -356,10 +356,9 @@ public class DataStorage extends Storage {
     this.clusterID = nsInfo.getClusterID();
     this.namespaceID = nsInfo.getNamespaceID();
     this.cTime = 0;
-    setDatanodeUuid(datanodeUuid);
+    setDatanodeUuid(newDatanodeUuid);
 
     createStorageID(sd, false, conf);
-
     writeProperties(sd);
   }
 
