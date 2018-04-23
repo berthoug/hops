@@ -672,9 +672,6 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     // create a new block
     FsVolumeImpl v = volumes.getNextVolume(storageType, b.getNumBytes());
 
-    // create an rbw file to hold block in the designated volume
-    File f = v.createRbwFile(b.getBlockPoolId(), b.getLocalBlock());
-
     ReplicaInPipeline newReplicaInfo;
     try {
       newReplicaInfo = v.createRbw(b);

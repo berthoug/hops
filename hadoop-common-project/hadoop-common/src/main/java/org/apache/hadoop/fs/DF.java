@@ -53,7 +53,7 @@ public class DF extends Shell {
     this(path, conf.getLong(CommonConfigurationKeys.FS_DF_INTERVAL_KEY, DF.DF_INTERVAL_DEFAULT));
   }
 
-  public DF(File path, long dfInterval) throws IOException {
+  public DF(File path, long dfInterval) throws IOException { // TODO: GABRIEL - path is null in test
     super(dfInterval);
     this.dirPath = path.getCanonicalPath();
     this.dirFile = new File(this.dirPath);

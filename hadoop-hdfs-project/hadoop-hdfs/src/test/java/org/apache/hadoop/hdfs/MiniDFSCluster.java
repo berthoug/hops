@@ -47,12 +47,8 @@ import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.DatanodeReportType;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.StartupOption;
 import org.apache.hadoop.hdfs.server.common.Storage;
-import org.apache.hadoop.hdfs.server.datanode.DataNode;
-import org.apache.hadoop.hdfs.server.datanode.DataNodeTestUtils;
-import org.apache.hadoop.hdfs.server.datanode.DataStorage;
-import org.apache.hadoop.hdfs.server.datanode.SecureDataNodeStarter;
+import org.apache.hadoop.hdfs.server.datanode.*;
 import org.apache.hadoop.hdfs.server.datanode.SecureDataNodeStarter.SecureResources;
-import org.apache.hadoop.hdfs.server.datanode.SimulatedFSDataset;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsVolumeImpl;
@@ -1310,6 +1306,27 @@ public class MiniDFSCluster {
     return null;
   }
 
+  /**
+   * Returns the corresponding FsDatasetTestUtils for a DataNode.
+   * @param dnIdx the index of DataNode.
+   * @return a FsDatasetTestUtils for the given DataNode.
+   */
+  public FsDatasetTestUtils getFsDatasetTestUtils(int dnIdx) {
+    Preconditions.checkArgument(dnIdx < dataNodes.size());
+    return FsDatasetTestUtils.Factory.getFactory(conf)
+        .newInstance(dataNodes.get(dnIdx).datanode);
+  }
+
+  /**
+   * Returns the corresponding FsDatasetTestUtils for a DataNode.
+   * @param dn a DataNode
+   * @return a FsDatasetTestUtils for the given DataNode.
+   */
+  public FsDatasetTestUtils getFsDatasetTestUtils(DataNode dn) {
+    Preconditions.checkArgument(dn != null);
+    return FsDatasetTestUtils.Factory.getFactory(conf)
+        .newInstance(dn);
+  }
   /**
    * Gets the rpc port used by the NameNode, because the caller
    * supplied port is not necessarily the actual port used.

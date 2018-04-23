@@ -67,4 +67,5 @@ public interface Replica {
    * Return the storageUuid of the volume that stores this replica.
    */
   public String getStorageUuid();
+
 }

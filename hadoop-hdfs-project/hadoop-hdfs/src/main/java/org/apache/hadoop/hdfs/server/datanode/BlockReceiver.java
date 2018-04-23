@@ -255,6 +255,10 @@ class BlockReceiver implements Closeable {
     return replicaInfo.getStorageUuid();
   }
 
+  Replica getReplica() {
+    return replicaInfo;
+  }
+
   /**
    * close files.
    */
