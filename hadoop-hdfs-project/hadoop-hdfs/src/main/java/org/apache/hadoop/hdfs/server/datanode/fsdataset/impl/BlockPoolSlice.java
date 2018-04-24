@@ -170,11 +170,12 @@ class BlockPoolSlice {
    * Replaced addBlocks
    */
   File addFinalizedBlock(Block b, ReplicaInfo replicaInfo) throws IOException {
-    File blockDir = finalizedDir.addBlock(b, ((LocalReplica)replicaInfo).getBlockFile()); // TODO: GABRIEL - test. Replaced call to idToBlockDir
-    fileIoProvider.mkdirsWithExistsCheck(volume, blockDir);
-    File blockFile = FsDatasetImpl.moveBlockFiles(b, replicaInfo, blockDir);
+    File blockFile = ((LocalReplica)replicaInfo).getBlockFile();
+    File blockDir = finalizedDir.addBlock(b, replicaInfo, blockFile);
+    fileIoProvider.mkdirsWithExistsCheck(volume, blockDir); // TODO: GABRIEL - fails in test
+    //File blockFile = FsDatasetImpl.moveBlockFiles(b, replicaInfo, blockDir);
 
-    return blockFile;
+    return blockDir;
   }
 
   void checkDirs() throws DiskErrorException {

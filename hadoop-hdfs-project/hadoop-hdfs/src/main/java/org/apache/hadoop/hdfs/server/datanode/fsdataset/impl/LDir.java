@@ -21,6 +21,7 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.datanode.DataStorage;
+import org.apache.hadoop.hdfs.server.datanode.ReplicaInfo;
 import org.apache.hadoop.util.DiskChecker;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 
@@ -41,6 +42,7 @@ class LDir {
   private int numBlocks = 0;
   private LDir[] children = null;
   private int lastChildIdx = 0;
+  private ReplicaInfo replicaInfo;
 
   LDir(File dir, int maxBlocksPerDir) throws IOException {
     this.dir = dir;
@@ -66,8 +68,9 @@ class LDir {
     }
   }
 
-  File addBlock(Block b, File src) throws IOException {
+  File addBlock(Block b, ReplicaInfo replicaInfo, File src) throws IOException {
     //First try without creating subdirectories
+    this.replicaInfo = replicaInfo;
     File file = addBlock(b, src, false, false);
     return (file != null) ? file : addBlock(b, src, true, true);
   }
@@ -75,11 +78,10 @@ class LDir {
   private File addBlock(Block b, File src, boolean createOk, boolean resetIdx)
       throws IOException {
 
-    // this is already taken care of by callee
-    if (numBlocks < maxBlocksPerDir) {
-     // final File dest = FsDatasetImpl.moveBlockFiles(b, src, replicaInfo, dir);
+     if (numBlocks < maxBlocksPerDir) {
+      final File dest = FsDatasetImpl.moveBlockFiles(b, (ReplicaInfo) b, dir); // TODO: GABRIEL - test with (ReplicaInfo) b
       numBlocks += 1;
-     // return dest;
+      return dest;
     }
 
     if (lastChildIdx < 0 && resetIdx) {

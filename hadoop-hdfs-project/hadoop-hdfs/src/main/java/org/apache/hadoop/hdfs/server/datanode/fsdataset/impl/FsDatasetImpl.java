@@ -445,11 +445,11 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
               + " from " + replicaInfo.getBlockURI() + " to "
               + dstfile.getAbsolutePath(), e);
     }
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("addFinalizedBlock: Moved " + replicaInfo.getMetadataURI()
-              + " to " + dstmeta + " and " + replicaInfo.getBlockURI()
-              + " to " + dstfile);
-    }
+  //  if (LOG.isDebugEnabled()) {
+      LOG.info("addFinalizedBlock: Moved " + replicaInfo.getMetadataURI()
+              + "\n to " + dstmeta + "\n and " + replicaInfo.getBlockURI()
+              + "\n to " + dstfile);
+ //   }
     return dstfile;
   }
 
