@@ -139,11 +139,6 @@ public class LocalReplicaInPipeline extends LocalReplica
     return ReplicaState.TEMPORARY;
   }
 
-  @Override
-  public void setNumBytes(long bytesReceived) {
-    throw new UnsupportedOperationException("not implemented yet");
-  }
-
   @Override // ReplicaInPipeline
   public long getBytesAcked() {
     return bytesAcked;

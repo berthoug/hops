@@ -87,7 +87,7 @@ public class TestProvidedStorageMap {
     DatanodeStorage dn1DiskStorage = new DatanodeStorage(
         "sid-1", DatanodeStorage.State.NORMAL, StorageType.DISK);
 
- //   when(nameSystemLock.hasWriteLock()).thenReturn(true);
+    when(nameSystemLock.hasWriteLock()).thenReturn(true);
     DatanodeStorageInfo dns1Provided =
         providedMap.getStorage(dn1, dn1ProvidedStorage);
     DatanodeStorageInfo dns1Disk = providedMap.getStorage(dn1, dn1DiskStorage);

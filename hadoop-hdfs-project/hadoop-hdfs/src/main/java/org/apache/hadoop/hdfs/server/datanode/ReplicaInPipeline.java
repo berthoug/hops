@@ -20,6 +20,8 @@ package org.apache.hadoop.hdfs.server.datanode;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import io.hops.exception.StorageException;
+import io.hops.exception.TransactionContextException;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.ReplicaOutputStreams;
 import org.apache.hadoop.util.DataChecksum;
 
@@ -31,7 +33,7 @@ public interface ReplicaInPipeline extends Replica {
    * Set the number of bytes received
    * @param bytesReceived number of bytes received
    */
-  void setNumBytes(long bytesReceived);
+  void setNumBytes(long bytesReceived) throws StorageException, TransactionContextException;
 
   /**
    * Get the number of bytes acked
