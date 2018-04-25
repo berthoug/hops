@@ -121,6 +121,26 @@ public class TestLambdaTestUtils extends Assert {
         minCount <= retry.getInvocationCount());
   }
 
+  /**
+   * Raise an exception.
+   * @param e exception to raise
+   * @return never
+   * @throws Exception passed in exception
+   */
+  private boolean r(Exception e) throws Exception {
+    throw e;
+  }
+
+  /**
+   * Raise an error.
+   * @param e error to raise
+   * @return never
+   * @throws Exception never
+   * @throws Error the passed in error
+   */
+  private boolean r(Error e) throws Exception {
+    throw e;
+  }
   @Test
   public void testAwaitAlwaysTrue() throws Throwable {
     await(TIMEOUT,
@@ -138,7 +158,7 @@ public class TestLambdaTestUtils extends Assert {
           TIMEOUT_FAILURE_HANDLER);
       fail("should not have got here");
     } catch (TimeoutException e) {
-      assertTrue(retry.getInvocationCount() > 4);
+      assertMinRetryCount(1);
     }
   }
 
