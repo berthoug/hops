@@ -698,6 +698,18 @@ public class HarFileSystem extends FileSystem {
         hstatus.getStartIndex(), hstatus.getLength(), bufferSize);
   }
 
+  @Override
+  protected PathHandle createPathHandle(FileStatus stat, Options.HandleOpt... opts) {
+    // har consistency managed through metadata cache
+    // could extend HarMetaData to track more explicitly
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public FSDataInputStream open(PathHandle fd, int bufferSize)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
   /**
    * Used for delegation token related functionality. Must delegate to
    * underlying file system.
