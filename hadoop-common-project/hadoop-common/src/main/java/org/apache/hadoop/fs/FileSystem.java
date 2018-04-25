@@ -796,7 +796,7 @@ public abstract class FileSystem extends Configured implements Closeable {
    * @throws IllegalArgumentException If the FileStatus does not belong to
    *         this FileSystem
    * @throws UnsupportedOperationException If
-   *         {@link #createPathHandle(FileStatus, HandleOpt[])}
+   *         {@link #createPathHandle(FileStatus, Options.HandleOpt...)}
    *         not overridden by subclass.
    * @throws UnsupportedOperationException If this FileSystem cannot enforce
    *         the specified constraints.
@@ -814,7 +814,7 @@ public abstract class FileSystem extends Configured implements Closeable {
    * @param opt Constraints that determine the validity of the
    *            {@link PathHandle} reference.
    */
-  protected PathHandle createPathHandle(FileStatus stat, Options.HandleOpt... opt) {
+  protected PathHandle createPathHandle(FileStatus stat, Options.HandleOpt[] opt) {
     throw new UnsupportedOperationException();
   }
 

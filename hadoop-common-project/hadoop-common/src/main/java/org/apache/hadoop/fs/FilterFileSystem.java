@@ -163,6 +163,16 @@ public class FilterFileSystem extends FileSystem {
   }
 
   @Override
+  public FSDataInputStream open(PathHandle fd, int bufferSize)
+      throws IOException {
+    return fs.open(fd, bufferSize);
+  }
+
+  @Override
+  protected PathHandle createPathHandle(FileStatus stat, Options.HandleOpt[] opts) {
+    return fs.getPathHandle(stat, opts);
+  }
+  @Override
   public FSDataOutputStream append(Path f, int bufferSize,
       Progressable progress) throws IOException {
     return fs.append(f, bufferSize, progress);
