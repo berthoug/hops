@@ -404,6 +404,10 @@ public class DirectoryScanner implements Runnable {
         new HashMap<>();
 
     for (int i = 0; i < volumes.size(); i++) {
+      if (volumes.get(i).getStorageType() == StorageType.PROVIDED) {
+        // Disable scanning PROVIDED volumes to keep overhead low
+        continue;
+      }
       if (isValid(dataset, volumes.get(i))) {
         ReportCompiler reportCompiler = new ReportCompiler(volumes.get(i));
         Future<ScanInfoPerBlockPool> result =

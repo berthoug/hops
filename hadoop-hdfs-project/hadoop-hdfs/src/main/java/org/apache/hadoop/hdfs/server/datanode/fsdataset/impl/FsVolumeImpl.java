@@ -44,6 +44,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.*;
 import java.net.URI;
@@ -728,8 +729,10 @@ public class FsVolumeImpl implements FsVolumeSpi {
 
   @Override
   public LinkedList<ScanInfo> compileReport(String bpid, LinkedList<ScanInfo> report, DirectoryScanner.ReportCompiler reportCompiler) throws InterruptedException, IOException {
-    return null;
+    throw new NotImplementedException();
   }
+
+
 
   /**
    * RBW files. They get moved to the finalized block directory when

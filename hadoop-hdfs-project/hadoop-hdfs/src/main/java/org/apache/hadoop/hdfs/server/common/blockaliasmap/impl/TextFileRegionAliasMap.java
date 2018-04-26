@@ -62,14 +62,14 @@ import com.google.common.annotations.VisibleForTesting;
 @InterfaceAudience.Public
 @InterfaceStability.Unstable
 public class TextFileRegionAliasMap
-    extends BlockAliasMap<FileRegion> implements Configurable {
+        extends BlockAliasMap<FileRegion> implements Configurable {
 
   private Configuration conf;
   private ReaderOptions readerOpts = TextReader.defaults();
   private WriterOptions writerOpts = TextWriter.defaults();
 
   public static final Logger LOG =
-      LoggerFactory.getLogger(TextFileRegionAliasMap.class);
+          LoggerFactory.getLogger(TextFileRegionAliasMap.class);
   @Override
   public void setConf(Configuration conf) {
     readerOpts.setConf(conf);
@@ -84,7 +84,7 @@ public class TextFileRegionAliasMap
 
   @Override
   public Reader<FileRegion> getReader(Reader.Options opts, String blockPoolID)
-      throws IOException {
+          throws IOException {
     if (null == opts) {
       opts = readerOpts;
     }
@@ -93,7 +93,7 @@ public class TextFileRegionAliasMap
     }
     ReaderOptions o = (ReaderOptions) opts;
     Configuration readerConf = (null == o.getConf())
-        ? new Configuration()
+            ? new Configuration()
             : o.getConf();
     return createReader(o.file, o.delim, readerConf, blockPoolID);
   }
@@ -107,12 +107,7 @@ public class TextFileRegionAliasMap
     }
     CompressionCodecFactory factory = new CompressionCodecFactory(cfg);
     CompressionCodec codec = factory.getCodec(file);
-    String filename = fileNameFromBlockPoolID(blockPoolID);
-    if (codec != null) {
-      filename = filename + codec.getDefaultExtension();
-    }
-    Path bpidFilePath = new Path(file.getParent(), filename);
-    return new TextReader(fs, bpidFilePath, codec, delim);
+    return new TextReader(fs, file, codec, delim);
   }
 
   @Override
@@ -126,29 +121,28 @@ public class TextFileRegionAliasMap
     }
     WriterOptions o = (WriterOptions) opts;
     Configuration cfg = (null == o.getConf())
-        ? new Configuration()
+            ? new Configuration()
             : o.getConf();
-    String baseName = fileNameFromBlockPoolID(blockPoolID);
-    Path blocksFile = new Path(o.dir, baseName);
     if (o.codec != null) {
       CompressionCodecFactory factory = new CompressionCodecFactory(cfg);
       CompressionCodec codec = factory.getCodecByName(o.codec);
-      blocksFile = new Path(o.dir, baseName + codec.getDefaultExtension());
-      return createWriter(blocksFile, codec, o.delim, cfg);
+      String name = o.dir.getName() + codec.getDefaultExtension();
+      o.dirName(new Path(o.dir.getParent(), name));
+      return createWriter(o.dir, codec, o.delim, cfg);
     }
-    return createWriter(blocksFile, null, o.delim, conf);
+    return createWriter(o.dir, null, o.delim, conf);
   }
 
   @VisibleForTesting
   TextWriter createWriter(Path file, CompressionCodec codec, String delim,
-      Configuration cfg) throws IOException {
+                          Configuration cfg) throws IOException {
     FileSystem fs = file.getFileSystem(cfg);
     if (fs instanceof LocalFileSystem) {
       fs = ((LocalFileSystem)fs).getRaw();
     }
     OutputStream tmp = fs.create(file);
     java.io.Writer out = new BufferedWriter(new OutputStreamWriter(
-          (null == codec) ? tmp : codec.createOutputStream(tmp), "UTF-8"));
+            (null == codec) ? tmp : codec.createOutputStream(tmp), "UTF-8"));
     return new TextWriter(out, delim);
   }
 
@@ -156,24 +150,24 @@ public class TextFileRegionAliasMap
    * Class specifying reader options for the {@link TextFileRegionAliasMap}.
    */
   public static class ReaderOptions
-      implements TextReader.Options, Configurable {
+          implements TextReader.Options, Configurable {
 
     private Configuration conf;
     private String delim =
-        DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_DELIMITER_DEFAULT;
+            DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_DELIMITER_DEFAULT;
     private Path file = new Path(
-        new File(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_READ_FILE_DEFAULT)
-            .toURI().toString());
+            new File(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_READ_FILE_DEFAULT)
+                    .toURI().toString());
 
     @Override
     public void setConf(Configuration conf) {
       this.conf = conf;
       String tmpfile =
-          conf.get(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_READ_FILE,
-              DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_READ_FILE_DEFAULT);
+              conf.get(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_READ_FILE,
+                      DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_READ_FILE_DEFAULT);
       file = new Path(tmpfile);
       delim = conf.get(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_DELIMITER,
-          DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_DELIMITER_DEFAULT);
+              DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_DELIMITER_DEFAULT);
       LOG.info("TextFileRegionAliasMap: read path {}", tmpfile);
     }
 
@@ -199,24 +193,24 @@ public class TextFileRegionAliasMap
    * Class specifying writer options for the {@link TextFileRegionAliasMap}.
    */
   public static class WriterOptions
-      implements TextWriter.Options, Configurable {
+          implements TextWriter.Options, Configurable {
 
     private Configuration conf;
     private String codec = null;
     private Path dir =
-        new Path(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_WRITE_DIR_DEFAULT);
+            new Path(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_WRITE_DIR_DEFAULT);
     private String delim =
-        DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_DELIMITER_DEFAULT;
+            DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_DELIMITER_DEFAULT;
 
     @Override
     public void setConf(Configuration conf) {
       this.conf = conf;
       String tmpDir = conf.get(
-          DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_WRITE_DIR, dir.toString());
+              DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_WRITE_DIR, dir.toString());
       dir = new Path(tmpDir);
       codec = conf.get(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_CODEC);
       delim = conf.get(DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_DELIMITER,
-          DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_DELIMITER_DEFAULT);
+              DFSConfigKeys.DFS_PROVIDED_ALIASMAP_TEXT_DELIMITER_DEFAULT);
     }
 
     @Override
@@ -275,22 +269,20 @@ public class TextFileRegionAliasMap
     private final FileSystem fs;
     private final CompressionCodec codec;
     private final Map<FRIterator, BufferedReader> iterators;
-    private final String blockPoolID;
 
     protected TextReader(FileSystem fs, Path file, CompressionCodec codec,
-        String delim) {
+                         String delim) {
       this(fs, file, codec, delim,
-          new IdentityHashMap<FRIterator, BufferedReader>());
+              new IdentityHashMap<FRIterator, BufferedReader>());
     }
 
     TextReader(FileSystem fs, Path file, CompressionCodec codec, String delim,
-        Map<FRIterator, BufferedReader> iterators) {
+               Map<FRIterator, BufferedReader> iterators) {
       this.fs = fs;
       this.file = file;
       this.codec = codec;
       this.delim = delim;
       this.iterators = Collections.synchronizedMap(iterators);
-      this.blockPoolID = blockPoolIDFromFileName(file);
     }
 
     @Override
@@ -362,8 +354,8 @@ public class TextFileRegionAliasMap
         nonce = f[5].getBytes(Charset.forName("UTF-8"));
       }
       return new FileRegion(Long.parseLong(f[0]), new Path(f[1]),
-          Long.parseLong(f[2]), Long.parseLong(f[3]), Long.parseLong(f[4]),
-          nonce);
+              Long.parseLong(f[2]), Long.parseLong(f[3]), Long.parseLong(f[4]),
+              nonce);
     }
 
     public InputStream createStream() throws IOException {
@@ -379,7 +371,7 @@ public class TextFileRegionAliasMap
       FRIterator i = new FRIterator();
       try {
         BufferedReader r =
-            new BufferedReader(new InputStreamReader(createStream(), "UTF-8"));
+                new BufferedReader(new InputStreamReader(createStream(), "UTF-8"));
         iterators.put(i, r);
         i.pending = nextInternal(i);
       } catch (IOException e) {
@@ -451,7 +443,7 @@ public class TextFileRegionAliasMap
       out.append(Long.toString(block.getGenerationStamp()));
       if (psl.getNonce().length > 0) {
         out.append(delim)
-            .append(new String(psl.getNonce(), Charset.forName("UTF-8")));
+                .append(new String(psl.getNonce(), Charset.forName("UTF-8")));
       }
       out.append("\n");
     }
@@ -466,7 +458,7 @@ public class TextFileRegionAliasMap
   @Override
   public void refresh() throws IOException {
     throw new UnsupportedOperationException(
-        "Refresh not supported by " + getClass());
+            "Refresh not supported by " + getClass());
   }
 
   @Override

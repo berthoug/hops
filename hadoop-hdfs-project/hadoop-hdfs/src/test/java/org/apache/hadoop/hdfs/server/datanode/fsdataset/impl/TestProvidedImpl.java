@@ -62,7 +62,6 @@ import org.apache.hadoop.hdfs.server.common.FileRegion;
 import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.common.blockaliasmap.BlockAliasMap;
 import org.apache.hadoop.hdfs.server.datanode.*;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi.BlockIterator;
 import org.apache.hadoop.io.IOUtils;
@@ -145,7 +144,7 @@ public class TestProvidedImpl {
           }
         }
         region = new FileRegion(currentCount, new Path(newFile.toString()),
-            0, BLK_LEN);
+                0, BLK_LEN);
         currentCount++;
       }
       return region;

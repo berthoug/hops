@@ -145,8 +145,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
       this.aliasMap = blockAliasMap;
     }
 
-    void fetchVolumeMap(ReplicaMap volumeMap,
-                        FileSystem remoteFS)
+    public void getVolumeMap(ReplicaMap volumeMap,FileSystem remoteFS)
         throws IOException {
       BlockAliasMap.Reader<FileRegion> reader = null;
       int tries = 1;
@@ -196,8 +195,8 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
             incrNumBlocks();
             incDfsUsed(region.getBlock().getNumBytes());
           } else {
-            throw new IOException("A block with id " + newReplica.getBlockId()
-                + " already exists in the volumeMap");
+            LOG.warn("A block with id " + newReplica.getBlockId()
+                + " exists locally. Skipping PROVIDED replica");
           }
         }
       }
@@ -223,7 +222,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
       aliasMap.refresh();
       BlockAliasMap.Reader<FileRegion> reader = aliasMap.getReader(null, bpid);
       for (FileRegion region : reader) {
-      //reportCompiler.throttle();
+       // reportCompiler.throttle();
         report.add(new ScanInfo(region.getBlock().getBlockId(),
             providedVolume, region,
             region.getProvidedStorageLocation().getLength()));
@@ -513,7 +512,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
           throws IOException {
     LOG.info("Creating volumemap for provided volume " + this);
     for(ProvidedBlockPoolSlice s : bpSlices.values()) {
-      s.fetchVolumeMap(volumeMap, remoteFS);
+      s.getVolumeMap(volumeMap, remoteFS);
     }
   }
 
@@ -529,7 +528,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
   @Override
   void getVolumeMap(String bpid, ReplicaMap volumeMap)
           throws IOException {
-    getProvidedBlockPoolSlice(bpid).fetchVolumeMap(volumeMap,
+    getProvidedBlockPoolSlice(bpid).getVolumeMap(volumeMap,
             remoteFS);
   }
 

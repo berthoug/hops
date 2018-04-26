@@ -170,12 +170,15 @@ class BlockPoolSlice {
    * Replaced addBlocks
    */
   File addFinalizedBlock(Block b, ReplicaInfo replicaInfo) throws IOException {
-    File blockFile = ((LocalReplica)replicaInfo).getBlockFile();
-    File blockDir = finalizedDir.addBlock(b, replicaInfo, blockFile);
-    fileIoProvider.mkdirsWithExistsCheck(volume, blockDir); // TODO: GABRIEL - fails in test
-    //File blockFile = FsDatasetImpl.moveBlockFiles(b, replicaInfo, blockDir);
+    File f = ((LocalReplica)replicaInfo).getBlockFile();
 
-    return blockDir;
+    // fileIoProvider.mkdirsWithExistsCheck(volume, f); // TODO: GABRIEL - java.io.IOException: Mkdirs failed to create
+    File blockFile = finalizedDir.addBlock(b, replicaInfo, f);
+
+    File metaFile =
+            FsDatasetUtil.getMetaFile(blockFile, b.getGenerationStamp());
+    dfsUsage.incDfsUsed(b.getNumBytes() + metaFile.length());
+    return blockFile;
   }
 
   void checkDirs() throws DiskErrorException {
