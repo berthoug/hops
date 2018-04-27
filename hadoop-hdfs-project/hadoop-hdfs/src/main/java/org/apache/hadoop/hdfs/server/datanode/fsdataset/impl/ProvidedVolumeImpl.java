@@ -51,6 +51,7 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -210,6 +211,9 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
       return bpVolumeMap.replicas(bpid).size() == 0;
     }
 
+    public void shutdown(Class blocksListsAsLongs) {
+      // nothing to do!
+    }
     public void compileReport(LinkedList<ScanInfo> report,
         ReportCompiler reportCompiler)
             throws IOException, InterruptedException {
@@ -519,7 +523,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
   private ProvidedBlockPoolSlice getProvidedBlockPoolSlice(String bpid)
       throws IOException {
     ProvidedBlockPoolSlice bp = bpSlices.get(bpid);
-    if (bp == null) {
+    if (bp == null) { // TODO: GABRIEL - should be null for testProvidedVolumeImpl
       throw new IOException("block pool " + bpid + " is not found");
     }
     return bp;
@@ -558,11 +562,16 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
   }
 
   void shutdown() {
-    // Nothing to do!
-    /*Set<Entry<String, ProvidedBlockPoolSlice>> set = bpSlices.entrySet();
-    for (Entry<String, ProvidedBlockPoolSlice> entry : set) {
+    Set<Map.Entry<String, ProvidedBlockPoolSlice>> set = bpSlices.entrySet();
+    for (Map.Entry<String, ProvidedBlockPoolSlice> entry : set) {
       entry.getValue().shutdown(null);
-    }*/
+    }
+  }
+
+  @Override
+  void shutdownBlockPool(String bpid) {
+    ProvidedBlockPoolSlice bp = bpSlices.get(bpid);
+    bpSlices.remove(bpid);
   }
 
   @Override

@@ -99,7 +99,7 @@ public class TextFileRegionAliasMap
   }
 
   @VisibleForTesting
-  TextReader createReader(Path file, String delim, Configuration cfg,
+  TextReader createReader(Path file, String delim, Configuration cfg, // TODO: GABRIEL -  why returns null ?
       String blockPoolID) throws IOException {
     FileSystem fs = file.getFileSystem(cfg);
     if (fs instanceof LocalFileSystem) {

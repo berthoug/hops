@@ -727,12 +727,12 @@ public class FsVolumeImpl implements FsVolumeSpi {
     return dataset;
   }
 
+
   @Override
-  public LinkedList<ScanInfo> compileReport(String bpid, LinkedList<ScanInfo> report, DirectoryScanner.ReportCompiler reportCompiler) throws InterruptedException, IOException {
-    throw new NotImplementedException();
+  public LinkedList<ScanInfo> compileReport(String bpid,  LinkedList<ScanInfo> report, DirectoryScanner.ReportCompiler reportCompiler)
+      throws InterruptedException, IOException {
+    return compileReport(this, getFinalizedDir(bpid), report); // TODO: GABRIEL - Test
   }
-
-
 
   /**
    * RBW files. They get moved to the finalized block directory when

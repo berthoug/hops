@@ -398,44 +398,48 @@ public class DirectoryScanner implements Runnable {
     // Use an array since the threads may return out of order and
     // compilersInProgress#keySet may return out of order as well.
     ScanInfoPerBlockPool[] dirReports =
-        new ScanInfoPerBlockPool[volumes.size()];
+            new ScanInfoPerBlockPool[volumes.size()];
 
     Map<Integer, Future<ScanInfoPerBlockPool>> compilersInProgress =
-        new HashMap<>();
+            new HashMap<>();
 
     for (int i = 0; i < volumes.size(); i++) {
       if (volumes.get(i).getStorageType() == StorageType.PROVIDED) {
         // Disable scanning PROVIDED volumes to keep overhead low
         continue;
       }
-      if (isValid(dataset, volumes.get(i))) {
-        ReportCompiler reportCompiler = new ReportCompiler(volumes.get(i));
-        Future<ScanInfoPerBlockPool> result =
-            reportCompileThreadPool.submit(reportCompiler);
-        compilersInProgress.put(i, result);
-      }
+      // if (isValid(dataset, volumes.get(i))) {
+      ReportCompiler reportCompiler = new ReportCompiler(volumes.get(i));
+      Future<ScanInfoPerBlockPool> result =
+              reportCompileThreadPool.submit(reportCompiler);
+      compilersInProgress.put(i, result);
+      //  }
     }
 
-    for (Entry<Integer, Future<ScanInfoPerBlockPool>> report : compilersInProgress
-        .entrySet()) {
+    for (Entry<Integer, Future<ScanInfoPerBlockPool>> report :
+            compilersInProgress.entrySet()) {
+      Integer index = report.getKey();
       try {
-        dirReports[report.getKey()] = report.getValue().get();
+        dirReports[index] = report.getValue().get();
+        // If our compiler threads were interrupted, give up on this run
+        if (dirReports[index] == null) {
+          dirReports = null;
+          break;
+        }
       } catch (Exception ex) {
         LOG.error("Error compiling report", ex);
         // Propagate ex to DataBlockScanner to deal with
         throw new RuntimeException(ex);
       }
     }
-
-    // Compile consolidated report for all the volumes
-    ScanInfoPerBlockPool list = new ScanInfoPerBlockPool();
-    for (int i = 0; i < volumes.size(); i++) {
-      if (isValid(dataset, volumes.get(i))) {
-        // volume is still valid
-        list.addAll(dirReports[i]);
-      }
+  // Compile consolidated report for all the volumes
+  ScanInfoPerBlockPool list = new ScanInfoPerBlockPool();
+  for (int i = 0; i < volumes.size(); i++) {
+    if (dirReports[i] != null) {
+      // volume is still valid
+      list.addAll(dirReports[i]);
     }
-
+  }
     return list.toSortedArrays();
   }
 
@@ -455,7 +459,7 @@ public class DirectoryScanner implements Runnable {
         LinkedList<ScanInfo> report = new LinkedList<>();
 
         try {
-          result.put(bpid, volume.compileReport(bpid, report, this)); // TODO: GABRIEL - implement to only add finalized blocks to block report
+          result.put(bpid, volume.compileReport(bpid, report, this)); // TODO: GABRIEL - report empty for provided blocks, is this correct (probably yes)?
         } catch (InterruptedException ex) {
           // Exit quickly and flag the scanner to do the same
           result = null;
