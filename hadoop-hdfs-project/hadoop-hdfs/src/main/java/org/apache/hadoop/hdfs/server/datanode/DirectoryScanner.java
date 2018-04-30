@@ -224,7 +224,7 @@ public class DirectoryScanner implements Runnable {
       LOG.warn(
           "DirectoryScanner: shutdown has been called, but periodic scanner not started");
     } else {
-      LOG.warn("DirectoryScanner: shutdown has been called");
+      LOG.warn("DirectoryScanner: shutdown has been called"); // TODO: GABRIE: - sould be calledd?
     }
     shouldRun = false;
     if (masterThread != null) {

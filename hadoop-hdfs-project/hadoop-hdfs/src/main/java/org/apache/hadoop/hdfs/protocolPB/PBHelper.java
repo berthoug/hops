@@ -1445,6 +1445,8 @@ public class PBHelper {
         return StorageTypeProto.SSD;
       case RAID5:
         return StorageTypeProto.RAID5;
+      case PROVIDED:
+        return StorageTypeProto.PROVIDED;
       case ARCHIVE:
         return StorageTypeProto.ARCHIVE;
       default:
@@ -1464,6 +1466,8 @@ public class PBHelper {
         return StorageType.SSD;
       case RAID5:
         return StorageType.RAID5;
+      case PROVIDED:
+        return StorageType.PROVIDED;
       case ARCHIVE:
         return StorageType.ARCHIVE;
       default:

@@ -25,8 +25,10 @@ import java.io.IOException;
 import java.util.*;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import io.hops.metadata.HdfsStorageFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.BlockStoragePolicySpi;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.protocol.*;
@@ -868,6 +870,16 @@ public class TestBlockStoragePolicy {
       fs.setStoragePolicy(barDir, HdfsConstants.WARM_STORAGE_POLICY_NAME);
       fs.setStoragePolicy(barFile2, HdfsConstants.HOT_STORAGE_POLICY_NAME);
 
+      Assert.assertEquals("File storage policy should be COLD",
+          HdfsConstants.COLD_STORAGE_POLICY_NAME,
+          fs.getStoragePolicy(fooFile).getName());
+      Assert.assertEquals("File storage policy should be WARM",
+          HdfsConstants.WARM_STORAGE_POLICY_NAME,
+          fs.getStoragePolicy(barDir).getName());
+      Assert.assertEquals("File storage policy should be HOT",
+          HdfsConstants.HOT_STORAGE_POLICY_NAME,
+          fs.getStoragePolicy(barFile2).getName());
+
       dirList = fs.getClient().listPaths(dir.toString(),
           HdfsFileStatus.EMPTY_NAME).getPartialListing();
       barList = fs.getClient().listPaths(barDir.toString(),
@@ -1079,19 +1091,59 @@ public class TestBlockStoragePolicy {
     final DistributedFileSystem fs = cluster.getFileSystem();
     try {
       BlockStoragePolicy[] policies = fs.getStoragePolicies();
-      Assert.assertEquals(5, policies.length);
+      Assert.assertEquals(6, policies.length);
+      Assert.assertEquals(POLICY_SUITE.getPolicy(PROVIDED).toString(),
+              policies[0].toString());
       Assert.assertEquals(POLICY_SUITE.getPolicy(COLD).toString(),
-          policies[0].toString());
-      Assert.assertEquals(POLICY_SUITE.getPolicy(WARM).toString(),
           policies[1].toString());
-      Assert.assertEquals(POLICY_SUITE.getPolicy(HOT).toString(),
+      Assert.assertEquals(POLICY_SUITE.getPolicy(WARM).toString(),
           policies[2].toString());
-      Assert.assertEquals(POLICY_SUITE.getPolicy(ONESSD).toString(),
+      Assert.assertEquals(POLICY_SUITE.getPolicy(HOT).toString(),
           policies[3].toString());
-      Assert.assertEquals(POLICY_SUITE.getPolicy(ALLSSD).toString(),
+      Assert.assertEquals(POLICY_SUITE.getPolicy(ONESSD).toString(),
           policies[4].toString());
+      Assert.assertEquals(POLICY_SUITE.getPolicy(ALLSSD).toString(),
+          policies[5].toString());
     } finally {
       IOUtils.cleanup(null, fs);
+      cluster.shutdown();
+    }
+  }
+
+  /**
+   * Verify that {@link FileSystem#getAllStoragePolicies} returns all
+   * known storage policies for DFS.
+   *
+   * @throws IOException
+   */
+  @Test
+  public void testGetAllStoragePoliciesFromFs() throws IOException {
+    final MiniDFSCluster cluster = new MiniDFSCluster.Builder(conf)
+            .numDataNodes(REPLICATION)
+            .storageTypes(
+                    new StorageType[] {StorageType.DISK, StorageType.ARCHIVE})
+            .build();
+    try {
+      cluster.waitActive();
+
+      // Get policies via {@link FileSystem#getAllStoragePolicies}
+      Set<String> policyNamesSet1 = new HashSet<>();
+      for (BlockStoragePolicy policy :
+              cluster.getFileSystem().getStoragePolicies()) {
+        policyNamesSet1.add(policy.getName());
+      }
+
+      // Get policies from the default BlockStoragePolicySuite.
+      BlockStoragePolicySuite suite = BlockStoragePolicySuite.createDefaultSuite();
+      Set<String> policyNamesSet2 = new HashSet<>();
+      for (BlockStoragePolicy policy : suite.getAllPolicies()) {
+        policyNamesSet2.add(policy.getName());
+      }
+
+      // Ensure that we got the same set of policies in both cases.
+      Assert.assertTrue(Sets.difference(policyNamesSet1, policyNamesSet2).isEmpty());
+      Assert.assertTrue(Sets.difference(policyNamesSet2, policyNamesSet1).isEmpty());
+    } finally {
       cluster.shutdown();
     }
   }

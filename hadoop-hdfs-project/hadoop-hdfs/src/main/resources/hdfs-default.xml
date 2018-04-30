@@ -31,7 +31,7 @@
   </property>
 
   <property>
-    <name>dfs.namenode.logging.level</name>
+      <name>dfs.namenode.logging.level</name>
     <value>info</value>
     <description>
       The logging level for dfs namenode. Other values are "dir" (trace

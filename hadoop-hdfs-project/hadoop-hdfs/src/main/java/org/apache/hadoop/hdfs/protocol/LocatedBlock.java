@@ -53,12 +53,12 @@ public class LocatedBlock {
     @Override
     public int compare(DatanodeInfoWithStorage dns1,
                        DatanodeInfoWithStorage dns2) {
-      if (org.apache.hadoop.fs.StorageType.PROVIDED.equals(dns1.getStorageType())
-              && !org.apache.hadoop.fs.StorageType.PROVIDED.equals(dns2.getStorageType())) {
+      if (StorageType.PROVIDED.equals(dns1.getStorageType())
+              && !StorageType.PROVIDED.equals(dns2.getStorageType())) {
         return 1;
       }
-      if (!org.apache.hadoop.fs.StorageType.PROVIDED.equals(dns1.getStorageType())
-              && org.apache.hadoop.fs.StorageType.PROVIDED.equals(dns2.getStorageType())) {
+      if (!StorageType.PROVIDED.equals(dns1.getStorageType())
+              && StorageType.PROVIDED.equals(dns2.getStorageType())) {
         return -1;
       }
       // Storage types of dns1 and dns2 are now both provided or not provided;
@@ -113,7 +113,7 @@ public class LocatedBlock {
 
   public LocatedBlock(ExtendedBlock b, DatanodeInfo[] locs, String[] storageIDs,
                       StorageType[] storageTypes, long offset, boolean corrupt) {
-    this(b, convert(locs, storageIDs, storageTypes), storageIDs, storageTypes, -offset, corrupt, EMPTY_LOCS);
+    this(b, convert(locs, storageIDs, storageTypes), storageIDs, storageTypes, offset, corrupt, EMPTY_LOCS); // TODO: should this be negative
   }
 
   public LocatedBlock(ExtendedBlock b, DatanodeStorageInfo[] storages, long startOffset, boolean corrupt) {
