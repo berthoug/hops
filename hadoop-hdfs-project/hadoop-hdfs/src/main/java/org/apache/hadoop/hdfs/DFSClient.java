@@ -29,50 +29,19 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.BlockLocation;
-import org.apache.hadoop.fs.BlockStorageLocation;
-import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
-import org.apache.hadoop.fs.ContentSummary;
-import org.apache.hadoop.fs.CreateFlag;
-import org.apache.hadoop.fs.FileAlreadyExistsException;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FsServerDefaults;
-import org.apache.hadoop.fs.FsStatus;
-import org.apache.hadoop.fs.HdfsBlockLocation;
-import org.apache.hadoop.fs.InvalidPathException;
-import org.apache.hadoop.fs.MD5MD5CRC32CastagnoliFileChecksum;
-import org.apache.hadoop.fs.MD5MD5CRC32FileChecksum;
-import org.apache.hadoop.fs.MD5MD5CRC32GzipFileChecksum;
-import org.apache.hadoop.fs.Options;
+import org.apache.hadoop.crypto.CryptoCodec;
+import org.apache.hadoop.crypto.CryptoInputStream;
+import org.apache.hadoop.crypto.key.KeyProvider;
+import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.Options.ChecksumOpt;
-import org.apache.hadoop.fs.ParentNotDirectoryException;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.UnresolvedLinkException;
-import org.apache.hadoop.fs.VolumeId;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.NamenodeSelector.NamenodeHandle;
 import org.apache.hadoop.hdfs.client.HdfsDataInputStream;
 import org.apache.hadoop.hdfs.client.HdfsDataOutputStream;
-import org.apache.hadoop.hdfs.protocol.AlreadyBeingCreatedException;
-import org.apache.hadoop.hdfs.protocol.BlockStoragePolicy;
-import org.apache.hadoop.hdfs.protocol.ClientProtocol;
-import org.apache.hadoop.hdfs.protocol.CorruptFileBlocks;
-import org.apache.hadoop.hdfs.protocol.DSQuotaExceededException;
-import org.apache.hadoop.hdfs.protocol.DatanodeID;
-import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
-import org.apache.hadoop.hdfs.protocol.DirectoryListing;
-import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
-import org.apache.hadoop.hdfs.protocol.HdfsBlocksMetadata;
-import org.apache.hadoop.hdfs.protocol.HdfsConstants;
+import org.apache.hadoop.hdfs.protocol.*;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.DatanodeReportType;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.SafeModeAction;
-import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
-import org.apache.hadoop.hdfs.protocol.LastUpdatedContentSummary;
-import org.apache.hadoop.hdfs.protocol.LocatedBlock;
-import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
-import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
-import org.apache.hadoop.hdfs.protocol.UnresolvedPathException;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferEncryptor;
 import org.apache.hadoop.hdfs.protocol.datatransfer.IOStreamPair;
 import org.apache.hadoop.hdfs.protocol.datatransfer.Op;
@@ -108,6 +77,7 @@ import org.apache.hadoop.util.DataChecksum;
 import org.apache.hadoop.util.DataChecksum.Type;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.Time;
+import org.apache.htrace.core.TraceScope;
 
 import javax.net.SocketFactory;
 import java.io.BufferedOutputStream;
@@ -213,7 +183,6 @@ public class DFSClient implements java.io.Closeable {
   private Random r = new Random();
   private SocketAddress[] localInterfaceAddrs;
   private DataEncryptionKey encryptionKey;
-
 
   /**
    * DFSClient configuration
@@ -1344,7 +1313,7 @@ public class DFSClient implements java.io.Closeable {
       FileSystem.Statistics stats) throws IOException, UnresolvedLinkException {
     return open(src, buffersize, verifyChecksum);
   }
-  
+
 
   /**
    * Create an input stream that obtains a nodelist from the
@@ -1357,6 +1326,32 @@ public class DFSClient implements java.io.Closeable {
     checkOpen();
     //    Get block info from namenode
     return new DFSInputStream(this, src, buffersize, verifyChecksum, dfsClientConf.hdfsClientEmulationForSF);
+  }
+
+  /**
+   * Create an input stream from the {@link HdfsPathHandle} if the
+   * constraints encoded from {@link
+   * DistributedFileSystem#createPathHandle(FileStatus, Options.HandleOpt...)}
+   * are satisfied. Note that HDFS does not ensure that these constraints
+   * remain invariant for the life of the stream. It only checks that they
+   * still held when the stream was opened.
+   * @param fd Handle to an entity in HDFS, with constraints
+   * @param buffersize ignored
+   * @param verifyChecksum Verify checksums before returning data to client
+   * @return Data from the referent of the {@link HdfsPathHandle}.
+   * @throws IOException On I/O error
+   */
+  public DFSInputStream open(HdfsPathHandle fd, int buffersize,
+                             boolean verifyChecksum) throws IOException {
+    // TODO: GABRIEL - implement HDFS-12882 ?
+    checkOpen();
+    String src = fd.getPath();
+    try (TraceScope ignored = newPathTraceScope("newDFSInputStream", src)) {
+      HdfsLocatedFileStatus s = getLocatedFileInfo(src, true);
+      fd.verify(s); // check invariants in path handle
+      LocatedBlocks locatedBlocks = s.getLocatedBlocks();
+      return openInternal(locatedBlocks, src, verifyChecksum);
+    }
   }
 
   /**

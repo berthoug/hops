@@ -73,6 +73,9 @@ import org.apache.hadoop.util.StringUtils;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Collection;
 
+import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.IO_FILE_BUFFER_SIZE_DEFAULT;
+import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.IO_FILE_BUFFER_SIZE_KEY;
+
 /****************************************************************
  * An abstract base class for a fairly generic filesystem.  It
  * may be implemented as a distributed filesystem, or as a "local"
@@ -764,13 +767,15 @@ public abstract class FileSystem extends Configured implements Closeable {
    */
   public abstract FSDataInputStream open(Path f, int bufferSize)
     throws IOException;
-    
+
   /**
    * Opens an FSDataInputStream at the indicated Path.
    * @param f the file to open
+   * @throws IOException IO failure
    */
   public FSDataInputStream open(Path f) throws IOException {
-    return open(f, getConf().getInt("io.file.buffer.size", 4096));
+    return open(f, getConf().getInt(IO_FILE_BUFFER_SIZE_KEY,
+            IO_FILE_BUFFER_SIZE_DEFAULT));
   }
 
   /**
@@ -784,7 +789,7 @@ public abstract class FileSystem extends Configured implements Closeable {
    * @throws UnsupportedOperationException If not overridden by subclass
    */
   public FSDataInputStream open(PathHandle fd, int bufferSize)
-          throws IOException {
+          throws IOException{
     throw new UnsupportedOperationException();
   }
 
@@ -2928,7 +2933,7 @@ public abstract class FileSystem extends Configured implements Closeable {
    * statistics is done infrequently by most programs, and not at all by others.
    * Hence, this is optimized for writes.
    * 
-   * Each thread writes to its own thread-local area of memory.  This removes 
+   * Each thread writes to its own thread-local area of memory.  This removes
    * contention and allows us to scale up to many, many threads.  To read
    * statistics, the reader thread totals up the contents of all of the 
    * thread-local data areas.

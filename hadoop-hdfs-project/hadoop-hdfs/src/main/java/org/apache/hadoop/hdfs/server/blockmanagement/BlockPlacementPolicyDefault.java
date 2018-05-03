@@ -430,7 +430,7 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
 
   /**
    * Choose <i>localMachine</i> as the target.
-   * if <i>localMachine</i> is not available, 
+   * if <i>localMachine</i> is not available,
    * choose a node on the same rack
    * @return the chosen storage
    */
@@ -565,7 +565,7 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
   /**
    * Choose <i>numOfReplicas</i> nodes from the racks 
    * that <i>localMachine</i> is NOT on.
-   * if not enough nodes are available, choose the remaining ones 
+   * if not enough nodes are available, choose the remaining ones
    * from the local rack
    */
 
@@ -752,19 +752,19 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
   }
 
   /**
-   * Determine if a storage is a good target. 
+   * Determine if a storage is a good target.
    *
    * @param storage The target storage
    * @param blockSize Size of block
-   * @param maxTargetPerRack Maximum number of targets per rack. The value of 
-   *                       this parameter depends on the number of racks in 
+   * @param maxTargetPerRack Maximum number of targets per rack. The value of
+   *                       this parameter depends on the number of racks in
    *                       the cluster and total number of replicas for a block
    * @param considerLoad whether or not to consider load of the target node
-   * @param results A list containing currently chosen nodes. Used to check if 
+   * @param results A list containing currently chosen nodes. Used to check if
    *                too many nodes has been chosen in the target rack.
    * @param avoidStaleNodes Whether or not to avoid choosing stale nodes
-   * @return Return true if <i>node</i> has enough space, 
-   *         does not have too much load, 
+   * @return Return true if <i>node</i> has enough space,
+   *         does not have too much load,
    *         and the rack does not have too many nodes.
    */
   private boolean isGoodTarget(DatanodeStorageInfo storage,

@@ -459,7 +459,7 @@ public class DirectoryScanner implements Runnable {
         LinkedList<ScanInfo> report = new LinkedList<>();
 
         try {
-          result.put(bpid, volume.compileReport(bpid, report, this)); // TODO: GABRIEL - report empty for provided blocks, is this correct (probably yes)?
+          result.put(bpid, volume.compileReport(bpid, report, this));
         } catch (InterruptedException ex) {
           // Exit quickly and flag the scanner to do the same
           result = null;

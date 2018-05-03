@@ -23,40 +23,15 @@ import io.hops.metadata.hdfs.entity.EncodingStatus;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.BlockLocation;
-import org.apache.hadoop.fs.BlockStorageLocation;
-import org.apache.hadoop.fs.ContentSummary;
-import org.apache.hadoop.fs.CreateFlag;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FileSystemLinkResolver;
-import org.apache.hadoop.fs.FsServerDefaults;
-import org.apache.hadoop.fs.FsStatus;
-import org.apache.hadoop.fs.LocatedFileStatus;
-import org.apache.hadoop.fs.MD5MD5CRC32FileChecksum;
-import org.apache.hadoop.fs.Options;
+import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.Options.ChecksumOpt;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
-import org.apache.hadoop.fs.RemoteIterator;
-import org.apache.hadoop.fs.UnresolvedLinkException;
-import org.apache.hadoop.fs.VolumeId;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.client.HdfsDataInputStream;
 import org.apache.hadoop.hdfs.client.HdfsDataOutputStream;
-import org.apache.hadoop.hdfs.protocol.BlockStoragePolicy;
-import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
-import org.apache.hadoop.hdfs.protocol.DirectoryListing;
-import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
-import org.apache.hadoop.hdfs.protocol.HdfsConstants;
+import org.apache.hadoop.hdfs.protocol.*;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.DatanodeReportType;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.SafeModeAction;
-import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
-import org.apache.hadoop.hdfs.protocol.HdfsLocatedFileStatus;
-import org.apache.hadoop.hdfs.protocol.LastUpdatedContentSummary;
-import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.security.token.block.InvalidBlockTokenException;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
@@ -64,15 +39,14 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
+import org.apache.hadoop.fs.Options.HandleOpt;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
 /**
@@ -234,6 +208,40 @@ public class DistributedFileSystem extends FileSystem {
     return dfs.getBlockStorageLocations(blocks);
   }
 
+  /**
+   * Create a handle to an HDFS file.
+   * @param st HdfsFileStatus instance from NameNode
+   * @param opts Standard handle arguments
+   * @throws IllegalArgumentException If the FileStatus instance refers to a
+   * directory, symlink, or another namesystem.
+   * @throws UnsupportedOperationException If opts are not specified or both
+   * data and location are not allowed to change.
+   * @return A handle to the file.
+   */
+  @Override
+  protected PathHandle createPathHandle(FileStatus st, HandleOpt[] opts) {
+   if (!(st instanceof HdfsFileStatus)) {
+      throw new IllegalArgumentException("Invalid FileStatus "
+              + st.getClass().getSimpleName());
+    }
+    if (st.isDirectory() || st.isSymlink()) {
+      throw new IllegalArgumentException("PathHandle only available for files");
+    }
+    if (!getUri().getAuthority().equals(st.getPath().toUri().getAuthority())) {
+      throw new IllegalArgumentException("Wrong FileSystem: " + st.getPath());
+    }
+    HandleOpt.Data data = HandleOpt.getOpt(HandleOpt.Data.class, opts)
+            .orElse(HandleOpt.changed(false));
+    HandleOpt.Location loc = HandleOpt.getOpt(HandleOpt.Location.class, opts)
+            .orElse(HandleOpt.moved(false));
+    if (!data.allowChange() || !loc.allowChange()) {
+      throw new UnsupportedOperationException("Unsupported opts "
+              + Arrays.stream(opts)
+              .map(HandleOpt::toString).collect(Collectors.joining(",")));
+    }
+    return new HdfsPathHandle((HdfsFileStatus)st);
+  }
+
   @Override
   public void setVerifyChecksum(boolean verifyChecksum) {
     this.verifyChecksum = verifyChecksum;
@@ -254,10 +262,27 @@ public class DistributedFileSystem extends FileSystem {
 
   @SuppressWarnings("deprecation")
   @Override
-  public HdfsDataInputStream open(Path f, int bufferSize) throws IOException {
+  public FSDataInputStream open(Path f, int bufferSize) throws IOException {
     statistics.incrementReadOps(1);
     return new DFSClient.DFSDataInputStream(
         dfs.open(getPathName(f), bufferSize, verifyChecksum));
+  }
+
+  /**
+   * Opens an FSDataInputStream with the indicated file ID extracted from
+   * the {@link PathHandle}.
+   * @param fd Reference to entity in this FileSystem.
+   * @param bufferSize the size of the buffer to be used.
+   */
+  @Override
+  public FSDataInputStream open(PathHandle fd, int bufferSize)
+          throws IOException {
+    statistics.incrementReadOps(1);
+    if (!(fd instanceof HdfsPathHandle)) {
+      fd = new HdfsPathHandle(fd.bytes());
+    }
+    HdfsPathHandle id = (HdfsPathHandle) fd;
+    return dfs.open(id, bufferSize, verifyChecksum);
   }
 
   /**
@@ -1038,6 +1063,7 @@ public class DistributedFileSystem extends FileSystem {
    * @throws FileNotFoundException
    *     if the file does not exist.
    */
+  /*
   @Override
   public FileStatus getFileStatus(Path f) throws IOException {
     statistics.incrementReadOps(1);
@@ -1047,6 +1073,33 @@ public class DistributedFileSystem extends FileSystem {
     } else {
       throw new FileNotFoundException("File does not exist: " + f);
     }
+  }
+  */
+
+  /**
+   * Returns the stat information about the file.
+   * @throws FileNotFoundException if the file does not exist.
+   */
+  @Override
+  public FileStatus getFileStatus(Path f) throws IOException {
+    statistics.incrementReadOps(1);
+    Path absF = fixRelativePart(f);
+    return new FileSystemLinkResolver<FileStatus>() {
+      @Override
+      public FileStatus doCall(final Path p) throws IOException {
+        HdfsFileStatus fi = dfs.getFileInfo(getPathName(p));
+        if (fi != null) {
+          return fi.makeQualified(getUri(), p);
+        } else {
+          throw new FileNotFoundException("File does not exist: " + p);
+        }
+      }
+      @Override
+      public FileStatus next(final FileSystem fs, final Path p)
+              throws IOException {
+        return fs.getFileStatus(p);
+      }
+    }.resolve(this, absF);
   }
 
   @Override

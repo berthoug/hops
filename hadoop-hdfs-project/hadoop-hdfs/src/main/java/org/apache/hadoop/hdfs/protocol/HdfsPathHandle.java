@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.PathHandle;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.HdfsPathHandleProto;
 
@@ -41,6 +42,8 @@ public final class HdfsPathHandle implements PathHandle {
   public HdfsPathHandle(HdfsFileStatus hstat) {
     this(hstat.getFileId());
   }
+
+
 
   public HdfsPathHandle(long inodeId) {
     this.inodeId = inodeId;
