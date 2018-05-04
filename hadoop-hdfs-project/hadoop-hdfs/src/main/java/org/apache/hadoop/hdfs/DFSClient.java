@@ -1343,16 +1343,11 @@ public class DFSClient implements java.io.Closeable {
    */
   public DFSInputStream open(HdfsPathHandle fd, int buffersize,
                              boolean verifyChecksum) throws IOException {
+
     // TODO: GABRIEL - implement HDFS-12882 ?
-    checkOpen();
-    String src = fd.getPath();
-    try (TraceScope ignored = newPathTraceScope("newDFSInputStream", src)) {
-      HdfsLocatedFileStatus s = getLocatedFileInfo(src, true);
-      fd.verify(s); // check invariants in path handle
-      LocatedBlocks locatedBlocks = s.getLocatedBlocks();
-      return openInternal(locatedBlocks, src, verifyChecksum);
-    }
+    throw new UnsupportedOperationException();
   }
+
 
   /**
    * Get the namenode associated with this DFSClient object

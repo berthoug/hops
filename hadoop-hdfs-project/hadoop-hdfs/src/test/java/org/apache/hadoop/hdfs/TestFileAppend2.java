@@ -129,7 +129,7 @@ public class TestFileAppend2 {
         System.out.println("Wrote and Closed second part of file.");
 
         // verify that entire file is good
-        AppendTestUtil.checkFullFile(fs, file1, AppendTestUtil.FILE_SIZE,
+        AppendTestUtil.checkFullFile(fs, file1, AppendTestUtil.FILE_SIZE, // TODO: Infinite loop here
             fileContents, "Read 2");
       }
 

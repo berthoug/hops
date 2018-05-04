@@ -131,6 +131,7 @@ public class LocatedBlock {
             null == cachedLocs || 0 == cachedLocs.length ? EMPTY_LOCS : cachedLocs);
   }
 
+  // TODO: GABRIEL - investigate empty block array from locatedblocks in testappend
   /**
    * Main constructor for {@link LocatedBlocks}
    */

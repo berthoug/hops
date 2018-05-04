@@ -268,22 +268,6 @@ public class DistributedFileSystem extends FileSystem {
         dfs.open(getPathName(f), bufferSize, verifyChecksum));
   }
 
-  /**
-   * Opens an FSDataInputStream with the indicated file ID extracted from
-   * the {@link PathHandle}.
-   * @param fd Reference to entity in this FileSystem.
-   * @param bufferSize the size of the buffer to be used.
-   */
-  @Override
-  public FSDataInputStream open(PathHandle fd, int bufferSize)
-          throws IOException {
-    statistics.incrementReadOps(1);
-    if (!(fd instanceof HdfsPathHandle)) {
-      fd = new HdfsPathHandle(fd.bytes());
-    }
-    HdfsPathHandle id = (HdfsPathHandle) fd;
-    return dfs.open(id, bufferSize, verifyChecksum);
-  }
 
   /**
    * This optional operation is not yet supported.

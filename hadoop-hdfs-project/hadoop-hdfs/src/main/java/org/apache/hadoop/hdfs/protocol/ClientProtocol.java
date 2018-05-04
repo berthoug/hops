@@ -1043,6 +1043,8 @@ public interface ClientProtocol {
   @Idempotent
   public HdfsFileStatus getFileLinkInfo(String src)
       throws AccessControlException, UnresolvedLinkException, IOException;
+
+
   
   /**
    * Get {@link ContentSummary} rooted at the specified directory.
