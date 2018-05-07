@@ -103,17 +103,13 @@ public class LocatedBlock {
     this(b, convert(locs, null, null), null, null, startOffset, corrupt, EMPTY_LOCS);
   }
 
-  public LocatedBlock(ExtendedBlock b, DatanodeStorageInfo[] storages) {
-    this(b, storages, -1, false); // startOffset is unknown
-  }
-
   public LocatedBlock(ExtendedBlock b, DatanodeInfo[] locs, String[] storageIDs, StorageType[] storageTypes) {
     this(b, convert(locs, storageIDs, storageTypes), storageIDs, storageTypes, -1, false, EMPTY_LOCS); // startOffset is unknown
   }
 
   public LocatedBlock(ExtendedBlock b, DatanodeInfo[] locs, String[] storageIDs,
                       StorageType[] storageTypes, long offset, boolean corrupt) {
-    this(b, convert(locs, storageIDs, storageTypes), storageIDs, storageTypes, offset, corrupt, EMPTY_LOCS); // TODO: should this be negative
+    this(b, convert(locs, storageIDs, storageTypes), storageIDs, storageTypes, offset, corrupt, EMPTY_LOCS);
   }
 
   public LocatedBlock(ExtendedBlock b, DatanodeStorageInfo[] storages, long startOffset, boolean corrupt) {

@@ -67,7 +67,7 @@ public class BlockRecoveryCommand extends DatanodeCommand {
      * Create RecoveringBlock.
      */
     public RecoveringBlock(ExtendedBlock b, DatanodeStorageInfo[] locs, long newGS) {
-      super(b, locs); // startOffset is unknown
+      super(b, locs, -1, false);
       this.newGenerationStamp = newGS;
     }
 

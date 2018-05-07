@@ -2650,7 +2650,8 @@ public class FSNamesystem
                 src, numAdditionalNodes, clientNode, chosen,
                 excludes, preferredBlockSize, storagePolicyID);
 
-            final LocatedBlock lb = new LocatedBlock(blk, targets);
+            final LocatedBlock lb = BlockManager.newLocatedBlock(
+                    blk, targets, -1, false);
             blockManager.setBlockToken(lb, AccessMode.COPY);
             return lb;
           }
@@ -7819,7 +7820,8 @@ public class FSNamesystem
             isParity ? 1 : status.getEncodingPolicy().getTargetReplication(),
             null, chosenStorages, excluded, block.getBlockSize(), storagePolicyID);
 
-    return new LocatedBlock(block.getBlock(), descriptors);
+    return BlockManager.newLocatedBlock(block.getBlock(), descriptors, -1, false);
+    //return new LocatedBlock(block.getBlock(), descriptors);
   }
 
   private int getStripe(LocatedBlock block,

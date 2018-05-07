@@ -1021,11 +1021,12 @@ public class PBHelper {
 
   // LocatedBlocks
   public static LocatedBlocks convert(LocatedBlocksProto lb) {
-    LocatedBlocks locatedBlocks =  new LocatedBlocks(lb.getFileLength(), lb.getUnderConstruction(),
+    return new LocatedBlocks(
+        lb.getFileLength(), lb.getUnderConstruction(),
         PBHelper.convertLocatedBlock(lb.getBlocksList()),
-        lb.hasLastBlock() ? PBHelper.convert(lb.getLastBlock()) : null,
+        lb.hasLastBlock() ?
+                PBHelper.convert(lb.getLastBlock()) : null,
         lb.getIsLastBlockComplete());
-    return locatedBlocks;
   }
 
   public static LocatedBlocksProto convert(LocatedBlocks lb) {
