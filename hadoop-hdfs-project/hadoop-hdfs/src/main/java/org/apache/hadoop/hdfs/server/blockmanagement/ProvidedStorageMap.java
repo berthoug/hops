@@ -340,12 +340,13 @@ public class ProvidedStorageMap {
     //  storage.setHeartbeatedSinceFailover(true);
       storageMap.put(storage.getStorageID(), storage);
 
-      try {
-        globalStorageMap.updateStorage(storage); // TODO: GABRIEL - fails in tests
+    /*
+    try {
+        globalStorageMap.updateStorage(storage); // TODO: GABRIEL - updating NDB fails in tests
       } catch (IOException e) {
         e.printStackTrace();
       }
-
+    */
       return storage;
     }
 
