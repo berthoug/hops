@@ -99,7 +99,7 @@ public class TextFileRegionAliasMap
   }
 
   @VisibleForTesting
-  TextReader createReader(Path file, String delim, Configuration cfg, // TODO: GABRIEL -  why returns null ?
+  TextReader createReader(Path file, String delim, Configuration cfg,
       String blockPoolID) throws IOException {
     FileSystem fs = file.getFileSystem(cfg);
     if (fs instanceof LocalFileSystem) {
@@ -107,7 +107,12 @@ public class TextFileRegionAliasMap
     }
     CompressionCodecFactory factory = new CompressionCodecFactory(cfg);
     CompressionCodec codec = factory.getCodec(file);
-    return new TextReader(fs, file, codec, delim);
+    String filename = fileNameFromBlockPoolID(blockPoolID);
+    if (codec != null) {
+      filename = filename + codec.getDefaultExtension();
+    }
+    Path bpidFilePath = new Path(file.getParent(), filename);
+    return new TextReader(fs, bpidFilePath, codec, delim);
   }
 
   @Override
@@ -123,14 +128,15 @@ public class TextFileRegionAliasMap
     Configuration cfg = (null == o.getConf())
             ? new Configuration()
             : o.getConf();
+    String baseName = fileNameFromBlockPoolID(blockPoolID);
+    Path blocksFile = new Path(o.dir, baseName);
     if (o.codec != null) {
       CompressionCodecFactory factory = new CompressionCodecFactory(cfg);
       CompressionCodec codec = factory.getCodecByName(o.codec);
-      String name = o.dir.getName() + codec.getDefaultExtension();
-      o.dirName(new Path(o.dir.getParent(), name));
-      return createWriter(o.dir, codec, o.delim, cfg);
+      blocksFile = new Path(o.dir, baseName + codec.getDefaultExtension());
+      return createWriter(blocksFile, codec, o.delim, cfg);
     }
-    return createWriter(o.dir, null, o.delim, conf);
+    return createWriter(blocksFile, null, o.delim, conf);
   }
 
   @VisibleForTesting
@@ -269,6 +275,7 @@ public class TextFileRegionAliasMap
     private final FileSystem fs;
     private final CompressionCodec codec;
     private final Map<FRIterator, BufferedReader> iterators;
+    private final String blockPoolID;
 
     protected TextReader(FileSystem fs, Path file, CompressionCodec codec,
                          String delim) {
@@ -283,6 +290,7 @@ public class TextFileRegionAliasMap
       this.codec = codec;
       this.delim = delim;
       this.iterators = Collections.synchronizedMap(iterators);
+      this.blockPoolID = blockPoolIDFromFileName(file);
     }
 
     @Override
