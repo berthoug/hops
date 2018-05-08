@@ -86,7 +86,10 @@ public class TestWriteRead {
 
   @After
   public void shutdown() {
+    if (cluster != null) {
     cluster.shutdown();
+      cluster = null;
+    }
   }
 
   // Equivalence of @Before for cluster mode testing.
@@ -103,7 +106,7 @@ public class TestWriteRead {
   /**
    * Junit Test reading while writing.
    */
-  @Test
+  @Test(timeout=300000)
   public void testWriteReadSeq() throws IOException {
     useFCOption = false;
     positionReadOption = false;
@@ -118,7 +121,7 @@ public class TestWriteRead {
   /**
    * Junit Test position read while writing.
    */
-  @Test
+  @Test(timeout=300000)
   public void testWriteReadPos() throws IOException {
     String fname = filenameOption;
     positionReadOption = true;   // position read
@@ -130,7 +133,7 @@ public class TestWriteRead {
   /**
    * Junit Test position read of the current block being written.
    */
-  @Test
+  @Test(timeout=300000)
   public void testReadPosCurrentBlock() throws IOException {
     String fname = filenameOption;
     positionReadOption = true;   // position read

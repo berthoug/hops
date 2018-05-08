@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.TestListFiles;
 import org.apache.log4j.Level;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 /**
  * This class tests the FileStatus API.

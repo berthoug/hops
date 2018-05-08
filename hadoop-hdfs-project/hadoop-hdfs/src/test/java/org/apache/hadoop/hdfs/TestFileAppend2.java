@@ -333,7 +333,7 @@ public class TestFileAppend2 {
    * Test that appends to files at random offsets.
    * @throws IOException an exception might be thrown
    */
-  @Test
+  @Test(timeout=300000)
   public void testComplexAppend() throws IOException {
     fileContents = AppendTestUtil.initBuffer(AppendTestUtil.FILE_SIZE);
     Configuration conf = new HdfsConfiguration();
