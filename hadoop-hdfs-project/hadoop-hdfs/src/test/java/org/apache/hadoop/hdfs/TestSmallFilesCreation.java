@@ -1371,6 +1371,7 @@ public class TestSmallFilesCreation {
     }
   }
 
+  @Test
   /** force format the database to release the extents
    *
    */
