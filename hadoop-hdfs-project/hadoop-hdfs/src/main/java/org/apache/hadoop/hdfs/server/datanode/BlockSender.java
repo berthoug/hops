@@ -773,9 +773,10 @@ class BlockSender implements java.io.Closeable {
     } finally {
       if (clientTraceFmt != null) {
         final long endTime = System.nanoTime();
-        ClientTraceLog.info(String
+ /*       ClientTraceLog.info(String
             .format(clientTraceFmt, totalRead, initialOffset,
                 endTime - startTime));
+                */
       }
       close();
     }
