@@ -218,6 +218,10 @@ public class DatanodeStorageInfo {
     this.sid = sid;
   }
 
+  void setHeartbeatedSinceFailover(boolean value) {
+    heartbeatedSinceFailover = value;
+  }
+
   public int getSid() {
     return this.sid;
   }

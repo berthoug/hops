@@ -857,7 +857,7 @@ public class TestBlockStoragePolicy {
           HdfsFileStatus.EMPTY_NAME, true).getPartialListing();
       checkDirectoryListing(dirList, ID_UNSPECIFIED, ID_UNSPECIFIED);
       checkDirectoryListing(barList, ID_UNSPECIFIED, ID_UNSPECIFIED);
-      
+
       final Path invalidPath = new Path("/invalidPath");
       try {
         fs.setStoragePolicy(invalidPath, HdfsConstants.WARM_STORAGE_POLICY_NAME);
@@ -955,7 +955,7 @@ public class TestBlockStoragePolicy {
           HdfsFileStatus.EMPTY_NAME, true).getPartialListing();
       checkDirectoryListing(status, policyId);
       HdfsLocatedFileStatus fooStatus = (HdfsLocatedFileStatus) status[0];
-      checkLocatedBlocks(fooStatus, 1, 3, before);
+      checkLocatedBlocks(fooStatus, 1, 3, before); // TODO: GABRIEL - TEST FAILS HERE, GETS 0 LOCATED BLOCKS
 
       // change the replication factor to 5
       fs.setReplication(foo, (short) numDataNodes);

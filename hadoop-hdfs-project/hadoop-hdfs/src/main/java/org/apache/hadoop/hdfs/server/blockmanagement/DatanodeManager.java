@@ -164,12 +164,12 @@ public class DatanodeManager {
    * writing to stale datanodes, i.e., continue using stale nodes for writing.
    */
   private final float ratioUseStaleDataNodesForWrite;
-  
+
   /**
    * The number of stale DataNodes
    */
   private volatile int numStaleNodes;
-  
+
   /**
    * Whether or not this cluster has ever consisted of more than 1 rack,
    * according to the NetworkTopology.
@@ -177,9 +177,9 @@ public class DatanodeManager {
   private boolean hasClusterEverBeenMultiRack = false;
 
   private final boolean checkIpHostnameInRegistration;
-  
-  private final StorageMap storageMap = new StorageMap();
-  
+
+  private final StorageMap storageMap = new StorageMap(false);
+
   DatanodeManager(final BlockManager blockManager, final Namesystem namesystem,
       final Configuration conf) throws IOException {
     this.namesystem = namesystem;
@@ -208,7 +208,7 @@ public class DatanodeManager {
     if (dnsToSwitchMapping instanceof CachedDNSToSwitchMapping) {
       dnsToSwitchMapping.resolve(new ArrayList<>(hostsReader.getHosts()));
     }
-    
+
     final long heartbeatIntervalSeconds =
         conf.getLong(DFSConfigKeys.DFS_HEARTBEAT_INTERVAL_KEY,
             DFSConfigKeys.DFS_HEARTBEAT_INTERVAL_DEFAULT);
@@ -249,7 +249,7 @@ public class DatanodeManager {
             " = '" + ratioUseStaleDataNodesForWrite + "' is invalid. " +
             "It should be a positive non-zero float value, not greater than 1.0f.");
   }
-  
+
   private static long getStaleIntervalFromConf(Configuration conf,
       long heartbeatExpireInterval) {
     long staleInterval =
@@ -342,10 +342,10 @@ public class DatanodeManager {
       final List<LocatedBlock> locatedblocks) {
     //sort the blocks
     final DatanodeDescriptor client = getDatanodeByHost(targethost);
-    
+
     Comparator<DatanodeInfo> comparator = avoidStaleDataNodesForRead ?
-        new DFSUtil.DecomStaleComparator(staleInterval) :
-        DFSUtil.DECOM_COMPARATOR;
+            new DFSUtil.DecomStaleComparator(staleInterval) :
+            DFSUtil.DECOM_COMPARATOR;
 
     for (LocatedBlock b : locatedblocks) {
       networktopology.pseudoSortByDistance(client, b.getLocations());
@@ -362,7 +362,6 @@ public class DatanodeManager {
       // move PROVIDED storage to the end to prefer local replicas.
       b.moveProvidedToEnd(activeLen);
     }
-
   }
 
   private boolean isInactive(DatanodeInfo datanode) {
@@ -370,7 +369,7 @@ public class DatanodeManager {
             (avoidStaleDataNodesForRead && datanode.isStale(staleInterval));
 
   }
-  
+
   CyclicIteration<String, DatanodeDescriptor> getDatanodeCyclicIteration(
       final String firstkey) {
     return new CyclicIteration<>(datanodeMap,
@@ -555,7 +554,7 @@ public class DatanodeManager {
   private boolean inHostsList(DatanodeID node) {
     return checkInList(node, hostsReader.getHosts(), false);
   }
-  
+
   private boolean inExcludedHostsList(DatanodeID node) {
     return checkInList(node, hostsReader.getExcludedHosts(), true);
   }
@@ -593,7 +592,7 @@ public class DatanodeManager {
     if (hostsReader.getHosts().isEmpty()) {
       return;
     }
-    
+
     for (Iterator<DatanodeDescriptor> it = nodeList.iterator();
          it.hasNext(); ) {
       DatanodeDescriptor node = it.next();
@@ -670,7 +669,7 @@ public class DatanodeManager {
       }
       heartbeatManager.startDecommission(node);
       node.decommissioningStatus.setStartTime(now());
-      
+
       // all the blocks that reside on this node have to be replicated.
       checkDecommissionState(node);
     }
@@ -683,7 +682,7 @@ public class DatanodeManager {
     if (node.isDecommissionInProgress() || node.isDecommissioned()) {
       LOG.info("Stop Decommissioning " + node);
       heartbeatManager.stopDecommission(node);
-      // Over-replicated blocks will be detected and processed when 
+      // Over-replicated blocks will be detected and processed when
       // the dead node comes back and send in its full block report.
       if (node.isAlive()) {
         blockManager.processOverReplicatedBlocksOnReCommission(node);
@@ -724,7 +723,7 @@ public class DatanodeManager {
     nodeReg.setExportedKeys(blockManager.getBlockKeys());
 
     // Checks if the node is not on the hosts list.  If it is not, then
-    // it will be disallowed from registering. 
+    // it will be disallowed from registering.
     if (!inHostsList(nodeReg)) {
       throw new DisallowedDatanodeException(nodeReg);
     }
@@ -739,7 +738,7 @@ public class DatanodeManager {
 
     if (nodeN != null && nodeN != nodeS) {
       NameNode.LOG.info("BLOCK* registerDatanode: " + nodeN);
-      // nodeN previously served a different data storage, 
+      // nodeN previously served a different data storage,
       // which is not served by anybody anymore.
       removeDatanode(nodeN);
       // physically remove node from datanodeMap
@@ -749,7 +748,7 @@ public class DatanodeManager {
 
     if (nodeS != null) {
       if (nodeN == nodeS) {
-        // The same datanode has been just restarted to serve the same data 
+        // The same datanode has been just restarted to serve the same data
         // storage. We do not need to remove old data blocks, the delta will
         // be calculated on the next block report from the datanode
         if (NameNode.stateChangeLog.isDebugEnabled()) {
@@ -758,13 +757,13 @@ public class DatanodeManager {
         }
       } else {
         // nodeS is found
-        /* The registering datanode is a replacement node for the existing 
+        /* The registering datanode is a replacement node for the existing
           data storage, which from now on will be served by a new node.
-          If this message repeats, both nodes might have same storageID 
+          If this message repeats, both nodes might have same storageID
           by (insanely rare) random chance. User needs to restart one of the
           nodes with its data cleared (or user can just remove the StorageID
           value in "VERSION" file under the data directory of the datanode,
-          but this is might not work if VERSION file format has changed 
+          but this is might not work if VERSION file format has changed
        */
         NameNode.stateChangeLog.info("BLOCK* registerDatanode: " + nodeS
             + " is replaced by " + nodeReg + " with the same storageID "
@@ -774,7 +773,7 @@ public class DatanodeManager {
       getNetworkTopology().remove(nodeS);
       nodeS.updateRegInfo(nodeReg);
       nodeS.setDisallowed(false); // Node is in the include list
-      
+
       // resolve network location
       if (this.rejectUnresolvedTopologyDN) {
         nodeS.setNetworkLocation(resolveNetworkLocation(nodeS));
@@ -803,7 +802,7 @@ public class DatanodeManager {
     }
     addDatanode(nodeDescr);
     checkDecommissioning(nodeDescr);
-    
+
     // also treat the registration message as a heartbeat
     // no need to update its timestamp
     // because its is done when the descriptor is created
@@ -817,9 +816,9 @@ public class DatanodeManager {
    */
   public void refreshNodes(final Configuration conf) throws IOException {
     // refreshNodes starts/stops decommission/recommission process
-    // it should only be handled by the leader node. 
+    // it should only be handled by the leader node.
     // because it depends upon threads like replication_deamon which is only active
-    // on the leader node. 
+    // on the leader node.
 
     if (!this.namesystem.isLeader()) {
       throw new UnsupportedOperationException(
@@ -909,7 +908,7 @@ public class DatanodeManager {
     }
     return decommissioningNodes;
   }
-  
+
   /* Getter and Setter for stale DataNodes related attributes */
 
   /**
@@ -926,7 +925,7 @@ public class DatanodeManager {
         heartbeatManager.getLiveDatanodeCount() *
             ratioUseStaleDataNodesForWrite);
   }
-  
+
   /**
    * @return The time interval used to mark DataNodes as stale.
    */
@@ -1094,7 +1093,7 @@ public class DatanodeManager {
     }
 
     ArrayList<DatanodeDescriptor> nodes = null;
-    
+
     synchronized (datanodeMap) {
       nodes = new ArrayList<>(
           datanodeMap.size() + mustList.size());
@@ -1108,7 +1107,7 @@ public class DatanodeManager {
         }
       }
     }
-    
+
     if (listDeadNodes) {
       for (String s : mustList.keySet()) {
         // The remaining nodes are ones that are referenced by the hosts
@@ -1128,7 +1127,7 @@ public class DatanodeManager {
     String ip = node.getIpAddr();
     String regHostName = node.getHostName();
     int xferPort = node.getXferPort();
-    
+
     List<String> names = new ArrayList<>();
     names.add(ip);
     names.add(ip + ":" + xferPort);
@@ -1179,8 +1178,8 @@ public class DatanodeManager {
         } catch (UnregisteredNodeException e) {
           return new DatanodeCommand[]{RegisterCommand.REGISTER};
         }
-        
-        // Check if this datanode should actually be shutdown instead. 
+
+        // Check if this datanode should actually be shutdown instead.
         if (nodeinfo != null && nodeinfo.isDisallowed()) {
           setDatanodeDead(nodeinfo);
           throw new DisallowedDatanodeException(nodeinfo);
@@ -1247,7 +1246,7 @@ public class DatanodeManager {
               new BlockCommand(DatanodeProtocol.DNA_INVALIDATE, blockPoolId,
                   blks));
         }
-        
+
         blockManager.addKeyUpdateCommand(cmds, nodeinfo);
 
         // check for balancer bandwidth update
@@ -1470,7 +1469,7 @@ public class DatanodeManager {
   public DatanodeDescriptor getDatanodeByXferAddr(String host, int xferPort) {
     return host2DatanodeMap.getDatanodeByXferAddr(host, xferPort);
   }
-  
+
   // only for testing
   @VisibleForTesting
   void addDnToStorageMapInDB(DatanodeDescriptor nodeDescr) throws IOException {
@@ -1487,7 +1486,7 @@ public class DatanodeManager {
     if(datanodeMap.isEmpty()){
         return null;
     }else{
-        
+
       return (DatanodeDescriptor) datanodeMap.values().toArray()[rand.nextInt(datanodeMap.size())];
     }
   }
@@ -1503,7 +1502,7 @@ public class DatanodeManager {
   public DatanodeStorageInfo getStorage(int sid) {
     return this.storageMap.getStorage(sid);
   }
-  
+
   public int getSid(String StorageId){
     return this.storageMap.getSId(StorageId);
   }

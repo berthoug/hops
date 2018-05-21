@@ -151,9 +151,6 @@ public class BlockManager {
   private AtomicLong excessBlocksCount = new AtomicLong(0L);
   private AtomicLong postponedMisreplicatedBlocksCount = new AtomicLong(0L);
 
-  /** Storages accessible from multiple DNs. */
-  private final ProvidedStorageMap providedStorageMap;
-
   /**
    * Used by metrics
    */
@@ -300,7 +297,7 @@ public class BlockManager {
    */
   private BlockPlacementPolicy blockplacement;
   private final BlockStoragePolicySuite storagePolicySuite;
-  
+
   /**
    * Number of blocks to process at one batch
    */
@@ -314,13 +311,16 @@ public class BlockManager {
    */
   private final int processMisReplicatedNoOfBatchs;
 
+  /** Storages accessible from multiple DNs. */
+  private final ProvidedStorageMap providedStorageMap;
+
   public BlockManager(final Namesystem namesystem, final FSClusterStats stats,
       final Configuration conf) throws IOException {
     this.namesystem = namesystem;
     int numBuckets = conf.getInt(DFSConfigKeys.DFS_NUM_BUCKETS_KEY,
         DFSConfigKeys.DFS_NUM_BUCKETS_DEFAULT);
     HashBuckets.initialize(numBuckets);
-    
+
     datanodeManager = new DatanodeManager(this, namesystem, conf);
     corruptReplicas = new CorruptReplicasMap(datanodeManager);
     heartbeatManager = datanodeManager.getHeartbeatManager();
@@ -378,7 +378,7 @@ public class BlockManager {
     this.shouldCheckForEnoughRacks =
         conf.get(DFSConfigKeys.NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY) == null ?
             false : true;
-    
+
     this.blocksInvalidateWorkPct =
         DFSUtil.getInvalidateWorkPctPerIteration(conf);
     this.blocksReplWorkMultiplier = DFSUtil.getReplWorkMultiplier(conf);
@@ -442,11 +442,11 @@ public class BlockManager {
     return new NameNodeBlockTokenSecretManager(updateMin * 60 * 1000L,
         lifetimeMin * 60 * 1000L, null, encryptionAlgorithm, namesystem);
   }
-  
+
   public BlockStoragePolicy getDefaultStoragePolicy(){
     return storagePolicySuite.getDefaultPolicy();
   }
-  
+
   public BlockStoragePolicy getStoragePolicy(final String policyName) {
     return storagePolicySuite.getPolicy(policyName);
   }
@@ -657,7 +657,7 @@ public class BlockManager {
     if (lastBlock.isComplete()) {
       return false; // already completed (e.g. by syncBlock)
     }
-    
+
     final boolean b = commitBlock((BlockInfoUnderConstruction) lastBlock, commitBlock);
     LOG.debug("commitOrCompleteLastBlock for block " + lastBlock.getBlockId());
 
@@ -811,14 +811,12 @@ public class BlockManager {
     return storageSet;
   }
 
-  private List<LocatedBlock> createLocatedBlockList(
+  private void createLocatedBlockList(
       LocatedBlockBuilder locatedBlocks,
       final BlockInfo[] blocks,
-      final long offset,
-      final long length,
-      final int nrBlocksToReturn,
+      final long offset, final long length,
       final AccessMode mode) throws IOException {
-    int curBlk = 0;
+    int curBlk;
     long curPos = 0, blkSize = 0;
     int nrBlocks = (blocks[0].getNumBytes() == 0) ? 0 : blocks.length;
     for (curBlk = 0; curBlk < nrBlocks; curBlk++) {
@@ -831,21 +829,19 @@ public class BlockManager {
     }
 
     if (nrBlocks > 0 && curBlk == nrBlocks)   // offset >= end of file
-    {
-      return Collections.<LocatedBlock>emptyList();
-    }
+      return;
 
     long endOff = offset + length;
-    List<LocatedBlock> results = new ArrayList<>(blocks.length);
     do {
-      results.add(createLocatedBlock(locatedBlocks, blocks[curBlk], curPos, mode));
+      locatedBlocks.addBlock(
+          createLocatedBlock(locatedBlocks, blocks[curBlk], curPos, mode));
       curPos += blocks[curBlk].getNumBytes();
       curBlk++;
+
     } while (curPos < endOff
-            && curBlk < blocks.length
-            && results.size() < nrBlocksToReturn
-            && !locatedBlocks.isBlockMax());
-    return results;
+          && curBlk < blocks.length
+          && !locatedBlocks.isBlockMax());
+    return;
   }
 
   private LocatedBlock createLocatedBlock(LocatedBlockBuilder locatedBlocks,
@@ -1024,7 +1020,7 @@ public class BlockManager {
           .fileLength(fileSizeExcludeBlocksUnderConstruction)
           .lastUC(isFileUnderConstruction);
 
-      createLocatedBlockList(locatedBlocks, blocks, offset, length,  Integer.MAX_VALUE, mode);
+      createLocatedBlockList(locatedBlocks, blocks, offset, length, mode);
 
       final BlockInfo last = blocks[blocks.length - 1];
       final long lastPos = last.isComplete() ?
@@ -1039,7 +1035,7 @@ public class BlockManager {
 
       return locations;
 
-      // final LocatedBlock lastlb = createLocatedBlock(last, lastPos, mode);
+      //final LocatedBlock lastlb = createLocatedBlock(last, lastPos, mode);
       // return new LocatedBlocks(fileSizeExcludeBlocksUnderConstruction,
       //        isFileUnderConstruction, locatedblocks, lastlb, last.isComplete());
     }
@@ -1278,7 +1274,7 @@ public class BlockManager {
       addToInvalidates(block, storage);
     }
   }
-   
+
   void addToInvalidates(Block block, DatanodeStorageInfo storage)
       throws TransactionContextException, StorageException {
     BlockInfo temp = getBlockInfo(block);
@@ -1820,12 +1816,12 @@ public class BlockManager {
       Set<Node> excludes,
       long blocksize,
       byte storagePolicyID) {
-    
+
     final BlockStoragePolicy storagePolicy = storagePolicySuite.getPolicy(storagePolicyID);
     return blockplacement.chooseTarget(src, numAdditionalNodes, clientnode,
         chosen, true, excludes, blocksize, storagePolicy);
   }
-  
+
   public DatanodeStorageInfo[] chooseTarget4ParityRepair(String src,  int numOfReplicas,
       DatanodeDescriptor clientnode,List<DatanodeStorageInfo> chosen, Set<Node> excludes, long blocksize,
       byte storagePolicyID) {
@@ -2066,13 +2062,11 @@ public class BlockManager {
               "ProcessReport from dead or unregistered node: " + nodeID);
     }
 
-    DatanodeStorageInfo storageInfo = node.getStorageInfo(storage.getStorageID());
-
     // To minimize startup time, we discard any second (or later) block reports
     // that we receive while still in startup phase.
     // Register DN with provided storage, not with storage owned by DN
     // DN should still have a ref to the DNStorageInfo.
-    storageInfo = providedStorageMap.getStorage(node, storage);
+    DatanodeStorageInfo storageInfo = providedStorageMap.getStorage(node, storage);
 
     if (storageInfo == null) {
       // We handle this for backwards compatibility.
@@ -2211,10 +2205,10 @@ public class BlockManager {
       addStoredBlockUnderConstructionImmediateTx(b.storedBlock, storage, b.reportedState);
      } else {
         addStoredBlockUnderConstructionTx(b.storedBlock, storage, b.reportedState);
-      } 
+      }
     }
-  
-  
+
+
     final List<Callable<Object>> addTasks = new ArrayList<>();
     for (final BlockInfo b : toAdd) {
       if (firstBlockReport) {
@@ -2240,8 +2234,8 @@ public class BlockManager {
     } catch (ExecutionException e) {
       throw (IOException) e.getCause();
     }
-  
-  
+
+
     for (BlockToMarkCorrupt b : toCorrupt) {
       markBlockAsCorruptTx(b, storage);
     }
@@ -2258,18 +2252,18 @@ public class BlockManager {
     }
     return reportStatistics;
   }
-  
+
   private static class HashMatchingResult{
     private final List<Integer> matchingBuckets;
     private final List<Integer> mismatchedBuckets;
-    
+
     HashMatchingResult(List<Integer> matchingBuckets, List<Integer>
         mismatchedBuckets){
       this.matchingBuckets = matchingBuckets;
       this.mismatchedBuckets = mismatchedBuckets;
     }
   }
-  
+
   class ReportStatistics{
     int numBuckets;
     int numBucketsMatching;
@@ -2280,7 +2274,7 @@ public class BlockManager {
     int numToUC;
     int numToAdd;
     int numConsideredSafeIfInSafemode;
-  
+
     @Override
     public String toString() {
       return String.format("(buckets,bucketsMatching,blocks,toRemove,toInvalidate,toCorrupt,toUC,toAdd," +
@@ -2311,11 +2305,11 @@ public class BlockManager {
     // Get all invalidated replica's
     final Map<Long,Long> invalidatedReplicas = storage
         .getAllStorageInvalidatedReplicasWithGenStamp();
-    
+
     ReportStatistics stats = new ReportStatistics();
     stats.numBuckets = newReport.getBuckets().length;
     stats.numBlocks = newReport.getNumBlocks();
-  
+
     HashMatchingResult matchingResult;
     if (storage.getBlockReportCount() == 0){
       //For some reason, the first block reports can report matching hashes
@@ -2331,16 +2325,16 @@ public class BlockManager {
           newReport);
     }
     stats.numBucketsMatching = matchingResult.matchingBuckets.size();
-    
-    
+
+
     if(LOG.isDebugEnabled()){
       LOG.debug(String.format("%d/%d reported hashes matched",
           newReport.getHashes().length-matchingResult.mismatchedBuckets.size(),
           newReport.getHashes().length));
     }
-    
+
     final Set<Long> aggregatedSafeBlocks = new HashSet<>();
-    
+
     for (final int safeBucket : matchingResult.matchingBuckets){
       for (BlockReportBlock safeBlock : newReport.getBuckets()[safeBucket]
           .getBlocks()){
@@ -2351,23 +2345,23 @@ public class BlockManager {
         aggregatedSafeBlocks.add(safeBlock.getBlockId());
       }
     }
-    
+
     final Collection<Callable<Void>> subTasks = new ArrayList<>();
-    
+
     final Map<Long, Integer> mismatchedBlocksAndInodes = storage.getDatanodeDescriptor()
         .getAllMachineReplicasInBuckets(matchingResult.mismatchedBuckets, storage.getSid());
-  
-    
+
+
     final Set<Long> allMismatchedBlocksOnServer = mismatchedBlocksAndInodes.keySet();
     aggregatedSafeBlocks.addAll(allMismatchedBlocksOnServer);
-    
+
     for (final int bucketId : matchingResult.mismatchedBuckets){
-      
+
       final BlockReportBucket bucket = newReport.getBuckets()[bucketId];
       int numSlices = bucket.getBlocks().length / processReportBatchSize + 1;
       final AtomicInteger sliceNotDoneCounter = new AtomicInteger(numSlices);
       final int[] newBucketHash = new int[1];
-      
+
       try {
         Slicer.slice(bucket.getBlocks().length, processReportBatchSize,
             new Slicer.OperationHandler() {
@@ -2383,14 +2377,14 @@ public class BlockManager {
                     final HopsTransactionalRequestHandler processReportHandler =
                         new HopsTransactionalRequestHandler(
                             HDFSOperationType.PROCESS_REPORT) {
-            
+
                           @Override
                           public void acquireLock(TransactionLocks locks) throws IOException {
                             LockFactory lf = LockFactory.getInstance();
                             List<Long> resolvedBlockIds = new ArrayList<>();
                             List<Integer> inodeIds = new ArrayList<>();
                             List<Long> unResolvedBlockIds = new ArrayList<>();
-              
+
                             List<BlockReportBlock> reportedBlocksSlice =
                                 (List<BlockReportBlock>) getParams()[0];
                             for (BlockReportBlock reportedBlock :
@@ -2404,14 +2398,14 @@ public class BlockManager {
                                 unResolvedBlockIds.add(reportedBlock.getBlockId());
                               }
                             }
-              
+
                             locks.add(
                                 lf.getBlockReportingLocks(Longs.toArray(resolvedBlockIds),
                                     Ints.toArray(inodeIds),
                                     Longs.toArray(unResolvedBlockIds), storage.getSid()))
                                 .add(lf.getIndividualHashBucketLock(storage.getSid(), bucketId));
                           }
-            
+
                           @Override
                           public Object performTask() throws IOException {
                             List<BlockReportBlock> reportedBlocks =
@@ -2441,15 +2435,15 @@ public class BlockManager {
                                   hash += BlockReport.hashAsFinalized(brb);
                                 }
                               }
-                
+
                             }
-              
+
                             //Update hash to match:
                             //long reportedHash = (long) getParams()[1];
                             synchronized (newBucketHash){
                               newBucketHash[0] += hash;
                             }
-                            
+
                             if (sliceNotDoneCounter.decrementAndGet() == 0) {
                               //If we are in the last processed slice
                               HashBucket bucket = HashBuckets.getInstance()
@@ -2472,13 +2466,13 @@ public class BlockManager {
         e.printStackTrace();
       }
     }
-    
+
     try {
       ((FSNamesystem) namesystem).getExecutorService().invokeAll(subTasks);
     } catch (Exception e) {
       LOG.error("Exception was thrown during block report processing", e);
     }
-    
+
     stats.numToAdd = toAdd.size();
     stats.numToInvalidate = toInvalidate.size();
     stats.numToCorrupt = toCorrupt.size();
@@ -2494,7 +2488,7 @@ public class BlockManager {
     }
     return stats;
   }
-  
+
   private ReplicaState fromBlockReportBlockState(
       BlockReportBlockState
           state) {
@@ -2517,7 +2511,7 @@ public class BlockManager {
         .getBucketsForDatanode(storage);
     List<Integer> matchedBuckets = new ArrayList<>();
     List<Integer> mismatchedBuckets = new ArrayList<>();
-    
+
     for (int i = 0; i < report.getBuckets().length; i++){
       boolean matched = false;
       for (HashBucket bucket : allMachineHashes){
@@ -2533,10 +2527,10 @@ public class BlockManager {
         mismatchedBuckets.add(i);
       }
     }
-    
+
     return new HashMatchingResult(matchedBuckets, mismatchedBuckets);
   }
-  
+
   /**
    * Process a block replica reported by the data-node.
    * No side effects except adding to the passed-in Collections.
@@ -2612,7 +2606,7 @@ public class BlockManager {
       + " in recentInvalidatesSet should not appear in DN " + dn; */
       return storedBlock;
     }
-    
+
 
     BlockToMarkCorrupt c =
         checkReplicaCorrupt(block, reportedState, storedBlock, ucState, storage);
@@ -3566,9 +3560,9 @@ public class BlockManager {
    */
   private long addBlock(final Block block, List<BlockWithLocations> results)
       throws IOException {
-    
+
     final List<DatanodeStorageInfo> locations = new ArrayList<DatanodeStorageInfo>();
-    
+
     new HopsTransactionalRequestHandler(HDFSOperationType.GET_VALID_BLK_LOCS) {
       INodeIdentifier inodeIdentifier;
 
@@ -3594,7 +3588,7 @@ public class BlockManager {
         return null;
       }
     }.handle(namesystem);
-    
+
     if (locations.isEmpty()) {
       return 0;
     } else {
@@ -3656,7 +3650,7 @@ public class BlockManager {
         new LinkedList<>();
     Collection<StatefulBlockInfo> toUC = new LinkedList<>();
     final DatanodeDescriptor node = storage.getDatanodeDescriptor();
-    
+
     processIncrementallyReportedBlock(storage, block, reportedState, toAdd, toInvalidate,
         toCorrupt, toUC);
     // the block is only in one of the to-do lists
@@ -3774,7 +3768,7 @@ public class BlockManager {
                 " dataNode=" + node.getXferAddr() + " storage=" + storage.getStorageID() +
                     " sid: " + storage.getSid());
             HashBuckets hashBuckets = HashBuckets.getInstance();
-            
+
             switch (rdbi.getStatus()) {
               case CREATING:
                 processAndHandleReportedBlock(storage, rdbi.getBlock(),
@@ -3809,7 +3803,7 @@ public class BlockManager {
                 break;
               default:
                 String msg =
-                    "Unknown block status code reported by " + storage.getStorageID() + ": " + 
+                    "Unknown block status code reported by " + storage.getStorageID() + ": " +
                         rdbi;
                 blockLog.warn(msg);
                 assert false : msg; // if assertions are enabled, throw.
