@@ -1026,7 +1026,7 @@ public class PBHelper {
         lb.hasLastBlock() ?
                 PBHelper.convert(lb.getLastBlock()) : null,
         lb.getIsLastBlockComplete());
-    return locatedBlocks; //todo: GABRIEL -INVESTIGATE IF WRONG
+    return locatedBlocks;
   }
 
   public static LocatedBlocksProto convert(LocatedBlocks lb) {

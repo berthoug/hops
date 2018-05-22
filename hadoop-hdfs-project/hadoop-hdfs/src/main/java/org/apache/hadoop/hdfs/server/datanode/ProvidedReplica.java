@@ -81,7 +81,7 @@ public abstract class ProvidedReplica extends ReplicaInfo {
     this.fileURI = fileURI;
     this.fileOffset = fileOffset;
     this.conf = conf;
-    this.pathHandle = pathHandle;
+    this.pathHandle = pathHandle; // TODO: GABRIEL - do we need the pathhandle or should we store the in NDB?
     if (remoteFS != null) {
       this.remoteFS = remoteFS;
     } else {

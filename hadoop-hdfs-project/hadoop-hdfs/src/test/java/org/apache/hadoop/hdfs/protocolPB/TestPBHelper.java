@@ -376,7 +376,7 @@ public class TestPBHelper {
   private void compare(LocatedBlock expected, LocatedBlock actual) {
     assertEquals(expected.getBlock(), actual.getBlock());
     compare(expected.getBlockToken(), actual.getBlockToken());
-    assertEquals(expected.getStartOffset(), actual.getStartOffset()); // TODO: Offset differs in testConvertLocatedBlock
+    assertEquals(expected.getStartOffset(), actual.getStartOffset());
     assertEquals(expected.isCorrupt(), actual.isCorrupt());
     DatanodeInfo [] ei = expected.getLocations();
     DatanodeInfo [] ai = actual.getLocations();

@@ -138,10 +138,13 @@ public class TestNamenodeCapacityReport {
       assertTrue(configCapacity == diskCapacity - reserved);
       
       // Ensure new total capacity reported excludes the reserved space
-      assertTrue(configCapacity == (used + remaining + nonDFSUsed));
+      // There will be 5% space reserved in ext filesystem which is not
+      // considered.
+      assertTrue(configCapacity >= (used + remaining + nonDFSUsed));
 
       // Ensure percent used is calculated based on used and present capacity
-      assertTrue(percentUsed == DFSUtil.getPercentUsed(used, configCapacity));
+      assertTrue(percentUsed == DFSUtil.getPercentUsed(used,
+                                                             configCapacity));
 
       // Ensure percent used is calculated based on used and present capacity
       assertTrue(

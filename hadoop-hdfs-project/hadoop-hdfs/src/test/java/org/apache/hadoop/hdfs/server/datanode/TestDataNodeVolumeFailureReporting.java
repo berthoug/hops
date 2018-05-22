@@ -31,6 +31,7 @@ import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeManager;
 import org.apache.log4j.Level;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -41,7 +42,6 @@ import static org.apache.hadoop.test.MetricsAsserts.assertCounter;
 import static org.apache.hadoop.test.MetricsAsserts.getMetrics;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
 
 /**
  * Test reporting of DN volume failure counts and metrics.
@@ -106,7 +106,7 @@ public class TestDataNodeVolumeFailureReporting {
    */
   @Test
   public void testSuccessiveVolumeFailures() throws Exception {
-    assumeTrue(!System.getProperty("os.name").startsWith("Windows"));
+    Assume.assumeTrue(!System.getProperty("os.name").startsWith("Windows"));
 
     // Bring up two more datanodes
     cluster.startDataNodes(conf, 2, true, null, null);
@@ -254,7 +254,7 @@ public class TestDataNodeVolumeFailureReporting {
    */
   @Test
   public void testVolFailureStatsPreservedOnNNRestart() throws Exception {
-    assumeTrue(!System.getProperty("os.name").startsWith("Windows"));
+    Assume.assumeTrue(!System.getProperty("os.name").startsWith("Windows"));
 
     // Bring up two more datanodes that can tolerate 1 failure
     cluster.startDataNodes(conf, 2, true, null, null);
