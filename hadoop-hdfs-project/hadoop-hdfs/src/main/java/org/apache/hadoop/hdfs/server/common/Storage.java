@@ -189,10 +189,7 @@ public abstract class Storage extends StorageInfo {
     Iterator<StorageDirectory> it =
             (dirType == null) ? dirIterator() : dirIterator(dirType);
     for ( ;it.hasNext(); ) {
-      File currentDir = it.next().getCurrentDir();
-      if (currentDir != null) {
-        list.add(new File(currentDir, fileName));
-      }
+      list.add(new File(it.next().getCurrentDir(), fileName));
     }
     return list;
   }
@@ -242,7 +239,9 @@ public abstract class Storage extends StorageInfo {
   @InterfaceAudience.Private
   public static class StorageDirectory implements FormatConfirmable {
     final File root;              // root directory
-    final boolean useLock;        // flag to enable storage lock
+    // whether or not this dir is shared between two separate NNs for HA, or
+    // between multiple block pools in the case of federation.
+    final boolean isShared;
     final StorageDirType dirType; // storage dir type
     FileLock lock;                // storage lock
 
@@ -250,8 +249,7 @@ public abstract class Storage extends StorageInfo {
 
     private final StorageLocation location;
     public StorageDirectory(File dir) {
-      // default dirType is null
-      this(dir, null, true);
+      this(dir, null, false);
     }
 
     public StorageDirectory(StorageLocation location) {
@@ -259,7 +257,7 @@ public abstract class Storage extends StorageInfo {
     }
 
     public StorageDirectory(File dir, StorageDirType dirType) {
-      this(dir, dirType, true);
+      this(dir, dirType, false);
     }
 
     public void setStorageUuid(String storageUuid) {
@@ -272,17 +270,13 @@ public abstract class Storage extends StorageInfo {
 
     /**
      * Constructor
-     *
-     * @param dir
-     *     directory corresponding to the storage
-     * @param dirType
-     *     storage directory type
-     * @param useLock
-     *     true - enables locking on the storage directory and false
-     *     disables locking
+     * @param dir directory corresponding to the storage
+     * @param dirType storage directory type
+     * @param isShared whether or not this dir is shared between two NNs. true
+     *          disables locking on the storage directory, false enables locking
      */
-    public StorageDirectory(File dir, StorageDirType dirType, boolean useLock) {
-      this(dir, dirType, useLock, null);
+    public StorageDirectory(File dir, StorageDirType dirType, boolean isShared) {
+      this(dir, dirType, isShared, null);
     }
 
     /**
@@ -322,11 +316,11 @@ public abstract class Storage extends StorageInfo {
     }
 
     private StorageDirectory(File dir, StorageDirType dirType,
-        boolean useLock, StorageLocation location) {
+        boolean isShared, StorageLocation location) {
       this.root = dir;
       this.lock = null;
-      this.useLock = useLock;
-      this.dirType = dirType;
+      this.dirType =  dirType;
+      this.isShared = isShared;
       this.location = location;
       assert location == null || dir == null ||
           dir.getAbsolutePath().startsWith(
@@ -807,6 +801,9 @@ public abstract class Storage extends StorageInfo {
       return true;
     }
 
+    public boolean isShared() {
+      return isShared;
+    }
 
     /**
      * Lock storage to provide exclusive access.
@@ -821,8 +818,8 @@ public abstract class Storage extends StorageInfo {
      *     if locking fails
      */
     public void lock() throws IOException {
-      if (!useLock) {
-        LOG.info("Locking is disabled");
+      if (isShared()) {
+        LOG.info("Locking is disabled for " + this.root);
         return;
       }
       FileLock newLock = tryLock();
