@@ -44,7 +44,6 @@ import org.apache.hadoop.hdfs.server.datanode.ReplicaNotFoundException;
 import org.apache.hadoop.hdfs.server.datanode.ReplicaUnderRecovery;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.util.DataChecksum;
-import org.apache.log4j.Level;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -175,27 +174,6 @@ public class FsDatasetImplTestUtils implements FsDatasetTestUtils {
     public void truncateMeta(long newSize) throws IOException {
       LOG.info("Truncating metadata file: " + metaFile);
       truncate(metaFile, newSize);
-    }
-
-    @Override
-    public void makeUnreachable() throws IOException {
-      long blockId = Block.getBlockId(blockFile.getAbsolutePath());
-      File origDir = blockFile.getParentFile();
-      File root = origDir.getParentFile().getParentFile();
-      File newDir = null;
-      // Keep incrementing the block ID until the block and metadata
-      // files end up in a different directory.  Actually, with the
-      // current replica file placement scheme, this should only ever
-      // require one increment, but this is a bit of defensive coding.
-      do {
-        blockId++;
-        newDir = DatanodeUtil.idToBlockDir(root, blockId);
-      } while (origDir.equals(newDir));
-      Files.createDirectories(newDir.toPath());
-      Files.move(blockFile.toPath(),
-              new File(newDir, blockFile.getName()).toPath());
-      Files.move(metaFile.toPath(),
-              new File(newDir, metaFile.getName()).toPath());
     }
 
     @Override

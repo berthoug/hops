@@ -454,7 +454,7 @@ public class TestDatanodeBlockScanner {
 
   private static void testReplicaInfoParsingSingle(String subDirPath) {
     File testFile = new File(subDirPath);
-    assertEquals(BASE_PATH, LocalReplica.parseBaseDir(testFile).baseDirPath);
+    assertEquals(BASE_PATH, LocalReplica.parseSubDirs(testFile).baseDirPath); // TODO: GABRIEL - test
   }
 
   @Test

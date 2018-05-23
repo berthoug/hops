@@ -100,7 +100,30 @@ public class DatanodeUtil {
     }
     return f;
   }
-  
+
+  /**
+   * Checks whether there are any files anywhere in the directory tree rooted
+   * at dir (directories don't count as files). dir must exist
+   * @return true if there are no files
+   * @throws IOException if unable to list subdirectories
+   */
+  public static boolean dirNoFilesRecursive(
+          FsVolumeSpi volume, File dir,
+          FileIoProvider fileIoProvider) throws IOException {
+    File[] contents = fileIoProvider.listFiles(volume, dir);
+    if (contents == null) {
+      throw new IOException("Cannot list contents of " + dir);
+    }
+    for (File f : contents) {
+      if (!f.isDirectory() ||
+              (f.isDirectory() && !dirNoFilesRecursive(
+                      volume, f, fileIoProvider))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /**
    * @return the meta name given the block name and generation stamp.
    */
@@ -114,39 +137,5 @@ public class DatanodeUtil {
   public static File getUnlinkTmpFile(File f) {
     return new File(f.getParentFile(), f.getName() + UNLINK_BLOCK_SUFFIX);
   }
-  /**
-   * Checks whether there are any files anywhere in the directory tree rooted
-   * at dir (directories don't count as files). dir must exist
-   * @return true if there are no files
-   * @throws IOException if unable to list subdirectories
-   */
-  public static boolean dirNoFilesRecursive(
-      FsVolumeSpi volume, File dir,
-      FileIoProvider fileIoProvider) throws IOException {
-    File[] contents = fileIoProvider.listFiles(volume, dir);
-    if (contents == null) {
-      throw new IOException("Cannot list contents of " + dir);
-    }
-    for (File f : contents) {
-      if (!f.isDirectory() ||
-          (f.isDirectory() && !dirNoFilesRecursive(
-              volume, f, fileIoProvider))) {
-        return false;
-      }
-    }
-    return true;
-  }
 
-  /**
-   * Get the directory where a finalized block with this ID should be stored.
-   * Do not attempt to create the directory.
-   * @param root the root directory where finalized blocks are stored
-   * @param blockId
-   * @return
-   */
-  public static File idToBlockDir(File root, long blockId) {
-    // TODO: GABRIEL -  Rollback to using LDir instead of getting File from blockId.
-
-    throw new NotImplementedException();
-  }
 }

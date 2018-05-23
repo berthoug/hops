@@ -33,7 +33,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -48,11 +50,7 @@ abstract public class LocalReplica extends ReplicaInfo {
    */
   private File baseDir;
 
-  /**
-   * Whether or not this replica's parent directory includes subdirs, in which
-   * case we can generate them based on the replica's block ID
-   */
-  private boolean hasSubdirs;
+  private int[] subDirs;
 
   private static final Map<String, File> internedBaseDirs = new HashMap<String, File>();
 
@@ -115,8 +113,18 @@ abstract public class LocalReplica extends ReplicaInfo {
    * @return the parent directory path where this replica is located
    */
   protected File getDir() {
-    return hasSubdirs ? DatanodeUtil.idToBlockDir(baseDir,
-            getBlockId()) : baseDir;
+    if (subDirs == null) {
+      return null;
+    }
+
+    StringBuilder sb = new StringBuilder();
+    for (int i : subDirs) {
+      sb.append(DataStorage.BLOCK_SUBDIR_PREFIX);
+      sb.append(i);
+      sb.append("/");
+    }
+    File ret = new File(baseDir, sb.toString());
+    return ret;
   }
 
   /**
@@ -125,46 +133,54 @@ abstract public class LocalReplica extends ReplicaInfo {
    */
   private void setDirInternal(File dir) {
     if (dir == null) {
+      subDirs = null;
       baseDir = null;
       return;
     }
 
-    ReplicaDirInfo dirInfo = parseBaseDir(dir);
-    this.hasSubdirs = dirInfo.hasSubidrs;
+    ReplicaDirInfo replicaDirInfo = parseSubDirs(dir);
+    this.subDirs = replicaDirInfo.subDirs;
 
     synchronized (internedBaseDirs) {
-      if (!internedBaseDirs.containsKey(dirInfo.baseDirPath)) {
+      if (!internedBaseDirs.containsKey(replicaDirInfo.baseDirPath)) {
         // Create a new String path of this file and make a brand new File object
         // to guarantee we drop the reference to the underlying char[] storage.
-        File baseDir = new File(dirInfo.baseDirPath);
-        internedBaseDirs.put(dirInfo.baseDirPath, baseDir);
+        File baseDir = new File(replicaDirInfo.baseDirPath);
+        internedBaseDirs.put(replicaDirInfo.baseDirPath, baseDir);
       }
-      this.baseDir = internedBaseDirs.get(dirInfo.baseDirPath);
+      this.baseDir = internedBaseDirs.get(replicaDirInfo.baseDirPath);
     }
   }
 
   @VisibleForTesting
   public static class ReplicaDirInfo {
+    @VisibleForTesting
     public String baseDirPath;
-    public boolean hasSubidrs;
 
-    public ReplicaDirInfo (String baseDirPath, boolean hasSubidrs) {
-      this.baseDirPath = baseDirPath;
-      this.hasSubidrs = hasSubidrs;
-    }
+    @VisibleForTesting
+    public int[] subDirs;
   }
 
   @VisibleForTesting
-  public static ReplicaDirInfo parseBaseDir(File dir) {
+  public static ReplicaDirInfo parseSubDirs(File dir) {
+    ReplicaDirInfo ret = new ReplicaDirInfo();
 
     File currentDir = dir;
-    boolean hasSubdirs = false;
+    List<Integer> subDirList = new ArrayList<Integer>();
     while (currentDir.getName().startsWith(DataStorage.BLOCK_SUBDIR_PREFIX)) {
-      hasSubdirs = true;
+      // Prepend the integer into the list.
+      subDirList.add(0, Integer.parseInt(currentDir.getName().replaceFirst(
+              DataStorage.BLOCK_SUBDIR_PREFIX, "")));
       currentDir = currentDir.getParentFile();
     }
+    ret.subDirs = new int[subDirList.size()];
+    for (int i = 0; i < subDirList.size(); i++) {
+      ret.subDirs[i] = subDirList.get(i);
+    }
 
-    return new ReplicaDirInfo(currentDir.getAbsolutePath(), hasSubdirs);
+    ret.baseDirPath = currentDir.getAbsolutePath();
+
+    return ret;
   }
 
   /**
@@ -502,20 +518,6 @@ abstract public class LocalReplica extends ReplicaInfo {
       metaRAF.seek(newmetalen - checksumsize);
       metaRAF.write(b, 0, checksumsize);
     }
-  }
-
-  /**
-   * Sync the parent directory changes to durable device.
-   * @throws IOException
-   */
-  public void fsyncDirectory() throws IOException {
-    File dir = getDir();
-    try {
-      getFileIoProvider().dirSync(getVolume(), getDir());
-    } catch (IOException e) {
-      throw new IOException("Failed to sync " + dir, e);
-  }
-
   }
 
 }

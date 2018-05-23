@@ -61,7 +61,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @InterfaceAudience.Private
 public class FsVolumeImpl implements FsVolumeSpi {
-   public static final Logger LOG =
+  public static final Logger LOG =
       LoggerFactory.getLogger(FsVolumeImpl.class);
   private static final ObjectWriter WRITER =
       new ObjectMapper().writerWithDefaultPrettyPrinter();
@@ -303,14 +303,6 @@ public class FsVolumeImpl implements FsVolumeSpi {
   public StorageLocation getStorageLocation() {
     return storageLocation;
   }
-
-  /**
-   * Use {@link FsVolumeImpl#getBaseURI()} instead. Kept for backwards compatibility for now.
-   */
- // @Deprecated
- // public String getPath(String bpid) throws IOException {
- //   return getBlockPoolSlice(bpid).getDirectory().getAbsolutePath();
- // }
 
   @VisibleForTesting
   public File getFinalizedDir(String bpid) throws IOException {
@@ -585,6 +577,8 @@ public class FsVolumeImpl implements FsVolumeSpi {
             } else {
               ExtendedBlock block =
                   new ExtendedBlock(bpid, Block.filename2id(state.curEntry));
+
+              /*
               File expectedBlockDir = DatanodeUtil.idToBlockDir(
                       new File("."), block.getBlockId());
               File actualBlockDir = Paths.get(".",
@@ -596,7 +590,9 @@ public class FsVolumeImpl implements FsVolumeSpi {
                     block.getBlockId(), expectedBlockDir.getPath(),
                     actualBlockDir.getPath());
                 continue;
+
               }
+              */
 
               File blkFile = getBlockFile(bpid, block);
               File metaFile = FsDatasetUtil.findMetaFile(blkFile);
@@ -627,8 +623,10 @@ public class FsVolumeImpl implements FsVolumeSpi {
 
     private File getBlockFile(String bpid, ExtendedBlock blk)
         throws IOException {
-      return new File(DatanodeUtil.idToBlockDir(getFinalizedDir(bpid),
-          blk.getBlockId()).toString() + "/" + blk.getBlockName());
+     // return new File(DatanodeUtil.idToBlockDir(getFinalizedDir(bpid),
+     //     blk.getBlockId()).toString() + "/" + blk.getBlockName());
+
+      return new File(getFinalizedDir(bpid), blk.getBlockName()); // TODO: GABRIEL - test
     }
 
     @Override
