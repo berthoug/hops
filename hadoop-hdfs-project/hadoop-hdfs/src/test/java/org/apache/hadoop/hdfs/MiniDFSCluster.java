@@ -1857,7 +1857,7 @@ public class MiniDFSCluster {
     }
     
     // Wait for expected number of datanodes to start
-    if (dnInfo.length != numDataNodes) { // TODO: GABRIEL - always gets called in tests !!!FIXME!!!
+    if (dnInfo.length != numDataNodes) {
       return true;
     }
     

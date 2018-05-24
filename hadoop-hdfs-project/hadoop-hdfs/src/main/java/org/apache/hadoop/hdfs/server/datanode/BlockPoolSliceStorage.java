@@ -303,7 +303,7 @@ public class BlockPoolSliceStorage extends Storage {
                                StartupOption startOpt,
                                Configuration conf) throws IOException {
     if (sd.getStorageLocation() == null
-            || sd.getStorageLocation().getStorageType() == StorageType.PROVIDED) { // TODO: GABRIEL - NullPointer for location
+            || sd.getStorageLocation().getStorageType() == StorageType.PROVIDED) {
       return false; // regular startup for PROVIDED storage directories
     }
     readProperties(sd);

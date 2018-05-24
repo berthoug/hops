@@ -949,7 +949,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
    */
   private LinkedList<ScanInfo> compileReport(FsVolumeSpi vol, File dir,
                                                               LinkedList<ScanInfo> report) {
-    LOG.info("Scanning local blocks");
+    LOG.info("Scanning local blocks"); // TODO: GABRIEL - should probably call old compileReport instead
     File[] files;
     try {
       files = FileUtil.listFiles(dir);

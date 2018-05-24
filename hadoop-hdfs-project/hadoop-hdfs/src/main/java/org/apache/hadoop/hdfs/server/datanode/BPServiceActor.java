@@ -365,7 +365,7 @@ class BPServiceActor implements Runnable {
           waitTime = 1;
         }
         synchronized (waitForHeartBeats) {
-          waitForHeartBeats.wait(waitTime); // TODO: GABRIEL - throws java.lang.InterruptedException
+          waitForHeartBeats.wait(waitTime);
         }
 
       } catch (RemoteException re) {
