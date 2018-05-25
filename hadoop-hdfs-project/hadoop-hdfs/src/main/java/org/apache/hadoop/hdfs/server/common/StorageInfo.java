@@ -62,8 +62,7 @@ public class StorageInfo {
   public int layoutVersion;   // layout version of the storage data
   public int namespaceID;     // id of the file system
   public String clusterID;      // id of the cluster
-  public long cTime;           // creation time of the file system stateW
-
+  public long cTime;           // creation time of the file system state
 
   public StorageInfo() {
     this(0, 0, "", 0L, "");

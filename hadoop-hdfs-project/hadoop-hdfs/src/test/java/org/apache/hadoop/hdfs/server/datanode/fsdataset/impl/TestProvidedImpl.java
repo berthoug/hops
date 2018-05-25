@@ -187,7 +187,6 @@ public class TestProvidedImpl {
       this.numBlocks = numBlocks;
     }
 
-    // TODO: GABRIEL -  From TestProvidedImpl: Got null reader from BlockAliasMap org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.TestProvidedImpl$TestFileRegionBlockAliasMap@5ef8df1e; no blocks will be populated
     @Override
     public Reader<FileRegion> getReader(Reader.Options opts, String blockPoolId)
         throws IOException {

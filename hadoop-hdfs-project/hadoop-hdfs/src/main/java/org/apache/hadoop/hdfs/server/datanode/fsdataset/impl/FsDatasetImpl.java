@@ -237,7 +237,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
           new DatanodeStorage(sd.getStorageUuid(),
               DatanodeStorage.State.NORMAL,
               storageLocation.getStorageType()));
-      asyncDiskService.addVolume(fsVolume); // TODO: GABRIEL - do we use asyncDiskService?
+      asyncDiskService.addVolume(fsVolume);
       volumes.addVolume(fsVolume);
     }
     LOG.info("Added volume - " + storageLocation + ", StorageType: " +
@@ -1125,7 +1125,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
    */
   @Override // FsDatasetSpi
   public void invalidate(String bpid, Block invalidBlks[]) throws IOException {
-    boolean error = false;
+    final List<String> errors = new ArrayList<String>();
     for (Block invalidBlk : invalidBlks) {
       final ReplicaInfo removing;
       final FsVolumeImpl v;
@@ -1141,27 +1141,27 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
             LOG.info("Failed to delete replica " + invalidBlk
                     + ": ReplicaInfo not found.");
           } else {
-            LOG.error("Failed to delete replica " + invalidBlk
+            errors.add("Failed to delete replica " + invalidBlk
                     + ": GenerationStamp not matched, existing replica is "
                     + Block.toString(infoByBlockId));
           }
           continue;
         }
         if (info.getGenerationStamp() != invalidBlk.getGenerationStamp()) {
-          LOG.error("Failed to delete replica " + invalidBlk +
+          errors.add("Failed to delete replica " + invalidBlk +
               ": GenerationStamp not matched, info=" + info);
           continue;
         }
         v = (FsVolumeImpl) info.getVolume();
         if (v == null) {
-          LOG.error("Failed to delete replica " + invalidBlk
+          errors.add("Failed to delete replica " + invalidBlk
               +  ". No volume for replica " + info);
           continue;
         }
         try {
           File blockFile = new File(info.getBlockURI());
           if (blockFile != null && blockFile.getParentFile() == null) {
-            LOG.error("Failed to delete replica " + invalidBlk
+            errors.add("Failed to delete replica " + invalidBlk
                     +  ". Parent not found for block file: " + blockFile);
             continue;
           }
@@ -1195,8 +1195,14 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       asyncDiskService.deleteAsync(v, removing,
               new ExtendedBlock(bpid, invalidBlk));
     }
-    if (error) {
-      throw new IOException("Error in deleting blocks.");
+    if (!errors.isEmpty()) {
+      StringBuilder b = new StringBuilder("Failed to delete ")
+              .append(errors.size()).append(" (out of ").append(invalidBlks.length)
+              .append(") replica(s):");
+      for(int i = 0; i < errors.size(); i++) {
+        b.append("\n").append(i).append(") ").append(errors.get(i));
+      }
+      throw new IOException(b.toString());
     }
   }
 
@@ -1312,21 +1318,12 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
    * add the block to volumeMap <li>
    * <li>If generation stamp does not match, then update the block with right
    * generation stamp</li>
-   * <li>If the block length in memory does not match the actual block file
-   * length
+   * <li>If the block length in memory does not match the actual block file length
    * then mark the block as corrupt and update the block length in memory</li>
    * <li>If the file in {@link ReplicaInfo} does not match the file on
    * the disk, update {@link ReplicaInfo} with the correct file</li>
    * </ul>
    *
-   * @param blockId
-   *     Block that differs
-   * @param diskFile
-   *     Block file on the disk
-   * @param diskMetaFile
-   *     Metadata file from on the disk
-   * @param vol
-   *     Volume of the block file
    */
   @Override
   public void checkAndUpdate(String bpid, FsVolumeSpi.ScanInfo scanInfo) throws IOException {

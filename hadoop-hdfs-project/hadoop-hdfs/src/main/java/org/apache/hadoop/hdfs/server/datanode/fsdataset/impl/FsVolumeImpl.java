@@ -437,7 +437,9 @@ public class FsVolumeImpl implements FsVolumeSpi {
 
   /**
    * A BlockIterator implementation for FsVolumeImpl.
+   *
    */
+  // BlockIteratorImpl is currently only being used by the provided storage, see testProvidedBlockIterator
   private class BlockIteratorImpl implements FsVolumeSpi.BlockIterator {
     private final File bpidDir;
     private final String name;
@@ -947,6 +949,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
   /**
    * Compile list {@link ScanInfo} for the blocks in the directory <dir>
    */
+  // TODO: GABRIEL - should we use another block reporter?
   private LinkedList<ScanInfo> compileReport(FsVolumeSpi vol, File dir,
                                                               LinkedList<ScanInfo> report) {
     LOG.info("Scanning local blocks");

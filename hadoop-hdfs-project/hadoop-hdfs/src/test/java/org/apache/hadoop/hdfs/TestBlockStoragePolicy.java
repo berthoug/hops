@@ -955,7 +955,7 @@ public class TestBlockStoragePolicy {
           HdfsFileStatus.EMPTY_NAME, true).getPartialListing();
       checkDirectoryListing(status, policyId);
       HdfsLocatedFileStatus fooStatus = (HdfsLocatedFileStatus) status[0];
-      checkLocatedBlocks(fooStatus, 1, 3, before); // TODO: GABRIEL - TEST FAILS HERE, GETS 0 LOCATED BLOCKS
+      checkLocatedBlocks(fooStatus, 1, 3, before);
 
       // change the replication factor to 5
       fs.setReplication(foo, (short) numDataNodes);

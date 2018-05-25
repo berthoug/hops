@@ -94,31 +94,6 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
    */
   public List<V> getVolumes();
 
-  /**
-   * Add a new volume to the FsDataset.<p/>
-   *
-   * If the FSDataset supports block scanning, this function registers
-   * the new volume with the block scanner.
-   *
-   * @param location      The storage location for the new volume.
-   * @param nsInfos       Namespace information for the new volume.
-   */
-//  void addVolume( // TODO: GABRIEL - check if needed and used
-//      final StorageLocation location,
-//      final List<NamespaceInfo> nsInfos) throws IOException;
-
-  /**
-   * Removes a collection of volumes from FsDataset.
-   *
-   * If the FSDataset supports block scanning, this function removes
-   * the volumes from the block scanner.
-   *
-   * @param volumes  The paths of the volumes to be removed.
-   * @param clearFailure set true to clear the failure information about the
-   *                     volumes.
-   */  // TODO: GABRIEL - check if needed and used
- // void removeVolumes(Collection<StorageLocation> volumes, boolean clearFailure);
-
   /** @return a storage with the given storage ID */
   public DatanodeStorage getStorage(final String storageUuid);
 
@@ -137,14 +112,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
   public Map<String, Object> getVolumeInfoMap();
 
   /**
-   * Gets a list of references to the finalized blocks for the given block pool.
-   * <p>
-   * Callers of this function should call
-   * {@link FsDatasetSpi#acquireDatasetLock} to avoid blocks' status being
-   * changed during list iteration.
-   * </p>
-   * @return a list of references to the finalized blocks for the given block
-   *         pool.
+   * @return a list of finalized blocks for the given block pool.
    */
   List<ReplicaInfo> getFinalizedBlocks(String bpid);
 
@@ -384,7 +352,7 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
   /**
    * Check if all the data directories are healthy
    *
-   * @throws DiskErrorException
+   * @throws DiskChecker.DiskErrorException
    */
   public void checkDataDir() throws DiskChecker.DiskErrorException;
 

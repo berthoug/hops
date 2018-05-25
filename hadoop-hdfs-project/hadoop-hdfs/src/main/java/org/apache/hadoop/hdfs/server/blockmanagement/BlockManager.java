@@ -937,7 +937,6 @@ public class BlockManager {
 
       return null == locatedBlock ? newLocatedBlock(eb, locations, pos, false)
               : locatedBlock.newLocatedBlock(eb, locations, pos, false);
-      //return new LocatedBlock(eb, locations, pos, false);
     }
 
     // get block locations
@@ -1005,20 +1004,17 @@ public class BlockManager {
       return null;
     } else if (blocks.length == 0) {
       return new LocatedBlocks(0, isFileUnderConstruction,
-          Collections.<LocatedBlock>emptyList(), null, false);
+              Collections.<LocatedBlock>emptyList(), null, false);
     } else {
       if (LOG.isDebugEnabled()) {
         LOG.debug("blocks = " + java.util.Arrays.asList(blocks));
       }
       final AccessMode mode = needBlockToken ? AccessMode.READ : null;
-    //  final List<LocatedBlock> locatedblocks =
-    //      createLocatedBlockList(blocks, offset, length, Integer.MAX_VALUE,
-    //          mode);
 
       LocatedBlockBuilder locatedBlocks = providedStorageMap
-          .newLocatedBlocks(Integer.MAX_VALUE)
-          .fileLength(fileSizeExcludeBlocksUnderConstruction)
-          .lastUC(isFileUnderConstruction);
+              .newLocatedBlocks(Integer.MAX_VALUE)
+              .fileLength(fileSizeExcludeBlocksUnderConstruction)
+              .lastUC(isFileUnderConstruction);
 
       createLocatedBlockList(locatedBlocks, blocks, offset, length, mode);
 
@@ -1034,10 +1030,6 @@ public class BlockManager {
       LocatedBlocks locations = locatedBlocks.build();
 
       return locations;
-
-      //final LocatedBlock lastlb = createLocatedBlock(last, lastPos, mode);
-      // return new LocatedBlocks(fileSizeExcludeBlocksUnderConstruction,
-      //        isFileUnderConstruction, locatedblocks, lastlb, last.isComplete());
     }
   }
 
@@ -4703,31 +4695,6 @@ public class BlockManager {
             startOffset, corrupt,
             null);
   }
-
-/*  public static LocatedStripedBlock newLocatedStripedBlock(
-    ExtendedBlock b, DatanodeStorageInfo[] storages,
-    byte[] indices, long startOffset, boolean corrupt) {
-    // startOffset is unknown
-    return new LocatedStripedBlock(
-      b, DatanodeStorageInfo.toDatanodeInfos(storages),
-      DatanodeStorageInfo.toStorageIDs(storages),
-      DatanodeStorageInfo.toStorageTypes(storages),
-      indices, startOffset, corrupt,
-      null);
-  }
-
-  public static LocatedBlock newLocatedBlock(ExtendedBlock eb, BlockInfo info,
-       DatanodeStorageInfo[] locs, long offset) throws IOException {
-    final LocatedBlock lb;
-    if (info.isStriped()) {
-      lb = newLocatedStripedBlock(eb, locs,
-              info.getUnderConstructionFeature().getBlockIndices(),
-              offset, false);
-    } else {
-      lb = newLocatedBlock(eb, locs, offset, false);
-    }
-    return lb;
-  }*/
 
   private void addToInvalidates(final Collection<Block> blocks,
       final DatanodeStorageInfo storage) throws IOException {

@@ -128,7 +128,6 @@ class FsDatasetAsyncDiskService {
   /**
    * Stops AsyncDiskService for a volume.
    *
-   * @param volume the root of the volume.
    */
   synchronized void removeVolume(String storageId) {
     if (executors == null) {

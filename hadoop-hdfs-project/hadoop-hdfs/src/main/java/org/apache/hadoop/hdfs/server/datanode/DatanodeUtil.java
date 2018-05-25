@@ -55,7 +55,7 @@ public class DatanodeUtil {
           FsVolumeSpi volume, Block b, File f,
           FileIoProvider fileIoProvider) throws IOException {
     if (fileIoProvider.exists(volume, f)) {
-      throw new IOException( // TODO: GABRIEL - gets thrown in tests
+      throw new IOException(
           "Failed to create temporary file for " + b + ".  File " + f +
               " should not be present, but is.");
     }

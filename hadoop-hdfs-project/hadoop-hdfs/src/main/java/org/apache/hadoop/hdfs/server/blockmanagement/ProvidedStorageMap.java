@@ -337,7 +337,7 @@ public class ProvidedStorageMap {
     DatanodeStorageInfo createProvidedStorage(DatanodeStorage ds) {
       assert null == storageMap.get(ds.getStorageID());
       DatanodeStorageInfo storage = new ProvidedDatanodeStorageInfo(this, ds);
-    //  storage.setHeartbeatedSinceFailover(true);
+      storage.setHeartbeatedSinceFailover(true);
       storageMap.put(storage.getStorageID(), storage);
 
     /*

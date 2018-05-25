@@ -178,11 +178,6 @@ public class Block implements Writable, Comparable<Block> {
     return toString(this);
   }
 
-  public void appendStringTo(StringBuilder sb) {
-    sb.append(BLOCK_FILE_PREFIX).append(blockId).append("_")
-            .append(getGenerationStamp());
-  }
-
   /////////////////////////////////////
   // Writable
   /////////////////////////////////////

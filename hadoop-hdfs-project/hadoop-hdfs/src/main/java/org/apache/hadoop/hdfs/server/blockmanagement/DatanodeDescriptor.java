@@ -443,7 +443,6 @@ public class DatanodeDescriptor extends DatanodeInfo {
     long totalRemaining = 0;
     long totalBlockPoolUsed = 0;
     long totalDfsUsed = 0;
-    long totalNonDfsUsed = 0;
     Set<DatanodeStorageInfo> failedStorageInfos = null;
 
     // Decide if we should check for any missing StorageReport and mark it as
@@ -494,14 +493,14 @@ public class DatanodeDescriptor extends DatanodeInfo {
         if (StorageType.PROVIDED.equals(storage.getStorageType())) {
           continue;
         }
+
+        totalCapacity += report.getCapacity();
+        totalRemaining += report.getRemaining();
+        totalBlockPoolUsed += report.getBlockPoolUsed();
+        totalDfsUsed += report.getDfsUsed();
       } catch (IOException ex) {
         LOG.error("could not handle storage report for storage: " + report.getStorage().getStorageID(), ex);
       }
-      totalCapacity += report.getCapacity();
-      totalRemaining += report.getRemaining();
-      totalBlockPoolUsed += report.getBlockPoolUsed();
-      totalDfsUsed += report.getDfsUsed();
-      //totalNonDfsUsed += report.getNonDfsUsed();
     }
     rollBlocksScheduled(getLastUpdate());
 

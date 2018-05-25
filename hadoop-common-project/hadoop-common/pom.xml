@@ -430,6 +430,7 @@
                   <include>test_rpc_service.proto</include>
                 </includes>
               </source>
+
               <output>${project.build.directory}/generated-test-sources/java</output>
             </configuration>
           </execution>
