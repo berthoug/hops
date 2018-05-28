@@ -96,9 +96,6 @@ public class TestBalancer {
   }
 
   public static void initTestSetup() {
-    Dispatcher.setBlockMoveWaitTime(1000L);
-
-
     // do not create id file since it occupies the disk space
     NameNodeConnector.setWrite2IdFile(false);
   }
@@ -107,7 +104,7 @@ public class TestBalancer {
     conf.setLong(DFSConfigKeys.DFS_BLOCK_SIZE_KEY, DEFAULT_BLOCK_SIZE);
     conf.setInt(DFSConfigKeys.DFS_BYTES_PER_CHECKSUM_KEY, DEFAULT_BLOCK_SIZE);
     conf.setLong(DFSConfigKeys.DFS_HEARTBEAT_INTERVAL_KEY, 1L);
-    conf.setLong(DFSConfigKeys.DFS_NAMENODE_REPLICATION_INTERVAL_KEY, 1L);
+    conf.setInt(DFSConfigKeys.DFS_NAMENODE_HEARTBEAT_RECHECK_INTERVAL_KEY, 500);
     SimulatedFSDataset.setFactory(conf);
     conf.setLong(DFSConfigKeys.DFS_BALANCER_MOVEDWINWIDTH_KEY, 2000L);
   }
@@ -463,9 +460,9 @@ public class TestBalancer {
     assertEquals(capacities.length, racks.length);
     int numOfDatanodes = capacities.length;
     cluster = new MiniDFSCluster.Builder(conf)
-        .numDataNodes(capacities.length)
+        .numDataNodes(0)
         .racks(racks)
-        .simulatedCapacities(capacities)
+       // .simulatedCapacities(capacities)
         .build();
     try {
       cluster.waitActive();
@@ -549,7 +546,7 @@ public class TestBalancer {
         runBalancer(conf, totalUsedSpace, totalCapacity, p, expectedExcludedNodes);
       }
     } finally {
-      cluster.shutdown();
+          cluster.shutdown();
     }
   }
 
@@ -747,7 +744,6 @@ public class TestBalancer {
         .racks(racks)
         .simulatedCapacities(capacities)
         .build();
-    try {
       cluster.waitActive();
       client = NameNodeProxies.createProxy(conf, cluster.getFileSystem(0).getUri(),
           ClientProtocol.class).getProxy();
@@ -769,9 +765,6 @@ public class TestBalancer {
           datanodes, Balancer.Parameters.DEFAULT.nodesToBeIncluded);
       final int r = Balancer.run(namenodes, p, conf);
       assertEquals(ExitStatus.SUCCESS.getExitCode(), r);
-    } finally {
-      cluster.shutdown();
-    }
   }
 
   /**

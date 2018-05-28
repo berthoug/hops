@@ -262,7 +262,7 @@ public class DistributedFileSystem extends FileSystem {
 
   @SuppressWarnings("deprecation")
   @Override
-  public FSDataInputStream open(Path f, int bufferSize) throws IOException {
+  public HdfsDataInputStream open(Path f, int bufferSize) throws IOException {
     statistics.incrementReadOps(1);
     return new DFSClient.DFSDataInputStream(
         dfs.open(getPathName(f), bufferSize, verifyChecksum));
@@ -543,9 +543,7 @@ public class DistributedFileSystem extends FileSystem {
     }.resolve(this, absF);
   }
 
-  /**
-   * Get the effective storage policy for a file.
-   */
+
   public BlockStoragePolicy getStoragePolicy(final Path src) throws IOException {
     statistics.incrementReadOps(1);
     HdfsFileStatus fi = dfs.getFileInfo(getPathName(src));

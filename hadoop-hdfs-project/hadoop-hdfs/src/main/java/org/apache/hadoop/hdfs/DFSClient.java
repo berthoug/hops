@@ -173,7 +173,7 @@ public class DFSClient implements java.io.Closeable {
   private volatile long serverDefaultsLastUpdate;
   final String clientName;
   Configuration conf;
-  SocketFactory socketFactory;
+  SocketFactory   socketFactory;
   final ReplaceDatanodeOnFailure dtpReplaceDatanodeOnFailure;
   final FileSystem.Statistics stats;
   final int hdfsTimeout;    // timeout value for a DFS operation.
