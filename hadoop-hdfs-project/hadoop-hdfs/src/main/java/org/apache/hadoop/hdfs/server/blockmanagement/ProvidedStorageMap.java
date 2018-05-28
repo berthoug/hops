@@ -316,7 +316,7 @@ public class ProvidedStorageMap {
     public final static String NAME = "PROVIDED";
 
     ProvidedDescriptor() throws IOException {
-      super(new StorageMap(false), // TODO: GABRIEL - loadFromDb true or false?
+      super(new StorageMap(false),
             new DatanodeID(
             null,
             null,
