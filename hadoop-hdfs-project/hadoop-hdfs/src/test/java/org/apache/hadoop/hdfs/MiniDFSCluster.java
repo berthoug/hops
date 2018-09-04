@@ -1357,7 +1357,7 @@ public class MiniDFSCluster {
     }
 
 
-    deleteReplicasTable();
+//    deleteReplicasTable();
     UsersGroups.stop();
   }
   
@@ -1456,9 +1456,9 @@ public class MiniDFSCluster {
     String nnId = nameNodes[nnIndex].nnId;
     Configuration conf = nameNodes[nnIndex].conf;
     shutdownNameNode(nnIndex);
-    if(deleteReplicaTable){
-      deleteReplicasTable();  // it will delete the tables if there are no active nn
-    }
+//    if(deleteReplicaTable){
+//      deleteReplicasTable();  // it will delete the tables if there are no active nn
+//    }
 
     NameNode nn = NameNode.createNameNode(args, conf);
     nameNodes[nnIndex] = new NameNodeInfo(nn, nnId, conf);
@@ -2332,29 +2332,29 @@ public class MiniDFSCluster {
   /**
    * deletes tables if there are no alive nn in the system
    */
-  private void deleteReplicasTable() {
-
-    //count number of active NN
-    int activeNameNodes = 0;
-    for (NameNodeInfo nameNode : nameNodes) {
-      if (nameNode == null || nameNode.nameNode == null) {
-        continue;
-      } else {
-        activeNameNodes++;
-      }
-    }
-    if (activeNameNodes == 0) {
-      try {
-        HdfsVariables.resetMisReplicatedIndex();
-        HdfsVariables.enterClusterSafeMode();
-        HdfsStorageFactory.formatStorage(UnderReplicatedBlockDataAccess.class,
-            ExcessReplicaDataAccess.class, CorruptReplicaDataAccess.class,
-            InvalidateBlockDataAccess.class, PendingBlockDataAccess.class,
-            HdfsLeDescriptorDataAccess.class);
-      } catch (Exception e) {
-        LOG.error(e);
-      }
-    }
-  }
+//  private void deleteReplicasTable() {
+//
+//    //count number of active NN
+//    int activeNameNodes = 0;
+//    for (NameNodeInfo nameNode : nameNodes) {
+//      if (nameNode == null || nameNode.nameNode == null) {
+//        continue;
+//      } else {
+//        activeNameNodes++;
+//      }
+//    }
+//    if (activeNameNodes == 0) {
+//      try {
+//        HdfsVariables.resetMisReplicatedIndex();
+//        HdfsVariables.enterClusterSafeMode();
+//        HdfsStorageFactory.formatStorage(UnderReplicatedBlockDataAccess.class,
+//            ExcessReplicaDataAccess.class, CorruptReplicaDataAccess.class,
+//            InvalidateBlockDataAccess.class, PendingBlockDataAccess.class,
+//            HdfsLeDescriptorDataAccess.class);
+//      } catch (Exception e) {
+//        LOG.error(e);
+//      }
+//    }
+//  }
 
 }
