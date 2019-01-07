@@ -400,6 +400,12 @@
 
       <dependency>
         <groupId>io.hops</groupId>
+        <artifactId>hadoop-aws</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      
+      <dependency>
+        <groupId>io.hops</groupId>
         <artifactId>hops-leader-election</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -678,6 +684,16 @@
         <groupId>net.java.dev.jets3t</groupId>
         <artifactId>jets3t</artifactId>
         <version>0.9.0</version>
+      </dependency>
+      <dependency>
+        <groupId>com.amazonaws</groupId>
+        <artifactId>aws-java-sdk-s3</artifactId>
+        <version>${aws-java-sdk.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.amazonaws</groupId>
+        <artifactId>aws-java-sdk-sts</artifactId>
+        <version>${aws-java-sdk.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.mina</groupId>
