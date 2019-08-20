@@ -3987,6 +3987,28 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     return dl;
   }
 
+  /**
+   * Get the prefixes for the inodes in the list
+   *
+   * @param identifiers the inodeIdentifiers for the wanted inodes
+   * @return the prefixes for each of the inodes
+   * @throws AccessControlException if access is denied
+   * @throws UnresolvedLinkException if symbolic link is encountered
+   * @throws IOException if other I/O error occurred
+   */
+  Map<Long, List<INodeIdentifier>> getPrefixes(List<INodeIdentifier> identifiers)
+      throws IOException {
+    Map<Long, List<INodeIdentifier>> pf = null;
+    try {
+      pf = FSDirStatAndListingOp.getPrefixesInt(dir, identifiers);
+    } catch (AccessControlException e) {
+      logAuditEvent(false, "listPrefixes", StringUtils.join(", ", identifiers));
+      throw e;
+    } 
+    logAuditEvent(true, "listPrefixes", StringUtils.join(", ", identifiers));
+    return pf;
+  }
+  
   /////////////////////////////////////////////////////////
   //
   // These methods are called by datanodes

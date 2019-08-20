@@ -23,6 +23,7 @@ import io.hops.metadata.hdfs.dal.UserDataAccess;
 import io.hops.metadata.hdfs.dal.UserGroupDataAccess;
 import io.hops.metadata.hdfs.entity.EncodingPolicy;
 import io.hops.metadata.hdfs.entity.EncodingStatus;
+import io.hops.metadata.hdfs.entity.INodeIdentifier;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.permission.AclEntry;
@@ -51,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdfs.protocol.LastBlockWithStatus;
 import static org.junit.Assert.*;
@@ -283,6 +285,11 @@ public class TestUsersGroupsMultiNamenode {
       return null;
     }
 
+    @Override
+    public Map<Long, List<INodeIdentifier>> getPrefixes(List<INodeIdentifier> identifiers) throws IOException {
+      return null;
+    }
+    
     @Override
     public void renewLease(String clientName)
         throws AccessControlException, IOException {

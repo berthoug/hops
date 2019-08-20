@@ -190,6 +190,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.net.InetAddresses;
+import io.hops.metadata.hdfs.entity.INodeIdentifier;
 import org.apache.hadoop.HadoopIllegalArgumentException;
 import org.apache.hadoop.fs.FsTracer;
 import org.apache.hadoop.hdfs.shortcircuit.DomainSocketFactory;
@@ -200,6 +201,7 @@ import org.apache.hadoop.hdfs.protocol.datatransfer.sasl.DataTransferSaslUtil;
 import org.apache.hadoop.hdfs.protocol.datatransfer.sasl.SaslDataTransferClient;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorageReport;
+import org.apache.hadoop.util.StringUtils;
 import org.apache.htrace.core.TraceScope;
 import org.apache.htrace.core.Tracer;
 
@@ -1953,6 +1955,23 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     checkOpen();
     try (TraceScope ignored = newPathTraceScope("listPaths", src)) {
       return namenode.getListing(src, startAfter, needLocation);
+    } catch(RemoteException re) {
+      throw re.unwrapRemoteException(AccessControlException.class,
+                                     FileNotFoundException.class,
+                                     UnresolvedPathException.class);
+    }
+  }
+
+  /**
+   * Get prefixes of the indicated inodes
+   *
+   * @see ClientProtocol#getPrefixes(List<InodeIdentifier>)
+   */
+  public Map<Long, List<INodeIdentifier>> getPrefixes(List<INodeIdentifier> identifiers)
+    throws IOException {
+    checkOpen();
+    try (TraceScope ignored = newPathTraceScope("getPrefixes", StringUtils.join(", ", identifiers))) {
+      return namenode.getPrefixes(identifiers);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
                                      FileNotFoundException.class,

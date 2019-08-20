@@ -20,6 +20,7 @@ package org.apache.hadoop.hdfs.protocol;
 import io.hops.leader_election.node.SortedActiveNodeList;
 import io.hops.metadata.hdfs.entity.EncodingPolicy;
 import io.hops.metadata.hdfs.entity.EncodingStatus;
+import io.hops.metadata.hdfs.entity.INodeIdentifier;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -60,6 +61,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import org.apache.hadoop.fs.CacheFlag;
 import org.apache.hadoop.io.retry.AtMostOnce;
 
@@ -876,6 +878,16 @@ public interface ClientProtocol {
       throws AccessControlException, FileNotFoundException,
       UnresolvedLinkException, IOException;
 
+  /**
+   * Get the prefixes for the inodes in the list
+   *
+   * @param identifiers the inodeIdentifiers for the wanted inodes
+   * @return the prefixes for each of the inodes
+   * @throws IOException if other I/O error occurred
+   */
+  @Idempotent
+  Map<Long, List<INodeIdentifier>> getPrefixes(List<INodeIdentifier> identifiers)throws IOException;
+  
   ///////////////////////////////////////
   // System issues and management
   ///////////////////////////////////////

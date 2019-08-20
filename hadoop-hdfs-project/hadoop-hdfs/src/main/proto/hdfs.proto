@@ -359,6 +359,31 @@ message DirectoryListingProto {
 }
 
 /**
+ * Inode Identifiers
+ */
+message InodeIdentifierProto {
+  required uint64 inodeId = 1;
+  required string name = 2;
+  required uint64 parentId = 3;
+  required uint64 partitionId = 4;
+}
+
+/**
+ * Prefixes
+ */
+message PrefixeProto {
+  required uint64 inodeId = 1;
+  repeated InodeIdentifierProto identifiers = 2;
+}
+
+/**
+ * Prefixes listing
+ */
+message PrefixeListingProto {
+  repeated PrefixeProto prefixes = 1;
+}
+
+/**
  * Common node information shared by all the nodes in the cluster
  */
 message StorageInfoProto {

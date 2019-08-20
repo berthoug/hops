@@ -23,6 +23,7 @@ import io.hops.leader_election.node.ActiveNode;
 import io.hops.leader_election.node.SortedActiveNodeList;
 import io.hops.leader_election.proto.ActiveNodeProtos;
 import io.hops.metadata.hdfs.entity.EncodingStatus;
+import io.hops.metadata.hdfs.entity.INodeIdentifier;
 import java.util.EnumSet;
 
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -99,6 +100,8 @@ import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetLin
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetLinkTargetResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetListingRequestProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetListingResponseProto;
+import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetPrefixesRequestProto;
+import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetPrefixesResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetPreferredBlockSizeRequestProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetPreferredBlockSizeResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetServerDefaultsRequestProto;
@@ -183,6 +186,7 @@ import org.apache.hadoop.security.token.Token;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import org.apache.hadoop.fs.BatchedRemoteIterator.BatchedEntries;
 import org.apache.hadoop.hdfs.protocol.CacheDirectiveEntry;
 import org.apache.hadoop.hdfs.protocol.CacheDirectiveInfo;
@@ -234,6 +238,9 @@ public class ClientNamenodeProtocolServerSideTranslatorPB
   private static final GetListingResponseProto VOID_GETLISTING_RESPONSE =
       GetListingResponseProto.newBuilder().build();
 
+  private static final GetPrefixesResponseProto VOID_GETPREFIXES_RESPONSE =
+      GetPrefixesResponseProto.newBuilder().build();
+  
   private static final RenewLeaseResponseProto VOID_RENEWLEASE_RESPONSE =
       RenewLeaseResponseProto.newBuilder().build();
 
@@ -736,6 +743,22 @@ public class ClientNamenodeProtocolServerSideTranslatorPB
     }
   }
 
+  @Override
+  public GetPrefixesResponseProto getPrefixes(RpcController controller,
+      GetPrefixesRequestProto req) throws ServiceException {
+    try {
+      Map<Long, List<INodeIdentifier>> result = server.
+          getPrefixes(PBHelper.convertIdentifierProtos(req.getIdentifiersList()));
+      if (result != null && !result.isEmpty()) {
+        return GetPrefixesResponseProto.newBuilder().setPrefixes(PBHelper.convert(result)).build();
+      } else {
+        return VOID_GETPREFIXES_RESPONSE;
+      }
+    } catch (IOException e) {
+      throw new ServiceException(e);
+    }
+  }
+  
   @Override
   public RenewLeaseResponseProto renewLease(RpcController controller,
       RenewLeaseRequestProto req) throws ServiceException {

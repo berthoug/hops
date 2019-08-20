@@ -23,6 +23,7 @@ import io.hops.leader_election.node.ActiveNode;
 import io.hops.leader_election.node.SortedActiveNodeList;
 import io.hops.metadata.hdfs.entity.EncodingPolicy;
 import io.hops.metadata.hdfs.entity.EncodingStatus;
+import io.hops.metadata.hdfs.entity.INodeIdentifier;
 import static org.apache.hadoop.util.Time.now;
 
 import io.hops.security.UsersGroups;
@@ -145,6 +146,7 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import org.apache.hadoop.HadoopIllegalArgumentException;
 import org.apache.hadoop.fs.CacheFlag;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
@@ -871,6 +873,17 @@ class NameNodeRpcServer implements NamenodeProtocols {
       metrics.incrFilesInGetListingOps(files.getPartialListing().length);
     }
     return files;
+  }
+
+  @Override // ClientProtocol
+  public Map<Long, List<INodeIdentifier>> getPrefixes(List<INodeIdentifier> identifiers) throws IOException {
+    checkNNStartup();
+    Map<Long, List<INodeIdentifier>> prefixes =
+        namesystem.getPrefixes(identifiers);
+    if (prefixes != null) {
+      metrics.incrGetPrefixesOps(identifiers.size());
+    }
+    return prefixes;
   }
 
   @Override // ClientProtocol

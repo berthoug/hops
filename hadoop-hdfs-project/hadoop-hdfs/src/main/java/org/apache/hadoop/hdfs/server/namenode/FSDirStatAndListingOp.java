@@ -18,12 +18,16 @@
 
 package org.apache.hadoop.hdfs.server.namenode;
 
+import io.hops.common.INodeUtil;
+import io.hops.exception.StorageException;
 import io.hops.metadata.hdfs.entity.INodeIdentifier;
+import io.hops.transaction.EntityManager;
 import io.hops.transaction.handler.HDFSOperationType;
 import io.hops.transaction.handler.HopsTransactionalRequestHandler;
 import io.hops.transaction.lock.INodeLock;
 import io.hops.transaction.lock.LockFactory;
 import io.hops.transaction.lock.LockFactory.BLK;
+import io.hops.transaction.lock.TransactionLockTypes;
 import io.hops.transaction.lock.TransactionLockTypes.INodeLockType;
 import io.hops.transaction.lock.TransactionLockTypes.INodeResolveType;
 import io.hops.transaction.lock.TransactionLocks;
@@ -44,8 +48,13 @@ import org.apache.hadoop.hdfs.server.blockmanagement.BlockStoragePolicySuite;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.apache.hadoop.hdfs.protocol.FsAclPermission;
 
 class FSDirStatAndListingOp {
@@ -482,5 +491,36 @@ class FSDirStatAndListingOp {
     
     fsd.addYieldCount(0);
     return cs;
+  }
+  
+  static Map<Long, List<INodeIdentifier>> getPrefixesInt(final FSDirectory fsd, final List<INodeIdentifier> identifiers)
+      throws IOException {
+    return (Map<Long, List<INodeIdentifier>>) new HopsTransactionalRequestHandler(
+        HDFSOperationType.AFTER_PROCESS_REPORT_ADD_BLK_IMMEDIATE) {
+      List<INodeIdentifier> inodeIdentifiers = new ArrayList<>();
+
+      @Override
+      public void acquireLock(TransactionLocks locks) throws IOException {
+        LockFactory lf = LockFactory.getInstance();
+        locks.add(lf.getINodesLocks(INodeLockType.WRITE, inodeIdentifiers));
+      }
+
+      @Override
+      public Object performTask() throws IOException {
+        Map<Long, List<INodeIdentifier>> prefixes = new HashMap<>();
+        for (INodeIdentifier identifier : identifiers) {
+          List<INodeIdentifier> prefix = new ArrayList<>();
+          INode inode = EntityManager.find(INode.Finder.ByNamesParentIdsAndPartitionIds, identifier.getName(),
+              identifier.getPid(), identifier.getPartitionId());
+          while (inode != null) {
+            prefix.add(0, new INodeIdentifier(inode.getId(), inode.parentId, inode.getLocalName(), inode.
+                getPartitionId()));
+            inode = inode.parent;
+          }
+          prefixes.put(identifier.getInodeId(), prefix);
+        }
+        return prefixes;
+      }
+    }.handle();
   }
 }

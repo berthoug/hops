@@ -49,6 +49,7 @@ public class NameNodeMetrics {
   @Metric MutableCounterLong filesRenamed;
   @Metric MutableCounterLong filesTruncated;
   @Metric MutableCounterLong getListingOps;
+  @Metric MutableCounterLong getPrefixesOps;
   @Metric MutableCounterLong deleteFileOps;
   @Metric("Number of files/dirs deleted by delete or rename operations")
   MutableCounterLong filesDeleted;
@@ -81,6 +82,7 @@ public class NameNodeMetrics {
       filesTruncated.value() +
       deleteFileOps.value() +
       getListingOps.value() +
+      getPrefixesOps.value() +
       fileInfoOps.value() +
       getLinkTargetOps.value() +
       createSymlinkOps.value();
@@ -189,6 +191,10 @@ public class NameNodeMetrics {
     getListingOps.incr();
   }
 
+  public void incrGetPrefixesOps(long delta) {
+    getPrefixesOps.incr();
+  }
+  
   public void incrFilesInGetListingOps(int delta) {
     filesInGetListingOps.incr(delta);
   }

@@ -32,6 +32,7 @@ import io.hops.leader_election.node.SortedActiveNodeListPBImpl;
 import io.hops.leader_election.proto.ActiveNodeProtos.ActiveNodeProto;
 import io.hops.metadata.hdfs.entity.EncodingPolicy;
 import io.hops.metadata.hdfs.entity.EncodingStatus;
+import io.hops.metadata.hdfs.entity.INodeIdentifier;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.CreateFlag;
 import org.apache.hadoop.fs.FsServerDefaults;
@@ -133,6 +134,9 @@ import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.DatanodeInfoProto.AdminS
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.DatanodeInfosProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.DatanodeLocalInfoProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.DirectoryListingProto;
+import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.InodeIdentifierProto;
+import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.PrefixeProto;
+import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.PrefixeListingProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.ExportedBlockKeysProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.ExtendedBlockProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.FsPermissionProto;
@@ -195,7 +199,9 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.hadoop.hdfs.protocol.BlockListAsLongs;
 import org.apache.hadoop.hdfs.protocol.FsAclPermission;
 import org.apache.hadoop.hdfs.server.namenode.INodeDirectory;
@@ -1448,6 +1454,70 @@ public class PBHelper {
         build();
   }
 
+  public static List<INodeIdentifier> convertIdentifierProtos(List<InodeIdentifierProto> list) {
+    if (list == null || list.isEmpty()) {
+      return null;
+    }
+    List<INodeIdentifier> result = new ArrayList<>(list.size());
+    for (InodeIdentifierProto proto : list) {
+      result.add(new INodeIdentifier(proto.getInodeId(), proto.getParentId(), proto.getName(), proto.getPartitionId()));
+    }
+    return result;
+  }
+
+  public static List<InodeIdentifierProto> convertIdentifiers(List<INodeIdentifier> list) {
+    if (list == null || list.isEmpty()) {
+      return null;
+    }
+    List<InodeIdentifierProto> result = new ArrayList<>(list.size());
+    for (INodeIdentifier identifier : list) {
+      result.add(InodeIdentifierProto.newBuilder().
+          setInodeId(identifier.getInodeId()).
+          setParentId(identifier.getPid()).
+          setName(identifier.getName()).
+          setPartitionId(identifier.getPartitionId()).
+          build());
+    }
+    return result;
+  }
+
+  public static PrefixeListingProto convert(Map<Long, List<INodeIdentifier>> map) {
+    if (map == null || map.isEmpty()) {
+      return null;
+    }
+    PrefixeListingProto.Builder builder = PrefixeListingProto.newBuilder();
+    for (Map.Entry<Long, List<INodeIdentifier>> entry : map.entrySet()) {
+      PrefixeProto.Builder pp = PrefixeProto.newBuilder();
+      pp.setInodeId(entry.getKey());
+      for (INodeIdentifier identifier : entry.getValue()) {
+        InodeIdentifierProto.Builder ip = InodeIdentifierProto.newBuilder();
+        ip.setInodeId(identifier.getInodeId());
+        ip.setName(identifier.getName());
+        ip.setParentId(identifier.getPid());
+        ip.setPartitionId(identifier.getPartitionId());
+        pp.addIdentifiers(ip.build());
+      }
+      builder.addPrefixes(pp.build());
+    }
+    return builder.build();
+  }
+
+  public static Map<Long, List<INodeIdentifier>> convert(PrefixeListingProto proto) {
+    List<PrefixeProto> prefixeProtos = proto.getPrefixesList();
+    if(prefixeProtos==null || prefixeProtos.isEmpty()){
+      return null;
+    }
+    Map<Long, List<INodeIdentifier>> result = new HashMap<>();
+    for(PrefixeProto pp : prefixeProtos){
+      List<INodeIdentifier> list = new ArrayList<>(pp.getIdentifiersCount());
+      for(InodeIdentifierProto iip : pp.getIdentifiersList()){
+        list.add(new INodeIdentifier(iip.getInodeId(), iip.getParentId(), iip.getName(), iip.getPartitionId()));
+      }
+      result.put(pp.getInodeId(), list);
+    }
+    return result;
+  }
+  
   public static long[] convert(GetFsStatsResponseProto res) {
     long[] result = new long[7];
     result[ClientProtocol.GET_STATS_CAPACITY_IDX] = res.getCapacity();

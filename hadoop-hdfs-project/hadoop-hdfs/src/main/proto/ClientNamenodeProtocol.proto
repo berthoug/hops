@@ -308,6 +308,14 @@ message GetListingResponseProto {
   optional DirectoryListingProto dirList = 1;
 }
 
+message GetPrefixesRequestProto {
+  repeated InodeIdentifierProto identifiers = 1;
+}
+
+message GetPrefixesResponseProto {
+  optional PrefixeListingProto prefixes = 1;
+}
+
 message RenewLeaseRequestProto {
   required string clientName = 1;
 }
@@ -839,6 +847,7 @@ service ClientNamenodeProtocol {
   rpc delete (DeleteRequestProto) returns (DeleteResponseProto);
   rpc mkdirs (MkdirsRequestProto) returns (MkdirsResponseProto);
   rpc getListing (GetListingRequestProto) returns (GetListingResponseProto);
+  rpc getPrefixes(GetPrefixesRequestProto) returns (GetPrefixesResponseProto);
   rpc renewLease (RenewLeaseRequestProto) returns (RenewLeaseResponseProto);
   rpc recoverLease (RecoverLeaseRequestProto) returns (RecoverLeaseResponseProto);
   rpc getFsStats (GetFsStatusRequestProto) returns (GetFsStatsResponseProto);

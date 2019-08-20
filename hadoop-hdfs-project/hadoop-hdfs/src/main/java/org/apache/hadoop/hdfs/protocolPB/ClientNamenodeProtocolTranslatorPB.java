@@ -102,6 +102,8 @@ import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetLin
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetLinkTargetResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetListingRequestProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetListingResponseProto;
+import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetPrefixesRequestProto;
+import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetPrefixesResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetPreferredBlockSizeRequestProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetServerDefaultsRequestProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.IsFileClosedRequestProto;
@@ -172,6 +174,8 @@ import org.apache.hadoop.hdfs.protocol.RollingUpgradeInfo;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ServiceException;
+import io.hops.metadata.hdfs.entity.INodeIdentifier;
+import java.util.Map;
 
 
 /**
@@ -660,7 +664,23 @@ public class ClientNamenodeProtocolTranslatorPB
       throw ProtobufHelper.getRemoteException(e);
     }
   }
+  
+  @Override
+  public Map<Long, List<INodeIdentifier>> getPrefixes(List<INodeIdentifier> identifiers) throws IOException {
+    GetPrefixesRequestProto req = GetPrefixesRequestProto.newBuilder().addAllIdentifiers(PBHelper.convertIdentifiers(
+        identifiers)).build();
+    try {
+      GetPrefixesResponseProto result = rpcProxy.getPrefixes(null, req);
 
+      if (result.hasPrefixes()) {
+        return PBHelper.convert(result.getPrefixes());
+      }
+      return null;
+    } catch (ServiceException e) {
+      throw ProtobufHelper.getRemoteException(e);
+    }
+  }
+  
   @Override
   public void renewLease(String clientName)
       throws AccessControlException, IOException {
